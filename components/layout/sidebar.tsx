@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Bell, BookOpen, Building, Calendar, ChevronDown,
-  ClipboardList, DollarSign, FileText, Home, Image,
+  ClipboardList, DollarSign, FileText, Heart, Home, Image,
   LogOut, MessageSquare, Moon, Plus, Settings, Shield,
   Sun, Trophy, Users, Warehouse, X, Zap,
 } from "lucide-react";
@@ -123,6 +123,11 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
     { href: "/philanthropy", label: "Fundraising", icon: <DollarSign size={18} /> },
   ];
 
+  const profileNav: NavItem[] = [
+    { href: "/profile", label: "My Profile", icon: <Users size={18} /> },
+    ...(isGreek && org ? [{ href: "/greekmatch", label: "💚 GreekMatch", icon: <Heart size={18} /> }] : []),
+  ];
+
   const bottomNav: NavItem[] = [
     { href: "/reports", label: "Reports", icon: <FileText size={18} /> },
     { href: "/transition", label: "Officer Binder", icon: <BookOpen size={18} /> },
@@ -228,7 +233,20 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
           <NavLink key={item.href} item={item} active={pathname === item.href || pathname.startsWith(item.href + "/")} collapsed={collapsed} />
         ))}
 
-        {featureNav.length > 0 && (
+        {profileNav.length > 0 && (
+          <>
+            {!collapsed && (
+              <div className="px-3 pt-4 pb-1">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">You</p>
+              </div>
+            )}
+            {profileNav.map((item) => (
+              <NavLink key={item.href} item={item} active={pathname === item.href || pathname.startsWith(item.href + "/")} collapsed={collapsed} />
+            ))}
+          </>
+        )}
+
+                {featureNav.length > 0 && (
           <>
             {!collapsed && (
               <div className="px-3 pt-4 pb-1">

@@ -522,3 +522,47 @@ export interface Database {
     Tables: Record<string, { Row: Record<string, unknown>; Insert: Record<string, unknown>; Update: Record<string, unknown> }>;
   };
 }
+
+export interface GreekMatchProfile {
+  id: string;
+  user_id: string;
+  org_id: string;
+  display_name: string;
+  age: number | null;
+  bio: string | null;
+  photos: string[];
+  major: string | null;
+  graduation_year: number | null;
+  interests: string[];
+  personality_traits: string[];
+  gender: string | null;
+  interested_in: string[];
+  min_age: number;
+  max_age: number;
+  same_org_ok: boolean;
+  is_active: boolean;
+  paused: boolean;
+  show_org_name: boolean;
+  show_full_name: boolean;
+  opted_in_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GreekMatchMatch {
+  id: string;
+  user_a_id: string;
+  user_b_id: string;
+  matched_at: string;
+  user_a_unmatched: boolean;
+  user_b_unmatched: boolean;
+}
+
+export interface GreekMatchMessage {
+  id: string;
+  match_id: string;
+  sender_id: string;
+  body: string;
+  sent_at: string;
+  read_at: string | null;
+}
