@@ -8,6 +8,7 @@ import {
   ChevronRight,
   ClipboardCheck,
   Download,
+  FileText,
   Images,
   LayoutDashboard,
   Lock,
@@ -38,6 +39,7 @@ import {
   type SocialAsset,
 } from "./data/platform";
 import { downloadCsv, toCsv } from "./lib/csv";
+import featureBacklog from "../docs/feature-backlog.md?raw";
 
 type View =
   | "dashboard"
@@ -48,7 +50,8 @@ type View =
   | "pnm"
   | "social"
   | "sports"
-  | "admin";
+  | "admin"
+  | "coverage";
 
 const navigation: Array<{ id: View; label: string; icon: typeof LayoutDashboard }> = [
   { id: "dashboard", label: "Home", icon: LayoutDashboard },
@@ -59,6 +62,7 @@ const navigation: Array<{ id: View; label: string; icon: typeof LayoutDashboard 
   { id: "social", label: "Social", icon: Images },
   { id: "sports", label: "SportsOS", icon: Trophy },
   { id: "admin", label: "Admin", icon: ShieldCheck },
+  { id: "coverage", label: "Coverage", icon: FileText },
 ];
 
 const formatCurrency = (value: number) =>
@@ -74,6 +78,51 @@ const formatDateTime = (value: string) =>
 
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(value));
+
+interface BacklogSection {
+  id: number;
+  title: string;
+  body: string[];
+  bullets: string[];
+}
+
+function parseBacklogSections(markdown: string): BacklogSection[] {
+  const sections: BacklogSection[] = [];
+  let current: BacklogSection | null = null;
+
+  for (const line of markdown.split("\n")) {
+    const heading = line.match(/^##\s+(\d+)\.\s+(.+)$/);
+    if (heading) {
+      current = {
+        id: Number(heading[1]),
+        title: heading[2],
+        body: [],
+        bullets: [],
+      };
+      sections.push(current);
+      continue;
+    }
+
+    if (!current || line.startsWith("## ")) {
+      continue;
+    }
+
+    const bullet = line.match(/^-\s+(.+)$/);
+    if (bullet) {
+      current.bullets.push(bullet[1]);
+      continue;
+    }
+
+    const trimmed = line.trim();
+    if (trimmed && !trimmed.startsWith("###")) {
+      current.body.push(trimmed);
+    }
+  }
+
+  return sections;
+}
+
+const backlogSections = parseBacklogSections(featureBacklog);
 
 export function App() {
   const [selectedOrganizationId, setSelectedOrganizationId] = useState(organizations[0].id);
@@ -309,6 +358,7 @@ export function App() {
         {activeView === "social" && <Social assets={data.socialAssets} />}
         {activeView === "sports" && <Sports data={data} />}
         {activeView === "admin" && <Admin data={data} roleName={roleName} />}
+        {activeView === "coverage" && <BacklogCoverage />}
       </main>
 
       <nav className="bottom-nav" aria-label="Mobile primary">
@@ -529,6 +579,10 @@ function Roster({
             </option>
           ))}
         </select>
+        <button className="secondary-button" type="button">
+          <Plus size={16} />
+          Import CSV
+        </button>
         <button className="secondary-button" type="button" onClick={onExport}>
           <Download size={16} />
           Export CSV
@@ -869,6 +923,95 @@ function Admin({ data, roleName }: { data: ReturnType<typeof getOrganizationData
           <Info label="Officers" value={data.organization.officers.join(", ")} />
         </div>
       </Panel>
+    </section>
+  );
+}
+
+
+function BacklogCoverage() {
+  const core = backlogSections.find((section) => section.id === 0);
+  const mvp = backlogSections.find((section) => section.id === 66);
+  const implementedShell = new Set([0, 1, 2, 3, 4, 5, 6, 9, 11, 12, 13, 30, 45, 57, 58, 62, 63, 65, 66]);
+
+  return (
+    <section className="content-stack">
+      <PageHeader
+        eyebrow="Full requested scope"
+        title="Feature coverage matrix"
+        description="The runnable app imports the canonical backlog and exposes every numbered TouseOS requirement from core architecture through MVP priority order."
+      />
+
+      {core && (
+        <div className="hero-card coverage-hero">
+          <div>
+            <span className="eyebrow">0. Core platform architecture</span>
+            <h2>{core.title}</h2>
+            <p>
+              Multi-tenant organization workspaces, reusable member/event/payment
+              components, RBAC, audit logs, CSV import/export, notifications,
+              onboarding, admin dashboards, and dark/light mobile UI.
+            </p>
+          </div>
+          <div className="coverage-summary">
+            <strong>{backlogSections.length}</strong>
+            <span>numbered scope sections</span>
+          </div>
+        </div>
+      )}
+
+      <div className="coverage-grid">
+        {backlogSections.map((section) => {
+          const state =
+            section.id === 66
+              ? "Priority roadmap"
+              : implementedShell.has(section.id)
+                ? "MVP shell included"
+                : "Backlog captured";
+          return (
+            <article className="coverage-card" key={section.id}>
+              <div className="coverage-card-header">
+                <span className="section-number">{section.id}</span>
+                <div>
+                  <strong>{section.title}</strong>
+                  <Pill
+                    label={state}
+                    tone={state === "MVP shell included" ? "success" : state === "Priority roadmap" ? "info" : "warning"}
+                  />
+                </div>
+              </div>
+              {section.body[0] && <p>{section.body[0]}</p>}
+              <ul>
+                {section.bullets.slice(0, 7).map((bullet) => (
+                  <li key={bullet}>{bullet}</li>
+                ))}
+              </ul>
+              {section.bullets.length > 7 && (
+                <span className="more-count">+{section.bullets.length - 7} more captured</span>
+              )}
+            </article>
+          );
+        })}
+      </div>
+
+      {mvp && (
+        <Panel title="66. MVP priority order" action="Build sequence">
+          <div className="priority-grid">
+            {mvp.bullets.length > 0
+              ? mvp.bullets.map((item, index) => (
+                  <div key={item} className="priority-item">
+                    <span>{index + 1}</span>
+                    {item}
+                  </div>
+                ))
+              : mvpPriority.map((item, index) => (
+                  <div key={item} className="priority-item">
+                    <span>{index + 1}</span>
+                    {item}
+                  </div>
+                ))}
+          </div>
+        </Panel>
+      )}
     </section>
   );
 }

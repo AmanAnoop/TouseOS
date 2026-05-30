@@ -731,6 +731,91 @@ blockquote {
   grid-template-columns: minmax(0, 1fr) auto auto;
 }
 
+
+.coverage-hero {
+  align-items: center;
+}
+
+.coverage-summary {
+  display: grid;
+  place-items: center;
+  min-width: 12rem;
+  min-height: 12rem;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--primary), #00a676);
+  color: white;
+  text-align: center;
+  padding: 1rem;
+}
+
+.coverage-summary strong {
+  font-size: 3.5rem;
+  line-height: 1;
+}
+
+.coverage-summary span {
+  color: rgba(255, 255, 255, 0.84);
+  font-weight: 700;
+}
+
+.coverage-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.coverage-card {
+  background: color-mix(in srgb, var(--bg-strong) 95%, transparent);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+}
+
+.coverage-card-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.75rem;
+}
+
+.coverage-card-header > div {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.section-number {
+  display: grid;
+  place-items: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 50%;
+  background: var(--bg-soft);
+  color: var(--primary-strong);
+  font-weight: 900;
+}
+
+.coverage-card p,
+.coverage-card li,
+.more-count {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.coverage-card ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.coverage-card li + li {
+  margin-top: 0.35rem;
+}
+
+.more-count {
+  font-weight: 800;
+}
+
 .bottom-nav,
 .mobile-only {
   display: none;
@@ -744,7 +829,8 @@ blockquote {
   }
 
   .two-column,
-  .social-grid {
+  .social-grid,
+  .coverage-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -784,7 +870,8 @@ blockquote {
 
   .hero-card,
   .notice-card,
-  .social-card {
+  .social-card,
+  .coverage-hero {
     grid-template-columns: 1fr;
   }
 
@@ -795,7 +882,8 @@ blockquote {
   .score-grid,
   .checklist-grid,
   .priority-grid,
-  .profile-grid {
+  .profile-grid,
+  .coverage-grid {
     grid-template-columns: 1fr;
   }
 

@@ -5,6 +5,46 @@ chapters, club sports teams, and university administrators. This backlog
 captures the full product surface, major modules, user workflows, and explicit
 safety boundaries for future implementation.
 
+## 0. Core platform architecture
+
+Build a SaaS platform that supports multiple organization types.
+
+### Organization types
+
+- Fraternity
+- Sorority
+- Club Sports Team
+- General Student Organization
+- University/Admin Organization
+
+### Each organization should have
+
+- Unique organization profile
+- Members
+- Roles and permissions
+- Events
+- Payments
+- Announcements
+- Documents
+- Media/photos
+- Tasks
+- Reports
+- Integrations
+
+### Core requirements
+
+- Mobile-first UI
+- Multi-tenant database structure
+- Organization-specific workspaces
+- Role-based access control
+- Audit logs for sensitive actions
+- Dark/light mode
+- CSV import/export
+- Admin dashboard
+- Onboarding flow
+- Notification system
+- Reusable event/payment/member components
+
 ## Product pillars
 
 - Multi-tenant workspaces for different organization types.
