@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { Badge, Button, Card, CardHeader, PageHeader, StatCard } from "@/components/ui";
-import { downloadCsv, formatCurrency, formatDate } from "@/lib/utils";
+import { Badge, Button, Card, PageHeader } from "@/components/ui";
+import { formatDate } from "@/lib/utils";
 import { Download, FileText } from "lucide-react";
+
+export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Reports" };
 
@@ -15,7 +17,7 @@ export default async function ReportsPage() {
   if (!m) redirect("/onboarding");
 
   const orgId = m.org_id;
-  const org = m.organizations as Record<string, unknown>;
+  const org = m.organizations as unknown as Record<string, unknown>;
 
   const [membersRes, paymentsRes, eventsRes, pnmRes] = await Promise.all([
     supabase.from("member_profiles").select("*").eq("org_id", orgId),

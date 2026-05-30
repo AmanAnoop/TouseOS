@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Download, Filter, Mail, Plus, Upload, UserPlus,
+  Download, Mail, Upload, UserPlus,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
@@ -11,9 +11,9 @@ import {
   Avatar, Badge, Button, Card, EmptyState, Input, Modal,
   PageHeader, SearchInput, Select, Skeleton, Table,
 } from "@/components/ui";
-import { cn, downloadCsv, formatDate, getStatusColor } from "@/lib/utils";
+import { cn, downloadCsv, getStatusColor } from "@/lib/utils";
 import { ROLE_LABELS } from "@/lib/permissions";
-import type { MemberProfile, MemberStatus } from "@/types";
+import type { MemberProfile } from "@/types";
 
 const STATUS_OPTIONS = [
   { value: "", label: "All statuses" },
@@ -271,9 +271,9 @@ export default function RosterPage() {
             {
               key: "attendance_rate",
               header: "Attendance",
-              render: (row) => (
+              render: (row): React.ReactNode => (
                 <span className={cn("text-sm font-medium", Number(row.attendance_rate) < 75 ? "text-red-500" : "text-green-600")}>
-                  {row.attendance_rate}%
+                  {String(row.attendance_rate)}%
                 </span>
               ),
             },

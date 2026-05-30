@@ -8,7 +8,7 @@ import {
   Avatar, Badge, Button, Card, CardHeader, EmptyState,
   Modal, PageHeader, ProgressBar, Select, StatCard,
 } from "@/components/ui";
-import { formatCurrency, formatDate, getStatusColor, downloadCsv } from "@/lib/utils";
+import { formatCurrency, formatDate, downloadCsv } from "@/lib/utils";
 import type { Payment, MemberProfile } from "@/types";
 
 type PaymentWithMember = Payment & { member_profiles: MemberProfile | null };

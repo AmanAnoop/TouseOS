@@ -2,14 +2,15 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import {
-  Alert, Badge, Button, Card, CardHeader, EmptyState,
-  PageHeader, ProgressBar, StatCard,
+  Alert, Badge, Button, Card, CardHeader, EmptyState, ProgressBar, StatCard,
 } from "@/components/ui";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
   AlertTriangle, Calendar, CheckCircle2, DollarSign,
   Shield, Trophy, Users, Wrench,
 } from "lucide-react";
+
+export const dynamic = "force-dynamic";
 
 export const metadata = { title: "SportsOS Dashboard" };
 

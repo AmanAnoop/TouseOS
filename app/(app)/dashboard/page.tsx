@@ -6,13 +6,15 @@ import {
   EmptyState, Alert,
 } from "@/components/ui";
 import {
-  formatCurrency, formatDateTime, isGreekOrg, isSportsOrg, getStatusColor,
+  formatCurrency, formatDateTime, isGreekOrg, isSportsOrg,
 } from "@/lib/utils";
 import {
   AlertTriangle, Calendar, CheckCircle2, DollarSign,
   Image, Shield, Trophy, Users, Zap,
 } from "lucide-react";
 import type { Event, MemberProfile, Payment, Announcement, Task } from "@/types";
+
+export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Dashboard" };
 
@@ -34,7 +36,7 @@ export default async function DashboardPage() {
   if (!membership) redirect("/onboarding");
 
   const orgId = membership.org_id;
-  const org = membership.organizations as Record<string, unknown>;
+  const org = membership.organizations as unknown as Record<string, unknown>;
   const orgType = String(org.type ?? "general_org");
 
   // Parallel data fetch

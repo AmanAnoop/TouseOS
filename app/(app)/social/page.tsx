@@ -5,7 +5,7 @@ import { CheckCircle, Download, Flag, Image, Plus, Star, Upload, X } from "lucid
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import {
-  Badge, Button, Card, CardHeader, EmptyState,
+  Badge, Button, Card, EmptyState,
   Modal, PageHeader, Tabs,
 } from "@/components/ui";
 import type { Photo, PhotoAlbum } from "@/types";
@@ -181,6 +181,7 @@ export default function SocialPage() {
                   className="aspect-video relative rounded-xl overflow-hidden bg-greek-100 dark:bg-greek-950/30 hover:scale-105 transition-transform text-left"
                 >
                   {album.cover_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img src={album.cover_url} alt={album.title} className="absolute inset-0 w-full h-full object-cover" />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center text-greek-400">
@@ -311,7 +312,7 @@ export default function SocialPage() {
                 )}
                 className={`aspect-square rounded-lg overflow-hidden relative ${selectedPhotos.includes(photo.id) ? "ring-2 ring-greek-500" : ""}`}
               >
-                <img src={photo.url} alt="" className="w-full h-full object-cover" />
+                <img src={photo.url} alt={photo.caption ?? ""} className="w-full h-full object-cover" />
                 {selectedPhotos.includes(photo.id) && (
                   <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-greek-500 flex items-center justify-center text-white text-xs font-bold">
                     {selectedPhotos.indexOf(photo.id) + 1}

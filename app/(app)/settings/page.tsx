@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, CardHeader, PageHeader } from "@/components/ui";
 import { Settings } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
@@ -13,7 +15,7 @@ export default async function SettingsPage() {
   const { data: m } = await supabase.from("org_members").select("org_id, role, organizations(*)").eq("user_id", user.id).limit(1).single();
   if (!m) redirect("/onboarding");
 
-  const org = m.organizations as Record<string, unknown>;
+  const org = m.organizations as unknown as Record<string, unknown>;
 
   return (
     <div className="space-y-5">

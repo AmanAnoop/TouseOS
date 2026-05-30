@@ -8,7 +8,7 @@ import {
   Badge, Button, Card, EmptyState, PageHeader,
   SearchInput, Skeleton, Tabs,
 } from "@/components/ui";
-import { formatDateTime, formatDate, getStatusColor } from "@/lib/utils";
+import { formatDateTime } from "@/lib/utils";
 import type { Event } from "@/types";
 
 const TABS = [

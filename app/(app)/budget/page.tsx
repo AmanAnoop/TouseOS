@@ -4,6 +4,8 @@ import { Card, CardHeader, PageHeader, ProgressBar, StatCard } from "@/component
 import { formatCurrency } from "@/lib/utils";
 import { BookOpen, DollarSign, TrendingDown, TrendingUp } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = { title: "Budget & Finance" };
 
 export default async function BudgetPage() {

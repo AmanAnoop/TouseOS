@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { Building, ChevronRight, Users, Zap } from "lucide-react";
-import { Button, Card, PageHeader } from "@/components/ui";
+import { Building, ChevronRight, Users } from "lucide-react";
+import { Button, Card } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";

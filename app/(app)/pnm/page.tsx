@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { MessageSquare, Plus, Search, Tag, User, Zap } from "lucide-react";
+import { MessageSquare, Plus, User } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import {
   Avatar, Badge, Button, Card, EmptyState, Modal,
-  Input, PageHeader, SearchInput, Select, Tabs,
+  Input, PageHeader, SearchInput, Tabs,
 } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
 import type { PnmLead, PnmStatus } from "@/types";
@@ -25,7 +25,6 @@ const STATUS_COLOR: Record<PnmStatus, string> = {
 export default function PnmPage() {
   const supabase = createClient();
   const [leads, setLeads] = useState<PnmLead[]>([]);
-  const [loading, setLoading] = useState(true);
   const [orgId, setOrgId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [stageFilter, setStageFilter] = useState<string>("all");
@@ -42,10 +41,8 @@ export default function PnmPage() {
   });
 
   const loadLeads = useCallback(async (oid: string) => {
-    setLoading(true);
     const { data } = await supabase.from("pnm_leads").select("*").eq("org_id", oid).order("created_at", { ascending: false });
     setLeads((data ?? []) as PnmLead[]);
-    setLoading(false);
   }, [supabase]);
 
   useEffect(() => {
