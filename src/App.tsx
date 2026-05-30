@@ -8,7 +8,6 @@ import {
   ChevronRight,
   ClipboardCheck,
   Download,
-  FileText,
   Images,
   LayoutDashboard,
   Lock,

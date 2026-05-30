@@ -4,8 +4,8 @@
   "description": "TouseOS is a mobile-first SaaS platform for student organizations, Greek chapters, club sports teams, and university administrators.",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
-    "typecheck": "tsc -b --pretty false",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit --pretty false",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -20,6 +20,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
     "eslint": "^10.4.1",
     "eslint-plugin-react-hooks": "^7.1.1",
