@@ -7,8 +7,8 @@ import {
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import {
-  Badge, Button, Card, CardHeader, EmptyState, Input,
-  Modal, PageHeader, ProgressBar, StatCard, Tabs,
+  Badge, Button, Card, EmptyState, Input,
+  Modal, PageHeader, StatCard, Tabs,
 } from "@/components/ui";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { SportsTravelTrip } from "@/types";

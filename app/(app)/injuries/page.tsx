@@ -75,8 +75,8 @@ export default async function InjuriesPage() {
                     <Badge label={String(injury.body_area)} color="gray" />
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">Incident: {formatDate(String(injury.incident_date))} · Context: {String(injury.context)}</p>
-                  {injury.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{String(injury.description)}</p>}
-                  {injury.return_to_play_date && (
+                  {Boolean(injury.description)&& <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{String(injury.description)}</p>}
+                  {Boolean(injury.return_to_play_date)&& (
                     <p className="text-xs text-blue-600 mt-1">Est. return: {formatDate(String(injury.return_to_play_date))}</p>
                   )}
                 </div>

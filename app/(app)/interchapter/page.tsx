@@ -8,10 +8,10 @@ import {
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import {
-  Alert, Badge, Button, Card, CardHeader, EmptyState,
+  Alert, Badge, Button, Card, EmptyState,
   Modal, Input, PageHeader, Select, StatCard, Tabs, Textarea,
 } from "@/components/ui";
-import { formatDate, formatCurrency } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 
 interface Proposal {
   id: string;
@@ -51,9 +51,7 @@ export default function InterchapterPage() {
   const [tab, setTab] = useState("proposals");
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [ideas, setIdeas] = useState<Idea[]>([]);
-  const [loading, setLoading] = useState(true);
   const [orgId, setOrgId] = useState<string | null>(null);
-  const [orgName, setOrgName] = useState("");
   const [orgType, setOrgType] = useState("");
   const [proposeOpen, setProposeOpen] = useState(false);
   const [ideaOpen, setIdeaOpen] = useState(false);
@@ -73,14 +71,12 @@ export default function InterchapterPage() {
   });
 
   const load = useCallback(async (oid: string) => {
-    setLoading(true);
     const [propRes, ideaRes] = await Promise.all([
       supabase.from("interchapter_proposals").select("*").or(`proposing_org_id.eq.${oid},target_org_id.eq.${oid}`).order("created_at", { ascending: false }),
       supabase.from("interchapter_ideas").select("*").order("upvotes", { ascending: false }).limit(20),
     ]);
     setProposals((propRes.data ?? []) as Proposal[]);
     setIdeas((ideaRes.data ?? []) as Idea[]);
-    setLoading(false);
   }, [supabase]);
 
   useEffect(() => {
@@ -90,8 +86,7 @@ export default function InterchapterPage() {
       const { data: m } = await supabase.from("org_members").select("org_id, organizations(name, type)").eq("user_id", user.id).limit(1).single();
       if (m) {
         setOrgId(m.org_id);
-        setOrgName(String((m.organizations as Record<string, unknown>)?.name ?? ""));
-        setOrgType(String((m.organizations as Record<string, unknown>)?.type ?? ""));
+        setOrgType(String(((m.organizations as unknown) as Record<string, unknown>)?.type ?? ""));
         load(m.org_id);
       }
     }

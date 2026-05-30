@@ -4,8 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { AlertTriangle, Plus, Scale } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
-import {
-  Avatar, Badge, Button, Card, CardHeader, EmptyState,
+import { Badge, Button, Card, EmptyState,
   Modal, PageHeader, Select, StatCard, Tabs, Textarea,
 } from "@/components/ui";
 import { formatDate } from "@/lib/utils";

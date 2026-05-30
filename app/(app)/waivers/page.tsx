@@ -4,7 +4,6 @@ import {
   Badge, Button, Card, CardHeader, EmptyState, PageHeader, ProgressBar, StatCard,
 } from "@/components/ui";
 import { CheckCircle2, Shield, AlertTriangle } from "lucide-react";
-import { formatDate } from "@/lib/utils";
 
 export const metadata = { title: "Waivers & Compliance" };
 export const dynamic = "force-dynamic";
@@ -43,7 +42,7 @@ export default async function WaiversPage() {
   const missing = totalRequired - completed;
   const completionRate = totalRequired > 0 ? Math.round((completed / totalRequired) * 100) : 100;
 
-  const memberStatus = members.map((member) => {
+  const memberStatus: Array<Record<string, unknown> & { completedCount: number; missingWaivers: string[]; pct: number }> = members.map((member) => {
     const memberWaivers = waivers.filter((w) => w.member_id === member.id);
     const completedCount = memberWaivers.filter((w) => w.status === "completed" && requiredTypes.includes(String(w.waiver_type))).length;
     const missingWaivers = requiredTypes.filter((type) =>

@@ -1,10 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
-  Badge, Button, Card, CardHeader, EmptyState, PageHeader, ProgressBar, StatCard,
+  Badge, Card, CardHeader, EmptyState, PageHeader, ProgressBar, StatCard,
 } from "@/components/ui";
 import { BookOpen, CheckCircle2, Users } from "lucide-react";
-import { formatDate } from "@/lib/utils";
 
 export const metadata = { title: "New Member Education" };
 export const dynamic = "force-dynamic";
@@ -29,7 +28,7 @@ export default async function NmePage() {
 
   const totalRequired = modules.filter((mod) => mod.is_required).length;
 
-  const memberProgress = members.map((member) => {
+  const memberProgress: Array<Record<string, unknown> & { completed: number; pct: number }> = members.map((member) => {
     const memberProg = progress.filter((p) => p.member_id === member.id);
     const completed = memberProg.filter((p) => p.completed).length;
     const pct = totalRequired > 0 ? Math.round((completed / totalRequired) * 100) : 100;
@@ -79,9 +78,9 @@ export default async function NmePage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium text-foreground">{String(mod.title)}</p>
-                    {mod.is_required && <Badge label="Required" color="green" />}
+                    {Boolean(mod.is_required)&& <Badge label="Required" color="green" />}
                   </div>
-                  {mod.description && <p className="text-xs text-muted-foreground mt-0.5">{String(mod.description)}</p>}
+                  {Boolean(mod.description)&& <p className="text-xs text-muted-foreground mt-0.5">{String(mod.description)}</p>}
                 </div>
               </div>
             ))}

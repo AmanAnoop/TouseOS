@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  Download, Eye, File, FileText, Folder, Image,
-  Lock, Plus, Search, Trash2, Upload,
+  Download, Eye, File, FileText, Folder, Image, Trash2, Upload,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";

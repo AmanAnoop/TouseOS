@@ -17,7 +17,7 @@ export default async function HousingPage() {
   const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
   if (!m) redirect("/onboarding");
 
-  const [roomsRes, assignmentsRes, maintenanceRes] = await Promise.all([
+  const [roomsRes, maintenanceRes] = await Promise.all([
     supabase.from("housing_rooms").select("*").eq("org_id", m.org_id).order("room_number"),
     supabase.from("housing_assignments").select("*, member_profiles(full_name)").eq(
       "room_id",
@@ -31,7 +31,6 @@ export default async function HousingPage() {
   const maintenance = (maintenanceRes.data ?? []) as Array<Record<string, unknown>>;
 
   const totalCapacity = rooms.reduce((s, r) => s + Number(r.capacity ?? 1), 0);
-  const occupied = rooms.filter((r) => r.occupied).length;
   const totalRent = rooms.reduce((s, r) => s + (r.monthly_rent ? Number(r.monthly_rent) : 0), 0);
   const openMaintenance = maintenance.filter((m) => m.status === "open").length;
 
@@ -71,7 +70,7 @@ export default async function HousingPage() {
                   <p className="font-bold text-foreground">#{String(room.room_number)}</p>
                   <p className="text-xs text-muted-foreground">Floor {String(room.floor ?? 1)}</p>
                   <p className="text-xs text-muted-foreground">Cap: {String(room.capacity ?? 1)}</p>
-                  {room.monthly_rent && (
+                  {Boolean(room.monthly_rent)&& (
                     <p className="text-xs font-medium text-greek-600">{formatCurrency(Number(room.monthly_rent))}/mo</p>
                   )}
                   <Badge

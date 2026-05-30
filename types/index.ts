@@ -467,14 +467,20 @@ export interface AlumniProfile {
   org_id: string;
   full_name: string;
   email: string | null;
+  phone: string | null;
   graduation_year: number | null;
   pledge_class: string | null;
   city: string | null;
+  state: string | null;
   career_field: string | null;
   employer: string | null;
   giving_history: number;
   mentorship_interest: boolean;
+  contact_preference: string | null;
+  last_contacted: string | null;
+  notes: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 export interface PhilanthropyCampaign {

@@ -79,7 +79,7 @@ export default function NewEventPage() {
         .single();
       if (m) {
         setOrgId(m.org_id);
-        setOrgType(String((m.organizations as Record<string, unknown>)?.type ?? "general_org"));
+        setOrgType(String(((m.organizations as unknown) as Record<string, unknown>)?.type ?? "general_org"));
       }
     }
     init();

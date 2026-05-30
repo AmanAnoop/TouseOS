@@ -21,13 +21,12 @@ export default function CoachesPage() {
   const supabase = createClient();
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
-  const [orgId, setOrgId] = useState<string | null>(null);
   const [practiceOpen, setPracticeOpen] = useState(false);
   const [gameNotesOpen, setGameNotesOpen] = useState(false);
   const [practiceNotes, setPracticeNotes] = useState("");
   const [gameNotes, setGameNotes] = useState("");
 
-  const [goals, setGoals] = useState([
+  const [goals] = useState([
     "Win conference championship",
     "Achieve 85% attendance at practices",
     "Develop 3 new players for starting lineup",
@@ -51,7 +50,7 @@ export default function CoachesPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) { setOrgId(m.org_id); load(m.org_id); }
+      if (m) load(m.org_id);
     }
     init();
   }, [supabase, load]);
@@ -154,7 +153,7 @@ export default function CoachesPage() {
             label="Practice notes"
             placeholder="Focus areas, special drills, player notes..."
             value={practiceNotes}
-            onChange={(e) => setPracticeNotes(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setPracticeNotes(e.target.value)}
             className="min-h-[120px]"
           />
         </div>
@@ -168,7 +167,7 @@ export default function CoachesPage() {
           label="Game notes (captain/coach only)"
           placeholder="Starting lineup, strategy, opponent scouting, half-time adjustments..."
           value={gameNotes}
-          onChange={(e) => setGameNotes(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setGameNotes(e.target.value)}
           className="min-h-[160px]"
         />
       </Modal>

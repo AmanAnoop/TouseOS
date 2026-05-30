@@ -1,14 +1,13 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import {
-  Alert, Badge, Button, Card, PageHeader, ProgressBar,
+import { Badge, Card, ProgressBar,
 } from "@/components/ui";
 import {
   Calendar, ChevronLeft, Clock, ExternalLink,
   MapPin, Music, QrCode, Share2, Users,
 } from "lucide-react";
-import { formatDateTime, formatDate } from "@/lib/utils";
+import { formatDateTime } from "@/lib/utils";
 import EventRsvpButton from "./rsvp-button";
 
 export const dynamic = "force-dynamic";
@@ -19,10 +18,9 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [eventRes, rsvpRes, memberRes] = await Promise.all([
+  const [eventRes, rsvpRes] = await Promise.all([
     supabase.from("events").select("*").eq("id", id).single(),
     supabase.from("event_rsvps").select("id, status, member_id, guest_name, checked_in").eq("event_id", id),
-    supabase.from("member_profiles").select("id").eq("org_id", id).eq("user_id", user.id).maybeSingle(),
   ]);
 
   if (eventRes.error || !eventRes.data) notFound();
@@ -39,11 +37,6 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
 
   const isPast = new Date(String(event.starts_at)) < new Date();
   const isUpcoming = !isPast;
-
-  const myRsvp = rsvps.find((r: Record<string, unknown>) => {
-    // Would need to join with member_profiles to find by user_id
-    return false; // client-side check handled in button
-  });
 
   return (
     <div className="max-w-2xl mx-auto space-y-0">
@@ -62,7 +55,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
           className="relative h-56 sm:h-72 bg-gradient-to-br from-greek-600 to-greek-800"
           style={
             event.cover_image_url
-              ? { backgroundImage: `url(${event.cover_image_url})`, backgroundSize: "cover", backgroundPosition: "center" }
+              ? { backgroundImage: `url(${String(event.cover_image_url)})`, backgroundSize: "cover", backgroundPosition: "center" }
               : {}
           }
         >
@@ -72,7 +65,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
           <div className="absolute top-4 left-4 flex gap-2">
             {event.status === "draft" && <Badge label="Draft" color="yellow" />}
             {event.risk_level === "high" && !event.risk_approved && <Badge label="Needs approval" color="red" />}
-            {event.alcohol && <Badge label="21+" color="orange" />}
+            {Boolean(event.alcohol)&& <Badge label="21+" color="orange" />}
           </div>
 
           {/* Share button */}
@@ -89,7 +82,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
           <div className="absolute bottom-0 left-0 right-0 p-5">
             <div className="flex items-center gap-2 mb-1">
               <Badge label={String(event.type).replace(/_/g, " ")} color="blue" className="bg-white/20 text-white border-transparent" />
-              {event.theme && <Badge label={String(event.theme)} color="purple" className="bg-white/20 text-white border-transparent" />}
+              {Boolean(event.theme)&& <Badge label={String(event.theme)} color="purple" className="bg-white/20 text-white border-transparent" />}
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight">
               {String(event.title)}
@@ -97,7 +90,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
             <div className="flex items-center gap-1 mt-1 text-white/80 text-sm">
               <Calendar size={14} />
               <span>{formatDateTime(String(event.starts_at))}</span>
-              {event.ends_at && <span> – {formatDateTime(String(event.ends_at))}</span>}
+              {Boolean(event.ends_at)&& <span> – {formatDateTime(String(event.ends_at))}</span>}
             </div>
           </div>
         </div>
@@ -105,7 +98,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
         {/* Event info body */}
         <div className="bg-card p-5 space-y-5">
           {/* RSVP action */}
-          {event.rsvp_enabled && isUpcoming && (
+          {Boolean(event.rsvp_enabled)&& isUpcoming && (
             <EventRsvpButton eventId={id} userId={user.id} capacity={capacity} goingCount={goingCount} />
           )}
 
@@ -151,33 +144,33 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
 
           {/* Details */}
           <div className="space-y-3">
-            {event.location && (
+            {Boolean(event.location)&& (
               <div className="flex items-start gap-3">
                 <div className="w-8 h-8 rounded-lg bg-surface-1 flex items-center justify-center flex-shrink-0 mt-0.5">
                   <MapPin size={15} className="text-muted-foreground" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-foreground">{String(event.location)}</p>
-                  {event.address && <p className="text-xs text-muted-foreground">{String(event.address)}</p>}
+                  {Boolean(event.address)&& <p className="text-xs text-muted-foreground">{String(event.address)}</p>}
                 </div>
               </div>
             )}
 
-            {event.starts_at && (
+            {Boolean(event.starts_at)&& (
               <div className="flex items-start gap-3">
                 <div className="w-8 h-8 rounded-lg bg-surface-1 flex items-center justify-center flex-shrink-0 mt-0.5">
                   <Clock size={15} className="text-muted-foreground" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-foreground">{formatDateTime(String(event.starts_at))}</p>
-                  {event.ends_at && (
+                  {Boolean(event.ends_at)&& (
                     <p className="text-xs text-muted-foreground">Until {formatDateTime(String(event.ends_at))}</p>
                   )}
                 </div>
               </div>
             )}
 
-            {event.dress_code && (
+            {Boolean(event.dress_code)&& (
               <div className="flex items-start gap-3">
                 <div className="w-8 h-8 rounded-lg bg-surface-1 flex items-center justify-center flex-shrink-0 mt-0.5">
                   <span className="text-base">👔</span>
@@ -189,7 +182,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
               </div>
             )}
 
-            {event.playlist_url && (
+            {Boolean(event.playlist_url)&& (
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-surface-1 flex items-center justify-center flex-shrink-0">
                   <Music size={15} className="text-muted-foreground" />
@@ -203,7 +196,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
             )}
           </div>
 
-          {event.description && (
+          {Boolean(event.description)&& (
             <div>
               <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wide mb-2">About this event</p>
               <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{String(event.description)}</p>
@@ -211,7 +204,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
           )}
 
           {/* Guest list */}
-          {event.show_guest_list && rsvps.length > 0 && (
+          {Boolean(event.show_guest_list)&& rsvps.length > 0 && (
             <div>
               <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wide mb-3 flex items-center gap-1">
                 <Users size={13} />

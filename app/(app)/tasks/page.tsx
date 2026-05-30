@@ -2,21 +2,17 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  AlertCircle, CheckCircle2, Circle, Clock, Filter,
+  AlertCircle, CheckCircle2, Circle, Clock,
   MoreHorizontal, Plus, User,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
-import {
-  Badge, Button, Card, EmptyState, Input, Modal,
+import { Button, Card, EmptyState, Input, Modal,
   PageHeader, Select, StatCard, Tabs, Textarea,
 } from "@/components/ui";
-import { formatDate, formatDateTime } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import type { Task, TaskStatus, TaskPriority } from "@/types";
 
-const PRIORITY_COLOR: Record<TaskPriority, string> = {
-  urgent: "red", high: "orange", medium: "yellow", low: "gray",
-};
 const PRIORITY_DOT: Record<TaskPriority, string> = {
   urgent: "bg-red-500", high: "bg-orange-500", medium: "bg-yellow-400", low: "bg-gray-400",
 };

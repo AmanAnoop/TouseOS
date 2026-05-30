@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
 import {
-  DollarSign, ExternalLink, Heart, Plus, QrCode, Share2, Target, Trophy, Users,
+  DollarSign, Heart, Plus, QrCode, Share2, Target, Trophy,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
@@ -17,7 +16,6 @@ import type { PhilanthropyCampaign } from "@/types";
 export default function PhilanthropyPage() {
   const supabase = createClient();
   const [campaigns, setCampaigns] = useState<PhilanthropyCampaign[]>([]);
-  const [loading, setLoading] = useState(true);
   const [orgId, setOrgId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState({
@@ -26,10 +24,8 @@ export default function PhilanthropyPage() {
   });
 
   const load = useCallback(async (oid: string) => {
-    setLoading(true);
     const { data } = await supabase.from("philanthropy_campaigns").select("*").eq("org_id", oid).order("created_at", { ascending: false });
     setCampaigns((data ?? []) as PhilanthropyCampaign[]);
-    setLoading(false);
   }, [supabase]);
 
   useEffect(() => {
@@ -87,9 +83,7 @@ export default function PhilanthropyPage() {
         </Card>
       )}
 
-      {loading ? (
-        <div className="grid sm:grid-cols-2 gap-3">{[1,2].map((i) => <Card key={i} className="h-32 animate-pulse bg-surface-2 border-0">&nbsp;</Card>)}</div>
-      ) : campaigns.length === 0 ? (
+      {campaigns.length === 0 ? (
         <EmptyState
           icon={<Heart size={24} />}
           title="No campaigns yet"

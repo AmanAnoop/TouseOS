@@ -4,7 +4,6 @@ import {
   Badge, Button, Card, CardHeader, EmptyState, PageHeader, StatCard,
 } from "@/components/ui";
 import { Package, Plus, RotateCcw, Wrench } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
 
 export const metadata = { title: "Equipment & Uniforms" };
 export const dynamic = "force-dynamic";
@@ -71,7 +70,6 @@ export default async function EquipmentPage() {
                 {items.map((item) => {
                   const avail = Number(item.quantity_available ?? 0);
                   const total = Number(item.quantity_total ?? 0);
-                  const pct = total > 0 ? Math.round((avail / total) * 100) : 0;
                   return (
                     <div key={String(item.id)} className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-surface-1 transition-colors">
                       <div className="w-9 h-9 rounded-lg bg-sports-50 dark:bg-sports-950/30 flex items-center justify-center text-sports-600 flex-shrink-0">
@@ -79,7 +77,7 @@ export default async function EquipmentPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm text-foreground">{String(item.item_name)}</p>
-                        {item.storage_location && <p className="text-xs text-muted-foreground">📍 {String(item.storage_location)}</p>}
+                        {Boolean(item.storage_location)&& <p className="text-xs text-muted-foreground">📍 {item.storage_location as string}</p>}
                       </div>
                       <div className="flex items-center gap-3 flex-shrink-0">
                         <div className="text-right">

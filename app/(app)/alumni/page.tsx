@@ -2,15 +2,15 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  Download, Mail, MapPin, Plus, Search, Briefcase,
+  Download, Mail, MapPin, Plus, Briefcase,
   GraduationCap, Heart, Users,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
   Avatar, Badge, Button, Card, CardHeader, EmptyState,
-  Modal, Input, PageHeader, SearchInput, Select, StatCard, Tabs, Textarea,
+  Modal, Input, PageHeader, SearchInput, StatCard, Tabs,
 } from "@/components/ui";
-import { downloadCsv, formatDate } from "@/lib/utils";
+import { downloadCsv } from "@/lib/utils";
 import type { AlumniProfile } from "@/types";
 import toast from "react-hot-toast";
 
