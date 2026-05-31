@@ -97,7 +97,10 @@ export default function PaymentsPage() {
             <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={exportPayments}>
               Export
             </Button>
-            <Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>
+            <a href="/payments/hardship">
+            <Button variant="secondary" size="sm">Hardship request</Button>
+          </a>
+          <Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>
               New charge
             </Button>
           </div>

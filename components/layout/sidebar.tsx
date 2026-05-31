@@ -133,6 +133,8 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
 
   const profileNav: NavItem[] = [
     { href: "/profile", label: "My Profile", icon: <Users size={18} /> },
+    { href: "/account", label: "Account & Security", icon: <Settings size={18} /> },
+    { href: "/notifications", label: "Notifications", icon: <Bell size={18} /> },
     ...(isGreek && org ? [{ href: "/greekmatch", label: "💚 GreekMatch", icon: <Heart size={18} /> }] : []),
   ];
 

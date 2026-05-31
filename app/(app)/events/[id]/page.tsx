@@ -70,7 +70,10 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
 
           {/* Share button */}
           <div className="absolute top-4 right-4 flex gap-2">
-            <button className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30">
+            <a href={`/events/${id}/checkin`} className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30" title="Check-in">
+                <QrCode size={15} />
+              </a>
+              <button className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30">
               <Share2 size={15} />
             </button>
             <button className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30">

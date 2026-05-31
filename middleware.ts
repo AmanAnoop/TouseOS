@@ -51,6 +51,7 @@ export async function middleware(request: NextRequest) {
     !pathname.startsWith("/api/stripe/webhook") &&
     !pathname.startsWith("/api/twilio") &&
     !pathname.startsWith("/p/") && // public event pages
+    !pathname.startsWith("/join/") && // public PNM interest form
     !pathname.startsWith("/_next") &&
     !pathname.startsWith("/favicon") &&
     !pathname.startsWith("/manifest");
