@@ -106,6 +106,31 @@ export default function SocialPage() {
     toast.success(`${files.length} photo${files.length > 1 ? "s" : ""} uploaded`);
   }
 
+  function exportContentPack() {
+    const selected = photos.filter((p) => selectedPhotos.includes(p.id));
+    const manifest = [
+      `TouseOS Content Pack — ${selectedAlbum?.title ?? "Album"}`,
+      `Generated: ${new Date().toLocaleString()}`,
+      ``,
+      `CAPTION:`,
+      generatedCaption || "(no caption written)",
+      ``,
+      `PHOTOS (${selected.length}, in carousel order):`,
+      ...selected.map((p, i) => `${i + 1}. ${p.url}`),
+      ``,
+      `PR COMPLIANCE: Review for alcohol, non-members, consent, and chapter guidelines before posting.`,
+    ].join("\n");
+
+    const blob = new Blob([manifest], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `content-pack-${(selectedAlbum?.title ?? "album").toLowerCase().replace(/\s+/g, "-")}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Content pack exported with ${selected.length} photos`);
+  }
+
   function generateCaption() {
     const templates = [
       `What a night ✨ ${selectedAlbum?.title ?? "event"} was everything. So grateful for this chapter 💚 #GreekLife #Brotherhood`,
@@ -292,7 +317,7 @@ export default function SocialPage() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setContentPackOpen(false)}>Close</Button>
-            <Button icon={<Download size={14} />} onClick={() => toast.success("Content pack download coming soon")}>
+            <Button icon={<Download size={14} />} onClick={exportContentPack}>
               Export ZIP
             </Button>
           </>
