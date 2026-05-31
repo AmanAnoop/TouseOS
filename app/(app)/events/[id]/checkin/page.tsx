@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { BrowserQRCodeReader } from "@zxing/browser";
 import { useParams } from "next/navigation";
 import {
   Camera, Check, CheckCircle2, List, QrCode, Search, X,
@@ -33,6 +34,8 @@ export default function CheckInPage() {
   const [scanning, setScanning] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const qrReaderRef = useRef<BrowserQRCodeReader | null>(null);
+  const scanIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadData = useCallback(async () => {
     const [eventRes, rsvpRes] = await Promise.all([
@@ -82,14 +85,32 @@ export default function CheckInPage() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
       streamRef.current = stream;
-      if (videoRef.current) videoRef.current.srcObject = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
       setScanning(true);
+      qrReaderRef.current = new BrowserQRCodeReader();
+      const scanLoop = async () => {
+        if (!videoRef.current || !qrReaderRef.current) return;
+        try {
+          const result = await qrReaderRef.current.decodeOnceFromVideoElement(videoRef.current);
+          const code = result.getText();
+          const match = attendees.find((a) => a.id === code || a.member_id === code);
+          if (match && !match.checked_in) await checkIn(match.id);
+        } catch {
+          // continue scanning
+        }
+        scanIntervalRef.current = setTimeout(scanLoop, 800);
+      };
+      scanLoop();
     } catch {
       toast.error("Camera access denied. Please allow camera access to use QR check-in.");
     }
   }
 
   function stopCamera() {
+    if (scanIntervalRef.current) clearTimeout(scanIntervalRef.current);
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     setScanning(false);
@@ -166,7 +187,7 @@ export default function CheckInPage() {
           <p className="text-xs text-muted-foreground mt-2 text-center">
             Point camera at a member&apos;s QR code to check them in automatically.
           </p>
-          <p className="text-xs text-muted-foreground text-center">QR code parsing requires a QR library integration (e.g., zxing-js).</p>
+          <p className="text-xs text-muted-foreground text-center">Scanning member QR codes. Point camera at RSVP QR code to check in.</p>
         </Card>
       )}
 

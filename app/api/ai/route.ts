@@ -6,7 +6,15 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { messages } = await request.json();
+  const { messages, orgId } = await request.json();
+
+  let documentContext = "";
+  if (orgId) {
+    const { data: docs } = await supabase.from("documents").select("title, category").eq("org_id", orgId).limit(20);
+    if (docs?.length) {
+      documentContext = "\n\nUploaded org documents available: " + docs.map((d: { title: string; category: string }) => `${d.title} (${d.category})`).join(", ") + ". Cite these when answering policy questions and note that full text search requires opening the Document Center.";
+    }
+  }
 
   if (!process.env.OPENAI_API_KEY) {
     return NextResponse.json({
@@ -41,7 +49,8 @@ Important rules:
 - Always include a reminder to review and personalize AI-generated content
 - For PNM messages, always emphasize consent-based outreach only
 - Keep tone professional but warm and authentic to Greek life culture
-- Format responses clearly with headers, bullets, or numbered lists when appropriate`,
+- Format responses clearly with headers, bullets, or numbered lists when appropriate
+- When org documents are listed, reference them by name when answering bylaws/policy questions` + documentContext,
           },
           ...messages,
         ],

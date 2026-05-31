@@ -108,6 +108,20 @@ export default function ReportsPage() {
           })));
           break;
         }
+        case "semester_rewind": {
+          const res = await fetch(`/api/reports/semester-rewind?orgId=${orgId}`);
+          const data = await res.json();
+downloadCsv(`${orgName}-semester-rewind.csv`, [{
+            "Total Revenue": data.summary?.totalRevenue,
+            "Total Expenses": data.summary?.totalExpenses,
+            "Unpaid Balances": data.summary?.unpaidBalances,
+            "Avg Attendance %": data.summary?.avgAttendance,
+            "Events Hosted": data.summary?.eventsHosted,
+            "Task Completion %": data.summary?.taskCompletion,
+            "PNM Conversion %": data.summary?.pnmConversion ?? "N/A",
+          }]);
+          break;
+        }
         case "pnm": {
           const { data } = await supabase.from("pnm_leads").select("*").eq("org_id", orgId).order("created_at", { ascending: false });
           downloadCsv(`${orgName}-pnm.csv`, (data ?? []).map((p: Record<string, unknown>) => ({

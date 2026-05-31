@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import {
   Avatar, Badge, Button, Card, CardHeader, EmptyState,
-  Modal, PageHeader, ProgressBar, Select, StatCard,
+  Input, Modal, PageHeader, ProgressBar, Select, StatCard,
 } from "@/components/ui";
 import { formatCurrency, formatDate, downloadCsv } from "@/lib/utils";
 import type { Payment, MemberProfile } from "@/types";
@@ -21,6 +21,8 @@ export default function PaymentsPage() {
   const [filter, setFilter] = useState("all");
   const [createOpen, setCreateOpen] = useState(false);
   const [charge, setCharge] = useState({ title: "", amount: "", category: "dues", dueDate: "" });
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualForm, setManualForm] = useState({ paymentId: "", amount: "", method: "cash", notes: "" });
 
   const loadPayments = useCallback(async (oid: string) => {
     setLoading(true);
@@ -67,8 +69,39 @@ export default function PaymentsPage() {
   }
 
   async function sendReminders() {
-    const unpaid = payments.filter((p) => ["pending","overdue"].includes(p.status));
-    toast.success(`Reminders queued for ${unpaid.length} members`);
+    if (!orgId) return;
+    const res = await fetch("/api/payments/remind", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId }),
+    });
+    const data = await res.json();
+    toast.success(data.message ?? "Reminders sent");
+  }
+
+  async function logManualPayment() {
+    if (!orgId || !manualForm.paymentId || !manualForm.amount) return;
+    const res = await fetch("/api/payments/manual", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId, ...manualForm, amount: parseFloat(manualForm.amount) }),
+    });
+    if (res.ok) {
+      toast.success("Payment logged");
+      setManualOpen(false);
+      setManualForm({ paymentId: "", amount: "", method: "cash", notes: "" });
+      loadPayments(orgId);
+    } else {
+      const err = await res.json();
+      toast.error(err.error ?? "Failed");
+    }
+  }
+
+  function copyParentLink(p: PaymentWithMember) {
+    const token = (p as PaymentWithMember & { parent_pay_token?: string }).parent_pay_token;
+    const url = `${window.location.origin}/payments?token=${token ?? p.id}`;
+    navigator.clipboard.writeText(url);
+    toast.success("Parent payment link copied");
   }
 
   function exportPayments() {
@@ -97,6 +130,8 @@ export default function PaymentsPage() {
             <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={exportPayments}>
               Export
             </Button>
+            <Button variant="secondary" size="sm" onClick={() => setManualOpen(true)}>Log cash/check</Button>
+            <a href="/payments/plan"><Button variant="secondary" size="sm">Payment plans</Button></a>
             <a href="/payments/hardship">
             <Button variant="secondary" size="sm">Hardship request</Button>
           </a>
@@ -185,6 +220,7 @@ export default function PaymentsPage() {
                     dot
                   />
                 </div>
+                <Button variant="secondary" size="sm" onClick={() => copyParentLink(p)}>Parent link</Button>
                 {p.status === "pending" || p.status === "overdue" ? (
                   <Button
                     variant="secondary"
@@ -270,6 +306,15 @@ export default function PaymentsPage() {
               { value: "other", label: "Other" },
             ]}
           />
+        </div>
+      </Modal>
+
+      <Modal open={manualOpen} onClose={() => setManualOpen(false)} title="Log manual payment" description="Record cash, check, or Venmo payment" footer={<><Button variant="secondary" onClick={() => setManualOpen(false)}>Cancel</Button><Button onClick={logManualPayment}>Log payment</Button></>}>
+        <div className="space-y-3">
+          <Select label="Payment" value={manualForm.paymentId} onChange={(e) => setManualForm({ ...manualForm, paymentId: e.target.value })} options={payments.filter((p) => p.status !== "paid").map((p) => ({ value: p.id, label: `${p.member_profiles?.full_name ?? "Member"} — ${p.amount}` }))} placeholder="Select payment" />
+          <Input label="Amount received ($)" type="number" value={manualForm.amount} onChange={(e) => setManualForm({ ...manualForm, amount: e.target.value })} />
+          <Select label="Method" value={manualForm.method} onChange={(e) => setManualForm({ ...manualForm, method: e.target.value })} options={[{ value: "cash", label: "Cash" }, { value: "check", label: "Check" }, { value: "venmo", label: "Venmo/Zelle" }]} />
+          <Input label="Notes" value={manualForm.notes} onChange={(e) => setManualForm({ ...manualForm, notes: e.target.value })} />
         </div>
       </Modal>
     </div>

@@ -10,6 +10,7 @@ import {
 } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
 import type { PnmLead, PnmStatus } from "@/types";
+import { PnmVotingPanel } from "@/components/pnm/voting-panel";
 
 const PIPELINE_STAGES: PnmStatus[] = [
   "lead","contacted","invited","attended","interested",
@@ -145,6 +146,7 @@ export default function PnmPage() {
           { id: "pipeline", label: "Pipeline", count: leads.length },
           { id: "list", label: "List view" },
           { id: "analytics", label: "Analytics" },
+          { id: "voting", label: "Voting" },
         ]}
         active={tab}
         onChange={setTab}
@@ -331,6 +333,10 @@ export default function PnmPage() {
           </div>
         </div>
       </Modal>
+
+      {tab === "voting" && orgId && (
+        <PnmVotingPanel leads={leads} />
+      )}
 
       {/* Mass text modal */}
       <Modal

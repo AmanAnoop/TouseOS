@@ -181,6 +181,13 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
       )}
 
       {/* Emergency contact — officer-only */}
+      {member.notes && (
+        <Card>
+          <CardHeader title="Officer notes" description="Permission restricted — visible to officers only" />
+          <p className="text-sm whitespace-pre-wrap">{member.notes}</p>
+        </Card>
+      )}
+
       {(member.emergency_contact_name || member.emergency_contact_phone) && (
         <Card>
           <CardHeader title="Emergency contact" description="Restricted — officer and admin access only" icon={<Phone size={16} />} />

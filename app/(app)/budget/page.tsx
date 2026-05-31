@@ -155,6 +155,7 @@ export default function BudgetPage() {
 
   return (
     <div className="space-y-5">
+      {/* Budget alerts computed client-side from lines */}
       <PageHeader
         title="Budget & Finance"
         description={selectedBudget ? selectedBudget.label : "No budgets yet"}

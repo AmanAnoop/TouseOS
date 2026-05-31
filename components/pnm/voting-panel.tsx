@@ -1,0 +1,184 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { Gavel, Star } from "lucide-react";
+import toast from "react-hot-toast";
+import { createClient } from "@/lib/supabase/client";
+import {
+  Badge, Button, Card, EmptyState, Modal, Textarea,
+} from "@/components/ui";
+import type { PnmLead } from "@/types";
+
+interface Evaluation {
+  id: string;
+  pnm_id: string;
+  evaluator_name: string | null;
+  character: number | null;
+  involvement: number | null;
+  leadership_potential: number | null;
+  academic_seriousness: number | null;
+  mutual_interest: number | null;
+  social_fit: number | null;
+  risk_concern: number | null;
+  comments: string | null;
+  is_anonymous: boolean;
+}
+
+interface Props {
+  leads: PnmLead[];
+}
+
+const CRITERIA = [
+  { key: "character", label: "Character" },
+  { key: "involvement", label: "Involvement" },
+  { key: "leadership_potential", label: "Leadership" },
+  { key: "academic_seriousness", label: "Academic seriousness" },
+  { key: "social_fit", label: "Social fit" },
+  { key: "mutual_interest", label: "Mutual interest" },
+  { key: "risk_concern", label: "Risk concerns (lower is better)" },
+] as const;
+
+export function PnmVotingPanel({ leads }: Props) {
+  const supabase = createClient();
+  const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
+  const [selectedPnm, setSelectedPnm] = useState<PnmLead | null>(null);
+  const [scores, setScores] = useState<Record<string, number>>({});
+  const [comments, setComments] = useState("");
+  const [anonymous, setAnonymous] = useState(true);
+  const [userName, setUserName] = useState("");
+
+  useEffect(() => {
+    async function load() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: p } = await supabase.from("profiles").select("full_name").eq("id", user.id).single();
+        if (p) setUserName(String(p.full_name));
+      }
+      const { data } = await supabase.from("pnm_evaluations").select("*").in(
+        "pnm_id",
+        leads.map((l) => l.id),
+      );
+      setEvaluations((data ?? []) as Evaluation[]);
+    }
+    if (leads.length) load();
+  }, [supabase, leads]);
+
+  function avgScore(pnmId: string) {
+    const evs = evaluations.filter((e) => e.pnm_id === pnmId);
+    if (!evs.length) return null;
+    const keys = CRITERIA.map((c) => c.key);
+    let total = 0;
+    let count = 0;
+    for (const ev of evs) {
+      for (const k of keys) {
+        const v = ev[k as keyof Evaluation];
+        if (typeof v === "number") { total += v; count++; }
+      }
+    }
+    return count ? Math.round((total / count) * 10) / 10 : null;
+  }
+
+  async function submitEvaluation() {
+    if (!selectedPnm) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    const payload = {
+      pnm_id: selectedPnm.id,
+      evaluator_id: anonymous ? null : user?.id,
+      evaluator_name: anonymous ? "Anonymous" : userName,
+      character: scores.character ?? 3,
+      involvement: scores.involvement ?? 3,
+      leadership_potential: scores.leadership_potential ?? 3,
+      academic_seriousness: scores.academic_seriousness ?? 3,
+      mutual_interest: scores.mutual_interest ?? 3,
+      social_fit: scores.social_fit ?? 3,
+      risk_concern: scores.risk_concern ?? 1,
+      comments: comments || null,
+      is_anonymous: anonymous,
+    };
+    const { error } = await supabase.from("pnm_evaluations").insert(payload);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Evaluation submitted");
+    setEvaluations((prev) => [...prev, { ...payload, id: crypto.randomUUID() } as Evaluation]);
+    setSelectedPnm(null);
+    setScores({});
+    setComments("");
+  }
+
+  const bidCandidates = [...leads]
+    .filter((l) => !["declined", "removed", "accepted"].includes(l.status))
+    .map((l) => ({ lead: l, avg: avgScore(l.id) }))
+    .sort((a, b) => (b.avg ?? 0) - (a.avg ?? 0));
+
+  return (
+    <div className="space-y-4">
+      <Card padding="sm">
+        <p className="text-sm text-muted-foreground">
+          Values-based voting for bid decisions. Evaluations can be anonymous per chapter policy.
+          Only officers with recruitment access can view individual ballots.
+        </p>
+      </Card>
+
+      {bidCandidates.length === 0 ? (
+        <EmptyState icon={<Gavel size={24} />} title="No PNMs to evaluate" description="Add PNMs to the pipeline first." />
+      ) : (
+        <div className="space-y-2">
+          <p className="text-sm font-semibold">Bid list builder (by avg score)</p>
+          {bidCandidates.map(({ lead, avg }, i) => (
+            <Card key={lead.id} padding="sm" className="flex items-center gap-3">
+              <span className="w-6 text-center font-bold text-muted-foreground">{i + 1}</span>
+              <div className="flex-1">
+                <p className="font-medium text-sm">{lead.full_name}</p>
+                <p className="text-xs text-muted-foreground">{lead.status.replace(/_/g, " ")} · {evaluations.filter((e) => e.pnm_id === lead.id).length} votes</p>
+              </div>
+              {avg !== null ? (
+                <div className="flex items-center gap-1">
+                  <Star size={14} className="text-yellow-500 fill-yellow-500" />
+                  <span className="font-bold">{avg}</span>
+                </div>
+              ) : (
+                <Badge label="No votes" color="gray" />
+              )}
+              <Button size="sm" variant="secondary" onClick={() => setSelectedPnm(lead)}>Vote</Button>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Modal
+        open={!!selectedPnm}
+        onClose={() => setSelectedPnm(null)}
+        title={`Evaluate ${selectedPnm?.full_name ?? ""}`}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setSelectedPnm(null)}>Cancel</Button>
+            <Button onClick={submitEvaluation}>Submit vote</Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {CRITERIA.map((c) => (
+            <div key={c.key}>
+              <div className="flex justify-between mb-1">
+                <label className="text-sm font-medium">{c.label}</label>
+                <span className="text-sm text-muted-foreground">{scores[c.key] ?? 3}/5</span>
+              </div>
+              <input
+                type="range"
+                min={1}
+                max={5}
+                value={scores[c.key] ?? 3}
+                onChange={(e) => setScores({ ...scores, [c.key]: parseInt(e.target.value, 10) })}
+                className="w-full"
+              />
+            </div>
+          ))}
+          <Textarea label="Comments" value={comments} onChange={(e) => setComments(e.target.value)} placeholder="Optional notes for bid discussion..." />
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={anonymous} onChange={(e) => setAnonymous(e.target.checked)} />
+            Submit anonymously
+          </label>
+        </div>
+      </Modal>
+    </div>
+  );
+}

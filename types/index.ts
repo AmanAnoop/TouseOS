@@ -15,7 +15,9 @@ export type MemberStatus =
   | "alumni"
   | "removed"
   | "advisor"
-  | "admin";
+  | "admin"
+  | "suspended"
+  | "new_member";
 
 export type PaymentStatus =
   | "pending"
@@ -108,6 +110,7 @@ export interface MemberProfile {
   position: string | null;
   uniform_size: string | null;
   is_injured: boolean;
+  sports_status?: string;
   payment_status: string;
   attendance_rate: number;
   forms_completed: number;

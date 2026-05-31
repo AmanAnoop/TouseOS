@@ -20,6 +20,8 @@ const STATUS_COLOR: Record<string, string> = {
   rejected: "red", paid: "green",
 };
 
+const APPROVAL_THRESHOLD = 250;
+
 const CATEGORIES = [
   "Food & catering", "Venue / facility", "Transportation",
   "Security", "Decorations", "Printing & materials",
@@ -109,17 +111,42 @@ export default function ReimbursementsPage() {
     load(orgId);
   }
 
-  async function updateStatus(id: string, status: string, notes?: string) {
-    const updates: Record<string, unknown> = { status };
-    if (notes) updates.rejection_reason = notes;
-    if (status === "approved" || status === "paid") {
+  async function updateStatus(id: string, status: string, notes?: string, approvalType?: "treasurer" | "president") {
+    const reimb = reimbs.find((r) => r.id === id);
+    const updates: Record<string, unknown> = {};
+    const now = new Date().toISOString();
+
+    if (status === "rejected" || status === "needs_info") {
+      updates.status = status;
+      if (notes) updates.rejection_reason = notes;
+    } else if (approvalType === "treasurer") {
+      updates.treasurer_approved_at = now;
+      if (reimb && Number(reimb.amount) <= APPROVAL_THRESHOLD) {
+        updates.status = "approved";
+        updates.reviewed_by = userId;
+        updates.reviewed_at = now;
+      } else {
+        toast.success("Treasurer approved — president approval required above $" + APPROVAL_THRESHOLD);
+      }
+    } else if (approvalType === "president") {
+      updates.president_approved_at = now;
+      updates.status = "approved";
       updates.reviewed_by = userId;
-      updates.reviewed_at = new Date().toISOString();
+      updates.reviewed_at = now;
+    } else if (status === "paid") {
+      updates.status = "paid";
+      updates.paid_at = now;
+    } else {
+      updates.status = status;
+      if (status === "approved") {
+        updates.reviewed_by = userId;
+        updates.reviewed_at = now;
+      }
     }
-    if (status === "paid") updates.paid_at = new Date().toISOString();
+
     await supabase.from("reimbursements").update(updates).eq("id", id);
     setReimbs((prev) => prev.map((r) => r.id === id ? { ...r, ...updates } : r));
-    toast.success(`Request ${status}`);
+    toast.success(`Request updated`);
     setSelected(null);
   }
 
@@ -268,7 +295,10 @@ export default function ReimbursementsPage() {
           <div className="flex gap-2 flex-wrap w-full">
             {selected?.status === "submitted" && (
               <>
-                <Button onClick={() => updateStatus(selected.id, "approved")} icon={<CheckCircle size={14} />}>Approve</Button>
+                <Button onClick={() => updateStatus(selected.id, "approved", undefined, "treasurer")} icon={<CheckCircle size={14} />}>Treasurer approve</Button>
+                {Number(selected.amount) > APPROVAL_THRESHOLD && (
+                  <Button onClick={() => updateStatus(selected.id, "approved", undefined, "president")}>President approve</Button>
+                )}
                 <Button variant="secondary" onClick={() => updateStatus(selected.id, "needs_info")}>Need info</Button>
                 <Button variant="danger" onClick={() => updateStatus(selected.id, "rejected")} icon={<XCircle size={14} />}>Reject</Button>
               </>

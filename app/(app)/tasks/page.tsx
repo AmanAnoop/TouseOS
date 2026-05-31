@@ -35,7 +35,7 @@ export default function TasksPage() {
   const [editTask, setEditTask] = useState<Task | null>(null);
 
   const [form, setForm] = useState({
-    title: "", description: "", priority: "medium" as TaskPriority,
+    title: "", description: "", priority: "medium" as TaskPriority, isRecurring: false,
     dueDate: "", assigneeName: "", tags: "",
   });
 
@@ -103,7 +103,7 @@ export default function TasksPage() {
 
     setCreateOpen(false);
     setEditTask(null);
-    setForm({ title: "", description: "", priority: "medium", dueDate: "", assigneeName: "", tags: "" });
+    setForm({ title: "", description: "", priority: "medium", isRecurring: false, dueDate: "", assigneeName: "", tags: "" });
     load(orgId);
   }
 
@@ -122,6 +122,7 @@ export default function TasksPage() {
       description: task.description ?? "",
       priority: task.priority,
       dueDate: task.due_date ?? "",
+      isRecurring: Boolean((task as { is_recurring?: boolean }).is_recurring),
       assigneeName: task.assignee_name ?? "",
       tags: task.tags?.join(", ") ?? "",
     });
@@ -292,6 +293,7 @@ export default function TasksPage() {
             />
             <Input label="Due date" type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} />
           </div>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.isRecurring} onChange={(e) => setForm({ ...form, isRecurring: e.target.checked })} /> Recurring task</label>
           <Input label="Assignee" placeholder="Who's responsible?" value={form.assigneeName} onChange={(e) => setForm({ ...form, assigneeName: e.target.value })} />
           <Input label="Tags (comma-separated)" placeholder="recruitment, social, important" value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} />
           {editTask && (

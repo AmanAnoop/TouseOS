@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import Papa from "papaparse";
 import { useRouter } from "next/navigation";
 import {
   Download, Mail, Upload, UserPlus,
@@ -22,6 +23,8 @@ const STATUS_OPTIONS = [
   { value: "inactive", label: "Inactive" },
   { value: "alumni", label: "Alumni" },
   { value: "advisor", label: "Advisor" },
+  { value: "suspended", label: "Suspended" },
+  { value: "new_member", label: "New member" },
 ];
 
 const PAYMENT_OPTIONS = [
@@ -43,6 +46,8 @@ export default function RosterPage() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("general_member");
+  const [importing, setImporting] = useState(false);
+  const importRef = useRef<HTMLInputElement>(null);
 
   const loadMembers = useCallback(async (oid: string) => {
     setLoading(true);
@@ -103,6 +108,32 @@ export default function RosterPage() {
     })));
   }
 
+  async function handleCsvImport(file: File) {
+    if (!orgId) return;
+    setImporting(true);
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const res = await fetch("/api/members/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orgId, rows: results.data }),
+        });
+        setImporting(false);
+        if (res.ok) {
+          const { imported } = await res.json();
+          toast.success(`Imported ${imported} members`);
+          loadMembers(orgId);
+        } else {
+          const err = await res.json();
+          toast.error(err.error ?? "Import failed");
+        }
+      },
+      error: () => { setImporting(false); toast.error("Could not parse CSV"); },
+    });
+  }
+
   async function sendInvite() {
     if (!orgId || !inviteEmail) return;
     const res = await fetch("/api/members/invite", {
@@ -129,9 +160,8 @@ export default function RosterPage() {
         breadcrumb="Organization"
         action={
           <div className="flex gap-2">
-            <Button variant="secondary" size="sm" icon={<Upload size={14} />}>
-              Import CSV
-            </Button>
+            <Button variant="secondary" size="sm" icon={<Upload size={14} />} onClick={() => importRef.current?.click()} loading={importing}>Import CSV</Button>
+            <input ref={importRef} type="file" accept=".csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCsvImport(f); e.target.value = ""; }} />
             <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={exportRoster}>
               Export
             </Button>

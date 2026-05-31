@@ -91,6 +91,7 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
 
   const coreNav: NavItem[] = [
     { href: "/dashboard", label: "Dashboard", icon: <Home size={18} /> },
+    { href: "/health", label: "Health Score", icon: <Heart size={18} /> },
     { href: "/roster", label: isSports ? "Team Roster" : "Member Roster", icon: <Users size={18} /> },
     { href: "/events", label: "Events", icon: <Calendar size={18} /> },
     { href: "/payments", label: "Dues & Payments", icon: <DollarSign size={18} /> },
@@ -99,6 +100,8 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
     { href: "/tasks", label: "Tasks", icon: <ClipboardList size={18} /> },
     { href: "/documents", label: "Documents", icon: <FileText size={18} /> },
     { href: "/forms", label: "Forms & Waivers", icon: <ClipboardList size={18} /> },
+    { href: "/governance", label: "Governance", icon: <BookOpen size={18} /> },
+    { href: "/attendance-points", label: "Points System", icon: <Trophy size={18} /> },
     { href: "/comms", label: "Communications", icon: <MessageSquare size={18} /> },
     { href: "/feed", label: "Chapter Feed", icon: <Zap size={18} /> },
   ];
