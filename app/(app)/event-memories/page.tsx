@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
-import { formatDate, formatCurrency } from "@/lib/utils";
-import { Calendar, Camera, Clock, Download, Image, Trophy } from "lucide-react";
+import { formatDate } from "@/lib/utils";
+import { Calendar, Camera, Clock, Download, Image } from "lucide-react";
 
 export const metadata = { title: "Event Memories" };
 export const dynamic = "force-dynamic";
@@ -74,7 +74,7 @@ export default async function EventMemoriesPage() {
                     </div>
 
                     {/* Event cover or album preview */}
-                    {(event.cover_image_url || album?.cover_url) && (
+                    {Boolean(event.cover_image_url || album?.cover_url) && (
                       <div className="rounded-xl overflow-hidden mb-3 bg-surface-2">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img

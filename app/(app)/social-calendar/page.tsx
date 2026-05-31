@@ -2,13 +2,16 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  Calendar, CheckCircle, Clock, Image,
-  Instagram, Plus, Share2,
+  Calendar, CheckCircle, Clock
+,
+  Instagram, Plus
+,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import {
-  Badge, Button, Card, CardHeader, EmptyState, Input,
+  Badge, Button, Card
+, EmptyState, Input,
   Modal, PageHeader, Tabs, Textarea,
 } from "@/components/ui";
 import { formatDate } from "@/lib/utils";

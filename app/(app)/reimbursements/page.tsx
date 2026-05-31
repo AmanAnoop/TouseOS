@@ -9,7 +9,7 @@ import {
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import {
-  Avatar, Badge, Button, Card, CardHeader, EmptyState,
+  Avatar, Badge, Button, Card, EmptyState,
   Input, Modal, PageHeader, Select, StatCard, Tabs, Textarea,
 } from "@/components/ui";
 import { downloadCsv, formatCurrency, formatDate } from "@/lib/utils";

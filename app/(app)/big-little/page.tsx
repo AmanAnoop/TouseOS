@@ -5,8 +5,15 @@ import { Heart, Plus, RefreshCw, Star, Users } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import {
-  Avatar, Badge, Button, Card, CardHeader, EmptyState,
-  Modal, PageHeader, StatCard,
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  EmptyState,
+  Modal,
+  PageHeader,
+  StatCard,
 } from "@/components/ui";
 import type { MemberProfile } from "@/types";
 
@@ -21,10 +28,6 @@ interface Match {
   little?: MemberProfile;
 }
 
-const INTERESTS_OPTIONS = [
-  "Sports", "Music", "Art", "Photography", "Travel", "Cooking",
-  "Gaming", "Reading", "Fitness", "Outdoors", "Dancing", "Film",
-];
 
 export default function BigLittlePage() {
   const supabase = createClient();

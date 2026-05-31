@@ -5,7 +5,9 @@ import {
   BookOpen, Calendar, DollarSign, FileText,
   Loader2, MessageSquare, Send, Sparkles, User, Zap,
 } from "lucide-react";
-import { Button, Card, CardHeader, PageHeader } from "@/components/ui";
+import { Button
+
+, PageHeader } from "@/components/ui";
 
 interface Message {
   role: "user" | "assistant";

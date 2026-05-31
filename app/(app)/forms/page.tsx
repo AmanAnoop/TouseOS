@@ -5,7 +5,8 @@ import { ClipboardList, Eye, Plus, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import {
-  Badge, Button, Card, CardHeader, EmptyState, Input,
+  Badge, Button, Card
+, EmptyState, Input,
   Modal, PageHeader, Select, StatCard, Tabs,
 } from "@/components/ui";
 import { formatDate } from "@/lib/utils";

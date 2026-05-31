@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { Bell, Check, CheckCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { Badge, Button, Card, EmptyState, PageHeader, Tabs } from "@/components/ui";
+import { 
+Button, Card, EmptyState, PageHeader, Tabs } from "@/components/ui";
 import { timeAgo } from "@/lib/utils";
 import type { Notification } from "@/types";
 
@@ -24,14 +25,6 @@ const TYPE_ICON: Record<string, string> = {
   general: "🔔",
 };
 
-const TYPE_COLOR: Record<string, string> = {
-  payment_reminder: "red",
-  form_missing: "yellow",
-  task_due: "yellow",
-  waiver_missing: "red",
-  new_match: "green",
-  general: "blue",
-};
 
 export default function NotificationsPage() {
   const supabase = createClient();

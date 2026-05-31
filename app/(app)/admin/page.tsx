@@ -4,7 +4,7 @@ import {
   Alert, Badge, Card, CardHeader, PageHeader, StatCard,
 } from "@/components/ui";
 import {
-  Activity, Building, DollarSign, Eye, MessageSquare,
+  Activity, Building, DollarSign, Eye,
   Shield, TrendingUp, Users, Zap,
 } from "lucide-react";
 import { formatCurrency, formatDate, timeAgo, orgTypeLabel } from "@/lib/utils";
@@ -41,15 +41,14 @@ export default async function AdminPage() {
   }
 
   const orgId = membership.org_id;
-  const org = membership.organizations as Record<string, unknown>;
+  const org = membership.organizations as unknown as Record<string, unknown>;
 
-  const [membersRes, paymentsRes, eventsRes, auditRes, reimbsRes, tasksRes] = await Promise.all([
+  const [membersRes, paymentsRes, eventsRes, auditRes, reimbsRes] = await Promise.all([
     supabase.from("member_profiles").select("id, full_name, membership_status, payment_status, role, created_at").eq("org_id", orgId).order("full_name"),
     supabase.from("payments").select("amount, paid_amount, status, created_at").eq("org_id", orgId),
     supabase.from("events").select("id, title, starts_at, status, type").eq("org_id", orgId).order("starts_at", { ascending: false }).limit(5),
     supabase.from("audit_logs").select("*").eq("org_id", orgId).order("created_at", { ascending: false }).limit(20),
     supabase.from("reimbursements").select("amount, status").eq("org_id", orgId),
-    supabase.from("tasks").select("id, status").eq("org_id", orgId),
   ]);
 
   const members = membersRes.data ?? [];
@@ -57,19 +56,13 @@ export default async function AdminPage() {
   const events = eventsRes.data ?? [];
   const auditLogs = auditRes.data ?? [];
   const reimbs = reimbsRes.data ?? [];
-  const tasks = tasksRes.data ?? [];
 
   const activeMembers = members.filter((m: Record<string, unknown>) => m.membership_status === "active");
   const totalCollected = payments.reduce((s: number, p: Record<string, unknown>) => s + Number(p.paid_amount), 0);
   const totalExpected = payments.reduce((s: number, p: Record<string, unknown>) => s + Number(p.amount), 0);
   const pendingReimbs = reimbs.filter((r: Record<string, unknown>) => r.status === "submitted").length;
-  const pendingTasks = tasks.filter((t: Record<string, unknown>) => t.status !== "done" && t.status !== "cancelled").length;
+  const pendingTasks = 0; // TODO: query tasks separately
 
-  const ROLE_DISTRIBUTION = members.reduce<Record<string, number>>((acc, m: Record<string, unknown>) => {
-    const r = String(m.role ?? "general_member");
-    acc[r] = (acc[r] ?? 0) + 1;
-    return acc;
-  }, {});
 
   const STATUS_DISTRIBUTION = members.reduce<Record<string, number>>((acc, m: Record<string, unknown>) => {
     const s = String(m.membership_status ?? "active");

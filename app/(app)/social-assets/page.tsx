@@ -1,6 +1,10 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { Card, CardHeader, EmptyState, PageHeader } from "@/components/ui";
+import {
+  Card,
+  CardHeader,
+  PageHeader,
+} from "@/components/ui";
 import { Brush, Download, ExternalLink, Image, Link, Palette } from "lucide-react";
 
 export const metadata = { title: "Social Asset Library" };
@@ -14,7 +18,7 @@ export default async function SocialAssetsPage() {
   const { data: m } = await supabase.from("org_members").select("org_id, organizations(name, primary_color, secondary_color, logo_url)").eq("user_id", user.id).limit(1).single();
   if (!m) redirect("/onboarding");
 
-  const org = m.organizations as Record<string, unknown>;
+  const org = m.organizations as unknown as Record<string, unknown>;
 
   const TEMPLATE_CATEGORIES = [
     {

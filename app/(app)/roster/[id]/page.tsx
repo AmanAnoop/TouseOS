@@ -2,7 +2,8 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import {
-  Badge, Card, CardHeader, PageHeader, ProgressBar,
+  Badge, Card, CardHeader
+, ProgressBar,
 } from "@/components/ui";
 import {
   Briefcase, Calendar, ChevronLeft, GraduationCap,
@@ -10,7 +11,7 @@ import {
 } from "lucide-react";
 import { formatDate, getStatusColor } from "@/lib/utils";
 import { ROLE_LABELS } from "@/lib/permissions";
-import type { MemberProfile, Payment, Task } from "@/types";
+import type { MemberProfile, Payment } from "@/types";
 
 export const dynamic = "force-dynamic";
 
@@ -20,10 +21,10 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [memberRes, paymentsRes, tasksRes, rsvpsRes] = await Promise.all([
+  const [memberRes, paymentsRes
+, rsvpsRes] = await Promise.all([
     supabase.from("member_profiles").select("*").eq("id", id).single(),
     supabase.from("payments").select("amount, paid_amount, status, due_date, created_at").eq("member_id", id).order("due_date", { ascending: false }).limit(10),
-    supabase.from("tasks").select("id, title, status, due_date, priority").eq("assigned_to", (await supabase.from("member_profiles").select("user_id").eq("id", id).single()).data?.user_id ?? "").limit(5),
     supabase.from("event_rsvps").select("id, status, checked_in, events(title, starts_at, type)").eq("member_id", id).order("created_at", { ascending: false }).limit(10),
   ]);
 
@@ -169,7 +170,7 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
                   <div className={`w-2 h-2 rounded-full flex-shrink-0 ${rsvp.checked_in ? "bg-green-500" : rsvp.status === "going" ? "bg-blue-500" : "bg-gray-400"}`} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{String(event?.title ?? "—")}</p>
-                    {event?.starts_at && <p className="text-xs text-muted-foreground">{formatDate(String(event.starts_at))}</p>}
+                    {Boolean(event?.starts_at) && <p className="text-xs text-muted-foreground">{formatDate(String(event?.starts_at))}</p>}
                   </div>
                   <Badge label={Boolean(rsvp.checked_in) ? "Attended" : String(rsvp.status)} color={Boolean(rsvp.checked_in) ? "green" : "gray"} />
                 </div>

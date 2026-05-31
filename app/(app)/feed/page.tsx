@@ -1,10 +1,12 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
-  Avatar, Badge, Card, EmptyState, PageHeader,
+  Badge,
+  Card,
+  EmptyState,
 } from "@/components/ui";
 import { timeAgo } from "@/lib/utils";
-import { Bell, MessageSquare, Star, Trophy, Users, Zap } from "lucide-react";
+import { Bell, Star, Zap } from "lucide-react";
 
 export const metadata = { title: "Chapter Feed" };
 export const dynamic = "force-dynamic";
@@ -29,7 +31,7 @@ export default async function FeedPage() {
   const events = (eventsRes.data ?? []) as Array<Record<string, unknown>>;
   const photos = (photosRes.data ?? []) as Array<Record<string, unknown>>;
 
-  const orgName = String((m.organizations as Record<string, unknown>)?.name ?? "Your chapter");
+  const orgName = String((m.organizations as unknown as Record<string, unknown>)?.name ?? "Your chapter");
 
   // Build a merged timeline
   type FeedItem = {
