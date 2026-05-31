@@ -94,15 +94,21 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
     { href: "/roster", label: isSports ? "Team Roster" : "Member Roster", icon: <Users size={18} /> },
     { href: "/events", label: "Events", icon: <Calendar size={18} /> },
     { href: "/payments", label: "Dues & Payments", icon: <DollarSign size={18} /> },
+    { href: "/reimbursements", label: "Reimbursements", icon: <DollarSign size={18} /> },
     { href: "/budget", label: "Budget & Finance", icon: <BookOpen size={18} /> },
     { href: "/tasks", label: "Tasks", icon: <ClipboardList size={18} /> },
     { href: "/documents", label: "Documents", icon: <FileText size={18} /> },
+    { href: "/forms", label: "Forms & Waivers", icon: <ClipboardList size={18} /> },
     { href: "/comms", label: "Communications", icon: <MessageSquare size={18} /> },
+    { href: "/feed", label: "Chapter Feed", icon: <Zap size={18} /> },
   ];
 
   const greekNav: NavItem[] = [
     { href: "/pnm", label: "PNM Recruitment", icon: <Zap size={18} /> },
+    { href: "/big-little", label: "Big/Little", icon: <Heart size={18} /> },
     { href: "/social", label: "Touse Social", icon: <Image size={18} /> },
+    { href: "/social-calendar", label: "Social Calendar", icon: <Calendar size={18} /> },
+    { href: "/social-assets", label: "Asset Library", icon: <Image size={18} /> },
     { href: "/risk", label: "Risk Management", icon: <Shield size={18} /> },
     { href: "/nme", label: "New Members", icon: <BookOpen size={18} /> },
     { href: "/standards", label: "Standards", icon: <ClipboardList size={18} /> },
@@ -110,10 +116,12 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
     { href: "/alumni", label: "Alumni CRM", icon: <Users size={18} /> },
     { href: "/philanthropy", label: "Philanthropy", icon: <Building size={18} /> },
     { href: "/interchapter", label: "ExecLink", icon: <Zap size={18} /> },
+    { href: "/event-memories", label: "Memories", icon: <Calendar size={18} /> },
   ];
 
   const sportsNav: NavItem[] = [
     { href: "/tryouts", label: "Tryouts", icon: <Trophy size={18} /> },
+    { href: "/tournaments", label: "Tournaments", icon: <Trophy size={18} /> },
     { href: "/social", label: "Photos & Social", icon: <Image size={18} /> },
     { href: "/waivers", label: "Waivers & Compliance", icon: <Shield size={18} /> },
     { href: "/travel", label: "Travel Management", icon: <Building size={18} /> },
@@ -132,6 +140,8 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
     { href: "/reports", label: "Reports", icon: <FileText size={18} /> },
     { href: "/transition", label: "Officer Binder", icon: <BookOpen size={18} /> },
     { href: "/vendors", label: "Vendor Memory", icon: <Building size={18} /> },
+    { href: "/ai-assistant", label: "AI Assistant ✨", icon: <Zap size={18} /> },
+    { href: "/admin", label: "Admin Dashboard", icon: <Settings size={18} /> },
     { href: "/settings", label: "Settings", icon: <Settings size={18} /> },
   ];
 
@@ -283,7 +293,7 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
           >
             {dark ? <Sun size={16} /> : <Moon size={16} />}
           </button>
-          <Link href="/notifications" className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-1">
+          <Link href="/notifications" className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-1" title="Notifications">
             <Bell size={16} />
           </Link>
           {!collapsed && (
