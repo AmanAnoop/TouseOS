@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  Bell, Mail, MessageSquare, Phone, Plus, Send, Users,
+  Bell, Mail, Plus, Send,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import {
-  Alert, Avatar, Badge, Button, Card, CardHeader,
+  Alert, Avatar, Badge, Button, Card,
   EmptyState, Modal, PageHeader, SearchInput, Tabs, Textarea,
 } from "@/components/ui";
 import { timeAgo } from "@/lib/utils";
@@ -39,6 +39,26 @@ export default function CommsPage() {
   const [emailDraft, setEmailDraft] = useState({
     subject: "", body: "", audience: "all",
   });
+  const [scheduledMessages, setScheduledMessages] = useState<Array<Record<string, unknown>>>([]);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [scheduleDraft, setScheduleDraft] = useState({
+    channel: "announcement", title: "", body: "", audience: "all", scheduledFor: "",
+  });
+
+  const loadScheduled = useCallback(async (oid: string) => {
+    const res = await fetch(`/api/comms/schedule?orgId=${oid}`);
+    if (res.ok) {
+      const { messages } = await res.json();
+      setScheduledMessages(messages ?? []);
+    }
+    // Process any due messages
+    await fetch("/api/comms/process-scheduled", { method: "POST" });
+    const res2 = await fetch(`/api/comms/schedule?orgId=${oid}`);
+    if (res2.ok) {
+      const { messages } = await res2.json();
+      setScheduledMessages(messages ?? []);
+    }
+  }, []);
 
   const loadAnnouncements = useCallback(async (oid: string) => {
     setLoading(true);
@@ -61,7 +81,7 @@ export default function CommsPage() {
         supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single(),
         supabase.from("profiles").select("full_name").eq("id", user.id).single(),
       ]);
-      if (mRes.data) { setOrgId(mRes.data.org_id); loadAnnouncements(mRes.data.org_id); }
+      if (mRes.data) { setOrgId(mRes.data.org_id); loadAnnouncements(mRes.data.org_id); loadScheduled(mRes.data.org_id); }
       if (pRes.data) setUserProfile({ name: String(pRes.data.full_name) });
     }
     init();
@@ -84,6 +104,27 @@ export default function CommsPage() {
     loadAnnouncements(orgId);
   }
 
+  async function scheduleMessage() {
+    if (!orgId || !scheduleDraft.body || !scheduleDraft.scheduledFor) return;
+    const res = await fetch("/api/comms/schedule", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId, ...scheduleDraft }),
+    });
+    if (res.ok) {
+      toast.success("Message scheduled");
+      setScheduleOpen(false);
+      setScheduleDraft({ channel: "announcement", title: "", body: "", audience: "all", scheduledFor: "" });
+      loadScheduled(orgId);
+    } else toast.error("Failed to schedule");
+  }
+
+  async function cancelScheduled(id: string) {
+    await fetch(`/api/comms/schedule?id=${id}`, { method: "DELETE" });
+    if (orgId) loadScheduled(orgId);
+    toast.success("Cancelled");
+  }
+
   async function sendEmailBlast() {
     if (!orgId || !emailDraft.subject || !emailDraft.body) return;
     const res = await fetch("/api/comms/email-blast", {
@@ -92,7 +133,8 @@ export default function CommsPage() {
       body: JSON.stringify({ orgId, ...emailDraft }),
     });
     if (res.ok) {
-      toast.success("Email blast queued");
+      const data = await res.json();
+      toast.success(data.message ?? "Email blast sent");
       setEmailBlastOpen(false);
     } else toast.error("Failed to send");
   }
@@ -215,32 +257,30 @@ export default function CommsPage() {
 
       {tab === "schedule" && (
         <div className="space-y-4">
-          <Alert type="info" title="Scheduled messages coming soon" description="Schedule announcements and email blasts in advance. Messages will be sent at your chosen time." />
-          <Card>
-            <CardHeader title="Audience segments" description="Available for announcements and email blasts" />
+          <div className="flex justify-end">
+            <Button size="sm" icon={<Plus size={14} />} onClick={() => setScheduleOpen(true)}>Schedule message</Button>
+          </div>
+          {scheduledMessages.filter((m) => m.status === "scheduled").length === 0 ? (
+            <EmptyState icon={<Bell size={20} />} title="No scheduled messages" description="Schedule announcements or emails to send later." action={<Button size="sm" onClick={() => setScheduleOpen(true)}>Schedule message</Button>} />
+          ) : (
             <div className="space-y-2">
-              {[
-                { label: "All members", icon: <Users size={14} />, description: "Every active member in your org" },
-                { label: "Officers only", icon: <Bell size={14} />, description: "Exec board and committee chairs" },
-                { label: "New members", icon: <Users size={14} />, description: "Members with new member status" },
-                { label: "Unpaid members", icon: <Bell size={14} />, description: "Members with outstanding dues" },
-                { label: "Alumni/Alumnae", icon: <Users size={14} />, description: "Alumni members" },
-                { label: "PNMs", icon: <MessageSquare size={14} />, description: "Opted-in potential new members (SMS)" },
-                { label: "Event attendees", icon: <Users size={14} />, description: "Members who RSVPed to a specific event" },
-                { label: "Sports travel roster", icon: <Phone size={14} />, description: "Players confirmed for a trip" },
-              ].map((seg) => (
-                <div key={seg.label} className="flex items-center gap-3 p-2 rounded-lg border border-border">
-                  <div className="w-7 h-7 rounded-md bg-greek-50 dark:bg-greek-950/30 flex items-center justify-center text-greek-600">
-                    {seg.icon}
+              {scheduledMessages.filter((m) => m.status === "scheduled").map((m) => (
+                <Card key={String(m.id)} padding="sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-semibold text-sm">{String(m.title ?? "Scheduled message")}</p>
+                        <Badge label={String(m.channel)} color="blue" />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">{String(m.scheduled_for)}</p>
+                      <p className="text-sm mt-1 line-clamp-2">{String(m.body)}</p>
+                    </div>
+                    <button onClick={() => cancelScheduled(String(m.id))} className="text-xs text-red-500 hover:underline">Cancel</button>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium">{seg.label}</p>
-                    <p className="text-xs text-muted-foreground">{seg.description}</p>
-                  </div>
-                </div>
+                </Card>
               ))}
             </div>
-          </Card>
+          )}
         </div>
       )}
 
@@ -272,6 +312,21 @@ export default function CommsPage() {
             <input type="checkbox" className="rounded" checked={draft.pinned} onChange={(e) => setDraft({ ...draft, pinned: e.target.checked })} />
             <span className="text-sm">Pin this announcement</span>
           </label>
+        </div>
+      </Modal>
+
+      <Modal open={scheduleOpen} onClose={() => setScheduleOpen(false)} title="Schedule message" footer={<><Button variant="secondary" onClick={() => setScheduleOpen(false)}>Cancel</Button><Button onClick={scheduleMessage} disabled={!scheduleDraft.body || !scheduleDraft.scheduledFor}>Schedule</Button></>}>
+        <div className="space-y-3">
+          <select className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm" value={scheduleDraft.channel} onChange={(e) => setScheduleDraft({ ...scheduleDraft, channel: e.target.value })}>
+            <option value="announcement">In-app announcement</option>
+            <option value="email">Email blast</option>
+          </select>
+          <input className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm" placeholder="Title / subject" value={scheduleDraft.title} onChange={(e) => setScheduleDraft({ ...scheduleDraft, title: e.target.value })} />
+          <Textarea placeholder="Message body..." value={scheduleDraft.body} onChange={(e) => setScheduleDraft({ ...scheduleDraft, body: e.target.value })} />
+          <select className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm" value={scheduleDraft.audience} onChange={(e) => setScheduleDraft({ ...scheduleDraft, audience: e.target.value })}>
+            {AUDIENCES.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
+          </select>
+          <input type="datetime-local" className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm" value={scheduleDraft.scheduledFor} onChange={(e) => setScheduleDraft({ ...scheduleDraft, scheduledFor: e.target.value })} />
         </div>
       </Modal>
 

@@ -138,8 +138,26 @@ export default function InterchapterPage() {
   }
 
   async function respondToProposal(id: string, status: string) {
+    const proposal = proposals.find((p) => p.id === id);
     await supabase.from("interchapter_proposals").update({ status }).eq("id", id);
     setProposals((prev) => prev.map((p) => p.id === id ? { ...p, status } : p));
+    if (status === "accepted" && proposal && orgId) {
+      const res = await fetch("/api/interchapter/workspaces", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          proposalId: id,
+          title: proposal.event_name,
+          orgIds: [proposal.proposing_org_id, proposal.target_org_id],
+        }),
+      });
+      if (res.ok) {
+        const { workspace } = await res.json();
+        toast.success("Workspace created!");
+        if (workspace?.id) window.location.href = `/interchapter/workspace/${workspace.id}`;
+        return;
+      }
+    }
     toast.success(`Proposal ${status}`);
     setSelectedProposal(null);
   }
@@ -367,6 +385,9 @@ export default function InterchapterPage() {
             {selectedProposal.theme_ideas && <div><p className="text-xs text-muted-foreground mb-1">Theme ideas</p><p className="text-sm">{selectedProposal.theme_ideas}</p></div>}
             {selectedProposal.venue_ideas && <div><p className="text-xs text-muted-foreground mb-1">Venue ideas</p><p className="text-sm">{selectedProposal.venue_ideas}</p></div>}
             {selectedProposal.philanthropy_beneficiary && <div><p className="text-xs text-muted-foreground mb-1">Philanthropy beneficiary</p><p className="text-sm">{selectedProposal.philanthropy_beneficiary}</p></div>}
+            {selectedProposal.status === "accepted" && (
+              <a href={`/interchapter/workspace?proposal=${selectedProposal.id}`} className="text-sm text-greek-600 hover:underline block mt-2">Open shared workspace →</a>
+            )}
           </div>
         )}
       </Modal>

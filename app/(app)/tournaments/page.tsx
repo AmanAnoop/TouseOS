@@ -4,6 +4,7 @@ import {
   Badge, Button, Card, CardHeader, EmptyState, PageHeader, StatCard,
 } from "@/components/ui";
 import { Calendar, Plus, Trophy } from "lucide-react";
+import { TournamentTools } from "@/components/tournaments/tournament-tools";
 import { formatDate } from "@/lib/utils";
 
 export const metadata = { title: "Tournament Management" };
@@ -96,16 +97,7 @@ export default async function TournamentsPage() {
             </Card>
           )}
 
-          <Card>
-            <CardHeader title="League tools" description="Coming soon in next update" />
-            <div className="grid sm:grid-cols-2 gap-3">
-              {["Tournament brackets","Roster submission","Score reporting","League standings","Referee coordination","Registration deadlines"].map((item) => (
-                <div key={item} className="flex items-center gap-2 p-3 rounded-lg border border-dashed border-border text-muted-foreground">
-                  <span className="text-sm">{item}</span>
-                </div>
-              ))}
-            </div>
-          </Card>
+          <TournamentTools />
         </div>
       )}
     </div>
