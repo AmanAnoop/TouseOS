@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from "react";
 import {
-  BarChart2, Download, FileText, Users,
+  BarChart2, Download, FileText,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
   Badge, Button, Card, CardHeader, PageHeader, Select, Tabs,
 } from "@/components/ui";
-import { downloadCsv, formatCurrency, formatDate, orgTypeLabel } from "@/lib/utils";
+import { downloadCsv, formatDate, orgTypeLabel } from "@/lib/utils";
 
 export default function ReportsPage() {
   const supabase = createClient();
@@ -31,8 +31,8 @@ export default function ReportsPage() {
         .single();
       if (m) {
         setOrgId(m.org_id);
-        setOrgName(String((m.organizations as Record<string, unknown>)?.name ?? ""));
-        setOrgType(String((m.organizations as Record<string, unknown>)?.type ?? "general_org"));
+        setOrgName(String((m.organizations as unknown as Record<string, unknown>)?.name ?? ""));
+        setOrgType(String((m.organizations as unknown as Record<string, unknown>)?.type ?? "general_org"));
       }
     }
     init();

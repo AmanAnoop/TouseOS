@@ -3,7 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui";
 import {
-  Calendar, Clock, ExternalLink, MapPin, Music, QrCode, Share2, Users,
+  Calendar, ExternalLink, MapPin, Music, Share2, Users,
 } from "lucide-react";
 import { formatDateTime } from "@/lib/utils";
 
@@ -63,8 +63,8 @@ export default async function PublicEventPage({ params }: { params: Promise<{ id
         <div className="absolute bottom-0 left-0 right-0 p-5">
           <div className="flex items-center gap-2 mb-2">
             <Badge label={String(evt.type).replace(/_/g, " ")} color="blue" className="bg-white/20 text-white border-transparent" />
-            {evt.theme && <Badge label={String(evt.theme)} color="purple" className="bg-white/20 text-white border-transparent" />}
-            {evt.alcohol && <Badge label="21+" color="orange" className="bg-white/20 text-white border-transparent" />}
+            {Boolean(evt.theme) && <Badge label={String(evt.theme)} color="purple" className="bg-white/20 text-white border-transparent" />}
+            {Boolean(evt.alcohol) && <Badge label="21+" color="orange" className="bg-white/20 text-white border-transparent" />}
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight">{String(evt.title)}</h1>
         </div>
@@ -91,23 +91,23 @@ export default async function PublicEventPage({ params }: { params: Promise<{ id
             </div>
             <div>
               <p className="text-sm font-medium text-foreground">{formatDateTime(String(evt.starts_at))}</p>
-              {evt.ends_at && <p className="text-xs text-muted-foreground">Until {formatDateTime(String(evt.ends_at))}</p>}
+              {Boolean(evt.ends_at) && <p className="text-xs text-muted-foreground">Until {formatDateTime(String(evt.ends_at))}</p>}
             </div>
           </div>
 
-          {evt.location && (
+          {Boolean(evt.location) && (
             <div className="flex items-start gap-3">
               <div className="w-9 h-9 rounded-xl bg-surface-1 border border-border flex items-center justify-center flex-shrink-0">
                 <MapPin size={16} className="text-muted-foreground" />
               </div>
               <div>
                 <p className="text-sm font-medium text-foreground">{String(evt.location)}</p>
-                {evt.address && <p className="text-xs text-muted-foreground">{String(evt.address)}</p>}
+                {Boolean(evt.address) && <p className="text-xs text-muted-foreground">{String(evt.address)}</p>}
               </div>
             </div>
           )}
 
-          {evt.dress_code && (
+          {Boolean(evt.dress_code) && (
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-surface-1 border border-border flex items-center justify-center flex-shrink-0 text-base">👔</div>
               <div>
@@ -117,7 +117,7 @@ export default async function PublicEventPage({ params }: { params: Promise<{ id
             </div>
           )}
 
-          {evt.playlist_url && (
+          {Boolean(evt.playlist_url) && (
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-surface-1 border border-border flex items-center justify-center flex-shrink-0">
                 <Music size={16} className="text-muted-foreground" />
@@ -136,7 +136,7 @@ export default async function PublicEventPage({ params }: { params: Promise<{ id
         </div>
 
         {/* Description */}
-        {evt.description && (
+        {Boolean(evt.description) && (
           <div>
             <p className="text-sm font-semibold text-foreground mb-1">About this event</p>
             <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">{String(evt.description)}</p>

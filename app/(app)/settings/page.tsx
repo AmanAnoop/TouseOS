@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import {
-  Building, Check, Copy, LogOut, Plus, Save,
-  Settings, Shield, Trash2, UserCheck, UserMinus, Users,
+  Building, Copy, LogOut, Plus, Save,
+  Shield, Trash2, UserCheck, UserMinus,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
@@ -53,7 +53,7 @@ export default function SettingsPage() {
       if (!m) return;
       setOrgId(m.org_id);
       setMyRole(String(m.role));
-      const orgData = m.organizations as Record<string, unknown>;
+      const orgData = m.organizations as unknown as Record<string, unknown>;
       setOrg(orgData);
       setOrgForm({
         name: String(orgData.name ?? ""),

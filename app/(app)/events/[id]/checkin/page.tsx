@@ -8,7 +8,7 @@ import {
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import {
-  Avatar, Badge, Button, Card, Input, PageHeader, StatCard,
+  Avatar, Button, Card, Input, StatCard,
 } from "@/components/ui";
 
 interface Attendee {

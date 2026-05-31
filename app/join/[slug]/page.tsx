@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Button, Card, Input, Alert } from "@/components/ui";
+import { Button, Card, Input } from "@/components/ui";
 import { Heart, CheckCircle2 } from "lucide-react";
 
 export default function PnmInterestFormPage() {

@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft, Heart } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Alert, Button, Card, Input, PageHeader, Select, Textarea } from "@/components/ui";
-import toast from "react-hot-toast";
 
 export default function HardshipRequestPage() {
   const supabase = createClient();

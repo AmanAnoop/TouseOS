@@ -145,7 +145,6 @@ export default function AccountPage() {
     toast.success("Left organization");
   }
 
-  const initials = profile.fullName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 
   return (
     <div className="space-y-5 max-w-lg mx-auto">

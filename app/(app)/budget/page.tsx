@@ -150,7 +150,6 @@ export default function BudgetPage() {
   const totalActualIncome = incomeLines.reduce((s, l) => s + Number(l.actual), 0);
   const totalBudgetedExpense = expenseLines.reduce((s, l) => s + Number(l.budgeted), 0);
   const totalActualExpense = expenseLines.reduce((s, l) => s + Number(l.actual), 0);
-  const netBudgeted = totalBudgetedIncome - totalBudgetedExpense;
   const netActual = totalActualIncome - totalActualExpense;
   const budgetUsedPct = totalBudgetedExpense > 0 ? Math.round((totalActualExpense / totalBudgetedExpense) * 100) : 0;
 
