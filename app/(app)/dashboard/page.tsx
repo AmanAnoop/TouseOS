@@ -12,6 +12,7 @@ import { computeHealthScore } from "@/lib/health-score";
 import { HealthScoreBadge } from "@/components/dashboard/health-score-badge";
 import { AttendanceTrendChart } from "@/components/dashboard/attendance-trend-chart";
 import { EngagementTrendChart } from "@/components/dashboard/engagement-trend-chart";
+import { UpcomingDeadlines, type DeadlineItem } from "@/components/dashboard/upcoming-deadlines";
 import {
   AlertTriangle, Calendar, CheckCircle2, DollarSign, FileText,
   Heart, Image, Shield, TrendingUp, Trophy, Users, Zap,
@@ -43,7 +44,7 @@ export default async function DashboardPage() {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
 
   const [
-    membersRes, eventsRes, paymentsRes, announcementsRes, tasksRes,
+    membersRes, eventsRes, paymentsRes, paymentDeadlinesRes, announcementsRes, tasksRes,
     reimbsRes, budgetsRes, photosRes, pnmRes,
     tripsRes, waiversRes, allEventsRes,
     pastEventsRes, recentPhotosRes, recentAnnouncementsRes,
@@ -51,6 +52,7 @@ export default async function DashboardPage() {
     supabase.from("member_profiles").select("id, full_name, membership_status, payment_status, attendance_rate, forms_completed, forms_required, created_at, is_injured").eq("org_id", orgId),
     supabase.from("events").select("id, title, type, starts_at, location, status").eq("org_id", orgId).gte("starts_at", new Date().toISOString()).order("starts_at").limit(5),
     supabase.from("payments").select("amount, paid_amount, status, due_date").eq("org_id", orgId),
+    supabase.from("payments").select("id, amount, paid_amount, status, due_date, payment_items(title)").eq("org_id", orgId),
     supabase.from("announcements").select("id, title, body, author_name, created_at, pinned").eq("org_id", orgId).order("pinned", { ascending: false }).order("created_at", { ascending: false }).limit(5),
     supabase.from("tasks").select("id, title, status, priority, due_date, assignee_name").eq("org_id", orgId).neq("status", "done").neq("status", "cancelled").order("due_date", { ascending: true }).limit(8),
     supabase.from("reimbursements").select("id, amount, status, created_at").eq("org_id", orgId),
@@ -146,6 +148,62 @@ export default async function DashboardPage() {
   });
 
   const engagementTrend = buckets;
+
+  const nowMs = Date.now();
+  const deadlineItems: DeadlineItem[] = [];
+
+  for (const t of tasks) {
+    if (!t.due_date) continue;
+    deadlineItems.push({
+      id: t.id,
+      kind: "task",
+      title: t.title,
+      dueAt: t.due_date,
+      href: "/tasks",
+      meta: t.assignee_name ?? undefined,
+      overdue: new Date(t.due_date).getTime() < nowMs,
+    });
+  }
+
+  const paymentRows = (paymentDeadlinesRes.data ?? []) as Array<{
+    id: string;
+    amount: number;
+    paid_amount: number;
+    status: string;
+    due_date: string | null;
+    payment_items?: { title: string } | { title: string }[] | null;
+  }>;
+
+  for (const pay of paymentRows) {
+    if (!pay.due_date || pay.status === "paid" || pay.status === "cancelled") continue;
+    const remaining = Number(pay.amount) - Number(pay.paid_amount);
+    if (remaining <= 0) continue;
+    const item = pay.payment_items;
+    const title =
+      (Array.isArray(item) ? item[0]?.title : item?.title) ?? "Payment due";
+    deadlineItems.push({
+      id: pay.id,
+      kind: "payment",
+      title,
+      dueAt: pay.due_date,
+      href: "/payments",
+      meta: `$${remaining.toFixed(0)} remaining`,
+      overdue: pay.status === "overdue" || new Date(pay.due_date).getTime() < nowMs,
+    });
+  }
+
+  for (const m of members) {
+    if (m.forms_required <= 0 || m.forms_completed >= m.forms_required) continue;
+    const dueAt = new Date(nowMs + 14 * 86400000).toISOString();
+    deadlineItems.push({
+      id: m.id,
+      kind: "form",
+      title: `${m.full_name} — forms incomplete`,
+      dueAt,
+      href: `/roster/${m.id}`,
+      meta: `${m.forms_completed}/${m.forms_required} completed`,
+    });
+  }
   const activeCount = members.filter((m) => m.membership_status === "active").length;
   const newMembers = members.filter((m) =>
     m.membership_status === "new_member" ||
@@ -286,6 +344,7 @@ export default async function DashboardPage() {
 
         <AttendanceTrendChart points={attendanceTrend} />
         <EngagementTrendChart points={engagementTrend} />
+        <UpcomingDeadlines items={deadlineItems} />
         {/* Upcoming events */}
         <Card>
           <CardHeader title="Upcoming events" icon={<Calendar size={16} />} action={<Link href="/events" className="text-xs text-greek-600 hover:underline">View all</Link>} />

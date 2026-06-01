@@ -149,25 +149,31 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
         </Card>
 
         <Card>
-          <CardHeader title="Payment summary" icon={<Shield size={16} />} />
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-2">
-              <div className="p-2 bg-surface-1 rounded"><p className="text-xs text-muted-foreground">Paid</p><p className="text-sm font-bold text-green-600">${paid.toFixed(0)}</p></div>
-              <div className="p-2 bg-surface-1 rounded"><p className="text-xs text-muted-foreground">Outstanding</p><p className={`text-sm font-bold ${outstanding > 0 ? "text-red-500" : "text-muted-foreground"}`}>${outstanding.toFixed(0)}</p></div>
+          <CardHeader title="Participation" icon={<Calendar size={16} />} />
+          <div className="space-y-4">
+            <div>
+              <p className="text-xs text-muted-foreground mb-2">Attendance</p>
+              <ProgressBar value={member.attendance_rate} label={`${attendanceCount} events attended · ${member.attendance_rate}%`} color={member.attendance_rate >= 80 ? "green" : "yellow"} size="md" />
             </div>
-            <Badge label={member.payment_status} color={member.payment_status === "current" ? "green" : "red"} />
-          </div>
-
-          <div className="mt-4 pt-4 border-t border-border">
-            <p className="text-xs text-muted-foreground mb-2">Attendance</p>
-            <ProgressBar value={member.attendance_rate} label={`${attendanceCount} events attended · ${member.attendance_rate}%`} color={member.attendance_rate >= 80 ? "green" : "yellow"} size="md" />
-          </div>
-
-          <div className="mt-4 pt-4 border-t border-border">
-            <p className="text-xs text-muted-foreground mb-2">Forms</p>
-            <ProgressBar value={member.forms_required > 0 ? Math.round((member.forms_completed / member.forms_required) * 100) : 100} label={`${member.forms_completed}/${member.forms_required} completed`} color={member.forms_completed === member.forms_required ? "green" : "red"} />
+            <div>
+              <p className="text-xs text-muted-foreground mb-2">Forms</p>
+              <ProgressBar value={member.forms_required > 0 ? Math.round((member.forms_completed / member.forms_required) * 100) : 100} label={`${member.forms_completed}/${member.forms_required} completed`} color={member.forms_completed === member.forms_required ? "green" : "red"} />
+            </div>
           </div>
         </Card>
+
+        {canSeeSensitive ? (
+          <Card>
+            <CardHeader title="Payment summary" icon={<Shield size={16} />} />
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-2 bg-surface-1 rounded"><p className="text-xs text-muted-foreground">Paid</p><p className="text-sm font-bold text-green-600">${paid.toFixed(0)}</p></div>
+                <div className="p-2 bg-surface-1 rounded"><p className="text-xs text-muted-foreground">Outstanding</p><p className={`text-sm font-bold ${outstanding > 0 ? "text-red-500" : "text-muted-foreground"}`}>${outstanding.toFixed(0)}</p></div>
+              </div>
+              <Badge label={member.payment_status} color={member.payment_status === "current" ? "green" : "red"} />
+            </div>
+          </Card>
+        ) : null}
       </div>
 
       {/* Event history */}

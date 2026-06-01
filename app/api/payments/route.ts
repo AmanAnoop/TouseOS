@@ -6,7 +6,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { orgId, title, amount, category, dueDate } = await request.json();
+  const { orgId, title, amount, category, dueDate, lateFee } = await request.json();
 
   // Create payment item
   const { data: item, error: itemError } = await supabase.from("payment_items").insert({
@@ -35,6 +35,7 @@ export async function POST(request: Request) {
       paid_amount: 0,
       status: "pending",
       due_date: dueDate || null,
+      late_fee: Math.max(0, parseFloat(String(lateFee ?? 0))),
     }));
 
     const { error: insertError } = await supabase.from("payments").insert(rows);

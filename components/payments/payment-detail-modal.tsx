@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Copy, CreditCard, DollarSign, X } from "lucide-react";
+import { Copy, CreditCard, DollarSign, ExternalLink, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { Badge, Button, Card, Modal, Select, Input } from "@/components/ui";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -16,11 +16,13 @@ interface PaymentDetailModalProps {
   orgId: string | null;
   payment: PaymentWithMember | null;
   onRefresh?: () => void;
+  canManage?: boolean;
 }
 
-export function PaymentDetailModal({ open, onClose, orgId, payment, onRefresh }: PaymentDetailModalProps) {
+export function PaymentDetailModal({ open, onClose, orgId, payment, onRefresh, canManage = false }: PaymentDetailModalProps) {
   const [loading, setLoading] = useState(false);
   const [manualForm, setManualForm] = useState({ amount: "", method: "cash", notes: "" });
+  const [lateFeeInput, setLateFeeInput] = useState("");
 
   if (!payment) return null;
   const p: PaymentWithMember = payment;
@@ -79,6 +81,9 @@ export function PaymentDetailModal({ open, onClose, orgId, payment, onRefresh }:
   }
 
   const remaining = Math.max(0, Number(p.amount) - Number(p.paid_amount));
+  const lateFeeAmount = Number(p.late_fee ?? 0);
+  const duePast = p.due_date && new Date(p.due_date) < new Date();
+  const checkoutTotal = remaining + ((p.status === "overdue" || duePast) ? lateFeeAmount : 0);
 
   return (
     <Modal
@@ -125,6 +130,72 @@ export function PaymentDetailModal({ open, onClose, orgId, payment, onRefresh }:
             dot
           />
         </div>
+
+
+        {p.receipt_url && (
+          <a
+            href={p.receipt_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-sm text-greek-600 hover:underline"
+          >
+            <ExternalLink size={14} />
+            View Stripe receipt
+          </a>
+        )}
+
+        {(lateFeeAmount > 0 || (canManage && (p.status === "overdue" || duePast))) && (
+          <Card padding="sm">
+            <p className="text-xs text-muted-foreground">Late fee</p>
+            <p className="text-sm font-semibold">{formatCurrency(lateFeeAmount)}</p>
+            {canManage && p.status !== "paid" && (
+              <div className="flex gap-2 mt-2 items-end">
+                <Input
+                  label="Set late fee ($)"
+                  type="number"
+                  value={lateFeeInput}
+                  onChange={(e) => setLateFeeInput(e.target.value)}
+                  placeholder={String(lateFeeAmount || "25")}
+                />
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  loading={loading}
+                  disabled={!orgId || !lateFeeInput}
+                  onClick={async () => {
+                    if (!orgId) return;
+                    setLoading(true);
+                    try {
+                      const res = await fetch("/api/payments/late-fee", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          orgId,
+                          paymentId: p.id,
+                          lateFee: parseFloat(lateFeeInput),
+                        }),
+                      });
+                      const data = await res.json();
+                      if (res.ok) {
+                        toast.success("Late fee updated");
+                        onRefresh?.();
+                      } else toast.error(data.error ?? "Failed");
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                >
+                  Save
+                </Button>
+              </div>
+            )}
+            {checkoutTotal > remaining && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Checkout total includes late fee: {formatCurrency(checkoutTotal)}
+              </p>
+            )}
+          </Card>
+        )}
 
         <div className="flex gap-2 flex-wrap">
           <Button variant="secondary" size="sm" onClick={copyParentLink} icon={<Copy size={14} />}>

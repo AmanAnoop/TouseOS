@@ -19,6 +19,10 @@ import { computeCashFlowForecast } from "@/lib/cash-flow-forecast";
 import { DuesForecastPanel } from "@/components/budget/dues-forecast-panel";
 import { computeDuesForecast, computeDuesSyncActual, type PaymentSummary } from "@/lib/dues-forecast";
 import { BudgetLineTable } from "@/components/budget/budget-line-table";
+import { can, type RoleName } from "@/lib/permissions";
+import { computeReimbursementAgingAlerts } from "@/lib/reimbursement-aging";
+import { buildBudgetReportHtml, downloadBudgetReportHtml } from "@/lib/budget-export";
+import { Alert } from "@/components/ui";
 
 interface BudgetLine {
   id: string;
@@ -49,6 +53,9 @@ export default function BudgetPage() {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [orgId, setOrgId] = useState<string | null>(null);
+  const [myRole, setMyRole] = useState<RoleName>("general_member");
+  const [orgName, setOrgName] = useState("Chapter");
+  const [reimbs, setReimbs] = useState<Array<{ id: string; amount: number; status: string; created_at: string; submitted_by_name: string | null; category: string }>>([]);
   const [payments, setPayments] = useState<PaymentSummary[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [tab, setTab] = useState("overview");
@@ -67,9 +74,10 @@ export default function BudgetPage() {
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
-    const [budgetRes, paymentsRes] = await Promise.all([
+    const [budgetRes, paymentsRes, reimbRes] = await Promise.all([
       fetch(`/api/budget?org_id=${oid}`),
       supabase.from("payments").select("id, amount, paid_amount, status, due_date, category").eq("org_id", oid),
+      supabase.from("reimbursements").select("id, amount, status, created_at, submitted_by_name, category").eq("org_id", oid),
     ]);
     if (budgetRes.ok) {
       const data = await budgetRes.json();
@@ -77,6 +85,7 @@ export default function BudgetPage() {
       if (data.length > 0) setSelectedBudget(data[0]);
     }
     setPayments((paymentsRes.data ?? []) as PaymentSummary[]);
+    setReimbs((reimbRes.data ?? []) as typeof reimbs);
     setLoading(false);
   }, [supabase]);
 
@@ -84,8 +93,13 @@ export default function BudgetPage() {
     async function init() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) { setOrgId(m.org_id); load(m.org_id); }
+      const { data: m } = await supabase.from("org_members").select("org_id, role, organizations(name)").eq("user_id", user.id).limit(1).single();
+      if (m) {
+        setOrgId(m.org_id);
+        setMyRole(String(m.role ?? "general_member") as RoleName);
+        setOrgName(String(((m.organizations as unknown) as Record<string, unknown>)?.name ?? "Chapter"));
+        load(m.org_id);
+      }
     }
     init();
   }, [supabase, load]);
@@ -201,6 +215,25 @@ export default function BudgetPage() {
     })));
   }
 
+  function exportBudgetHtml() {
+    if (!selectedBudget) return;
+    const html = buildBudgetReportHtml({
+      orgName,
+      label: selectedBudget.label,
+      period: selectedBudget.period,
+      fiscalYear: selectedBudget.fiscal_year,
+      generatedAt: new Date().toISOString(),
+      lines: selectedBudget.budget_lines,
+      totalBudgetedIncome,
+      totalActualIncome,
+      totalBudgetedExpense,
+      totalActualExpense,
+      netActual,
+    });
+    downloadBudgetReportHtml(`budget-${selectedBudget.label}.html`, html);
+    toast.success("Budget report downloaded — open in browser and Print to PDF");
+  }
+
   const lines = selectedBudget?.budget_lines ?? [];
   const incomeLines = lines.filter((l) => l.type === "income");
   const expenseLines = lines.filter((l) => l.type === "expense");
@@ -210,9 +243,26 @@ export default function BudgetPage() {
   const totalActualExpense = expenseLines.reduce((s, l) => s + Number(l.actual), 0);
   const netActual = totalActualIncome - totalActualExpense;
   const budgetUsedPct = totalBudgetedExpense > 0 ? Math.round((totalActualExpense / totalBudgetedExpense) * 100) : 0;
-  const alerts = computeBudgetAlerts(lines);
+  const canViewBudget = can(myRole, "manage_budget") || can(myRole, "view_payments") || can(myRole, "manage_payments");
+  const canEditBudget = can(myRole, "manage_budget");
+  const reimbAgingAlerts = computeReimbursementAgingAlerts(reimbs);
+  const alerts = [...computeBudgetAlerts(lines), ...reimbAgingAlerts.map((a) => ({
+    id: a.id,
+    severity: a.severity,
+    title: a.title,
+    message: a.message,
+  }))];
   const cashFlowForecast = computeCashFlowForecast(lines);
   const duesForecast = computeDuesForecast(payments);
+
+  if (!loading && !canViewBudget) {
+    return (
+      <div className="space-y-5">
+        <PageHeader title="Budget & Finance" description="Restricted" />
+        <Alert type="warning" title="Access restricted" description="You need treasurer or officer budget permissions to view this page." />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
@@ -223,9 +273,12 @@ export default function BudgetPage() {
         action={
           <div className="flex gap-2">
             {selectedBudget && (
-              <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={exportBudget}>Export</Button>
+              <>
+                <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={exportBudget}>CSV</Button>
+                <Button variant="secondary" size="sm" onClick={exportBudgetHtml}>Report (HTML)</Button>
+              </>
             )}
-            <Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateBudgetOpen(true)}>New budget</Button>
+            {canEditBudget && <Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateBudgetOpen(true)}>New budget</Button>}
           </div>
         }
       />

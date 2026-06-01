@@ -17,8 +17,13 @@ export async function POST(request: Request) {
 
   if (error || !payment) return NextResponse.json({ error: "Payment not found" }, { status: 404 });
 
+  const remaining = Math.max(0, Number(payment.amount) - Number(payment.paid_amount));
+  const duePast = payment.due_date && new Date(payment.due_date) < new Date();
+  const applyLateFee =
+    payment.status === "overdue" || duePast || payment.status === "partial";
+  const lateFee = applyLateFee ? Number(payment.late_fee ?? 0) : 0;
   const session = await createPaymentLink({
-    amount: Number(payment.amount) - Number(payment.paid_amount),
+    amount: remaining + lateFee,
     description: (payment.payment_items as Record<string, unknown>)?.title as string ?? "Dues payment",
     orgName: (payment.organizations as Record<string, unknown>)?.name as string ?? "Chapter",
     memberEmail: email,

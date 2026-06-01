@@ -37,6 +37,13 @@ export function MemberTable({ members, loading, className, showPayment = false }
       ),
     },
     {
+      key: "class",
+      header: "Class",
+      render: (m: MemberProfile) => (
+        <span className="text-sm text-muted-foreground">{m.class_year ?? m.graduation_year ?? "—"}</span>
+      ),
+    },
+    {
       key: "role",
       header: "Role",
       render: (m: MemberProfile) => (

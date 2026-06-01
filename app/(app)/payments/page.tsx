@@ -13,16 +13,22 @@ import {
 import { formatCurrency, downloadCsv } from "@/lib/utils";
 import { PaymentStats } from "@/components/payments/payment-stats";
 import { PaymentList, type PaymentWithMember } from "@/components/payments/payment-list";
+import type { MemberProfile } from "@/types";
 import { PaymentDetailModal } from "@/components/payments/payment-detail-modal";
+import { MemberBalancesPanel, computeMemberBalances } from "@/components/payments/member-balances-panel";
+import { can, type RoleName } from "@/lib/permissions";
 
 export default function PaymentsPage() {
   const supabase = createClient();
   const [payments, setPayments] = useState<PaymentWithMember[]>([]);
+  const [members, setMembers] = useState<MemberProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [orgId, setOrgId] = useState<string | null>(null);
+  const [myRole, setMyRole] = useState<RoleName>("general_member");
+  const [myMemberId, setMyMemberId] = useState<string | null>(null);
   const [filter, setFilter] = useState("all");
   const [createOpen, setCreateOpen] = useState(false);
-  const [charge, setCharge] = useState({ title: "", amount: "", category: "dues", dueDate: "" });
+  const [charge, setCharge] = useState({ title: "", amount: "", category: "dues", dueDate: "", lateFee: "" });
   const [manualOpen, setManualOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<PaymentWithMember | null>(null);
   const [manualForm, setManualForm] = useState({ paymentId: "", amount: "", method: "cash", notes: "" });
@@ -34,6 +40,11 @@ export default function PaymentsPage() {
       .select("*, member_profiles(*)")
       .eq("org_id", oid)
       .order("due_date", { ascending: true });
+    const { data: memberData } = await supabase
+      .from("member_profiles")
+      .select("id, full_name, membership_status, payment_status, attendance_rate, email, role, org_id, user_id, forms_completed, forms_required, class_year, graduation_year, committees, created_at, updated_at")
+      .eq("org_id", oid);
+    setMembers((memberData ?? []) as MemberProfile[]);
     setPayments((data ?? []) as PaymentWithMember[]);
     setLoading(false);
   }, [supabase]);
@@ -42,18 +53,36 @@ export default function PaymentsPage() {
     async function init() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) { setOrgId(m.org_id); loadPayments(m.org_id); }
+      const { data: m } = await supabase.from("org_members").select("org_id, role").eq("user_id", user.id).limit(1).single();
+      if (m) {
+        setOrgId(m.org_id);
+        setMyRole(String(m.role ?? "general_member") as RoleName);
+        loadPayments(m.org_id);
+        const { data: profile } = await supabase
+          .from("member_profiles")
+          .select("id")
+          .eq("org_id", m.org_id)
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (profile) setMyMemberId(profile.id);
+      }
     }
     init();
   }, [supabase, loadPayments]);
 
-  const filtered = payments.filter((p) => filter === "all" || p.status === filter);
+  const canViewAll = can(myRole, "view_payments") || can(myRole, "manage_payments");
+  const canManage = can(myRole, "manage_payments");
 
-  const totalExpected = payments.reduce((s, p) => s + Number(p.amount), 0);
-  const totalCollected = payments.reduce((s, p) => s + Number(p.paid_amount), 0);
-  const overdue = payments.filter((p) => p.status === "overdue");
-  const pending = payments.filter((p) => p.status === "pending");
+  const visiblePayments = canViewAll
+    ? payments
+    : payments.filter((p) => p.member_id === myMemberId);
+
+  const filtered = visiblePayments.filter((p) => filter === "all" || p.status === filter);
+
+  const totalExpected = visiblePayments.reduce((s, p) => s + Number(p.amount), 0);
+  const totalCollected = visiblePayments.reduce((s, p) => s + Number(p.paid_amount), 0);
+  const overdue = visiblePayments.filter((p) => p.status === "overdue");
+  const pending = visiblePayments.filter((p) => p.status === "pending");
   const collectionRate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
 
   async function createCharge() {
@@ -61,12 +90,12 @@ export default function PaymentsPage() {
     const res = await fetch("/api/payments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orgId, ...charge }),
+      body: JSON.stringify({ orgId, title: charge.title, amount: charge.amount, category: charge.category, dueDate: charge.dueDate, lateFee: charge.lateFee }),
     });
     if (res.ok) {
       toast.success("Charge created");
       setCreateOpen(false);
-      setCharge({ title: "", amount: "", category: "dues", dueDate: "" });
+      setCharge({ title: "", amount: "", category: "dues", dueDate: "", lateFee: "" });
       loadPayments(orgId);
     } else toast.error("Failed to create charge");
   }
@@ -126,25 +155,43 @@ export default function PaymentsPage() {
         title="Dues & Payments"
         description="Track collections, create charges, and send reminders"
         action={
-          <div className="flex gap-2">
-            <Button variant="secondary" size="sm" icon={<Send size={14} />} onClick={sendReminders}>
-              Send reminders
-            </Button>
+          <div className="flex gap-2 flex-wrap">
+            {canManage && (
+              <>
+                <Button variant="secondary" size="sm" icon={<Send size={14} />} onClick={sendReminders}>
+                  Send reminders
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => setManualOpen(true)}>Log cash/check</Button>
+                <Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>
+                  New charge
+                </Button>
+              </>
+            )}
             <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={exportPayments}>
               Export
             </Button>
-            <Button variant="secondary" size="sm" onClick={() => setManualOpen(true)}>Log cash/check</Button>
             <Link href="/payments/plan"><Button variant="secondary" size="sm">Payment plans</Button></Link>
-            <Link href="/budget"><Button variant="secondary" size="sm">View budget</Button></Link>
+            {can(myRole, "manage_budget") && (
+              <Link href="/budget"><Button variant="secondary" size="sm">View budget</Button></Link>
+            )}
             <a href="/payments/hardship">
-            <Button variant="secondary" size="sm">Hardship request</Button>
-          </a>
-          <Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>
-              New charge
-            </Button>
+              <Button variant="secondary" size="sm">Hardship request</Button>
+            </a>
           </div>
         }
       />
+
+      {!canViewAll && (
+        <Card>
+          <p className="text-sm text-muted-foreground">
+            You are viewing your own payment history. Contact your treasurer for chapter-wide collections.
+          </p>
+        </Card>
+      )}
+
+      {canManage && (
+        <MemberBalancesPanel rows={computeMemberBalances(members, payments)} />
+      )}
 
       <PaymentStats
         totalExpected={totalExpected}
@@ -174,7 +221,7 @@ export default function PaymentsPage() {
             {s.charAt(0).toUpperCase() + s.slice(1)}
             {s !== "all" && (
               <span className="ml-1 text-xs opacity-70">
-                ({payments.filter((p) => p.status === s).length})
+                ({visiblePayments.filter((p) => p.status === s).length})
               </span>
             )}
           </button>
@@ -185,7 +232,7 @@ export default function PaymentsPage() {
       {loading ? (
         <PaymentList payments={[]} loading />
       ) : filtered.length === 0 ? (
-        <EmptyState icon={<DollarSign size={24} />} title="No payments" description="Create a charge to get started." action={<Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>New charge</Button>} />
+        <EmptyState icon={<DollarSign size={24} />} title="No payments" description="Create a charge to get started." action={canManage ? <Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>New charge</Button> : undefined} />
       ) : (
         <PaymentList
           payments={filtered}
@@ -247,6 +294,13 @@ export default function PaymentsPage() {
               />
             </div>
           </div>
+          <Input
+              label="Late fee ($) — applied if overdue"
+              type="number"
+              placeholder="0"
+              value={charge.lateFee}
+              onChange={(e) => setCharge({ ...charge, lateFee: e.target.value })}
+            />
           <Select
             label="Category"
             value={charge.category}
@@ -275,6 +329,7 @@ export default function PaymentsPage() {
         onClose={() => setSelectedPayment(null)}
         orgId={orgId}
         payment={selectedPayment}
+        canManage={canManage}
         onRefresh={() => orgId && loadPayments(orgId)}
       />
 
