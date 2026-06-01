@@ -171,9 +171,11 @@ export interface Payment {
   due_date: string | null;
   paid_at: string | null;
   stripe_checkout_session_id: string | null;
+  stripe_payment_intent_id: string | null;
   method: string;
   notes: string | null;
   receipt_url: string | null;
+  parent_pay_token: string | null;
   late_fee: number;
   created_at: string;
   updated_at: string;

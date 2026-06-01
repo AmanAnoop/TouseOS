@@ -6,7 +6,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { orgId, title, amount, category, dueDate, lateFee } = await request.json();
+  const { orgId, title, amount, category, dueDate, lateFee, recurring, recurringInterval } = await request.json();
 
   // Create payment item
   const { data: item, error: itemError } = await supabase.from("payment_items").insert({
@@ -15,6 +15,8 @@ export async function POST(request: Request) {
     amount: parseFloat(amount),
     category: category ?? "dues",
     due_date: dueDate || null,
+    recurring: Boolean(recurring),
+    recurring_interval: recurring ? (recurringInterval ?? 'semesterly') : null,
   }).select().single();
 
   if (itemError) return NextResponse.json({ error: itemError.message }, { status: 500 });

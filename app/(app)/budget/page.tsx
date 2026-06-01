@@ -19,6 +19,11 @@ import { computeCashFlowForecast } from "@/lib/cash-flow-forecast";
 import { DuesForecastPanel } from "@/components/budget/dues-forecast-panel";
 import { computeDuesForecast, computeDuesSyncActual, type PaymentSummary } from "@/lib/dues-forecast";
 import { BudgetLineTable } from "@/components/budget/budget-line-table";
+import { EventPnlPanel } from "@/components/budget/event-pnl-panel";
+import { PerMemberCostPanel } from "@/components/budget/per-member-cost-panel";
+import { computeEventPnl } from "@/lib/event-pnl";
+import { computePerMemberCost } from "@/lib/per-member-cost";
+import type { MemberProfile } from "@/types";
 import { can, type RoleName } from "@/lib/permissions";
 import { computeReimbursementAgingAlerts } from "@/lib/reimbursement-aging";
 import { buildBudgetReportHtml, downloadBudgetReportHtml } from "@/lib/budget-export";
@@ -55,7 +60,10 @@ export default function BudgetPage() {
   const [orgId, setOrgId] = useState<string | null>(null);
   const [myRole, setMyRole] = useState<RoleName>("general_member");
   const [orgName, setOrgName] = useState("Chapter");
-  const [reimbs, setReimbs] = useState<Array<{ id: string; amount: number; status: string; created_at: string; submitted_by_name: string | null; category: string }>>([]);
+  const [reimbs, setReimbs] = useState<Array<{ id: string; amount: number; status: string; created_at: string; submitted_by_name: string | null; category: string; event_id: string | null; submitted_by: string | null }>>([]);
+  const [events, setEvents] = useState<Array<{ id: string; title: string; starts_at: string }>>([]);
+  const [members, setMembers] = useState<MemberProfile[]>([]);
+  const [eventPayments, setEventPayments] = useState<Array<{ amount: number; paid_amount: number; status: string; payment_items: { event_id: string | null } | null }>>([]);
   const [payments, setPayments] = useState<PaymentSummary[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [tab, setTab] = useState("overview");
@@ -74,10 +82,13 @@ export default function BudgetPage() {
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
-    const [budgetRes, paymentsRes, reimbRes] = await Promise.all([
+    const [budgetRes, paymentsRes, reimbRes, eventsRes, membersRes, eventPayRes] = await Promise.all([
       fetch(`/api/budget?org_id=${oid}`),
-      supabase.from("payments").select("id, amount, paid_amount, status, due_date, category").eq("org_id", oid),
-      supabase.from("reimbursements").select("id, amount, status, created_at, submitted_by_name, category").eq("org_id", oid),
+      supabase.from("payments").select("id, amount, paid_amount, status, due_date, category, member_id").eq("org_id", oid),
+      supabase.from("reimbursements").select("id, amount, status, created_at, submitted_by_name, category, event_id, submitted_by").eq("org_id", oid),
+      supabase.from("events").select("id, title, starts_at").eq("org_id", oid).order("starts_at", { ascending: false }).limit(50),
+      supabase.from("member_profiles").select("*").eq("org_id", oid),
+      supabase.from("payments").select("amount, paid_amount, status, member_id, payment_items(event_id)").eq("org_id", oid),
     ]);
     if (budgetRes.ok) {
       const data = await budgetRes.json();
@@ -86,6 +97,9 @@ export default function BudgetPage() {
     }
     setPayments((paymentsRes.data ?? []) as PaymentSummary[]);
     setReimbs((reimbRes.data ?? []) as typeof reimbs);
+    setEvents((eventsRes.data ?? []) as typeof events);
+    setMembers((membersRes.data ?? []) as MemberProfile[]);
+    setEventPayments((eventPayRes.data ?? []) as unknown as typeof eventPayments);
     setLoading(false);
   }, [supabase]);
 
@@ -254,6 +268,8 @@ export default function BudgetPage() {
   }))];
   const cashFlowForecast = computeCashFlowForecast(lines);
   const duesForecast = computeDuesForecast(payments);
+  const eventPnl = computeEventPnl(events, eventPayments, reimbs);
+  const perMemberRows = computePerMemberCost(members, payments as unknown as import("@/lib/per-member-cost").PaymentForCost[], reimbs, totalActualExpense);
 
   if (!loading && !canViewBudget) {
     return (
@@ -326,6 +342,8 @@ export default function BudgetPage() {
               { id: "overview", label: "Overview" },
               { id: "forecast", label: "Cash flow" },
               { id: "dues", label: "Dues forecast" },
+              { id: "events", label: "Event P&L" },
+              { id: "members", label: "Per member" },
               { id: "income", label: "Income", count: incomeLines.length },
               { id: "expense", label: "Expenses", count: expenseLines.length },
             ]}
@@ -337,6 +355,10 @@ export default function BudgetPage() {
             <CashFlowForecastPanel forecast={cashFlowForecast} />
           ) : tab === "dues" ? (
             <DuesForecastPanel forecast={duesForecast} onSyncToBudget={syncDuesToBudget} syncing={syncing} />
+          ) : tab === "events" ? (
+            <EventPnlPanel rows={eventPnl} />
+          ) : tab === "members" ? (
+            <PerMemberCostPanel rows={perMemberRows} totalChapterSpend={totalActualExpense} />
           ) : (
           <>
           <div className="flex justify-end">

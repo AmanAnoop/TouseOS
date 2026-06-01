@@ -28,7 +28,25 @@ export default function HardshipRequestPage() {
     const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
     if (!m) { setSubmitting(false); return; }
 
-    // Create as a task for the treasurer + announcement to officers
+    const { data: profile } = await supabase
+      .from("member_profiles")
+      .select("id")
+      .eq("org_id", m.org_id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    await supabase.from("hardship_requests").insert({
+      org_id: m.org_id,
+      member_id: profile?.id ?? null,
+      user_id: user.id,
+      requested_amount: form.requestedAmount ? parseFloat(form.requestedAmount) : null,
+      arrangement: form.requestedArrangement,
+      reason: form.reason,
+      additional_context: form.additionalContext || null,
+      plan_installments: parseInt(form.planInstallments, 10) || null,
+      status: "pending",
+    });
+
     await supabase.from("tasks").insert({
       org_id: m.org_id,
       created_by: user.id,

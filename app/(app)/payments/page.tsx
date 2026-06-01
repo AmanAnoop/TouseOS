@@ -16,19 +16,22 @@ import { PaymentList, type PaymentWithMember } from "@/components/payments/payme
 import type { MemberProfile } from "@/types";
 import { PaymentDetailModal } from "@/components/payments/payment-detail-modal";
 import { MemberBalancesPanel, computeMemberBalances } from "@/components/payments/member-balances-panel";
+import { TreasurerDashboard } from "@/components/payments/treasurer-dashboard";
+import { HardshipReviewPanel } from "@/components/payments/hardship-review-panel";
 import { can, type RoleName } from "@/lib/permissions";
 
 export default function PaymentsPage() {
   const supabase = createClient();
   const [payments, setPayments] = useState<PaymentWithMember[]>([]);
   const [members, setMembers] = useState<MemberProfile[]>([]);
+  const [planCount, setPlanCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [orgId, setOrgId] = useState<string | null>(null);
   const [myRole, setMyRole] = useState<RoleName>("general_member");
   const [myMemberId, setMyMemberId] = useState<string | null>(null);
   const [filter, setFilter] = useState("all");
   const [createOpen, setCreateOpen] = useState(false);
-  const [charge, setCharge] = useState({ title: "", amount: "", category: "dues", dueDate: "", lateFee: "" });
+  const [charge, setCharge] = useState({ title: "", amount: "", category: "dues", dueDate: "", lateFee: "", recurring: false, recurringInterval: "semesterly" });
   const [manualOpen, setManualOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<PaymentWithMember | null>(null);
   const [manualForm, setManualForm] = useState({ paymentId: "", amount: "", method: "cash", notes: "" });
@@ -40,12 +43,19 @@ export default function PaymentsPage() {
       .select("*, member_profiles(*)")
       .eq("org_id", oid)
       .order("due_date", { ascending: true });
-    const { data: memberData } = await supabase
-      .from("member_profiles")
-      .select("id, full_name, membership_status, payment_status, attendance_rate, email, role, org_id, user_id, forms_completed, forms_required, class_year, graduation_year, committees, created_at, updated_at")
-      .eq("org_id", oid);
-    setMembers((memberData ?? []) as MemberProfile[]);
+    const [memberRes, plansRes] = await Promise.all([
+      supabase
+        .from("member_profiles")
+        .select("id, full_name, membership_status, payment_status, attendance_rate, email, role, org_id, user_id, forms_completed, forms_required, class_year, graduation_year, committees, created_at, updated_at")
+        .eq("org_id", oid),
+      fetch(`/api/payments/plans?org_id=${oid}`),
+    ]);
+    setMembers((memberRes.data ?? []) as MemberProfile[]);
     setPayments((data ?? []) as PaymentWithMember[]);
+    if (plansRes.ok) {
+      const plans = await plansRes.json();
+      setPlanCount(Array.isArray(plans) ? plans.length : 0);
+    }
     setLoading(false);
   }, [supabase]);
 
@@ -95,7 +105,7 @@ export default function PaymentsPage() {
     if (res.ok) {
       toast.success("Charge created");
       setCreateOpen(false);
-      setCharge({ title: "", amount: "", category: "dues", dueDate: "", lateFee: "" });
+      setCharge({ title: "", amount: "", category: "dues", dueDate: "", lateFee: "", recurring: false, recurringInterval: "semesterly" });
       loadPayments(orgId);
     } else toast.error("Failed to create charge");
   }
@@ -131,7 +141,7 @@ export default function PaymentsPage() {
 
   function copyParentLink(p: PaymentWithMember) {
     const token = (p as PaymentWithMember & { parent_pay_token?: string }).parent_pay_token;
-    const url = `${window.location.origin}/payments?token=${token ?? p.id}`;
+    const url = `${window.location.origin}/pay/${token ?? p.id}`;
     navigator.clipboard.writeText(url);
     toast.success("Parent payment link copied");
   }
@@ -190,7 +200,11 @@ export default function PaymentsPage() {
       )}
 
       {canManage && (
-        <MemberBalancesPanel rows={computeMemberBalances(members, payments)} />
+        <>
+          <TreasurerDashboard payments={payments} planCount={planCount} />
+          <MemberBalancesPanel rows={computeMemberBalances(members, payments)} />
+          <HardshipReviewPanel orgId={orgId} />
+        </>
       )}
 
       <PaymentStats
@@ -294,6 +308,27 @@ export default function PaymentsPage() {
               />
             </div>
           </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={charge.recurring}
+              onChange={(e) => setCharge({ ...charge, recurring: e.target.checked })}
+              className="rounded border-border"
+            />
+            Recurring charge (auto-generate on schedule via cron)
+          </label>
+          {charge.recurring && (
+            <Select
+              label="Interval"
+              value={charge.recurringInterval}
+              onChange={(e) => setCharge({ ...charge, recurringInterval: e.target.value })}
+              options={[
+                { value: "monthly", label: "Monthly" },
+                { value: "semesterly", label: "Each semester" },
+                { value: "annually", label: "Annually" },
+              ]}
+            />
+          )}
           <Input
               label="Late fee ($) — applied if overdue"
               type="number"

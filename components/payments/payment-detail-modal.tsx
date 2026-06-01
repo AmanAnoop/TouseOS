@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Copy, CreditCard, DollarSign, ExternalLink, X } from "lucide-react";
+import { Copy, CreditCard, DollarSign, ExternalLink, RotateCcw, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { Badge, Button, Card, Modal, Select, Input } from "@/components/ui";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -30,7 +30,7 @@ export function PaymentDetailModal({ open, onClose, orgId, payment, onRefresh, c
 
   function copyParentLink() {
     const token = (p as PaymentWithMember & { parent_pay_token?: string }).parent_pay_token;
-    const url = `${window.location.origin}/payments?token=${token ?? p.id}`;
+    const url = `${window.location.origin}/pay/${token ?? p.id}`;
     navigator.clipboard.writeText(url);
     toast.success("Parent payment link copied");
   }
@@ -201,6 +201,35 @@ export function PaymentDetailModal({ open, onClose, orgId, payment, onRefresh, c
           <Button variant="secondary" size="sm" onClick={copyParentLink} icon={<Copy size={14} />}>
             Copy parent link
           </Button>
+
+          {canManage && Number(p.paid_amount) > 0 && (
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={<RotateCcw size={14} />}
+              loading={loading}
+              onClick={async () => {
+                if (!orgId || !confirm("Record a refund for this payment?")) return;
+                setLoading(true);
+                try {
+                  const res = await fetch("/api/payments/refund", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ paymentId: p.id, orgId, stripeRefund: Boolean(p.stripe_payment_intent_id) }),
+                  });
+                  const data = await res.json();
+                  if (res.ok) {
+                    toast.success("Refund recorded");
+                    onRefresh?.();
+                  } else toast.error(data.error ?? "Failed");
+                } finally {
+                    setLoading(false);
+                }
+              }}
+            >
+              Refund
+            </Button>
+          )}
           <Link href="/payments/plan">
             <Button variant="secondary" size="sm" icon={<DollarSign size={14} />}>
               Payment plans
