@@ -240,11 +240,16 @@ export interface PnmLead {
   email: string | null;
   phone: string | null;
   instagram_handle: string | null;
+  instagram_bio_text?: string | null;
+  ai_interest_summary?: string | null;
+  profile_enriched_at?: string | null;
+  enrichment_consent?: boolean;
   class_year: string | null;
   major: string | null;
   hometown: string | null;
   interests: string[];
   referral_source: string | null;
+  active_member_connection: string | null;
   status: PnmStatus;
   tags: string[];
   notes: string | null;

@@ -6,11 +6,13 @@ import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import {
   Avatar, Badge, Button, Card, EmptyState, Modal,
-  Input, PageHeader, SearchInput, Tabs,
+  CardHeader, Input, PageHeader, SearchInput, Tabs,
 } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
 import type { PnmLead, PnmStatus } from "@/types";
 import { PnmVotingPanel } from "@/components/pnm/voting-panel";
+import { ProfileEnrichmentPanel } from "@/components/pnm/profile-enrichment-panel";
+import { RushMatchPanel } from "@/components/pnm/rush-match-panel";
 
 const PIPELINE_STAGES: PnmStatus[] = [
   "lead","contacted","invited","attended","interested",
@@ -34,6 +36,8 @@ export default function PnmPage() {
   const [textOpen, setTextOpen] = useState(false);
   const [textBody, setTextBody] = useState("");
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
+  const [matcherPnmId, setMatcherPnmId] = useState<string | null>(null);
+  const [enrichKey, setEnrichKey] = useState(0);
 
   const [newLead, setNewLead] = useState({
     fullName: "", email: "", phone: "", instagramHandle: "",
@@ -146,6 +150,7 @@ export default function PnmPage() {
           { id: "pipeline", label: "Pipeline", count: leads.length },
           { id: "list", label: "List view" },
           { id: "analytics", label: "Analytics" },
+          { id: "matcher", label: "Rush matcher" },
           { id: "voting", label: "Voting" },
         ]}
         active={tab}
@@ -333,6 +338,42 @@ export default function PnmPage() {
           </div>
         </div>
       </Modal>
+
+      
+      {tab === "matcher" && orgId && (
+        <div className="grid lg:grid-cols-3 gap-5">
+          <Card className="lg:col-span-1 max-h-[70vh] overflow-y-auto">
+            <CardHeader title="PNMs" />
+            <div className="space-y-1">
+              {filtered.filter((l) => !["declined", "removed"].includes(l.status)).map((l) => (
+                <button
+                  key={l.id}
+                  type="button"
+                  onClick={() => setMatcherPnmId(l.id)}
+                  className={`w-full text-left p-2 rounded-lg text-sm transition-colors ${matcherPnmId === l.id ? "bg-greek-100 dark:bg-greek-950/40 font-medium" : "hover:bg-surface-1"}`}
+                >
+                  {l.full_name}
+                  {l.interests?.length > 0 && (
+                    <span className="text-xs text-muted-foreground block">{l.interests.length} interests</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </Card>
+          <div className="lg:col-span-2 space-y-5">
+            <ProfileEnrichmentPanel
+              orgId={orgId}
+              pnm={leads.find((l) => l.id === matcherPnmId) ?? null}
+              onEnriched={() => { loadLeads(orgId); setEnrichKey((k) => k + 1); }}
+            />
+            <RushMatchPanel
+              orgId={orgId}
+              pnm={leads.find((l) => l.id === matcherPnmId) ?? null}
+              refreshKey={enrichKey}
+            />
+          </div>
+        </div>
+      )}
 
       {tab === "voting" && orgId && (
         <PnmVotingPanel leads={leads} />
