@@ -126,6 +126,7 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
   const sportsNav: NavItem[] = [
     { href: "/tryouts", label: "Tryouts", icon: <Trophy size={18} /> },
     { href: "/tournaments", label: "Tournaments", icon: <Trophy size={18} /> },
+    { href: "/standings", label: "League Standings", icon: <Trophy size={18} /> },
     { href: "/social", label: "Photos & Social", icon: <Image size={18} /> },
     { href: "/waivers", label: "Waivers & Compliance", icon: <Shield size={18} /> },
     { href: "/travel", label: "Travel Management", icon: <Building size={18} /> },

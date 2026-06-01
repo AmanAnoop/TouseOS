@@ -10,11 +10,12 @@ import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import {
   Avatar, Badge, Button, Card, EmptyState, Input, Modal,
-  PageHeader, SearchInput, Select, Skeleton, Table,
+  PageHeader, SearchInput, Select, Skeleton,
 } from "@/components/ui";
-import { cn, downloadCsv, getStatusColor } from "@/lib/utils";
+import { downloadCsv, getStatusColor } from "@/lib/utils";
 import { ROLE_LABELS } from "@/lib/permissions";
 import type { MemberProfile } from "@/types";
+import { MemberTable } from "@/components/roster/member-table";
 
 const STATUS_OPTIONS = [
   { value: "", label: "All statuses" },
@@ -244,73 +245,7 @@ export default function RosterPage() {
               ))}
       </div>
 
-      {/* Table (desktop) */}
-      <Card padding="none" className="hidden sm:block overflow-hidden">
-        <Table
-          loading={loading}
-          emptyMessage="No members match your filters."
-          onRowClick={(row) => router.push(`/roster/${row.id}`)}
-          columns={[
-            {
-              key: "full_name",
-              header: "Member",
-              render: (row) => (
-                <div className="flex items-center gap-3">
-                  <Avatar name={String(row.full_name)} src={row.profile_photo_url as string | null} size="sm" />
-                  <div>
-                    <p className="font-medium text-foreground">{String(row.full_name)}</p>
-                    <p className="text-xs text-muted-foreground">{String(row.email)}</p>
-                  </div>
-                </div>
-              ),
-            },
-            {
-              key: "role",
-              header: "Role",
-              render: (row) => (
-                <span className="text-sm text-muted-foreground capitalize">
-                  {String(row.role).replace(/_/g, " ")}
-                </span>
-              ),
-            },
-            {
-              key: "membership_status",
-              header: "Status",
-              render: (row) => (
-                <Badge
-                  label={String(row.membership_status)}
-                  color={getStatusColor(String(row.membership_status)) as "green"}
-                />
-              ),
-            },
-            {
-              key: "class_year",
-              header: "Class",
-              render: (row) => <span className="text-sm">{String(row.class_year ?? "—")}</span>,
-            },
-            {
-              key: "payment_status",
-              header: "Dues",
-              render: (row) => (
-                <Badge
-                  label={String(row.payment_status)}
-                  color={row.payment_status === "overdue" ? "red" : row.payment_status === "current" ? "green" : "yellow"}
-                />
-              ),
-            },
-            {
-              key: "attendance_rate",
-              header: "Attendance",
-              render: (row): React.ReactNode => (
-                <span className={cn("text-sm font-medium", Number(row.attendance_rate) < 75 ? "text-red-500" : "text-green-600")}>
-                  {String(row.attendance_rate)}%
-                </span>
-              ),
-            },
-          ]}
-          data={filtered as unknown as Record<string, unknown>[]}
-        />
-      </Card>
+      <MemberTable members={filtered} loading={loading} />
 
       {/* Invite modal */}
       <Modal

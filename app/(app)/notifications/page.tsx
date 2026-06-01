@@ -7,6 +7,7 @@ import {
 Button, Card, EmptyState, PageHeader, Tabs } from "@/components/ui";
 import { timeAgo } from "@/lib/utils";
 import type { Notification } from "@/types";
+import { usePushNotifications } from "@/hooks/use-push-notifications";
 
 const TYPE_ICON: Record<string, string> = {
   event_reminder: "📅",
@@ -32,6 +33,7 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [tab, setTab] = useState("unread");
+  const push = usePushNotifications();
 
   const load = useCallback(async (uid: string) => {
     setLoading(true);
@@ -92,11 +94,18 @@ export default function NotificationsPage() {
         title="Notifications"
         description={unread.length > 0 ? `${unread.length} unread` : "All caught up!"}
         action={
-          unread.length > 0 ? (
-            <Button variant="secondary" size="sm" icon={<CheckCheck size={14} />} onClick={markAllRead}>
-              Mark all read
-            </Button>
-          ) : undefined
+          <div className="flex gap-2">
+            {push.checkSupport() && (
+              <Button size="sm" variant="secondary" onClick={() => push.enablePush()} loading={push.loading}>
+                Enable push
+              </Button>
+            )}
+            {unread.length > 0 && (
+              <Button variant="secondary" size="sm" icon={<CheckCheck size={14} />} onClick={markAllRead}>
+                Mark all read
+              </Button>
+            )}
+          </div>
         }
       />
 

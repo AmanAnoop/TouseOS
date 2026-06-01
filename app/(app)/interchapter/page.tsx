@@ -12,6 +12,7 @@ import {
   Modal, Input, PageHeader, Select, StatCard, Tabs, Textarea,
 } from "@/components/ui";
 import { formatCurrency } from "@/lib/utils";
+import { AvailabilityMatcher, type AvailabilityEntry } from "@/components/interchapter/availability-matcher";
 
 interface Proposal {
   id: string;
@@ -56,6 +57,9 @@ export default function InterchapterPage() {
   const [proposeOpen, setProposeOpen] = useState(false);
   const [ideaOpen, setIdeaOpen] = useState(false);
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
+  const [availability, setAvailability] = useState<AvailabilityEntry[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userName, setUserName] = useState("");
 
   const [proposalForm, setProposalForm] = useState({
     targetOrgId: "", eventName: "", eventType: "mixer",
@@ -79,6 +83,22 @@ export default function InterchapterPage() {
     setIdeas((ideaRes.data ?? []) as Idea[]);
   }, [supabase]);
 
+  const loadAvailability = useCallback(async (oid: string) => {
+    const res = await fetch(`/api/interchapter/availability?org_id=${oid}`);
+    if (res.ok) setAvailability(await res.json());
+  }, []);
+
+  async function saveAvailability(dates: string[], notes: string) {
+    if (!orgId) return;
+    const res = await fetch("/api/interchapter/availability", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId, availableDates: dates, notes, memberName: userName }),
+    });
+    if (!res.ok) throw new Error("save failed");
+    loadAvailability(orgId);
+  }
+
   useEffect(() => {
     async function init() {
       const { data: { user } } = await supabase.auth.getUser();
@@ -88,7 +108,11 @@ export default function InterchapterPage() {
         setOrgId(m.org_id);
         setOrgType(String(((m.organizations as unknown) as Record<string, unknown>)?.type ?? ""));
         load(m.org_id);
+        loadAvailability(m.org_id);
       }
+      setUserId(user.id);
+      const { data: prof } = await supabase.from("profiles").select("full_name").eq("id", user.id).single();
+      if (prof) setUserName(String(prof.full_name));
     }
     init();
   }, [supabase, load]);
@@ -229,6 +253,7 @@ export default function InterchapterPage() {
         tabs={[
           { id: "proposals", label: "Proposals", count: proposals.length },
           { id: "ideas", label: "Idea marketplace", count: ideas.length },
+          { id: "availability", label: "Availability", count: availability.length },
         ]}
         active={tab}
         onChange={setTab}
@@ -301,6 +326,15 @@ export default function InterchapterPage() {
             ))}
           </div>
         )
+      )}
+
+      {tab === "availability" && userId && (
+        <AvailabilityMatcher
+          entries={availability}
+          currentUserId={userId}
+          memberName={userName}
+          onSave={saveAvailability}
+        />
       )}
 
       {/* Propose event modal */}

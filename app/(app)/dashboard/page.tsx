@@ -8,7 +8,8 @@ import {
 import {
   formatCurrency, formatDateTime, isGreekOrg, isSportsOrg,
 } from "@/lib/utils";
-import { computeHealthScore, healthScoreLabel } from "@/lib/health-score";
+import { computeHealthScore } from "@/lib/health-score";
+import { HealthScoreBadge } from "@/components/dashboard/health-score-badge";
 import {
   AlertTriangle, Calendar, CheckCircle2, DollarSign, FileText,
   Heart, Image, Shield, TrendingUp, Trophy, Users, Zap,
@@ -128,7 +129,6 @@ export default async function DashboardPage() {
     orgType,
   });
 
-  const healthMeta = healthScoreLabel(composite);
   const tasksDue = tasks.filter(
     (t) => t.due_date && new Date(t.due_date) <= new Date(Date.now() + 3 * 86400000),
   ).length;
@@ -145,23 +145,7 @@ export default async function DashboardPage() {
             {isGreekOrg(orgType) ? "TouseGreek" : isSportsOrg(orgType) ? "SportsOS" : "Organization"} workspace
           </p>
         </div>
-        <Link href="/health">
-          <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border ${
-            healthMeta.color === "green" ? "border-green-200 bg-green-50 dark:bg-green-950/20" :
-            healthMeta.color === "yellow" ? "border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20" :
-            "border-red-200 bg-red-50 dark:bg-red-950/20"
-          }`}>
-            <Heart size={18} className={
-              healthMeta.color === "green" ? "text-green-600" :
-              healthMeta.color === "yellow" ? "text-yellow-600" : "text-red-500"
-            } />
-            <div>
-              <p className="text-xs text-muted-foreground">Health score</p>
-              <p className="text-lg font-bold leading-none">{composite}</p>
-            </div>
-            <Badge label={healthMeta.label} color={healthMeta.color} />
-          </div>
-        </Link>
+        <HealthScoreBadge composite={composite} />
       </div>
 
       {/* Primary stats row */}

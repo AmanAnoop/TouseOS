@@ -2,24 +2,17 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  Bell, Mail, Plus, Send,
+  Mail, Plus, Send,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import {
-  Alert, Avatar, Badge, Button, Card,
-  EmptyState, Modal, PageHeader, SearchInput, Tabs, Textarea,
+  Alert, Button, Card,
+  Modal, PageHeader, SearchInput, Tabs, Textarea,
 } from "@/components/ui";
-import { timeAgo } from "@/lib/utils";
 import type { Announcement } from "@/types";
-
-const AUDIENCES = [
-  { value: "all", label: "All members" },
-  { value: "officers", label: "Officers only" },
-  { value: "new_members", label: "New members" },
-  { value: "unpaid", label: "Unpaid members" },
-  { value: "alumni", label: "Alumni/Alumnae" },
-];
+import { AnnouncementFeed, COMMS_AUDIENCES } from "@/components/comms/announcement-feed";
+import { ScheduledMessagesPanel } from "@/components/comms/scheduled-messages-panel";
 
 export default function CommsPage() {
   const supabase = createClient();
@@ -139,15 +132,7 @@ export default function CommsPage() {
     } else toast.error("Failed to send");
   }
 
-  async function deleteAnnouncement(id: string) {
-    if (!confirm("Delete this announcement?")) return;
-    await supabase.from("announcements").delete().eq("id", id);
-    setAnnouncements((prev) => prev.filter((a) => a.id !== id));
-  }
 
-  const filtered = announcements.filter((a) =>
-    !query || a.title.toLowerCase().includes(query.toLowerCase()) || a.body.toLowerCase().includes(query.toLowerCase()),
-  );
 
   return (
     <div className="space-y-5">
@@ -179,57 +164,7 @@ export default function CommsPage() {
       {tab === "announcements" && (
         <>
           <SearchInput value={query} onChange={setQuery} placeholder="Search announcements..." />
-
-          {loading ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map((i) => (
-                <Card key={i} padding="sm">
-                  <div className="space-y-2">
-                    <div className="h-4 bg-surface-2 rounded animate-pulse w-48" />
-                    <div className="h-3 bg-surface-2 rounded animate-pulse w-full" />
-                    <div className="h-3 bg-surface-2 rounded animate-pulse w-2/3" />
-                  </div>
-                </Card>
-              ))}
-            </div>
-          ) : filtered.length === 0 ? (
-            <EmptyState
-              icon={<Bell size={20} />}
-              title="No announcements yet"
-              description="Post an announcement to reach your members."
-              action={<Button size="sm" icon={<Plus size={14} />} onClick={() => setComposeOpen(true)}>Post announcement</Button>}
-            />
-          ) : (
-            <div className="space-y-3">
-              {filtered.map((a) => (
-                <Card key={a.id} padding="sm">
-                  <div className="flex items-start gap-3">
-                    <Avatar name={a.author_name ?? "?"} size="sm" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-semibold text-sm text-foreground">{a.title}</p>
-                        {a.pinned && <Badge label="Pinned" color="yellow" />}
-                        <Badge
-                          label={(a.audience?.[0] ?? "all").replace("_", " ")}
-                          color="blue"
-                        />
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{a.body}</p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <p className="text-xs text-muted-foreground">{a.author_name ?? "Officer"} · {timeAgo(a.created_at)}</p>
-                        <button
-                          onClick={() => deleteAnnouncement(a.id)}
-                          className="text-xs text-muted-foreground hover:text-red-500 ml-auto"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
+          <AnnouncementFeed announcements={announcements} loading={loading} query={query} />
         </>
       )}
 
@@ -256,32 +191,11 @@ export default function CommsPage() {
       )}
 
       {tab === "schedule" && (
-        <div className="space-y-4">
-          <div className="flex justify-end">
-            <Button size="sm" icon={<Plus size={14} />} onClick={() => setScheduleOpen(true)}>Schedule message</Button>
-          </div>
-          {scheduledMessages.filter((m) => m.status === "scheduled").length === 0 ? (
-            <EmptyState icon={<Bell size={20} />} title="No scheduled messages" description="Schedule announcements or emails to send later." action={<Button size="sm" onClick={() => setScheduleOpen(true)}>Schedule message</Button>} />
-          ) : (
-            <div className="space-y-2">
-              {scheduledMessages.filter((m) => m.status === "scheduled").map((m) => (
-                <Card key={String(m.id)} padding="sm">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-semibold text-sm">{String(m.title ?? "Scheduled message")}</p>
-                        <Badge label={String(m.channel)} color="blue" />
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">{String(m.scheduled_for)}</p>
-                      <p className="text-sm mt-1 line-clamp-2">{String(m.body)}</p>
-                    </div>
-                    <button onClick={() => cancelScheduled(String(m.id))} className="text-xs text-red-500 hover:underline">Cancel</button>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
-        </div>
+        <ScheduledMessagesPanel
+          messages={scheduledMessages as Array<{ id: string; title?: string | null; body: string; channel: string; scheduled_for: string; status: string }>}
+          onSchedule={() => setScheduleOpen(true)}
+          onCancel={cancelScheduled}
+        />
       )}
 
       {/* Compose modal */}
@@ -305,7 +219,7 @@ export default function CommsPage() {
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium">Audience</label>
             <select className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" value={draft.audience} onChange={(e) => setDraft({ ...draft, audience: e.target.value })}>
-              {AUDIENCES.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
+              {COMMS_AUDIENCES.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
             </select>
           </div>
           <label className="flex items-center gap-2 cursor-pointer">
@@ -324,7 +238,7 @@ export default function CommsPage() {
           <input className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm" placeholder="Title / subject" value={scheduleDraft.title} onChange={(e) => setScheduleDraft({ ...scheduleDraft, title: e.target.value })} />
           <Textarea placeholder="Message body..." value={scheduleDraft.body} onChange={(e) => setScheduleDraft({ ...scheduleDraft, body: e.target.value })} />
           <select className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm" value={scheduleDraft.audience} onChange={(e) => setScheduleDraft({ ...scheduleDraft, audience: e.target.value })}>
-            {AUDIENCES.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
+            {COMMS_AUDIENCES.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
           </select>
           <input type="datetime-local" className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm" value={scheduleDraft.scheduledFor} onChange={(e) => setScheduleDraft({ ...scheduleDraft, scheduledFor: e.target.value })} />
         </div>
@@ -352,7 +266,7 @@ export default function CommsPage() {
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium">Audience</label>
             <select className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" value={emailDraft.audience} onChange={(e) => setEmailDraft({ ...emailDraft, audience: e.target.value })}>
-              {AUDIENCES.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
+              {COMMS_AUDIENCES.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
             </select>
           </div>
           <Textarea label="Email body" placeholder="Write your email..." value={emailDraft.body} onChange={(e) => setEmailDraft({ ...emailDraft, body: e.target.value })} className="min-h-[180px]" />
