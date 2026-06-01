@@ -13,6 +13,7 @@ import {
 import { formatCurrency, downloadCsv } from "@/lib/utils";
 import { PaymentStats } from "@/components/payments/payment-stats";
 import { PaymentList, type PaymentWithMember } from "@/components/payments/payment-list";
+import { PaymentDetailModal } from "@/components/payments/payment-detail-modal";
 
 export default function PaymentsPage() {
   const supabase = createClient();
@@ -23,6 +24,7 @@ export default function PaymentsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [charge, setCharge] = useState({ title: "", amount: "", category: "dues", dueDate: "" });
   const [manualOpen, setManualOpen] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<PaymentWithMember | null>(null);
   const [manualForm, setManualForm] = useState({ paymentId: "", amount: "", method: "cash", notes: "" });
 
   const loadPayments = useCallback(async (oid: string) => {
@@ -187,6 +189,7 @@ export default function PaymentsPage() {
       ) : (
         <PaymentList
           payments={filtered}
+          onSelect={(p) => setSelectedPayment(p)}
           onCopyParentLink={copyParentLink}
           onPayStripe={async (p) => {
             const res = await fetch("/api/stripe/checkout", {
@@ -264,6 +267,16 @@ export default function PaymentsPage() {
           />
         </div>
       </Modal>
+
+
+
+      <PaymentDetailModal
+        open={Boolean(selectedPayment)}
+        onClose={() => setSelectedPayment(null)}
+        orgId={orgId}
+        payment={selectedPayment}
+        onRefresh={() => orgId && loadPayments(orgId)}
+      />
 
       <Modal open={manualOpen} onClose={() => setManualOpen(false)} title="Log manual payment" description="Record cash, check, or Venmo payment" footer={<><Button variant="secondary" onClick={() => setManualOpen(false)}>Cancel</Button><Button onClick={logManualPayment}>Log payment</Button></>}>
         <div className="space-y-3">

@@ -7,6 +7,7 @@ import {
   Home, Image, Menu, MessageSquare, Shield, Trophy, Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useUnreadNotifications } from "@/hooks/use-unread-notifications";
 
 const NAV = [
   { href: "/dashboard", label: "Home", icon: Home },
@@ -37,6 +38,7 @@ interface BottomNavProps {
 
 export function BottomNav({ orgType, onMenuOpen }: BottomNavProps) {
   const pathname = usePathname();
+  const { count: unreadCount } = useUnreadNotifications();
 
   const extras =
     orgType === "fraternity" || orgType === "sorority"
@@ -69,10 +71,15 @@ export function BottomNav({ orgType, onMenuOpen }: BottomNavProps) {
         })}
         <button
           onClick={onMenuOpen}
-          className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium text-muted-foreground"
+          className="relative flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium text-muted-foreground"
         >
           <Menu size={20} strokeWidth={1.75} />
           More
+          {unreadCount > 0 && (
+            <span className="absolute top-1.5 right-4 min-w-[16px] h-4 px-1 rounded-full bg-greek-600 text-white text-[10px] font-bold flex items-center justify-center leading-none">
+              {unreadCount > 99 ? "99+" : unreadCount}
+            </span>
+          )}
         </button>
       </div>
     </nav>

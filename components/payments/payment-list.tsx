@@ -11,9 +11,10 @@ interface PaymentListProps {
   loading?: boolean;
   onCopyParentLink?: (payment: PaymentWithMember) => void;
   onPayStripe?: (payment: PaymentWithMember) => void;
+  onSelect?: (payment: PaymentWithMember) => void;
 }
 
-export function PaymentList({ payments, loading, onCopyParentLink, onPayStripe }: PaymentListProps) {
+export function PaymentList({ payments, loading, onCopyParentLink, onPayStripe, onSelect }: PaymentListProps) {
   if (loading) {
     return <Card className="h-48 animate-pulse bg-surface-2 border-0">&nbsp;</Card>;
   }
@@ -26,7 +27,12 @@ export function PaymentList({ payments, loading, onCopyParentLink, onPayStripe }
     <Card padding="none">
       <div className="divide-y divide-border">
         {payments.map((p) => (
-          <div key={p.id} className="flex items-center gap-3 p-4 hover:bg-surface-1 transition-colors flex-wrap">
+          <button
+            key={p.id}
+            type="button"
+            onClick={() => onSelect?.(p)}
+            className="w-full text-left flex items-center gap-3 p-4 hover:bg-surface-1 transition-colors flex-wrap"
+          >
             <Avatar name={p.member_profiles?.full_name ?? "?"} src={p.member_profiles?.profile_photo_url} size="sm" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground">{p.member_profiles?.full_name ?? "Member"}</p>
@@ -43,11 +49,11 @@ export function PaymentList({ payments, loading, onCopyParentLink, onPayStripe }
                 dot
               />
             </div>
-            {onCopyParentLink && <Button variant="secondary" size="sm" onClick={() => onCopyParentLink(p)}>Parent link</Button>}
+            {onCopyParentLink && <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); onCopyParentLink(p); }}>Parent link</Button>}
             {(p.status === "pending" || p.status === "overdue") && onPayStripe && (
-              <Button variant="secondary" size="sm" onClick={() => onPayStripe(p)}>Pay</Button>
+              <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); onPayStripe(p); }}>Pay</Button>
             )}
-          </div>
+          </button>
         ))}
       </div>
     </Card>
