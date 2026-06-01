@@ -102,6 +102,7 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
     { href: "/forms", label: "Forms & Waivers", icon: <ClipboardList size={18} /> },
     { href: "/governance", label: "Governance", icon: <BookOpen size={18} /> },
     { href: "/attendance-points", label: "Points System", icon: <Trophy size={18} /> },
+    { href: "/engagement", label: "Engagement", icon: <Heart size={18} /> },
     { href: "/comms", label: "Communications", icon: <MessageSquare size={18} /> },
     { href: "/feed", label: "Chapter Feed", icon: <Zap size={18} /> },
   ];

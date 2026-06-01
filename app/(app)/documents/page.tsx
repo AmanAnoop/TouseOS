@@ -2,44 +2,24 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  Download, Eye, File, FileText, Folder, Image, Trash2, Upload,
+  Download, Folder, Upload,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import {
-  Badge, Button, Card, EmptyState, Modal,
+  Button, Card, EmptyState, Modal,
   Input, PageHeader, SearchInput, Select, Tabs,
 } from "@/components/ui";
 import { formatDate, downloadCsv } from "@/lib/utils";
 import type { Document } from "@/types";
+import { DocumentCard, formatBytes } from "@/components/documents/document-card";
+import { DocumentVersionHistory } from "@/components/documents/document-version-history";
 
 const CATEGORIES = [
   "General", "Bylaws & governance", "Risk & compliance",
   "Finance", "Recruitment", "New member education",
   "Housing", "Events", "Waivers & forms", "Alumni",
 ];
-
-const MIME_ICON: Record<string, React.ReactNode> = {
-  "application/pdf": <FileText size={18} className="text-red-500" />,
-  "image/": <Image size={18} className="text-blue-500" />,
-  "application/vnd": <FileText size={18} className="text-green-600" />,
-  "default": <File size={18} className="text-muted-foreground" />,
-};
-
-function fileIcon(mimeType: string | null) {
-  if (!mimeType) return MIME_ICON.default;
-  for (const [k, v] of Object.entries(MIME_ICON)) {
-    if (mimeType.startsWith(k)) return v;
-  }
-  return MIME_ICON.default;
-}
-
-function formatBytes(bytes: number | null): string {
-  if (!bytes) return "";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 export default function DocumentsPage() {
   const supabase = createClient();
@@ -57,6 +37,7 @@ export default function DocumentsPage() {
     title: "", category: "General", isPrivate: false,
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [versionDoc, setVersionDoc] = useState<Document | null>(null);
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
@@ -184,37 +165,12 @@ export default function DocumentsPage() {
       ) : (
         <div className="grid sm:grid-cols-2 gap-3">
           {filtered.map((doc) => (
-            <Card key={doc.id} padding="sm" className="group hover:border-greek-300 transition-colors">
-              <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-lg bg-surface-1 border border-border flex items-center justify-center flex-shrink-0">
-                  {fileIcon(doc.mime_type)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm text-foreground truncate">{doc.title}</p>
-                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                    <Badge label={doc.category} color="gray" />
-                    {doc.is_private && <Badge label="Private" color="red" />}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {formatBytes(doc.file_size_bytes)}{doc.file_size_bytes ? " · " : ""}{formatDate(doc.created_at)}
-                  </p>
-                </div>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                  <a href={doc.url} target="_blank" rel="noopener noreferrer"
-                    className="p-1.5 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-foreground">
-                    <Eye size={14} />
-                  </a>
-                  <a href={doc.url} download={doc.title}
-                    className="p-1.5 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-foreground">
-                    <Download size={14} />
-                  </a>
-                  <button onClick={() => deleteDocument(doc.id, doc.storage_path)}
-                    className="p-1.5 rounded-md hover:bg-red-50 text-muted-foreground hover:text-red-500">
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-            </Card>
+            <DocumentCard
+              key={doc.id}
+              doc={doc}
+              onDelete={deleteDocument}
+              onViewVersions={setVersionDoc}
+            />
           ))}
         </div>
       )}
@@ -277,6 +233,17 @@ export default function DocumentsPage() {
           </label>
         </div>
       </Modal>
+
+      {versionDoc && orgId && userId && (
+        <DocumentVersionHistory
+          doc={versionDoc}
+          orgId={orgId}
+          userId={userId}
+          open={Boolean(versionDoc)}
+          onClose={() => setVersionDoc(null)}
+          onUpdated={() => { if (orgId) load(orgId); setVersionDoc(null); }}
+        />
+      )}
     </div>
   );
 }

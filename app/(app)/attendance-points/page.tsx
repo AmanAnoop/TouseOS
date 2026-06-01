@@ -9,6 +9,7 @@ import {
   Modal, PageHeader, ProgressBar, StatCard,
 } from "@/components/ui";
 import type { MemberProfile } from "@/types";
+import { DEFAULT_POINT_RULES, getPointRules } from "@/lib/attendance-points";
 
 interface PointEntry {
   id: string;
@@ -19,14 +20,6 @@ interface PointEntry {
   created_at: string;
 }
 
-const DEFAULT_RULES = [
-  { event_type: "chapter_meeting", points: 2, label: "Chapter meeting" },
-  { event_type: "philanthropy", points: 3, label: "Philanthropy event" },
-  { event_type: "service", points: 3, label: "Service event" },
-  { event_type: "brotherhood", points: 2, label: "Brotherhood/sisterhood" },
-  { event_type: "formal", points: 1, label: "Formal/social" },
-];
-
 export default function AttendancePointsPage() {
   const supabase = createClient();
   const [orgId, setOrgId] = useState<string | null>(null);
@@ -34,6 +27,7 @@ export default function AttendancePointsPage() {
   const [entries, setEntries] = useState<PointEntry[]>([]);
   const [awardOpen, setAwardOpen] = useState(false);
   const [form, setForm] = useState({ memberId: "", points: "1", reason: "" });
+  const [rules, setRules] = useState(DEFAULT_POINT_RULES);
 
   const load = useCallback(async (oid: string) => {
     const [mRes, eRes] = await Promise.all([
@@ -42,6 +36,8 @@ export default function AttendancePointsPage() {
     ]);
     setMembers((mRes.data ?? []) as MemberProfile[]);
     setEntries((eRes.data ?? []) as PointEntry[]);
+    const loadedRules = await getPointRules(supabase, oid);
+    setRules(loadedRules);
   }, [supabase]);
 
   useEffect(() => {
@@ -100,7 +96,7 @@ export default function AttendancePointsPage() {
       <Card>
         <CardHeader title="Point rules by event type" description="Points auto-awarded on QR check-in (when rules configured)" />
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
-          {DEFAULT_RULES.map((r) => (
+          {rules.map((r) => (
             <div key={r.event_type} className="p-3 rounded-lg border border-border text-sm">
               <span className="font-medium">{r.label}</span>
               <Badge label={`+${r.points} pts`} color="green" className="ml-2" />

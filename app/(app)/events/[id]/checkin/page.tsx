@@ -27,6 +27,7 @@ export default function CheckInPage() {
   const eventId = params.id as string;
   const supabase = createClient();
   const [event, setEvent] = useState<Record<string, unknown> | null>(null);
+  const [orgId, setOrgId] = useState<string | null>(null);
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -39,10 +40,14 @@ export default function CheckInPage() {
 
   const loadData = useCallback(async () => {
     const [eventRes, rsvpRes] = await Promise.all([
-      supabase.from("events").select("id, title, starts_at, type").eq("id", eventId).single(),
+      supabase.from("events").select("id, title, starts_at, type, org_id").eq("id", eventId).single(),
       supabase.from("event_rsvps").select("*, member_profiles(full_name, profile_photo_url)").eq("event_id", eventId).order("checked_in", { ascending: true }),
     ]);
-    if (eventRes.data) setEvent(eventRes.data as Record<string, unknown>);
+    if (eventRes.data) {
+      const ev = eventRes.data as Record<string, unknown>;
+      setEvent(ev);
+      setOrgId(String(ev.org_id ?? ""));
+    }
     setAttendees((rsvpRes.data ?? []) as Attendee[]);
     setLoading(false);
   }, [supabase, eventId]);
@@ -51,6 +56,7 @@ export default function CheckInPage() {
 
   async function checkIn(rsvpId: string) {
     const now = new Date().toISOString();
+    const attendee = attendees.find((a) => a.id === rsvpId);
     const { error } = await supabase.from("event_rsvps").update({
       checked_in: true,
       checked_in_at: now,
@@ -59,7 +65,28 @@ export default function CheckInPage() {
     if (error) { toast.error(error.message); return; }
 
     setAttendees((prev) => prev.map((a) => a.id === rsvpId ? { ...a, checked_in: true, checked_in_at: now } : a));
-    toast.success("Checked in ✓");
+
+    if (orgId && attendee?.member_id && event?.type) {
+      const res = await fetch("/api/attendance-points/award", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orgId,
+          memberId: attendee.member_id,
+          eventId,
+          eventType: String(event.type),
+        }),
+      });
+      if (res.ok) {
+        const { awarded, points } = await res.json();
+        if (awarded) toast.success(`Checked in ✓ +${points} points`);
+        else toast.success("Checked in ✓");
+      } else {
+        toast.success("Checked in ✓");
+      }
+    } else {
+      toast.success("Checked in ✓");
+    }
   }
 
   async function undoCheckIn(rsvpId: string) {

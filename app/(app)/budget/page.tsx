@@ -2,15 +2,18 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  BookOpen, DollarSign, Download, Plus, Trash2, TrendingDown, TrendingUp,
+  BookOpen, DollarSign, Download, Plus, Trash2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import {
-  Badge, Button, Card, CardHeader, EmptyState,
-  Input, Modal, PageHeader, ProgressBar, Select, StatCard, Tabs,
+  Badge, Button, Card, EmptyState,
+  Input, Modal, PageHeader, Select, Tabs,
 } from "@/components/ui";
 import { downloadCsv, formatCurrency } from "@/lib/utils";
+import { computeBudgetAlerts } from "@/lib/budget-alerts";
+import { BudgetAlerts } from "@/components/budget/budget-alerts";
+import { BudgetOverview } from "@/components/budget/budget-overview";
 
 interface BudgetLine {
   id: string;
@@ -152,6 +155,7 @@ export default function BudgetPage() {
   const totalActualExpense = expenseLines.reduce((s, l) => s + Number(l.actual), 0);
   const netActual = totalActualIncome - totalActualExpense;
   const budgetUsedPct = totalBudgetedExpense > 0 ? Math.round((totalActualExpense / totalBudgetedExpense) * 100) : 0;
+  const alerts = computeBudgetAlerts(lines);
 
   return (
     <div className="space-y-5">
@@ -197,17 +201,15 @@ export default function BudgetPage() {
         />
       ) : (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <StatCard title="Total income" value={formatCurrency(totalActualIncome)} delta={`of ${formatCurrency(totalBudgetedIncome)}`} deltaType={totalActualIncome >= totalBudgetedIncome ? "up" : "neutral"} icon={<TrendingUp size={18} />} />
-            <StatCard title="Total expenses" value={formatCurrency(totalActualExpense)} delta={`of ${formatCurrency(totalBudgetedExpense)}`} icon={<TrendingDown size={18} />} />
-            <StatCard title="Net balance" value={formatCurrency(netActual)} deltaType={netActual >= 0 ? "up" : "down"} icon={<DollarSign size={18} />} />
-            <StatCard title="Budget used" value={`${budgetUsedPct}%`} deltaType={budgetUsedPct > 100 ? "down" : "neutral"} icon={<BookOpen size={18} />} />
-          </div>
-
-          <Card>
-            <CardHeader title="Expense budget utilization" />
-            <ProgressBar value={budgetUsedPct} color={budgetUsedPct > 100 ? "red" : budgetUsedPct > 80 ? "yellow" : "green"} size="md" label={`${formatCurrency(totalActualExpense)} spent of ${formatCurrency(totalBudgetedExpense)} budgeted`} />
-          </Card>
+          <BudgetAlerts alerts={alerts} />
+          <BudgetOverview
+            totalActualIncome={totalActualIncome}
+            totalBudgetedIncome={totalBudgetedIncome}
+            totalActualExpense={totalActualExpense}
+            totalBudgetedExpense={totalBudgetedExpense}
+            netActual={netActual}
+            budgetUsedPct={budgetUsedPct}
+          />
 
           <Tabs
             tabs={[
