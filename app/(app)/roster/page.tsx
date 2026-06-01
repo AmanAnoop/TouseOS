@@ -13,7 +13,7 @@ import {
   PageHeader, SearchInput, Select, Skeleton,
 } from "@/components/ui";
 import { downloadCsv, getStatusColor } from "@/lib/utils";
-import { ROLE_LABELS } from "@/lib/permissions";
+import { ROLE_LABELS, can, type RoleName } from "@/lib/permissions";
 import type { MemberProfile } from "@/types";
 import { MemberTable } from "@/components/roster/member-table";
 
@@ -40,6 +40,7 @@ export default function RosterPage() {
   const [members, setMembers] = useState<MemberProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [orgId, setOrgId] = useState<string | null>(null);
+  const [myRole, setMyRole] = useState<RoleName>("general_member");
 
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -67,18 +68,21 @@ export default function RosterPage() {
       if (!user) return;
       const { data: m } = await supabase
         .from("org_members")
-        .select("org_id")
+        .select("org_id, role")
         .eq("user_id", user.id)
         .neq("status", "removed")
         .limit(1)
         .single();
       if (m) {
         setOrgId(m.org_id);
+        setMyRole((String(m.role ?? "general_member") as RoleName));
         loadMembers(m.org_id);
       }
     }
     init();
   }, [supabase, loadMembers]);
+
+  const showPayment = can(myRole, "view_payments") || can(myRole, "manage_payments");
 
   const filtered = members.filter((m) => {
     const q = query.toLowerCase();
@@ -104,7 +108,7 @@ export default function RosterPage() {
       "Class Year": m.class_year ?? "",
       Major: m.major ?? "",
       Hometown: m.hometown ?? "",
-      "Payment Status": m.payment_status,
+      "Payment Status": showPayment ? m.payment_status : "restricted",
       "Attendance %": m.attendance_rate,
     })));
   }
@@ -245,7 +249,7 @@ export default function RosterPage() {
               ))}
       </div>
 
-      <MemberTable members={filtered} loading={loading} />
+      <MemberTable members={filtered} loading={loading} showPayment={showPayment} />
 
       {/* Invite modal */}
       <Modal

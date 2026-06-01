@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { can, type RoleName } from "@/lib/permissions";
 import {
   Badge, Card, CardHeader
 , ProgressBar,
@@ -20,6 +21,17 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+  const { data: viewerMembership } = await supabase
+    .from("org_members")
+    .select("org_id, role")
+    .eq("user_id", user.id)
+    .neq("status", "removed")
+    .limit(1)
+    .single();
+
+  const viewerRole = String(viewerMembership?.role ?? "general_member") as RoleName;
+  const canSeeSensitive = can(viewerRole, "edit_roster") || can(viewerRole, "view_payments") || can(viewerRole, "manage_payments");
+
 
   const [memberRes, paymentsRes
 , rsvpsRes] = await Promise.all([
@@ -181,14 +193,14 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
       )}
 
       {/* Emergency contact — officer-only */}
-      {member.notes && (
+      {canSeeSensitive && member.notes && (
         <Card>
           <CardHeader title="Officer notes" description="Permission restricted — visible to officers only" />
           <p className="text-sm whitespace-pre-wrap">{member.notes}</p>
         </Card>
       )}
 
-      {(member.emergency_contact_name || member.emergency_contact_phone) && (
+      {canSeeSensitive && (member.emergency_contact_name || member.emergency_contact_phone) && (
         <Card>
           <CardHeader title="Emergency contact" description="Restricted — officer and admin access only" icon={<Phone size={16} />} />
           <div className="p-3 rounded-lg bg-surface-1 border border-border">

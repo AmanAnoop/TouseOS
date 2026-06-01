@@ -10,6 +10,8 @@ import {
 } from "@/lib/utils";
 import { computeHealthScore } from "@/lib/health-score";
 import { HealthScoreBadge } from "@/components/dashboard/health-score-badge";
+import { AttendanceTrendChart } from "@/components/dashboard/attendance-trend-chart";
+import { EngagementTrendChart } from "@/components/dashboard/engagement-trend-chart";
 import {
   AlertTriangle, Calendar, CheckCircle2, DollarSign, FileText,
   Heart, Image, Shield, TrendingUp, Trophy, Users, Zap,
@@ -44,6 +46,7 @@ export default async function DashboardPage() {
     membersRes, eventsRes, paymentsRes, announcementsRes, tasksRes,
     reimbsRes, budgetsRes, photosRes, pnmRes,
     tripsRes, waiversRes, allEventsRes,
+    pastEventsRes, recentPhotosRes, recentAnnouncementsRes,
   ] = await Promise.all([
     supabase.from("member_profiles").select("id, full_name, membership_status, payment_status, attendance_rate, forms_completed, forms_required, created_at, is_injured").eq("org_id", orgId),
     supabase.from("events").select("id, title, type, starts_at, location, status").eq("org_id", orgId).gte("starts_at", new Date().toISOString()).order("starts_at").limit(5),
@@ -61,6 +64,9 @@ export default async function DashboardPage() {
       ? supabase.from("sports_waivers").select("status").eq("org_id", orgId)
       : Promise.resolve({ data: [] }),
     supabase.from("events").select("id").eq("org_id", orgId),
+    supabase.from("events").select("id, title, starts_at").eq("org_id", orgId).lt("starts_at", new Date().toISOString()).order("starts_at", { ascending: false }).limit(8),
+    supabase.from("photos").select("created_at").eq("org_id", orgId).gte("created_at", thirtyDaysAgo).order("created_at", { ascending: false }).limit(400),
+    supabase.from("announcements").select("created_at").eq("org_id", orgId).gte("created_at", thirtyDaysAgo).order("created_at", { ascending: false }).limit(200),
   ]);
 
   const members = (membersRes.data ?? []) as MemberProfile[];
@@ -74,12 +80,72 @@ export default async function DashboardPage() {
   const pnmLeads = (pnmRes.data ?? []) as Array<{ status: string }>;
   const waivers = (waiversRes.data ?? []) as Array<{ status: string }>;
   const allEventIds = ((allEventsRes.data ?? []) as Array<{ id: string }>).map((e) => e.id);
+  const pastEvents = (pastEventsRes.data ?? []) as Array<{ id: string; title: string; starts_at: string }>;
+  const recentPhotos = (recentPhotosRes.data ?? []) as Array<{ created_at: string }>;
+  const recentAnnouncements = (recentAnnouncementsRes.data ?? []) as Array<{ created_at: string }>;
   let rsvps: Array<{ checked_in: boolean; event_id: string }> = [];
   if (allEventIds.length > 0) {
     const { data: rsvpData } = await supabase.from("event_rsvps").select("checked_in, event_id").in("event_id", allEventIds);
     rsvps = (rsvpData ?? []) as typeof rsvps;
   }
 
+
+
+  const pastEventIds = pastEvents.map((e) => e.id);
+  let pastRsvps: Array<{ checked_in: boolean; event_id: string }> = [];
+  if (pastEventIds.length > 0) {
+    const { data: rsvpData } = await supabase
+      .from("event_rsvps")
+      .select("checked_in, event_id")
+      .in("event_id", pastEventIds);
+    pastRsvps = (rsvpData ?? []) as typeof pastRsvps;
+  }
+
+  const attendanceTrend = pastEvents
+    .slice()
+    .reverse()
+    .map((e) => {
+      const rows = pastRsvps.filter((r) => r.event_id === e.id);
+      const total = rows.length;
+      const checkedIn = rows.filter((r) => r.checked_in).length;
+      const rate = total > 0 ? Math.round((checkedIn / total) * 100) : 0;
+      return {
+        label: new Date(e.starts_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+        rate,
+        checkedIn,
+        total,
+      };
+    });
+
+  function startOfWeek(d: Date) {
+    const date = new Date(d);
+    const day = date.getDay(); // 0=Sun
+    const diff = (day + 6) % 7; // Monday start
+    date.setDate(date.getDate() - diff);
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }
+
+  const now = new Date();
+  const buckets = Array.from({ length: 5 }, (_, i) => {
+    const start = startOfWeek(new Date(now.getTime() - (4 - i) * 7 * 86400000));
+    const end = new Date(start.getTime() + 7 * 86400000);
+    const label = start.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+
+    const photos = recentPhotos.filter((p) => {
+      const ts = new Date(p.created_at);
+      return ts >= start && ts < end;
+    }).length;
+
+    const announcements = recentAnnouncements.filter((a) => {
+      const ts = new Date(a.created_at);
+      return ts >= start && ts < end;
+    }).length;
+
+    return { label, photos, announcements };
+  });
+
+  const engagementTrend = buckets;
   const activeCount = members.filter((m) => m.membership_status === "active").length;
   const newMembers = members.filter((m) =>
     m.membership_status === "new_member" ||
@@ -216,6 +282,10 @@ export default async function DashboardPage() {
           </div>
         </Card>
 
+
+
+        <AttendanceTrendChart points={attendanceTrend} />
+        <EngagementTrendChart points={engagementTrend} />
         {/* Upcoming events */}
         <Card>
           <CardHeader title="Upcoming events" icon={<Calendar size={16} />} action={<Link href="/events" className="text-xs text-greek-600 hover:underline">View all</Link>} />
