@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useState, useEffect, useCallback } from "react";
 import { Download, DollarSign, Plus, Send } from "lucide-react";
 import toast from "react-hot-toast";
@@ -130,7 +132,8 @@ export default function PaymentsPage() {
               Export
             </Button>
             <Button variant="secondary" size="sm" onClick={() => setManualOpen(true)}>Log cash/check</Button>
-            <a href="/payments/plan"><Button variant="secondary" size="sm">Payment plans</Button></a>
+            <Link href="/payments/plan"><Button variant="secondary" size="sm">Payment plans</Button></Link>
+            <Link href="/budget"><Button variant="secondary" size="sm">View budget</Button></Link>
             <a href="/payments/hardship">
             <Button variant="secondary" size="sm">Hardship request</Button>
           </a>

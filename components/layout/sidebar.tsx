@@ -12,6 +12,8 @@ import {
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { Avatar } from "@/components/ui";
+import { NotificationBell } from "@/components/notifications/notification-bell";
+import { useUnreadNotifications } from "@/hooks/use-unread-notifications";
 import type { Organization, Profile } from "@/types";
 
 interface NavItem {
@@ -66,6 +68,7 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
   const [dark, setDark] = useState(false);
   const [orgOpen, setOrgOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const { count: unreadCount } = useUnreadNotifications();
 
   const isSports = orgType === "club_sports";
   const isGreek = orgType === "fraternity" || orgType === "sorority";
@@ -140,7 +143,7 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
   const profileNav: NavItem[] = [
     { href: "/profile", label: "My Profile", icon: <Users size={18} /> },
     { href: "/account", label: "Account & Security", icon: <Settings size={18} /> },
-    { href: "/notifications", label: "Notifications", icon: <Bell size={18} /> },
+    { href: "/notifications", label: "Notifications", icon: <Bell size={18} />, badge: unreadCount },
     ...(isGreek && org ? [{ href: "/greekmatch", label: "💚 GreekMatch", icon: <Heart size={18} /> }] : []),
   ];
 
@@ -301,9 +304,7 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
           >
             {dark ? <Sun size={16} /> : <Moon size={16} />}
           </button>
-          <Link href="/notifications" className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-1" title="Notifications">
-            <Bell size={16} />
-          </Link>
+          <NotificationBell />
           {!collapsed && (
             <button
               onClick={signOut}

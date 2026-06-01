@@ -104,6 +104,7 @@ supabase/migrations/007_phase2_workspace.sql
 supabase/migrations/008_phase3_engagement.sql
 supabase/migrations/009_phase4_sports_interchapter_push.sql
 supabase/migrations/010_notification_preferences.sql
+supabase/migrations/011_payment_plans_rls.sql
 ```
 
 ### 3. Environment variables

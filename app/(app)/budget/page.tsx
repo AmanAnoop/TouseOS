@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  BookOpen, DollarSign, Download, Plus, Trash2,
+  BookOpen, DollarSign, Download, Plus,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import {
-  Badge, Button, Card, EmptyState,
+  Button, Card, EmptyState,
   Input, Modal, PageHeader, Select, Tabs,
 } from "@/components/ui";
 import { downloadCsv, formatCurrency } from "@/lib/utils";
@@ -18,6 +18,7 @@ import { CashFlowForecastPanel } from "@/components/budget/cash-flow-forecast";
 import { computeCashFlowForecast } from "@/lib/cash-flow-forecast";
 import { DuesForecastPanel } from "@/components/budget/dues-forecast-panel";
 import { computeDuesForecast, computeDuesSyncActual, type PaymentSummary } from "@/lib/dues-forecast";
+import { BudgetLineTable } from "@/components/budget/budget-line-table";
 
 interface BudgetLine {
   id: string;
@@ -136,6 +137,14 @@ export default function BudgetPage() {
     setSelectedBudget((prev) => prev ? {
       ...prev,
       budget_lines: prev.budget_lines.map((l) => l.id === lineId ? { ...l, actual } : l),
+    } : prev);
+  }
+
+  async function updateBudgeted(lineId: string, budgeted: number) {
+    await supabase.from("budget_lines").update({ budgeted }).eq("id", lineId);
+    setSelectedBudget((prev) => prev ? {
+      ...prev,
+      budget_lines: prev.budget_lines.map((l) => l.id === lineId ? { ...l, budgeted } : l),
     } : prev);
   }
 
@@ -286,73 +295,22 @@ export default function BudgetPage() {
           {(tab === "overview" ? lines : tab === "income" ? incomeLines : expenseLines).length === 0 ? (
             <EmptyState icon={<DollarSign size={20} />} title="No line items" action={<Button size="sm" icon={<Plus size={14} />} onClick={() => setAddLineOpen(true)}>Add first line</Button>} />
           ) : (
-            <Card padding="none">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border">
-                      {["Category","Type","Description","Budgeted","Actual","Variance",""].map((h) => (
-                        <th key={h} className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(tab === "overview" ? lines : tab === "income" ? incomeLines : expenseLines).map((line) => {
-                      const variance = Number(line.actual) - Number(line.budgeted);
-                      const isOver = line.type === "expense" ? variance > 0 : variance < 0;
-                      return (
-                        <tr key={line.id} className="border-b border-border last:border-0 hover:bg-surface-1 transition-colors">
-                          <td className="py-3 px-4 font-medium">{line.category}</td>
-                          <td className="py-3 px-4">
-                            <Badge label={line.type} color={line.type === "income" ? "green" : "red"} />
-                          </td>
-                          <td className="py-3 px-4 text-muted-foreground">{line.description ?? "—"}</td>
-                          <td className="py-3 px-4">{formatCurrency(Number(line.budgeted))}</td>
-                          <td className="py-3 px-4">
-                            <input
-                              type="number"
-                              className="w-24 h-7 border border-border rounded-md bg-background px-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                              value={line.actual}
-                              onChange={(e) => updateActual(line.id, parseFloat(e.target.value) || 0)}
-                              onBlur={(e) => updateActual(line.id, parseFloat(e.target.value) || 0)}
-                            />
-                          </td>
-                          <td className={`py-3 px-4 font-medium ${isOver ? "text-red-500" : "text-green-600"}`}>
-                            {variance >= 0 ? "+" : ""}{formatCurrency(variance)}
-                          </td>
-                          <td className="py-3 px-4">
-                            <button onClick={() => deleteLine(line.id)} className="text-muted-foreground hover:text-red-500">
-                              <Trash2 size={14} />
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t-2 border-border bg-surface-1">
-                      <td colSpan={3} className="py-3 px-4 font-bold text-foreground">Total</td>
-                      <td className="py-3 px-4 font-bold">
-                        {tab === "overview" ? `+${formatCurrency(totalBudgetedIncome)} / -${formatCurrency(totalBudgetedExpense)}` :
-                          tab === "income" ? formatCurrency(totalBudgetedIncome) :
-                          formatCurrency(totalBudgetedExpense)}
-                      </td>
-                      <td className="py-3 px-4 font-bold">
-                        {tab === "overview" ? `+${formatCurrency(totalActualIncome)} / -${formatCurrency(totalActualExpense)}` :
-                          tab === "income" ? formatCurrency(totalActualIncome) :
-                          formatCurrency(totalActualExpense)}
-                      </td>
-                      <td className={`py-3 px-4 font-bold ${netActual >= 0 ? "text-green-600" : "text-red-500"}`}>
-                        {tab === "overview" ? formatCurrency(netActual) :
-                          tab === "income" ? formatCurrency(totalActualIncome - totalBudgetedIncome) :
-                          formatCurrency(totalActualExpense - totalBudgetedExpense)}
-                      </td>
-                      <td />
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            </Card>
+            <BudgetLineTable
+              lines={tab === "overview" ? lines : tab === "income" ? incomeLines : expenseLines}
+              showType={tab === "overview"}
+              onUpdateBudgeted={updateBudgeted}
+              onUpdateActual={updateActual}
+              onDelete={deleteLine}
+              totals={{
+                budgetedLabel: tab === "overview" ? `+${formatCurrency(totalBudgetedIncome)} / -${formatCurrency(totalBudgetedExpense)}` :
+                  tab === "income" ? formatCurrency(totalBudgetedIncome) : formatCurrency(totalBudgetedExpense),
+                actualLabel: tab === "overview" ? `+${formatCurrency(totalActualIncome)} / -${formatCurrency(totalActualExpense)}` :
+                  tab === "income" ? formatCurrency(totalActualIncome) : formatCurrency(totalActualExpense),
+                varianceLabel: tab === "overview" ? formatCurrency(netActual) :
+                  tab === "income" ? formatCurrency(totalActualIncome - totalBudgetedIncome) :
+                  formatCurrency(totalActualExpense - totalBudgetedExpense),
+              }}
+            />
           )}
           </>
           )}
