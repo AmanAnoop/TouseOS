@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
 import { BookOpen, Camera, Heart } from "lucide-react";
+import { YearbookExportButton } from "@/components/yearbook/yearbook-export-button";
+import type { YearbookExportData } from "@/lib/yearbook-export";
 
 export const metadata = { title: "Digital Yearbook" };
 export const dynamic = "force-dynamic";
@@ -34,15 +36,38 @@ export default async function YearbookPage() {
 
   const albumByEvent = new Map(albums.filter((a) => a.event_id).map((a) => [String(a.event_id), a]));
 
+  const exportData: YearbookExportData = {
+    orgName,
+    generatedAt: new Date().toISOString(),
+    eventCount: events.length,
+    photoCount: photos.length,
+    events: events.map((e) => ({
+      id: String(e.id),
+      title: String(e.title),
+      type: String(e.type),
+      startsAt: String(e.starts_at),
+      hasAlbum: albumByEvent.has(String(e.id)),
+    })),
+    photos: photos.map((p) => ({
+      id: String(p.id),
+      url: String(p.url),
+      caption: p.caption ? String(p.caption) : null,
+      createdAt: String(p.created_at),
+    })),
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Digital Yearbook"
         description={`${orgName} semester scrapbook — events, memories, and approved photos`}
         action={
-          <Link href="/social" className="text-sm text-greek-600 hover:underline flex items-center gap-1">
-            <Camera size={14} /> Manage photos
-          </Link>
+          <div className="flex items-center gap-2">
+            <YearbookExportButton data={exportData} />
+            <Link href="/social" className="text-sm text-greek-600 hover:underline flex items-center gap-1">
+              <Camera size={14} /> Manage photos
+            </Link>
+          </div>
         }
       />
 
@@ -51,7 +76,7 @@ export default async function YearbookPage() {
           <BookOpen size={20} className="text-greek-600" />
           <div>
             <p className="font-semibold text-sm">{events.length} events · {photos.length} approved photos</p>
-            <p className="text-xs text-muted-foreground">Auto-compiled from your chapter activity this semester</p>
+            <p className="text-xs text-muted-foreground">Auto-compiled from your chapter activity this semester · Export as HTML for print/PDF</p>
           </div>
         </div>
       </Card>

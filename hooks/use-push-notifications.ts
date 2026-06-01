@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import toast from "react-hot-toast";
+import { createClient } from "@/lib/supabase/client";
 
 export function usePushNotifications() {
   const [supported, setSupported] = useState(false);
@@ -44,6 +45,9 @@ export function usePushNotifications() {
         });
       }
 
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+
       if (subscription) {
         const json = subscription.toJSON();
         await fetch("/api/push/subscribe", {
@@ -54,9 +58,15 @@ export function usePushNotifications() {
             keys: json.keys,
           }),
         });
+        if (user) {
+          await supabase.from("profiles").update({ notification_push: true }).eq("id", user.id);
+        }
         setSubscribed(true);
         toast.success("Push notifications enabled");
       } else {
+        if (user) {
+          await supabase.from("profiles").update({ notification_push: true }).eq("id", user.id);
+        }
         setSubscribed(true);
         toast.success("Browser notifications enabled");
       }

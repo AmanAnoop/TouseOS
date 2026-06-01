@@ -14,6 +14,8 @@ import { downloadCsv, formatCurrency } from "@/lib/utils";
 import { computeBudgetAlerts } from "@/lib/budget-alerts";
 import { BudgetAlerts } from "@/components/budget/budget-alerts";
 import { BudgetOverview } from "@/components/budget/budget-overview";
+import { CashFlowForecastPanel } from "@/components/budget/cash-flow-forecast";
+import { computeCashFlowForecast } from "@/lib/cash-flow-forecast";
 
 interface BudgetLine {
   id: string;
@@ -156,6 +158,7 @@ export default function BudgetPage() {
   const netActual = totalActualIncome - totalActualExpense;
   const budgetUsedPct = totalBudgetedExpense > 0 ? Math.round((totalActualExpense / totalBudgetedExpense) * 100) : 0;
   const alerts = computeBudgetAlerts(lines);
+  const cashFlowForecast = computeCashFlowForecast(lines);
 
   return (
     <div className="space-y-5">
@@ -214,6 +217,7 @@ export default function BudgetPage() {
           <Tabs
             tabs={[
               { id: "overview", label: "Overview" },
+              { id: "forecast", label: "Cash flow" },
               { id: "income", label: "Income", count: incomeLines.length },
               { id: "expense", label: "Expenses", count: expenseLines.length },
             ]}
@@ -221,6 +225,10 @@ export default function BudgetPage() {
             onChange={setTab}
           />
 
+          {tab === "forecast" ? (
+            <CashFlowForecastPanel forecast={cashFlowForecast} />
+          ) : (
+          <>
           <div className="flex justify-end">
             <Button size="sm" icon={<Plus size={14} />} onClick={() => { setLineForm({ ...lineForm, type: tab === "income" ? "income" : "expense" }); setAddLineOpen(true); }}>
               Add line item
@@ -297,6 +305,8 @@ export default function BudgetPage() {
                 </table>
               </div>
             </Card>
+          )}
+          </>
           )}
         </>
       )}

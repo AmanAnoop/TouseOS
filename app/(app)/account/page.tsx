@@ -225,7 +225,7 @@ export default function AccountPage() {
               {[
                 { key: "email", label: "Email notifications", desc: "Receive updates via email" },
                 { key: "sms", label: "SMS notifications", desc: "Receive text messages for urgent updates" },
-                { key: "push", label: "Push notifications", desc: "Coming soon — in-app push alerts" },
+                { key: "push", label: "Push notifications", desc: "Browser push alerts when enabled on Notifications page" },
               ].map((pref) => (
                 <div key={pref.key} className="flex items-start gap-3 py-2 border-b border-border last:border-0">
                   <div className="flex-1">
@@ -237,7 +237,7 @@ export default function AccountPage() {
                     className="rounded mt-0.5"
                     checked={Boolean(notifications[pref.key as keyof typeof notifications])}
                     onChange={(e) => setNotifications({ ...notifications, [pref.key]: e.target.checked })}
-                    disabled={pref.key === "push"}
+
                   />
                 </div>
               ))}

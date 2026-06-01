@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { dispatchPushForNotification } from "@/lib/push-notifications";
 
 interface CreateNotificationParams {
   userId: string;
@@ -7,6 +8,7 @@ interface CreateNotificationParams {
   title: string;
   body?: string;
   link?: string;
+  sendPush?: boolean;
 }
 
 export async function createNotification(
@@ -21,6 +23,16 @@ export async function createNotification(
     body: params.body ?? null,
     link: params.link ?? null,
   });
+
+  if (!error && params.sendPush !== false) {
+    await dispatchPushForNotification(supabase, {
+      userId: params.userId,
+      title: params.title,
+      body: params.body,
+      link: params.link,
+    });
+  }
+
   return { error };
 }
 

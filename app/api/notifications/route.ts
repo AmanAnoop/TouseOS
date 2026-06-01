@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { dispatchPushForNotification } from "@/lib/push-notifications";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -56,7 +57,7 @@ export async function POST(request: Request) {
   const supabase = await createServiceClient();
 
   const body = await request.json();
-  const { userId, orgId, type, title, body: msgBody, link } = body;
+  const { userId, orgId, type, title, body: msgBody, link, sendPush } = body;
 
   const { data, error } = await supabase.from("notifications").insert({
     user_id: userId,
@@ -68,5 +69,15 @@ export async function POST(request: Request) {
   }).select().single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (sendPush !== false) {
+    await dispatchPushForNotification(supabase, {
+      userId,
+      title,
+      body: msgBody,
+      link,
+    });
+  }
+
   return NextResponse.json(data, { status: 201 });
 }

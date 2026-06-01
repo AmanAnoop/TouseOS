@@ -58,7 +58,7 @@ PNM CRM, structured voting panel, consent-based SMS (Twilio), big/little matchin
 Cross-chapter event proposals, idea marketplace, shared workspaces (on accept), availability date matching, joint budget splitter.
 
 ### Social / content
-Photo albums, approval workflow, Instagram content packs, social calendar, chapter feed, event memories, digital yearbook, PR compliance checklist, social asset library.
+Photo albums, approval workflow, Instagram content packs (AI captions), social calendar, chapter feed, event memories, digital yearbook with HTML export, PR compliance checklist, social asset library.
 
 ### SportsOS
 Team dashboard, tryouts, waivers, travel trips, injury reports, equipment, league standings, tournament brackets.
@@ -122,6 +122,8 @@ cp .env.example .env.local
 | `TWILIO_*` | For SMS | PNM mass texting |
 | `CRON_SECRET` | Production | Protect `/api/cron/process-scheduled` |
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Optional | Browser push notifications |
+| `VAPID_PRIVATE_KEY` | Optional | Server-side Web Push delivery |
+| `VAPID_SUBJECT` | Optional | mailto: contact for VAPID (default support@touseos.com) |
 
 ### 4. Run locally
 
@@ -185,7 +187,7 @@ lib/
   permissions.ts       RBAC matrix
   health-score.ts      org health computation
   attendance-points.ts check-in auto-award rules
-  budget-alerts.ts     budget threshold alerts
+  budget-alerts.ts, cash-flow-forecast.ts, push-notifications.ts, yearbook-export.ts     budget threshold alerts
   sports-standings.ts  W-L record computation
   email.ts             Resend helpers
   notifications.ts     in-app notification helpers
@@ -214,7 +216,7 @@ public/
 | `/comms` | Announcements, email, scheduled messages |
 | `/pnm` | Recruitment CRM + voting |
 | `/social` | Albums, photo approval, content packs |
-| `/yearbook` | Semester scrapbook |
+| `/yearbook` | Semester scrapbook + HTML/PDF export |
 | `/interchapter` | Proposals, ideas, availability, budget split |
 | `/engagement` | Brotherhood/sisterhood participation |
 | `/standings` | Sports league W-L record |

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createNotification } from "@/lib/notifications";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -28,7 +29,9 @@ export async function POST(request: Request) {
     metadata: { count: reminded, payment_ids: (payments ?? []).map((p: { id: string }) => p.id) },
   });
 
-  // Create in-app notifications for members with user accounts
+  const serviceSupabase = await createServiceClient();
+  let pushSent = 0;
+
   for (const p of payments ?? []) {
     const mp = p.member_profiles as { full_name?: string; email?: string } | null;
     if (!mp?.email) continue;
@@ -39,21 +42,24 @@ export async function POST(request: Request) {
       .eq("email", mp.email)
       .maybeSingle();
     if (profile?.user_id) {
-      await supabase.from("notifications").insert({
-        user_id: profile.user_id,
-        org_id: orgId,
+      const balance = (Number(p.amount) - Number(p.paid_amount)).toFixed(2);
+      const { error } = await createNotification(serviceSupabase, {
+        userId: profile.user_id,
+        orgId,
         type: "payment_reminder",
         title: "Payment reminder",
-        body: `You have an outstanding balance of $${(Number(p.amount) - Number(p.paid_amount)).toFixed(2)}. Please pay at your earliest convenience.`,
+        body: `You have an outstanding balance of $${balance}. Please pay at your earliest convenience.`,
         link: "/payments",
       });
+      if (!error) pushSent++;
     }
   }
 
   return NextResponse.json({
     reminded,
+    pushSent,
     message: reminded > 0
-      ? `Sent ${reminded} payment reminder${reminded > 1 ? "s" : ""} (in-app notifications).`
+      ? `Sent ${reminded} payment reminder${reminded > 1 ? "s" : ""} (in-app + push where enabled).`
       : "No outstanding payments to remind.",
   });
 }
