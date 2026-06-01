@@ -1,18 +1,14 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Check, Heart, Save, User } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
-import {
-  Alert, Badge, Button, Card, CardHeader,
-  Input, Modal, PageHeader, Tabs,
-} from "@/components/ui";
+import { PageHeader, Tabs } from "@/components/ui";
 import type { MemberProfile } from "@/types";
 import { ProfileHeader } from "@/components/profile/profile-header";
 import { ProfileForm } from "@/components/profile/profile-form";
 import { PrivacySettings } from "@/components/profile/privacy-settings";
-
+import { GreekMatchSettings, type GreekMatchFormData } from "@/components/profile/greekmatch-settings";
 
 interface OrgRole { org_id: string; role: string; org_name: string; org_type: string }
 
@@ -46,7 +42,7 @@ export default function ProfilePage() {
     profilePhotoUrl: "",
   });
 
-  const [gmSection, setGmSection] = useState({
+  const [gmSection, setGmSection] = useState<GreekMatchFormData>({
     optedIn: false,
     displayName: "",
     age: "",
@@ -59,8 +55,6 @@ export default function ProfilePage() {
     minAge: "18",
     maxAge: "30",
   });
-
-  const [confirmOptOut, setConfirmOptOut] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -107,7 +101,6 @@ export default function ProfilePage() {
       }
 
       if (gmRes.data) {
-        // profile loaded
         setGmSection({
           optedIn: true,
           displayName: String(gmRes.data.display_name ?? ""),
@@ -199,7 +192,6 @@ export default function ProfilePage() {
     setSaving(false);
     if (error) { toast.error(error.message); return; }
     setGmSection((prev) => ({ ...prev, optedIn: true }));
-    // profile set
     toast.success("GreekMatch profile saved! You can now discover matches.");
   }
 
@@ -213,9 +205,7 @@ export default function ProfilePage() {
     if (!userId) return;
     await supabase.from("greekmatch_profiles").update({ is_active: false }).eq("user_id", userId);
     setGmSection((prev) => ({ ...prev, optedIn: false }));
-    // profile cleared
-    setConfirmOptOut(false);
-    toast.success("You&apos;ve been removed from GreekMatch.");
+    toast.success("You've been removed from GreekMatch.");
   }
 
   function toggleInterest(interest: string) {
@@ -274,238 +264,23 @@ export default function ProfilePage() {
       {tab === "privacy" && (
         <PrivacySettings
           profileVisibility={form.profileVisibility}
-          saving={saving}
-          onChange={(v) => setForm({ ...form, profileVisibility: v })}
+          onChange={(visibility) => setForm({ ...form, profileVisibility: visibility })}
           onSave={saveProfile}
+          saving={saving}
         />
       )}
 
-      {/* ── GreekMatch tab ───────────────────────────────────── */}
       {tab === "greekmatch" && (
-        <div className="space-y-4">
-          {/* GreekMatch header */}
-          <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-pink-500 via-rose-500 to-red-500 p-6 text-white">
-            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")" }} />
-            <div className="relative">
-              <div className="flex items-center gap-2 mb-2">
-                <Heart size={20} className="fill-white" />
-                <span className="font-bold text-lg">GreekMatch</span>
-                <span className="bg-white/20 text-white text-xs px-2 py-0.5 rounded-full">Beta</span>
-              </div>
-              <p className="text-white/90 text-sm max-w-sm">
-                Meet verified Greek students across campus. 100% opt-in, privacy-first, and exclusive to your university&apos;s Greek community.
-              </p>
-              {gmSection.optedIn && (
-                <Badge label="Active" color="green" className="mt-3 bg-white/20 text-white border-transparent" />
-              )}
-            </div>
-          </div>
-
-          {!gmSection.optedIn ? (
-            <>
-              <Alert
-                type="info"
-                title="How GreekMatch works"
-                description="You'll only be shown to other opted-in Greek students. Your org chapter info is not shared beyond your org name (optional). You can pause or opt out at any time."
-              />
-              <Card>
-                <CardHeader title="Set up your GreekMatch profile" description="Only visible to other opted-in Greek members" />
-                <div className="space-y-4">
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <Input
-                      label="Display name"
-                      placeholder="Alex (first name only recommended)"
-                      hint="We recommend using your first name only for privacy."
-                      value={gmSection.displayName}
-                      onChange={(e) => setGmSection({ ...gmSection, displayName: e.target.value })}
-                    />
-                    <Input
-                      label="Age"
-                      type="number"
-                      placeholder="21"
-                      hint="Must be 18+"
-                      value={gmSection.age}
-                      onChange={(e) => setGmSection({ ...gmSection, age: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium block mb-1.5">I identify as</label>
-                    <div className="flex gap-2 flex-wrap">
-                      {["man","woman","nonbinary","prefer not to say"].map((g) => (
-                        <button
-                          key={g}
-                          onClick={() => setGmSection({ ...gmSection, gender: g })}
-                          className={`px-3 py-1.5 rounded-full text-sm border transition-colors capitalize ${gmSection.gender === g ? "bg-rose-500 text-white border-rose-500" : "border-border text-muted-foreground hover:border-rose-400"}`}
-                        >
-                          {g}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium block mb-1.5">Interested in</label>
-                    <p className="text-xs text-muted-foreground mb-2">Select all that apply</p>
-                    <div className="flex gap-2 flex-wrap">
-                      {["men","women","nonbinary people","everyone"].map((val) => (
-                        <button
-                          key={val}
-                          onClick={() => toggleGmInterest(val)}
-                          className={`px-3 py-1.5 rounded-full text-sm border transition-colors capitalize ${gmSection.interestedIn.includes(val) ? "bg-rose-500 text-white border-rose-500" : "border-border text-muted-foreground hover:border-rose-400"}`}
-                        >
-                          {val}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <Input label="Min age preference" type="number" value={gmSection.minAge} onChange={(e) => setGmSection({ ...gmSection, minAge: e.target.value })} />
-                    <Input label="Max age preference" type="number" value={gmSection.maxAge} onChange={(e) => setGmSection({ ...gmSection, maxAge: e.target.value })} />
-                  </div>
-                </div>
-              </Card>
-
-              <Card>
-                <CardHeader title="Privacy controls" />
-                <div className="space-y-3">
-                  {[
-                    { key: "showOrgName", label: "Show org name", description: "Show which Greek org you're in (e.g. 'Kappa Delta')" },
-                    { key: "showFullName", label: "Show full name", description: "Show your last name on your profile" },
-                    { key: "sameOrgOk", label: "Allow same-org matches", description: "Allow matching with members of your own chapter" },
-                  ].map((opt) => (
-                    <label key={opt.key} className="flex items-start gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="mt-0.5 rounded"
-                        checked={Boolean(gmSection[opt.key as keyof typeof gmSection])}
-                        onChange={(e) => setGmSection({ ...gmSection, [opt.key]: e.target.checked })}
-                      />
-                      <div>
-                        <p className="text-sm font-medium">{opt.label}</p>
-                        <p className="text-xs text-muted-foreground">{opt.description}</p>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </Card>
-
-              <div className="bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800 rounded-xl p-4 text-sm text-rose-800 dark:text-rose-300">
-                <p className="font-semibold mb-1">By opting in to GreekMatch you agree that:</p>
-                <ul className="space-y-1 text-xs">
-                  <li>✓ You are 18+ years old</li>
-                  <li>✓ Your profile will be visible to other opted-in Greek members on your campus</li>
-                  <li>✓ You can pause or remove your profile at any time</li>
-                  <li>✓ You will use GreekMatch respectfully and not harass other users</li>
-                </ul>
-              </div>
-
-              <Button
-                onClick={saveGreekMatch}
-                loading={saving}
-                disabled={!gmSection.displayName || !gmSection.gender || gmSection.interestedIn.length === 0}
-                className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600"
-                icon={<Heart size={14} className="fill-white" />}
-              >
-                Join GreekMatch
-              </Button>
-            </>
-          ) : (
-            <>
-              <Card>
-                <CardHeader title="Your GreekMatch profile" action={
-                  <Badge label="Active" color="green" dot />
-                } />
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-sm font-medium">Display name</label>
-                    <input className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" value={gmSection.displayName} onChange={(e) => setGmSection({ ...gmSection, displayName: e.target.value })} />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-sm font-medium">Age</label>
-                    <input type="number" className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" value={gmSection.age} onChange={(e) => setGmSection({ ...gmSection, age: e.target.value })} />
-                  </div>
-                </div>
-
-                <div className="mt-4">
-                  <p className="text-sm font-medium mb-2">Interested in</p>
-                  <div className="flex gap-2 flex-wrap">
-                    {["men","women","nonbinary people","everyone"].map((val) => (
-                      <button key={val} onClick={() => toggleGmInterest(val)} className={`px-3 py-1.5 rounded-full text-sm border transition-colors capitalize ${gmSection.interestedIn.includes(val) ? "bg-rose-500 text-white border-rose-500" : "border-border text-muted-foreground"}`}>{val}</button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="mt-4 space-y-2">
-                  {[
-                    { key: "showOrgName", label: "Show org name" },
-                    { key: "showFullName", label: "Show full name" },
-                    { key: "sameOrgOk", label: "Allow same-org matches" },
-                  ].map((opt) => (
-                    <label key={opt.key} className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" className="rounded" checked={Boolean(gmSection[opt.key as keyof typeof gmSection])} onChange={(e) => setGmSection({ ...gmSection, [opt.key]: e.target.checked })} />
-                      <span className="text-sm">{opt.label}</span>
-                    </label>
-                  ))}
-                </div>
-
-                <div className="flex gap-2 mt-5">
-                  <Button onClick={saveGreekMatch} loading={saving} icon={<Save size={14} />} className="flex-1 bg-rose-500 hover:bg-rose-600">
-                    Save changes
-                  </Button>
-                  <Button variant="secondary" onClick={pauseGreekMatch}>
-                    Pause
-                  </Button>
-                  <Button variant="danger" onClick={() => setConfirmOptOut(true)}>
-                    Opt out
-                  </Button>
-                </div>
-              </Card>
-
-              <div className="grid sm:grid-cols-3 gap-3">
-                <a href="/greekmatch" className="block">
-                  <Card padding="sm" className="text-center hover:border-rose-300 transition-colors cursor-pointer">
-                    <Heart size={20} className="mx-auto text-rose-500 mb-1" />
-                    <p className="text-sm font-semibold">Discover</p>
-                    <p className="text-xs text-muted-foreground">Find matches</p>
-                  </Card>
-                </a>
-                <a href="/greekmatch/matches" className="block">
-                  <Card padding="sm" className="text-center hover:border-rose-300 transition-colors cursor-pointer">
-                    <Check size={20} className="mx-auto text-green-500 mb-1" />
-                    <p className="text-sm font-semibold">Matches</p>
-                    <p className="text-xs text-muted-foreground">View & chat</p>
-                  </Card>
-                </a>
-                <a href="/greekmatch/setup" className="block">
-                  <Card padding="sm" className="text-center hover:border-rose-300 transition-colors cursor-pointer">
-                    <User size={20} className="mx-auto text-blue-500 mb-1" />
-                    <p className="text-sm font-semibold">Edit profile</p>
-                    <p className="text-xs text-muted-foreground">Photos & bio</p>
-                  </Card>
-                </a>
-              </div>
-            </>
-          )}
-        </div>
+        <GreekMatchSettings
+          form={gmSection}
+          saving={saving}
+          onChange={(updates) => setGmSection({ ...gmSection, ...updates })}
+          onToggleInterest={toggleGmInterest}
+          onSave={saveGreekMatch}
+          onPause={pauseGreekMatch}
+          onOptOut={optOutGreekMatch}
+        />
       )}
-
-      {/* Opt-out confirm modal */}
-      <Modal
-        open={confirmOptOut}
-        onClose={() => setConfirmOptOut(false)}
-        title="Opt out of GreekMatch?"
-        description="Your profile will be hidden and your matches will be archived. You can re-join anytime."
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setConfirmOptOut(false)}>Keep my profile</Button>
-            <Button variant="danger" onClick={optOutGreekMatch}>Opt out</Button>
-          </>
-        }
-      >
-        <Alert type="warning" title="This will remove your profile from discovery and archive your current matches." />
-      </Modal>
     </div>
   );
 }

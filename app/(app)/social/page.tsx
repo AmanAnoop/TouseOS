@@ -31,6 +31,7 @@ export default function SocialPage() {
   const [contentPackOpen, setContentPackOpen] = useState(false);
   const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
   const [generatedCaption, setGeneratedCaption] = useState("");
+  const [generatingCaption, setGeneratingCaption] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -132,13 +133,43 @@ export default function SocialPage() {
     toast.success(`Content pack exported with ${selected.length} photos`);
   }
 
-  function generateCaption() {
-    const templates = [
-      `What a night ✨ ${selectedAlbum?.title ?? "event"} was everything. So grateful for this chapter 💚 #GreekLife #Brotherhood`,
-      `The best people 🤍 ${selectedAlbum?.title} forever in our hearts. Tag someone who was there!`,
+  async function generateCaption() {
+    const albumTitle = selectedAlbum?.title ?? "event";
+    const photoCount = selectedPhotos.length;
+    const fallbackTemplates = [
+      `What a night ✨ ${albumTitle} was everything. So grateful for this chapter 💚 #GreekLife #Brotherhood`,
+      `The best people 🤍 ${albumTitle} forever in our hearts. Tag someone who was there!`,
       `Memories that last a lifetime 📸 #ChapterLife #TouseGreek`,
     ];
-    setGeneratedCaption(templates[Math.floor(Math.random() * templates.length)]);
+
+    setGeneratingCaption(true);
+    try {
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orgId,
+          messages: [{
+            role: "user",
+            content: `Write an Instagram caption for a Greek life chapter post. Album/event: "${albumTitle}". ${photoCount > 0 ? `Carousel with ${photoCount} photos.` : "Single or carousel post."} Keep it authentic, warm, and under 2200 characters. Include 2-4 relevant hashtags. Do not use quotation marks around the caption.`,
+          }],
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.response) {
+        setGeneratedCaption(data.response.trim());
+        toast.success("AI caption generated — review before posting");
+      } else {
+        setGeneratedCaption(fallbackTemplates[Math.floor(Math.random() * fallbackTemplates.length)]);
+        toast.error(data.error ?? "AI unavailable — using template caption");
+      }
+    } catch {
+      setGeneratedCaption(fallbackTemplates[Math.floor(Math.random() * fallbackTemplates.length)]);
+      toast.error("AI unavailable — using template caption");
+    } finally {
+      setGeneratingCaption(false);
+    }
   }
 
   const approvedPhotos = photos.filter((p) => p.is_instagram_ready);
@@ -353,7 +384,7 @@ export default function SocialPage() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium">Caption</p>
-              <Button variant="ghost" size="sm" onClick={generateCaption}>Generate ✨</Button>
+              <Button variant="ghost" size="sm" loading={generatingCaption} onClick={generateCaption}>Generate ✨</Button>
             </div>
             <textarea
               className="w-full min-h-[80px] rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"

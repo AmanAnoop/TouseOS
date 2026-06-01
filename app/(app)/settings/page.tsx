@@ -1,25 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  Building, Copy, LogOut, Plus, Save,
-  Shield, Trash2, UserCheck, UserMinus,
-} from "lucide-react";
+import { LogOut, Shield } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import {
-  Alert, Avatar, Badge, Button, Card, CardHeader,
-  Input, Modal, PageHeader, Select, Tabs,
+  Alert, Badge, Button, Card, CardHeader,
+  PageHeader, Tabs,
 } from "@/components/ui";
-import { ROLE_LABELS } from "@/lib/permissions";
-import { orgTypeLabel } from "@/lib/utils";
-import type { OrgMember } from "@/types";
-
-interface OrgMemberWithProfile extends OrgMember {
-  profiles?: { full_name: string | null; avatar_url: string | null } | null;
-  member_profiles?: { id: string; full_name: string; email: string } | null;
-}
+import { OrgProfileForm, type OrgProfileFormData } from "@/components/settings/org-profile-form";
+import { InviteCodeCard } from "@/components/settings/invite-code-card";
+import { MemberRolesPanel, type OrgMemberWithProfile } from "@/components/settings/member-roles-panel";
 
 export default function SettingsPage() {
   const supabase = createClient();
@@ -30,11 +22,8 @@ export default function SettingsPage() {
   const [members, setMembers] = useState<OrgMemberWithProfile[]>([]);
   const [myRole, setMyRole] = useState("");
   const [saving, setSaving] = useState(false);
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState("general_member");
 
-  const [orgForm, setOrgForm] = useState({
+  const [orgForm, setOrgForm] = useState<OrgProfileFormData>({
     name: "", campus: "", councilOrLeague: "", contactEmail: "",
     privacy: "private", primaryColor: "#059669", secondaryColor: "#065f46",
   });
@@ -65,7 +54,6 @@ export default function SettingsPage() {
         secondaryColor: String(orgData.secondary_color ?? "#065f46"),
       });
 
-      // Load members with profile info
       const { data: membersData } = await supabase
         .from("org_members")
         .select("*, profiles(full_name, avatar_url), member_profiles(id, full_name, email)")
@@ -77,6 +65,7 @@ export default function SettingsPage() {
   }, [supabase]);
 
   const isAdmin = ["owner", "president", "advisor"].includes(myRole);
+  const activeMembers = members.filter((m) => m.status !== "removed");
 
   async function saveOrgProfile() {
     if (!orgId) return;
@@ -110,20 +99,24 @@ export default function SettingsPage() {
     toast.success("New invite code generated");
   }
 
-  async function sendInvite() {
-    if (!orgId || !inviteEmail) return;
+  async function sendInvite(email: string, role: string) {
+    if (!orgId) return;
     const res = await fetch("/api/members/invite", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orgId, email: inviteEmail, role: inviteRole }),
+      body: JSON.stringify({ orgId, email, role }),
     });
     if (res.ok) {
-      toast.success(`Invite sent to ${inviteEmail}`);
-      setInviteOpen(false);
-      setInviteEmail("");
+      toast.success(`Invite sent to ${email}`);
     } else {
       toast.error("Failed to send invite");
     }
+  }
+
+  async function approveMember(memberId: string) {
+    await supabase.from("org_members").update({ status: "active" }).eq("id", memberId);
+    setMembers((prev) => prev.map((m) => m.id === memberId ? { ...m, status: "active" } : m));
+    toast.success("Member approved");
   }
 
   async function changeRole(memberId: string, newRole: string) {
@@ -144,13 +137,6 @@ export default function SettingsPage() {
     router.push("/login");
   }
 
-  const roleOptions = Object.entries(ROLE_LABELS)
-    .filter(([v]) => !["parent", "university_admin"].includes(v))
-    .map(([value, label]) => ({ value, label }));
-
-  const activeMembers = members.filter((m) => m.status !== "removed");
-  const pendingMembers = members.filter((m) => m.status === "pending_invite");
-
   return (
     <div className="space-y-5 max-w-3xl mx-auto">
       <PageHeader title="Settings" description="Manage organization profile, members, and integrations" />
@@ -166,160 +152,36 @@ export default function SettingsPage() {
         onChange={setTab}
       />
 
-      {/* ── Organization profile ─────────────────────────────── */}
       {tab === "profile" && (
         <div className="space-y-4">
-          <Card>
-            <CardHeader title="Organization profile" icon={<Building size={16} />} />
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Input label="Organization name" required value={orgForm.name} onChange={(e) => setOrgForm({ ...orgForm, name: e.target.value })} disabled={!isAdmin} />
-              <Input label="Campus / University" value={orgForm.campus} onChange={(e) => setOrgForm({ ...orgForm, campus: e.target.value })} disabled={!isAdmin} />
-              <Input label="Council or League" placeholder="IFC, Panhellenic, Campus Rec" value={orgForm.councilOrLeague} onChange={(e) => setOrgForm({ ...orgForm, councilOrLeague: e.target.value })} disabled={!isAdmin} />
-              <Input label="Contact email" type="email" value={orgForm.contactEmail} onChange={(e) => setOrgForm({ ...orgForm, contactEmail: e.target.value })} disabled={!isAdmin} />
-              <Select
-                label="Privacy"
-                value={orgForm.privacy}
-                onChange={(e) => setOrgForm({ ...orgForm, privacy: e.target.value })}
-                options={[{ value: "private", label: "Private — members only" }, { value: "public", label: "Public — visible to all" }]}
-                disabled={!isAdmin}
-              />
-            </div>
-            <div className="mt-4 grid sm:grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium">Primary color</label>
-                <div className="flex items-center gap-3">
-                  <input type="color" className="h-9 w-16 rounded-lg border border-border cursor-pointer" value={orgForm.primaryColor} onChange={(e) => setOrgForm({ ...orgForm, primaryColor: e.target.value })} disabled={!isAdmin} />
-                  <span className="text-sm font-mono text-muted-foreground">{orgForm.primaryColor}</span>
-                </div>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium">Secondary color</label>
-                <div className="flex items-center gap-3">
-                  <input type="color" className="h-9 w-16 rounded-lg border border-border cursor-pointer" value={orgForm.secondaryColor} onChange={(e) => setOrgForm({ ...orgForm, secondaryColor: e.target.value })} disabled={!isAdmin} />
-                  <span className="text-sm font-mono text-muted-foreground">{orgForm.secondaryColor}</span>
-                </div>
-              </div>
-            </div>
-            {isAdmin && (
-              <Button onClick={saveOrgProfile} loading={saving} icon={<Save size={14} />} className="mt-4">
-                Save changes
-              </Button>
-            )}
-          </Card>
-
-          {/* Invite code */}
-          <Card>
-            <CardHeader title="Invite code" description="Share with members to join your organization" icon={<Copy size={16} />} />
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-12 rounded-xl border border-border bg-surface-1 flex items-center justify-center">
-                <span className="text-2xl font-mono font-bold tracking-[0.3em] text-foreground">
-                  {String(org?.invite_code ?? "········")}
-                </span>
-              </div>
-              <Button variant="secondary" icon={<Copy size={14} />} onClick={copyInviteCode}>Copy</Button>
-              {isAdmin && (
-                <Button variant="secondary" onClick={regenerateInviteCode}>Regenerate</Button>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">Members enter this code at <strong>app.touseos.com/onboarding</strong> to request to join.</p>
-          </Card>
-
-          {/* Read-only org info */}
-          <Card>
-            <CardHeader title="Organization info" />
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { label: "Type", value: orgTypeLabel(String(org?.type ?? "")) },
-                { label: "Created", value: org?.created_at ? new Date(String(org.created_at)).toLocaleDateString() : "—" },
-              ].map(({ label, value }) => (
-                <div key={label} className="p-3 bg-surface-1 rounded-lg">
-                  <p className="text-xs text-muted-foreground">{label}</p>
-                  <p className="text-sm font-medium capitalize">{value}</p>
-                </div>
-              ))}
-            </div>
-          </Card>
+          <OrgProfileForm
+            form={orgForm}
+            org={org}
+            isAdmin={isAdmin}
+            saving={saving}
+            onChange={(updates) => setOrgForm({ ...orgForm, ...updates })}
+            onSave={saveOrgProfile}
+          />
+          <InviteCodeCard
+            inviteCode={org?.invite_code ? String(org.invite_code) : null}
+            isAdmin={isAdmin}
+            onCopy={copyInviteCode}
+            onRegenerate={regenerateInviteCode}
+          />
         </div>
       )}
 
-      {/* ── Members ─────────────────────────────────────────── */}
       {tab === "members" && (
-        <div className="space-y-4">
-          {pendingMembers.length > 0 && (
-            <Card>
-              <CardHeader title="Pending invites" description={`${pendingMembers.length} waiting for approval`} />
-              <div className="space-y-2">
-                {pendingMembers.map((m) => (
-                  <div key={m.id} className="flex items-center gap-3 p-3 rounded-lg border border-border">
-                    <Avatar name={String(m.profiles?.full_name ?? m.member_profiles?.full_name ?? "?")} src={m.profiles?.avatar_url} size="sm" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{String(m.profiles?.full_name ?? m.member_profiles?.email ?? "Pending member")}</p>
-                      <p className="text-xs text-muted-foreground capitalize">{m.role.replace("_", " ")}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" icon={<UserCheck size={12} />} onClick={() => {
-                        supabase.from("org_members").update({ status: "active" }).eq("id", m.id).then(() => {
-                          setMembers((prev) => prev.map((pm) => pm.id === m.id ? { ...pm, status: "active" } : pm));
-                          toast.success("Member approved");
-                        });
-                      }}>Approve</Button>
-                      <Button size="sm" variant="danger" icon={<UserMinus size={12} />} onClick={() => removeMember(m.id)} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
-
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">{activeMembers.length} active members</p>
-            <Button size="sm" icon={<Plus size={14} />} onClick={() => setInviteOpen(true)}>Invite member</Button>
-          </div>
-
-          <Card padding="none">
-            <div className="divide-y divide-border">
-              {activeMembers.map((m) => (
-                <div key={m.id} className="flex items-center gap-3 p-4 hover:bg-surface-1 transition-colors">
-                  <Avatar
-                    name={String(m.profiles?.full_name ?? m.member_profiles?.full_name ?? "?")}
-                    src={m.profiles?.avatar_url}
-                    size="sm"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground">
-                      {String(m.profiles?.full_name ?? m.member_profiles?.full_name ?? "—")}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {String(m.member_profiles?.email ?? "—")}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {isAdmin ? (
-                      <select
-                        className="h-8 rounded-lg border border-border bg-background px-2 text-xs focus:outline-none"
-                        value={m.role}
-                        onChange={(e) => changeRole(m.id, e.target.value)}
-                      >
-                        {roleOptions.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-                      </select>
-                    ) : (
-                      <Badge label={ROLE_LABELS[m.role as keyof typeof ROLE_LABELS] ?? m.role} color="gray" />
-                    )}
-                    <Badge label={m.status} color={m.status === "active" ? "green" : "yellow"} dot />
-                    {isAdmin && m.role !== "owner" && (
-                      <button onClick={() => removeMember(m.id)} className="p-1 rounded text-muted-foreground hover:text-red-500">
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </div>
+        <MemberRolesPanel
+          members={members}
+          isAdmin={isAdmin}
+          onApprove={approveMember}
+          onChangeRole={changeRole}
+          onRemove={removeMember}
+          onInvite={sendInvite}
+        />
       )}
 
-      {/* ── Integrations ─────────────────────────────────────── */}
       {tab === "integrations" && (
         <div className="space-y-4">
           <Alert type="info" title="Configure integrations to unlock payment processing, SMS, and AI features." />
@@ -381,7 +243,6 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* ── Danger zone ──────────────────────────────────────── */}
       {tab === "danger" && (
         <div className="space-y-4">
           <Card>
@@ -406,24 +267,6 @@ export default function SettingsPage() {
           )}
         </div>
       )}
-
-      {/* Invite modal */}
-      <Modal
-        open={inviteOpen}
-        onClose={() => setInviteOpen(false)}
-        title="Invite member"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setInviteOpen(false)}>Cancel</Button>
-            <Button onClick={sendInvite} disabled={!inviteEmail}>Send invite</Button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <Input label="Email address" type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="member@university.edu" />
-          <Select label="Role" value={inviteRole} onChange={(e) => setInviteRole(e.target.value)} options={roleOptions} />
-        </div>
-      </Modal>
     </div>
   );
 }
