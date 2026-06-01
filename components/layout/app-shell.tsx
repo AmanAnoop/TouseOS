@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { cn } from "@/lib/utils";
+import { ServiceWorkerRegister } from "@/components/layout/service-worker-register";
 import type { Organization, Profile } from "@/types";
 
 interface AppShellProps {
@@ -18,6 +19,7 @@ export function AppShell({ org, orgs, profile, children }: AppShellProps) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
+      <ServiceWorkerRegister />
       {/* Desktop sidebar */}
       <div className="hidden lg:flex flex-shrink-0">
         <Sidebar

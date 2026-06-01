@@ -30,6 +30,7 @@ export async function createNotification(
       title: params.title,
       body: params.body,
       link: params.link,
+      type: params.type,
     });
   }
 

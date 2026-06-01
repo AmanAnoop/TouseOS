@@ -1,16 +1,15 @@
 self.addEventListener("push", (event) => {
-  let data = { title: "TouseOS", body: "You have a new notification" };
+  let data = { title: "TouseOS", body: "You have a new notification", url: "/notifications" };
   try {
-    if (event.data) data = event.data.json();
+    if (event.data) data = { ...data, ...event.data.json() };
   } catch {
     /* use defaults */
   }
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
-      icon: "/icon-192.png",
-      badge: "/icon-192.png",
-      data: { url: data.url ?? "/" },
+      badge: "/favicon.ico",
+      data: { url: data.url ?? "/notifications" },
     }),
   );
 });

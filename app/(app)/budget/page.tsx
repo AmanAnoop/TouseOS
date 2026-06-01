@@ -16,6 +16,8 @@ import { BudgetAlerts } from "@/components/budget/budget-alerts";
 import { BudgetOverview } from "@/components/budget/budget-overview";
 import { CashFlowForecastPanel } from "@/components/budget/cash-flow-forecast";
 import { computeCashFlowForecast } from "@/lib/cash-flow-forecast";
+import { DuesForecastPanel } from "@/components/budget/dues-forecast-panel";
+import { computeDuesForecast, computeDuesSyncActual, type PaymentSummary } from "@/lib/dues-forecast";
 
 interface BudgetLine {
   id: string;
@@ -46,6 +48,8 @@ export default function BudgetPage() {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [orgId, setOrgId] = useState<string | null>(null);
+  const [payments, setPayments] = useState<PaymentSummary[]>([]);
+  const [syncing, setSyncing] = useState(false);
   const [tab, setTab] = useState("overview");
   const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
   const [createBudgetOpen, setCreateBudgetOpen] = useState(false);
@@ -62,14 +66,18 @@ export default function BudgetPage() {
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
-    const res = await fetch(`/api/budget?org_id=${oid}`);
-    if (res.ok) {
-      const data = await res.json();
+    const [budgetRes, paymentsRes] = await Promise.all([
+      fetch(`/api/budget?org_id=${oid}`),
+      supabase.from("payments").select("id, amount, paid_amount, status, due_date, category").eq("org_id", oid),
+    ]);
+    if (budgetRes.ok) {
+      const data = await budgetRes.json();
       setBudgets(data);
       if (data.length > 0) setSelectedBudget(data[0]);
     }
+    setPayments((paymentsRes.data ?? []) as PaymentSummary[]);
     setLoading(false);
-  }, []);
+  }, [supabase]);
 
   useEffect(() => {
     async function init() {
@@ -136,6 +144,42 @@ export default function BudgetPage() {
     setSelectedBudget((prev) => prev ? { ...prev, budget_lines: prev.budget_lines.filter((l) => l.id !== lineId) } : prev);
   }
 
+
+  async function syncDuesToBudget() {
+    if (!selectedBudget || !orgId) return;
+    setSyncing(true);
+    const collected = computeDuesSyncActual(payments);
+    let duesLine = selectedBudget.budget_lines.find((l) => l.type === "income" && l.category === "Dues income");
+
+    if (!duesLine) {
+      const { data, error } = await supabase.from("budget_lines").insert({
+        budget_id: selectedBudget.id,
+        category: "Dues income",
+        type: "income",
+        description: "Synced from Payments",
+        budgeted: collected,
+        actual: collected,
+      }).select().single();
+      if (error) { toast.error(error.message); setSyncing(false); return; }
+      duesLine = data as BudgetLine;
+      setSelectedBudget((prev) => prev ? { ...prev, budget_lines: [...prev.budget_lines, duesLine!] } : prev);
+    } else {
+      await supabase.from("budget_lines").update({ actual: collected }).eq("id", duesLine.id);
+      setSelectedBudget((prev) => prev ? {
+        ...prev,
+        budget_lines: prev.budget_lines.map((l) => l.id === duesLine!.id ? { ...l, actual: collected } : l),
+      } : prev);
+    }
+    setBudgets((prev) => prev.map((b) => b.id === selectedBudget.id ? {
+      ...b,
+      budget_lines: b.budget_lines.some((l) => l.id === duesLine!.id)
+        ? b.budget_lines.map((l) => l.id === duesLine!.id ? { ...l, actual: collected } : l)
+        : [...b.budget_lines, duesLine!],
+    } : b));
+    setSyncing(false);
+    toast.success(`Synced $${collected.toFixed(2)} collected dues to budget`);
+  }
+
   function exportBudget() {
     if (!selectedBudget) return;
     downloadCsv(`budget-${selectedBudget.label}.csv`, selectedBudget.budget_lines.map((l) => ({
@@ -159,6 +203,7 @@ export default function BudgetPage() {
   const budgetUsedPct = totalBudgetedExpense > 0 ? Math.round((totalActualExpense / totalBudgetedExpense) * 100) : 0;
   const alerts = computeBudgetAlerts(lines);
   const cashFlowForecast = computeCashFlowForecast(lines);
+  const duesForecast = computeDuesForecast(payments);
 
   return (
     <div className="space-y-5">
@@ -218,6 +263,7 @@ export default function BudgetPage() {
             tabs={[
               { id: "overview", label: "Overview" },
               { id: "forecast", label: "Cash flow" },
+              { id: "dues", label: "Dues forecast" },
               { id: "income", label: "Income", count: incomeLines.length },
               { id: "expense", label: "Expenses", count: expenseLines.length },
             ]}
@@ -227,6 +273,8 @@ export default function BudgetPage() {
 
           {tab === "forecast" ? (
             <CashFlowForecastPanel forecast={cashFlowForecast} />
+          ) : tab === "dues" ? (
+            <DuesForecastPanel forecast={duesForecast} onSyncToBudget={syncDuesToBudget} syncing={syncing} />
           ) : (
           <>
           <div className="flex justify-end">

@@ -1,10 +1,12 @@
 import webpush from "web-push";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isNotificationTypeEnabled, parseNotificationPreferences } from "@/lib/notification-preferences";
 
 export interface PushPayload {
   title: string;
   body: string;
   url?: string;
+  type?: string;
 }
 
 function configureVapid() {
@@ -33,11 +35,16 @@ export async function sendPushToUser(
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("notification_push")
+    .select("notification_push, notification_preferences")
     .eq("id", userId)
     .maybeSingle();
 
   if (!profile?.notification_push) return { sent: 0, failed: 0 };
+
+  const prefs = parseNotificationPreferences(profile.notification_preferences);
+  if (payload.type && !isNotificationTypeEnabled(prefs, payload.type)) {
+    return { sent: 0, failed: 0 };
+  }
 
   const { data: subs } = await supabase
     .from("push_subscriptions")
@@ -78,11 +85,12 @@ export async function sendPushToUser(
 
 export async function dispatchPushForNotification(
   supabase: SupabaseClient,
-  params: { userId: string; title: string; body?: string | null; link?: string | null },
+  params: { userId: string; title: string; body?: string | null; link?: string | null; type?: string },
 ): Promise<void> {
   await sendPushToUser(supabase, params.userId, {
     title: params.title,
     body: params.body ?? "You have a new notification",
     url: params.link ?? "/notifications",
+    type: params.type,
   });
 }

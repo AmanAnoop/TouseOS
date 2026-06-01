@@ -2,12 +2,18 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Bell, Check, CheckCheck } from "lucide-react";
+import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
-import { 
-Button, Card, EmptyState, PageHeader, Tabs } from "@/components/ui";
+import { Button, EmptyState, PageHeader, Tabs } from "@/components/ui";
 import { timeAgo } from "@/lib/utils";
 import type { Notification } from "@/types";
-import { usePushNotifications } from "@/hooks/use-push-notifications";
+import { PushSettingsPanel } from "@/components/notifications/push-settings-panel";
+import { NotificationPreferencesForm } from "@/components/notifications/notification-preferences-form";
+import {
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  parseNotificationPreferences,
+  type NotificationPreferences,
+} from "@/lib/notification-preferences";
 
 const TYPE_ICON: Record<string, string> = {
   event_reminder: "📅",
@@ -26,14 +32,15 @@ const TYPE_ICON: Record<string, string> = {
   general: "🔔",
 };
 
-
 export default function NotificationsPage() {
   const supabase = createClient();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [tab, setTab] = useState("unread");
-  const push = usePushNotifications();
+  const [channels, setChannels] = useState({ email: true, sms: true, push: false });
+  const [preferences, setPreferences] = useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES);
 
   const load = useCallback(async (uid: string) => {
     setLoading(true);
@@ -54,7 +61,21 @@ export default function NotificationsPage() {
       setUserId(user.id);
       load(user.id);
 
-      // Real-time subscription
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("notification_email, notification_sms, notification_push, notification_preferences")
+        .eq("id", user.id)
+        .single();
+
+      if (profile) {
+        setChannels({
+          email: Boolean(profile.notification_email ?? true),
+          sms: Boolean(profile.notification_sms ?? true),
+          push: Boolean(profile.notification_push ?? false),
+        });
+        setPreferences(parseNotificationPreferences(profile.notification_preferences));
+      }
+
       const channel = supabase
         .channel("notifications")
         .on("postgres_changes", {
@@ -79,10 +100,22 @@ export default function NotificationsPage() {
 
   async function markAllRead() {
     if (!userId) return;
-    const unread = notifications.filter((n) => !n.read_at);
-    if (unread.length === 0) return;
     await supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("user_id", userId).is("read_at", null);
     setNotifications((prev) => prev.map((n) => ({ ...n, read_at: n.read_at ?? new Date().toISOString() })));
+  }
+
+  async function savePreferences() {
+    if (!userId) return;
+    setSaving(true);
+    const { error } = await supabase.from("profiles").update({
+      notification_email: channels.email,
+      notification_sms: channels.sms,
+      notification_push: channels.push,
+      notification_preferences: preferences,
+    }).eq("id", userId);
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Notification preferences saved");
   }
 
   const unread = notifications.filter((n) => !n.read_at);
@@ -94,18 +127,11 @@ export default function NotificationsPage() {
         title="Notifications"
         description={unread.length > 0 ? `${unread.length} unread` : "All caught up!"}
         action={
-          <div className="flex gap-2">
-            {push.checkSupport() && (
-              <Button size="sm" variant="secondary" onClick={() => push.enablePush()} loading={push.loading}>
-                Enable push
-              </Button>
-            )}
-            {unread.length > 0 && (
-              <Button variant="secondary" size="sm" icon={<CheckCheck size={14} />} onClick={markAllRead}>
-                Mark all read
-              </Button>
-            )}
-          </div>
+          unread.length > 0 ? (
+            <Button variant="secondary" size="sm" icon={<CheckCheck size={14} />} onClick={markAllRead}>
+              Mark all read
+            </Button>
+          ) : undefined
         }
       />
 
@@ -113,14 +139,27 @@ export default function NotificationsPage() {
         tabs={[
           { id: "unread", label: "Unread", count: unread.length },
           { id: "all", label: "All", count: notifications.length },
+          { id: "settings", label: "Settings" },
         ]}
         active={tab}
         onChange={setTab}
       />
 
-      {loading ? (
+      {tab === "settings" ? (
+        <div className="space-y-4">
+          <PushSettingsPanel />
+          <NotificationPreferencesForm
+            preferences={preferences}
+            channels={channels}
+            onChannelChange={(key, value) => setChannels({ ...channels, [key]: value })}
+            onPreferenceChange={(key, value) => setPreferences({ ...preferences, [key]: value })}
+            onSave={savePreferences}
+            saving={saving}
+          />
+        </div>
+      ) : loading ? (
         <div className="space-y-2">
-          {[1,2,3,4].map((i) => <div key={i} className="h-16 bg-surface-2 rounded-xl animate-pulse" />)}
+          {[1, 2, 3, 4].map((i) => <div key={i} className="h-16 bg-surface-2 rounded-xl animate-pulse" />)}
         </div>
       ) : filtered.length === 0 ? (
         <EmptyState
@@ -136,14 +175,10 @@ export default function NotificationsPage() {
               onClick={() => { if (!n.read_at) markRead(n.id); if (n.link) window.location.href = n.link; }}
               className={`flex items-start gap-3 p-4 rounded-xl border transition-colors cursor-pointer ${n.read_at ? "bg-card border-border" : "bg-greek-50 dark:bg-greek-950/20 border-greek-200 dark:border-greek-800"}`}
             >
-              <span className="text-xl flex-shrink-0 mt-0.5">
-                {TYPE_ICON[n.type] ?? TYPE_ICON.general}
-              </span>
+              <span className="text-xl flex-shrink-0 mt-0.5">{TYPE_ICON[n.type] ?? TYPE_ICON.general}</span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
-                  <p className={`text-sm ${n.read_at ? "text-foreground" : "font-semibold text-foreground"}`}>
-                    {n.title}
-                  </p>
+                  <p className={`text-sm ${n.read_at ? "text-foreground" : "font-semibold text-foreground"}`}>{n.title}</p>
                   {!n.read_at && <div className="w-2 h-2 rounded-full bg-greek-600 flex-shrink-0 mt-1.5" />}
                 </div>
                 {n.body && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.body}</p>}
@@ -161,28 +196,6 @@ export default function NotificationsPage() {
           ))}
         </div>
       )}
-
-      {/* Notification preferences */}
-      <Card>
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-semibold text-foreground">Notification preferences</p>
-        </div>
-        <div className="space-y-2">
-          {[
-            { label: "Event reminders", type: "event_reminder" },
-            { label: "Payment reminders", type: "payment_reminder" },
-            { label: "Task due soon", type: "task_due" },
-            { label: "Form missing", type: "form_missing" },
-            { label: "Reimbursement updates", type: "reimbursement_status" },
-            { label: "GreekMatch activity", type: "new_match" },
-          ].map((pref) => (
-            <div key={pref.type} className="flex items-center justify-between py-1.5">
-              <label className="text-sm text-foreground">{pref.label}</label>
-              <input type="checkbox" defaultChecked className="rounded" />
-            </div>
-          ))}
-        </div>
-      </Card>
     </div>
   );
 }

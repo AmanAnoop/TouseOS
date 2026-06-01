@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import {
-  Bell, KeyRound, Mail, Save, Shield, User, X,
+  KeyRound, Mail, Save, Shield, User, X,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
@@ -11,6 +11,14 @@ import {
   Input, PageHeader, Tabs,
 } from "@/components/ui";
 import { ROLE_LABELS } from "@/lib/permissions";
+import { PushSettingsPanel } from "@/components/notifications/push-settings-panel";
+import { NotificationPreferencesForm } from "@/components/notifications/notification-preferences-form";
+import {
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  parseNotificationPreferences,
+  type NotificationPreferences,
+} from "@/lib/notification-preferences";
+import { usePushNotifications } from "@/hooks/use-push-notifications";
 
 export default function AccountPage() {
   const supabase = createClient();
@@ -27,11 +35,9 @@ export default function AccountPage() {
 
   const [emailForm, setEmailForm] = useState({ email: "" });
   const [passwordForm, setPasswordForm] = useState({ password: "", confirm: "" });
-  const [notifications, setNotifications] = useState({
-    email: true, sms: true, push: false,
-    eventReminders: true, paymentReminders: true, taskDue: true,
-    formMissing: true, reimbursementStatus: true, greekMatchActivity: true,
-  });
+  const [channels, setChannels] = useState({ email: true, sms: true, push: false });
+  const [preferences, setPreferences] = useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES);
+  const push = usePushNotifications();
 
   const [orgMemberships, setOrgMemberships] = useState<Array<{
     id: string; role: string; status: string; joined_at: string;
@@ -51,7 +57,7 @@ export default function AccountPage() {
       const [pRes, mRes, npRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", user.id).single(),
         supabase.from("org_members").select("id, role, status, joined_at, organizations(name, type, campus)").eq("user_id", user.id).neq("status", "removed"),
-        supabase.from("profiles").select("notification_email, notification_sms, notification_push").eq("id", user.id).single(),
+        supabase.from("profiles").select("notification_email, notification_sms, notification_push, notification_preferences").eq("id", user.id).single(),
       ]);
 
       if (pRes.data) {
@@ -76,12 +82,12 @@ export default function AccountPage() {
 
       if (npRes.data) {
         const np = npRes.data as Record<string, unknown>;
-        setNotifications((prev) => ({
-          ...prev,
+        setChannels({
           email: Boolean(np.notification_email ?? true),
           sms: Boolean(np.notification_sms ?? true),
           push: Boolean(np.notification_push ?? false),
-        }));
+        });
+        setPreferences(parseNotificationPreferences(np.notification_preferences));
       }
     }
     init();
@@ -129,13 +135,26 @@ export default function AccountPage() {
 
   async function saveNotifications() {
     if (!userId) return;
+    setSaving(true);
     const { error } = await supabase.from("profiles").update({
-      notification_email: notifications.email,
-      notification_sms: notifications.sms,
-      notification_push: notifications.push,
+      notification_email: channels.email,
+      notification_sms: channels.sms,
+      notification_push: channels.push,
+      notification_preferences: preferences,
     }).eq("id", userId);
+    setSaving(false);
     if (error) { toast.error(error.message); return; }
     toast.success("Notification preferences saved");
+  }
+
+  async function handlePushChannelChange(enabled: boolean) {
+    if (enabled) {
+      const ok = await push.enablePush();
+      if (ok) setChannels((c) => ({ ...c, push: true }));
+    } else {
+      const ok = await push.disablePush();
+      if (ok) setChannels((c) => ({ ...c, push: false }));
+    }
   }
 
   async function leaveOrg(membershipId: string) {
@@ -219,55 +238,21 @@ export default function AccountPage() {
 
       {tab === "notifications" && (
         <div className="space-y-4">
-          <Card>
-            <CardHeader title="Notification channels" icon={<Bell size={16} />} />
-            <div className="space-y-3">
-              {[
-                { key: "email", label: "Email notifications", desc: "Receive updates via email" },
-                { key: "sms", label: "SMS notifications", desc: "Receive text messages for urgent updates" },
-                { key: "push", label: "Push notifications", desc: "Browser push alerts when enabled on Notifications page" },
-              ].map((pref) => (
-                <div key={pref.key} className="flex items-start gap-3 py-2 border-b border-border last:border-0">
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{pref.label}</p>
-                    <p className="text-xs text-muted-foreground">{pref.desc}</p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    className="rounded mt-0.5"
-                    checked={Boolean(notifications[pref.key as keyof typeof notifications])}
-                    onChange={(e) => setNotifications({ ...notifications, [pref.key]: e.target.checked })}
-
-                  />
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          <Card>
-            <CardHeader title="Notification types" />
-            <div className="space-y-2">
-              {[
-                { key: "eventReminders", label: "Event reminders" },
-                { key: "paymentReminders", label: "Payment reminders" },
-                { key: "taskDue", label: "Task due soon" },
-                { key: "formMissing", label: "Missing forms" },
-                { key: "reimbursementStatus", label: "Reimbursement updates" },
-                { key: "greekMatchActivity", label: "GreekMatch activity" },
-              ].map((pref) => (
-                <div key={pref.key} className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
-                  <span className="text-sm">{pref.label}</span>
-                  <input
-                    type="checkbox"
-                    className="rounded"
-                    checked={Boolean(notifications[pref.key as keyof typeof notifications])}
-                    onChange={(e) => setNotifications({ ...notifications, [pref.key]: e.target.checked })}
-                  />
-                </div>
-              ))}
-            </div>
-            <Button onClick={saveNotifications} icon={<Save size={14} />} className="mt-3">Save preferences</Button>
-          </Card>
+          <PushSettingsPanel compact />
+          <NotificationPreferencesForm
+            preferences={preferences}
+            channels={channels}
+            onChannelChange={(key, value) => {
+              if (key === "push") {
+                handlePushChannelChange(value);
+              } else {
+                setChannels({ ...channels, [key]: value });
+              }
+            }}
+            onPreferenceChange={(key, value) => setPreferences({ ...preferences, [key]: value })}
+            onSave={saveNotifications}
+            saving={saving}
+          />
         </div>
       )}
 
