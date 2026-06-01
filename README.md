@@ -1,125 +1,234 @@
 # TouseOS
 
-The campus organization operating system for fraternities, sororities, and club
-sports teams. TouseOS is a mobile-first SaaS platform with two product
-experiences — **Touse Greek** and **SportsOS** — built on one multi-tenant
-backend.
+**The campus organization operating system** — one platform for fraternities, sororities, club sports teams, and student orgs to run members, money, events, recruitment, compliance, and content in a single mobile-first workspace.
+
+TouseOS ships as two tailored experiences on shared infrastructure:
+
+| Experience | Built for | Highlights |
+|------------|-----------|------------|
+| **Touse Greek** | Fraternities & sororities | PNM CRM, GreekMatch, interchapter proposals, standards, NME, big/little, photo approval, chapter health score |
+| **SportsOS** | Club sports teams | Tryouts, waivers, travel & trip costs, injuries, equipment, league standings, tournament brackets |
+
+---
+
+## What problem TouseOS solves
+
+Student orgs juggle spreadsheets, GroupMe, Instagram DMs, Venmo, and paper forms. TouseOS replaces that patchwork with:
+
+- **One roster** — roles, dues status, attendance, forms, emergency contacts
+- **One ledger** — dues, budgets, reimbursements, parent payment links
+- **One calendar** — events, RSVP, QR check-in, attendance points
+- **One comms hub** — announcements, email blasts, scheduled messages
+- **One compliance layer** — risk checklists, standards cases, waivers, audit logs
+- **One social pipeline** — event albums → officer approval → Instagram content packs → yearbook
+
+Everything is **org-scoped** with Postgres Row Level Security so each chapter/team only sees its own data.
+
+---
+
+## Who it's for
+
+- **Chapter officers** — president, treasurer, social chair, recruitment chair, risk manager
+- **Members** — pay dues, RSVP, upload photos, complete forms, view announcements
+- **PNMs & recruits** — interest forms, event attendance, structured voting (officers)
+- **Club sports captains & coaches** — roster, travel, waivers, game results
+- **Alumni & advisors** — read-only or limited access per role
+- **Platform admins** — multi-tenant oversight (admin dashboard)
+
+---
+
+## Feature map (by module)
+
+### Core platform
+Auth, multi-tenant orgs, RBAC (26 roles), dashboard & health score, roster CSV import, tasks (comments + attachments), documents (version history), forms, reports & semester rewind, AI assistant, notifications (in-app + push subscription), admin tools.
+
+### Finance
+Dues & Stripe checkout, manual cash/check logging, parent payment links, payment reminders (email), budgets with alerts, multi-level reimbursement approval ($250+ threshold).
+
+### Events & engagement
+Events, public Partiful-style pages (`/p/[id]`), QR check-in with auto attendance points, brotherhood/sisterhood engagement tracking, governance meetings.
+
+### Communications
+In-app announcements, Resend email blasts with audience segmentation, scheduled message queue + Vercel cron processor.
+
+### Greek / recruitment
+PNM CRM, structured voting panel, consent-based SMS (Twilio), big/little matching, NME modules, standards & risk, philanthropy, alumni CRM, GreekMatch (opt-in dating).
+
+### Interchapter
+Cross-chapter event proposals, idea marketplace, shared workspaces (on accept), availability date matching, joint budget splitter.
+
+### Social / content
+Photo albums, approval workflow, Instagram content packs, social calendar, chapter feed, event memories, digital yearbook, PR compliance checklist, social asset library.
+
+### SportsOS
+Team dashboard, tryouts, waivers, travel trips, injury reports, equipment, league standings, tournament brackets.
+
+> **Rollout status:** ~63% of numbered backlog modules have working pages; ~45–50% of sub-features are at production depth. See [docs/feature-backlog.md](docs/feature-backlog.md) for the full spec.
+
+---
 
 ## Tech stack
 
-- **Next.js 15** (App Router, Server Components, API routes)
-- **TypeScript** (strict)
-- **Tailwind CSS** (custom Greek + SportsOS brand tokens, dark/light mode)
-- **Supabase** — Postgres, Auth, Storage, Realtime, Row Level Security
-- **Stripe** — dues checkout, webhooks, (Stripe Connect ready)
-- **Twilio** — consent-based PNM SMS with STOP/HELP/opt-out handling
-- **OpenAI** (optional) — AI assistant for captions, event plans, newsletters
+| Layer | Choice |
+|-------|--------|
+| Frontend | Next.js 15 (App Router), TypeScript, Tailwind CSS |
+| Backend | Supabase — Postgres, Auth, Storage, Realtime, RLS |
+| Payments | Stripe Checkout + webhooks |
+| Email | Resend (blasts + scheduled comms) |
+| SMS | Twilio (PNM texting, STOP/HELP compliance) |
+| QR check-in | `@zxing/browser` |
+| Deploy | Vercel (with cron for scheduled messages) |
 
-## Features
-
-- Multi-tenant org workspaces (fraternity, sorority, club sports, general, university)
-- Role-based access control — 26 roles × 31 permissions
-- Member roster, profiles, dues & payments, budgets, reimbursements
-- Events with RSVP, QR check-in, Partiful-style public pages
-- PNM recruitment CRM with consent-based mass texting
-- Touse Social — photo albums, approval workflow, Instagram content packs
-- GreekMatch — opt-in cross-chapter matching with real-time chat
-- SportsOS — tryouts, waivers, travel + cost calculator, equipment, injuries
-- Interchapter ExecLink, standards, risk management, alumni CRM, philanthropy
-- AI assistant, officer transition binders, vendor memory, forms builder
-- Admin dashboard with audit logging
+---
 
 ## Getting started
 
-### 1. Install dependencies
+### 1. Install
 
 ```bash
 npm install
 ```
 
-### 2. Set up Supabase
+### 2. Supabase — run migrations in order
 
-Create a project at [supabase.com](https://supabase.com), then run the
-migrations in order from the SQL editor:
+Execute each file in the Supabase SQL editor:
 
 ```
-supabase/migrations/001_schema.sql       # tables, enums, RLS, helpers
-supabase/migrations/002_greekmatch.sql    # GreekMatch tables + RLS
-supabase/migrations/003_storage.sql       # storage buckets + policies
-supabase/migrations/004_notifications.sql # notification triggers
-supabase/migrations/005_seed.sql          # OPTIONAL demo data
+supabase/migrations/001_schema.sql
+supabase/migrations/002_greekmatch.sql
+supabase/migrations/003_storage.sql
+supabase/migrations/004_notifications.sql
+supabase/migrations/005_seed.sql              # optional demo data
+supabase/migrations/006_rollout_enhancements.sql
+supabase/migrations/007_phase2_workspace.sql
+supabase/migrations/008_phase3_engagement.sql
+supabase/migrations/009_phase4_sports_interchapter_push.sql
 ```
 
-> The seed migration (`005_seed.sql`) inserts a demo organization with members,
-> events, payments, and PNMs so you can explore the app immediately. Skip it for
-> a clean production database.
-
-### 3. Configure environment variables
+### 3. Environment variables
 
 ```bash
 cp .env.example .env.local
 ```
 
-Fill in the keys (Supabase is required; Stripe, Twilio, and OpenAI are optional
-and unlock their respective features):
-
 | Variable | Required | Purpose |
-| --- | --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | ✅ | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | Supabase anon key |
-| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Server-side admin operations + webhooks |
-| `STRIPE_SECRET_KEY` | ◻️ | Dues payment processing |
-| `STRIPE_WEBHOOK_SECRET` | ◻️ | Confirm payments via webhook |
-| `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` | ◻️ | PNM SMS |
-| `TWILIO_MESSAGING_SERVICE_SID` | ◻️ | SMS sender |
-| `OPENAI_API_KEY` | ◻️ | AI assistant |
+|----------|----------|---------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Client-side Supabase |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Server routes, webhooks, cron |
+| `STRIPE_SECRET_KEY` | For dues | Stripe Checkout |
+| `STRIPE_WEBHOOK_SECRET` | For dues | Payment confirmation |
+| `RESEND_API_KEY` | For email | Email blasts & scheduled email |
+| `TWILIO_*` | For SMS | PNM mass texting |
+| `CRON_SECRET` | Production | Protect `/api/cron/process-scheduled` |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Optional | Browser push notifications |
 
-### 4. Run the app
+### 4. Run locally
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Sign up, then create an
-organization (or join with an invite code) to enter the workspace.
+Open [http://localhost:3000](http://localhost:3000) → sign up → create or join an organization.
 
-## Verification scripts
+### 5. Verify
 
 ```bash
-npm run typecheck   # tsc --noEmit
-npm run lint        # next lint
-npm run build       # production build
+npm run typecheck
+npm run lint
+npm run build
 ```
 
-## Webhook setup (production)
+---
 
-- **Stripe** → point a webhook at `/api/stripe/webhook` for
-  `checkout.session.completed` and `payment_intent.payment_failed`.
-- **Twilio** → point the inbound SMS webhook at `/api/twilio/webhook` for
-  STOP/HELP/opt-out handling.
+## Production webhooks
+
+- **Stripe** → `POST /api/stripe/webhook` (`checkout.session.completed`, `payment_intent.payment_failed`)
+- **Twilio** → `POST /api/twilio/webhook` (STOP/HELP/opt-out)
+
+## Vercel cron
+
+`vercel.json` runs `/api/cron/process-scheduled` every 15 minutes. Set `CRON_SECRET` and pass it as `Authorization: Bearer <secret>`.
+
+---
 
 ## Project structure
 
 ```
 app/
-  (auth)/          login, signup, forgot-password
-  (app)/           authenticated workspace (55 pages)
-  api/             22 API routes
-  p/[id]/          public event pages
-  join/[slug]/     public PNM interest forms
+  (auth)/              login, signup, forgot-password
+  (app)/               authenticated workspace (63 pages)
+  api/                 REST routes (36 endpoints)
+  p/[id]/              public event pages
+  join/[slug]/         public PNM interest forms
 components/
-  ui/              reusable component library
-  layout/          sidebar, bottom nav, app shell
+  ui/                  shared design system
+  layout/              sidebar, bottom nav, app shell
+  tasks/               task card, detail panel (comments + attachments)
+  budget/              budget alerts, overview stats
+  documents/           document card, version history
+  comms/               announcement feed, scheduled messages
+  events/              event card
+  roster/              member table
+  payments/            payment stats, payment list
+  reimbursements/      reimbursement list
+  sports/              league standings
+  profile/             profile header, form, privacy settings
+  engagement/          brotherhood/sisterhood dashboard
+  interchapter/        availability matcher, budget splitter
+  social/              photo approval grid
+  pnm/                 PNM voting panel
+  tournaments/         bracket manager
+  dashboard/           health score badge
 lib/
-  supabase/        browser + server clients
-  permissions.ts   RBAC matrix
-  stripe.ts        Stripe helpers
-  twilio.ts        SMS helpers + consent/quiet-hours
-  utils.ts         formatting, CSV, uploads
-supabase/migrations/  SQL schema, RLS, seed
-types/             TypeScript domain types
+  supabase/            browser + server clients
+  permissions.ts       RBAC matrix
+  health-score.ts      org health computation
+  attendance-points.ts check-in auto-award rules
+  budget-alerts.ts     budget threshold alerts
+  sports-standings.ts  W-L record computation
+  email.ts             Resend helpers
+  notifications.ts     in-app notification helpers
+hooks/
+  use-org.ts           shared org context
+  use-push-notifications.ts
+supabase/migrations/   SQL schema + RLS (001–009)
+docs/
+  feature-backlog.md   full product spec (~1,100+ sub-features)
+types/                 TypeScript domain types
+public/
+  sw.js                service worker for push notifications
 ```
+
+---
+
+## Key routes
+
+| Route | Purpose |
+|-------|---------|
+| `/dashboard` | Org health, stats, upcoming events |
+| `/roster` | Members, CSV import, invites |
+| `/payments` | Dues, Stripe, manual payments, parent links |
+| `/budget` | Budget lines, alerts, export |
+| `/events` | Calendar, RSVP, check-in |
+| `/comms` | Announcements, email, scheduled messages |
+| `/pnm` | Recruitment CRM + voting |
+| `/social` | Albums, photo approval, content packs |
+| `/yearbook` | Semester scrapbook |
+| `/interchapter` | Proposals, ideas, availability, budget split |
+| `/engagement` | Brotherhood/sisterhood participation |
+| `/standings` | Sports league W-L record |
+| `/greekmatch` | Opt-in cross-chapter matching |
+| `/health` | Chapter health score breakdown |
+
+---
 
 ## Product planning
 
-- [Full feature backlog](docs/feature-backlog.md)
+- [Full feature backlog](docs/feature-backlog.md) — complete module spec and safety boundaries
+
+---
+
+## License
+
+Private — All rights reserved.

@@ -1,21 +1,17 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Camera, Check, ExternalLink, Heart, Lock, Save, User } from "lucide-react";
+import { Check, Heart, Save, User } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import {
-  Alert, Avatar, Badge, Button, Card, CardHeader,
-  Input, Modal, PageHeader, Tabs, Textarea,
+  Alert, Badge, Button, Card, CardHeader,
+  Input, Modal, PageHeader, Tabs,
 } from "@/components/ui";
-import { ROLE_LABELS } from "@/lib/permissions";
 import type { MemberProfile } from "@/types";
-
-const INTERESTS = [
-  "Sports","Music","Art","Photography","Travel","Cooking","Gaming","Reading",
-  "Fitness","Outdoors","Dancing","Film","Fashion","Tech","Business","Politics",
-  "Volunteering","Comedy","Podcasts","Greek Life",
-];
+import { ProfileHeader } from "@/components/profile/profile-header";
+import { ProfileForm } from "@/components/profile/profile-form";
+import { PrivacySettings } from "@/components/profile/privacy-settings";
 
 
 interface OrgRole { org_id: string; role: string; org_name: string; org_type: string }
@@ -246,34 +242,14 @@ export default function ProfilePage() {
     <div className="space-y-5 max-w-2xl mx-auto">
       <PageHeader title="My Profile" description="Manage your personal information and privacy settings" />
 
-      {/* Avatar header */}
-      <Card>
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <Avatar
-              name={memberProfile?.full_name ?? "You"}
-              src={form.profilePhotoUrl || null}
-              size="xl"
-            />
-            <button
-              onClick={() => fileRef.current?.click()}
-              disabled={uploading}
-              className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-greek-600 text-white flex items-center justify-center hover:bg-greek-700 shadow"
-            >
-              <Camera size={13} />
-            </button>
-            <input ref={fileRef} type="file" className="hidden" accept="image/*" onChange={(e) => e.target.files?.[0] && uploadAvatar(e.target.files[0])} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-lg font-bold text-foreground">{memberProfile?.full_name}</p>
-            <div className="flex flex-wrap gap-1.5 mt-1">
-              {orgRoles.map((r) => (
-                <Badge key={r.org_id} label={`${r.org_name} · ${ROLE_LABELS[r.role as keyof typeof ROLE_LABELS] ?? r.role}`} color="green" />
-              ))}
-            </div>
-          </div>
-        </div>
-      </Card>
+      <ProfileHeader
+        fullName={memberProfile?.full_name ?? "You"}
+        photoUrl={form.profilePhotoUrl || null}
+        orgRoles={orgRoles}
+        uploading={uploading}
+        onAvatarClick={() => fileRef.current?.click()}
+      />
+      <input ref={fileRef} type="file" className="hidden" accept="image/*" onChange={(e) => e.target.files?.[0] && uploadAvatar(e.target.files[0])} />
 
       <Tabs
         tabs={[
@@ -285,108 +261,23 @@ export default function ProfilePage() {
         onChange={setTab}
       />
 
-      {/* ── Profile tab ─────────────────────────────────────── */}
       {tab === "profile" && (
-        <div className="space-y-4">
-          <Card>
-            <CardHeader title="Personal info" />
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Input label="Preferred name" placeholder="Alex" value={form.preferredName} onChange={(e) => setForm({ ...form, preferredName: e.target.value })} />
-              <Input label="Pronouns" placeholder="she/her, he/him, they/them..." value={form.pronouns} onChange={(e) => setForm({ ...form, pronouns: e.target.value })} />
-              <Input label="Phone" type="tel" placeholder="+1 (555) 000-0000" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-              <Input label="Class year" placeholder="2026" value={form.classYear} onChange={(e) => setForm({ ...form, classYear: e.target.value })} />
-              <Input label="Graduation year" type="number" placeholder="2026" value={form.graduationYear} onChange={(e) => setForm({ ...form, graduationYear: e.target.value })} />
-              <Input label="Major" placeholder="Business, CS, Biology..." value={form.major} onChange={(e) => setForm({ ...form, major: e.target.value })} />
-              <Input label="Hometown" placeholder="Austin, TX" value={form.hometown} onChange={(e) => setForm({ ...form, hometown: e.target.value })} className="sm:col-span-2" />
-            </div>
-          </Card>
-
-          <Card>
-            <CardHeader title="Bio" description="Tell your chapter a bit about yourself" />
-            <Textarea
-              placeholder="Hi! I'm a junior studying Marketing, originally from Dallas. I love hiking, cooking new recipes, and watching the Longhorns..."
-              value={form.bio}
-              onChange={(e) => setForm({ ...form, bio: e.target.value })}
-              className="min-h-[100px]"
-            />
-            <p className="text-xs text-muted-foreground mt-1">{form.bio.length}/300</p>
-          </Card>
-
-          <Card>
-            <CardHeader title="Interests" description="Select up to 10 interests" />
-            <div className="flex flex-wrap gap-2">
-              {INTERESTS.map((interest) => (
-                <button
-                  key={interest}
-                  onClick={() => toggleInterest(interest)}
-                  className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
-                    form.interests.includes(interest)
-                      ? "bg-greek-600 text-white border-greek-600"
-                      : "border-border text-muted-foreground hover:border-greek-400"
-                  }`}
-                >
-                  {interest}
-                </button>
-              ))}
-            </div>
-          </Card>
-
-          <Card>
-            <CardHeader title="Emergency contact" icon={<Lock size={14} />} description="Only visible to officers and admins" />
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Input label="Name" value={form.emergencyContactName} onChange={(e) => setForm({ ...form, emergencyContactName: e.target.value })} placeholder="Parent / guardian name" />
-              <Input label="Phone" type="tel" value={form.emergencyContactPhone} onChange={(e) => setForm({ ...form, emergencyContactPhone: e.target.value })} placeholder="+1 (555) 000-0000" />
-            </div>
-          </Card>
-
-          <Card>
-            <CardHeader title="Social links" description="Optional — visible to chapter members" />
-            <div className="space-y-3">
-              <Input label="Instagram" placeholder="@yourusername" value={form.instagramUrl} onChange={(e) => setForm({ ...form, instagramUrl: e.target.value })} trailing={<ExternalLink size={14} />} />
-              <Input label="LinkedIn" placeholder="linkedin.com/in/you" value={form.linkedinUrl} onChange={(e) => setForm({ ...form, linkedinUrl: e.target.value })} trailing={<ExternalLink size={14} />} />
-              <Input label="Twitter / X" placeholder="@yourusername" value={form.twitterUrl} onChange={(e) => setForm({ ...form, twitterUrl: e.target.value })} trailing={<ExternalLink size={14} />} />
-            </div>
-          </Card>
-
-          <Button onClick={saveProfile} loading={saving} icon={<Save size={14} />} className="w-full sm:w-auto">
-            Save profile
-          </Button>
-        </div>
+        <ProfileForm
+          form={form}
+          saving={saving}
+          onChange={(updates) => setForm({ ...form, ...updates })}
+          onToggleInterest={toggleInterest}
+          onSave={saveProfile}
+        />
       )}
 
-      {/* ── Privacy tab ──────────────────────────────────────── */}
       {tab === "privacy" && (
-        <div className="space-y-4">
-          <Card>
-            <CardHeader title="Profile visibility" description="Control who sees your member profile" />
-            <div className="space-y-3">
-              {[
-                { value: "org_members", label: "All members", description: "Every member in your org can see your profile" },
-                { value: "officers_only", label: "Officers only", description: "Only officers and admins can see your profile" },
-                { value: "private", label: "Private", description: "Only you and admins can see your full profile" },
-              ].map((opt) => (
-                <label key={opt.value} className="flex items-start gap-3 cursor-pointer p-3 rounded-lg border border-border hover:bg-surface-1 transition-colors">
-                  <input
-                    type="radio"
-                    name="visibility"
-                    value={opt.value}
-                    checked={form.profileVisibility === opt.value}
-                    onChange={(e) => setForm({ ...form, profileVisibility: e.target.value })}
-                    className="mt-0.5"
-                  />
-                  <div>
-                    <p className="text-sm font-medium">{opt.label}</p>
-                    <p className="text-xs text-muted-foreground">{opt.description}</p>
-                  </div>
-                </label>
-              ))}
-            </div>
-          </Card>
-
-          <Alert type="info" title="Your data" description="TouseOS never sells your personal data. Emergency contact information is only accessible to officers and org admins." />
-
-          <Button onClick={saveProfile} loading={saving} icon={<Save size={14} />}>Save privacy settings</Button>
-        </div>
+        <PrivacySettings
+          profileVisibility={form.profileVisibility}
+          saving={saving}
+          onChange={(v) => setForm({ ...form, profileVisibility: v })}
+          onSave={saveProfile}
+        />
       )}
 
       {/* ── GreekMatch tab ───────────────────────────────────── */}
