@@ -1,17 +1,16 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Download, DollarSign, Plus, Send, AlertTriangle } from "lucide-react";
+import { Download, DollarSign, Plus, Send } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import {
-  Avatar, Badge, Button, Card, CardHeader, EmptyState,
-  Input, Modal, PageHeader, ProgressBar, Select, StatCard,
+  Button, Card, CardHeader, EmptyState,
+  Input, Modal, PageHeader, ProgressBar, Select,
 } from "@/components/ui";
-import { formatCurrency, formatDate, downloadCsv } from "@/lib/utils";
-import type { Payment, MemberProfile } from "@/types";
-
-type PaymentWithMember = Payment & { member_profiles: MemberProfile | null };
+import { formatCurrency, downloadCsv } from "@/lib/utils";
+import { PaymentStats } from "@/components/payments/payment-stats";
+import { PaymentList, type PaymentWithMember } from "@/components/payments/payment-list";
 
 export default function PaymentsPage() {
   const supabase = createClient();
@@ -142,13 +141,12 @@ export default function PaymentsPage() {
         }
       />
 
-      {/* Treasurer stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard title="Total expected" value={formatCurrency(totalExpected)} icon={<DollarSign size={18} />} />
-        <StatCard title="Total collected" value={formatCurrency(totalCollected)} deltaType="up" delta={`${collectionRate}%`} icon={<DollarSign size={18} />} />
-        <StatCard title="Pending" value={pending.length} icon={<AlertTriangle size={18} />} />
-        <StatCard title="Overdue" value={overdue.length} deltaType={overdue.length > 0 ? "down" : "neutral"} icon={<AlertTriangle size={18} />} />
-      </div>
+      <PaymentStats
+        totalExpected={totalExpected}
+        totalCollected={totalCollected}
+        pendingCount={pending.length}
+        overdueCount={overdue.length}
+      />
 
       <Card>
         <CardHeader title="Collection progress" />
@@ -179,70 +177,25 @@ export default function PaymentsPage() {
       </div>
 
       {/* Payments list */}
-      <Card padding="none">
-        {loading ? (
-          <div className="p-5 space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-surface-2 animate-pulse" />
-                <div className="flex-1 space-y-1.5">
-                  <div className="h-3 bg-surface-2 rounded animate-pulse w-32" />
-                  <div className="h-3 bg-surface-2 rounded animate-pulse w-20" />
-                </div>
-                <div className="h-6 bg-surface-2 rounded animate-pulse w-16" />
-              </div>
-            ))}
-          </div>
-        ) : filtered.length === 0 ? (
-          <EmptyState
-            className="py-8"
-            icon={<DollarSign size={20} />}
-            title="No payments found"
-            action={<Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>Create charge</Button>}
-          />
-        ) : (
-          <div className="divide-y divide-border">
-            {filtered.map((p) => (
-              <div key={p.id} className="flex items-center gap-3 p-4 hover:bg-surface-1 transition-colors">
-                <Avatar name={p.member_profiles?.full_name ?? "?"} src={p.member_profiles?.profile_photo_url} size="sm" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground">{p.member_profiles?.full_name ?? "Member"}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Due {p.due_date ? formatDate(p.due_date) : "—"}
-                    {p.paid_amount > 0 && p.paid_amount < p.amount && ` · ${formatCurrency(p.paid_amount)} paid`}
-                  </p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-sm font-semibold text-foreground">{formatCurrency(p.amount)}</p>
-                  <Badge
-                    label={p.status}
-                    color={p.status === "paid" ? "green" : p.status === "overdue" ? "red" : p.status === "pending" ? "yellow" : "gray"}
-                    dot
-                  />
-                </div>
-                <Button variant="secondary" size="sm" onClick={() => copyParentLink(p)}>Parent link</Button>
-                {p.status === "pending" || p.status === "overdue" ? (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={async () => {
-                      const res = await fetch("/api/stripe/checkout", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ paymentId: p.id, email: p.member_profiles?.email }),
-                      });
-                      const { url } = await res.json();
-                      if (url) window.open(url, "_blank");
-                    }}
-                  >
-                    Pay
-                  </Button>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
+      {loading ? (
+        <PaymentList payments={[]} loading />
+      ) : filtered.length === 0 ? (
+        <EmptyState icon={<DollarSign size={24} />} title="No payments" description="Create a charge to get started." action={<Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>New charge</Button>} />
+      ) : (
+        <PaymentList
+          payments={filtered}
+          onCopyParentLink={copyParentLink}
+          onPayStripe={async (p) => {
+            const res = await fetch("/api/stripe/checkout", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ paymentId: p.id, email: p.member_profiles?.email }),
+            });
+            const { url } = await res.json();
+            if (url) window.open(url, "_blank");
+          }}
+        />
+      )}
 
       {/* Create charge modal */}
       <Modal

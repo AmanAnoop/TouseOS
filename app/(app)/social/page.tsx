@@ -9,6 +9,7 @@ import {
   Modal, PageHeader, Tabs,
 } from "@/components/ui";
 import type { Photo, PhotoAlbum } from "@/types";
+import { PhotoApprovalGrid } from "@/components/social/photo-approval-grid";
 
 const APPROVAL_COLOR = {
   pending: "yellow",
@@ -249,9 +250,11 @@ export default function SocialPage() {
               description="Upload photos to get started."
               action={<Button size="sm" icon={<Upload size={14} />} onClick={() => fileRef.current?.click()}>Upload photos</Button>}
             />
+          ) : tab === "pending" ? (
+            <PhotoApprovalGrid photos={pendingPhotos} onApprove={approvePhoto} />
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              {(tab === "photos" ? photos : tab === "pending" ? pendingPhotos : approvedPhotos).map((photo) => (
+              {(tab === "photos" ? photos : approvedPhotos).map((photo) => (
                 <div key={photo.id} className="relative group">
                   <div className="aspect-square rounded-lg overflow-hidden bg-surface-2">
                     <img

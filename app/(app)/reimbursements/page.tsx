@@ -9,11 +9,12 @@ import {
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import {
-  Avatar, Badge, Button, Card, EmptyState,
+  Badge, Button, Card, EmptyState,
   Input, Modal, PageHeader, Select, StatCard, Tabs, Textarea,
 } from "@/components/ui";
 import { downloadCsv, formatCurrency, formatDate } from "@/lib/utils";
 import type { Reimbursement } from "@/types";
+import { ReimbursementList } from "@/components/reimbursements/reimbursement-list";
 
 const STATUS_COLOR: Record<string, string> = {
   submitted: "yellow", needs_info: "orange", approved: "blue",
@@ -204,35 +205,11 @@ export default function ReimbursementsPage() {
           action={tab === "pending" ? <Button size="sm" icon={<Plus size={14} />} onClick={() => setSubmitOpen(true)}>Submit request</Button> : undefined}
         />
       ) : (
-        <div className="space-y-2">
-          {filtered.map((r) => (
-            <Card
-              key={r.id}
-              onClick={() => setSelected(r)}
-              className="cursor-pointer hover:border-greek-300 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <Avatar name={r.submitted_by_name ?? "?"} size="sm" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-semibold text-sm text-foreground">{r.description}</p>
-                    <Badge label={r.status} color={STATUS_COLOR[r.status] as "green"} />
-                  </div>
-                  <p className="text-xs text-muted-foreground">{r.submitted_by_name ?? "—"} · {r.category} · {formatDate(r.created_at)}</p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="font-bold text-foreground">{formatCurrency(Number(r.amount))}</p>
-                  {r.receipt_url && (
-                    <a href={r.receipt_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-xs text-greek-600 hover:underline flex items-center gap-1 justify-end">
-                      <Receipt size={10} />
-                      Receipt
-                    </a>
-                  )}
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
+        <ReimbursementList
+          items={filtered}
+          onSelect={setSelected}
+          showApprovalHints={tab === "pending"}
+        />
       )}
 
       {/* Submit modal */}

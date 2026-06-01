@@ -13,6 +13,7 @@ import {
 } from "@/components/ui";
 import { formatCurrency } from "@/lib/utils";
 import { AvailabilityMatcher, type AvailabilityEntry } from "@/components/interchapter/availability-matcher";
+import { JointBudgetSplitter } from "@/components/interchapter/joint-budget-splitter";
 
 interface Proposal {
   id: string;
@@ -254,6 +255,7 @@ export default function InterchapterPage() {
           { id: "proposals", label: "Proposals", count: proposals.length },
           { id: "ideas", label: "Idea marketplace", count: ideas.length },
           { id: "availability", label: "Availability", count: availability.length },
+          { id: "budget", label: "Budget split" },
         ]}
         active={tab}
         onChange={setTab}
@@ -335,6 +337,10 @@ export default function InterchapterPage() {
           memberName={userName}
           onSave={saveAvailability}
         />
+      )}
+
+      {tab === "budget" && (
+        <JointBudgetSplitter orgAName="Your chapter" orgBName="Partner chapter" />
       )}
 
       {/* Propose event modal */}
