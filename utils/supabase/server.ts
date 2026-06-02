@@ -1,21 +1,21 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { getSupabaseKey, getSupabaseUrl } from "@/lib/supabase/config";
 
-export async function createClient(
-  cookieStore?: Awaited<ReturnType<typeof cookies>>,
-) {
-  const store = cookieStore ?? (await cookies());
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey =
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-  return createServerClient(getSupabaseUrl(), getSupabaseKey(), {
+export function createClient(cookieStore: Awaited<ReturnType<typeof cookies>>) {
+  return createServerClient(supabaseUrl, supabaseKey, {
     cookies: {
       getAll() {
-        return store.getAll();
+        return cookieStore.getAll();
       },
       setAll(cookiesToSet: { name: string; value: string; options?: Record<string, unknown> }[]) {
         try {
           cookiesToSet.forEach(({ name, value, options }) =>
-            store.set(name, value, options),
+            cookieStore.set(name, value, options),
           );
         } catch {
           // Called from a Server Component — middleware refreshes sessions.

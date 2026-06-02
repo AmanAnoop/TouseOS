@@ -1,13 +1,22 @@
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
-import { getSupabaseKey, getSupabaseUrl } from "@/lib/supabase/config";
 
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey =
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+/**
+ * Creates a Supabase client for middleware and returns both the client and
+ * the response (with refreshed session cookies). Call `supabase.auth.getUser()`
+ * before returning `supabaseResponse`.
+ */
 export function createMiddlewareClient(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request: { headers: request.headers },
   });
 
-  const supabase = createServerClient(getSupabaseUrl(), getSupabaseKey(), {
+  const supabase = createServerClient(supabaseUrl, supabaseKey, {
     cookies: {
       getAll() {
         return request.cookies.getAll();

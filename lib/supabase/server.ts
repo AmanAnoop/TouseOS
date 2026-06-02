@@ -1,9 +1,11 @@
+import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
-import { getSupabaseUrl } from "@/lib/supabase/config";
-import { createClient as createUtilsServerClient } from "@/utils/supabase/server";
+import { createClient as createUtilServerClient } from "@/utils/supabase/server";
 
+/** Server Components / Route Handlers — matches Supabase guide pattern. */
 export async function createClient() {
-  return createUtilsServerClient();
+  const cookieStore = await cookies();
+  return createUtilServerClient(cookieStore);
 }
 
 export async function createServiceClient() {
@@ -12,7 +14,8 @@ export async function createServiceClient() {
     throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY");
   }
 
-  return createServerClient(getSupabaseUrl(), serviceKey, {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  return createServerClient(url, serviceKey, {
     cookies: { getAll: () => [], setAll: () => {} },
     auth: { persistSession: false },
   });
