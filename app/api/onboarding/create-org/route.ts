@@ -9,33 +9,48 @@ const VALID_ORG_TYPES = [
   "university",
 ] as const;
 
-export async function POST(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+type OrgType = (typeof VALID_ORG_TYPES)[number];
 
-  const body = await request.json();
-  const { name, type, campus, councilOrLeague, contactEmail } = body;
+async function createViaRpc(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  params: {
+    name: string;
+    type: OrgType;
+    campus?: string;
+    councilOrLeague?: string;
+    contactEmail?: string;
+  },
+) {
+  const { data, error } = await supabase.rpc("create_onboarding_org", {
+    p_name: params.name,
+    p_type: params.type,
+    p_campus: params.campus ?? null,
+    p_council_or_league: params.councilOrLeague ?? null,
+    p_contact_email: params.contactEmail ?? null,
+  });
 
-  if (!name || typeof name !== "string") {
-    return NextResponse.json({ error: "Organization name is required" }, { status: 400 });
-  }
-  if (!type || !VALID_ORG_TYPES.includes(type)) {
-    return NextResponse.json({ error: "Valid organization type is required" }, { status: 400 });
-  }
+  if (error) return { error: error.message };
+  const row = data as Record<string, unknown>;
+  return {
+    org: {
+      id: String(row.id),
+      name: String(row.name),
+      type: String(row.type),
+      inviteCode: String(row.invite_code ?? ""),
+    },
+  };
+}
 
-  const { count: existing } = await supabase
-    .from("org_members")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .neq("status", "removed");
-
-  if ((existing ?? 0) > 0) {
-    return NextResponse.json({ error: "You already belong to an organization" }, { status: 400 });
-  }
-
+async function createViaServiceRole(
+  user: { id: string; email?: string; user_metadata?: Record<string, unknown> },
+  params: {
+    name: string;
+    type: OrgType;
+    campus?: string;
+    councilOrLeague?: string;
+    contactEmail?: string;
+  },
+) {
   const admin = await createServiceClient();
   const fullName =
     String(user.user_metadata?.full_name ?? "") ||
@@ -45,23 +60,20 @@ export async function POST(request: Request) {
   const { data: org, error: orgError } = await admin
     .from("organizations")
     .insert({
-      name: name.trim(),
-      type,
-      campus: campus?.trim() || null,
-      council_or_league: councilOrLeague?.trim() || null,
-      contact_email: contactEmail?.trim() || user.email,
+      name: params.name.trim(),
+      type: params.type,
+      campus: params.campus?.trim() || null,
+      council_or_league: params.councilOrLeague?.trim() || null,
+      contact_email: params.contactEmail?.trim() || user.email,
     })
     .select("id, name, invite_code, type")
     .single();
 
   if (orgError || !org) {
-    return NextResponse.json({ error: orgError?.message ?? "Failed to create organization" }, { status: 500 });
+    return { error: orgError?.message ?? "Failed to create organization" };
   }
 
-  await admin.from("profiles").upsert({
-    id: user.id,
-    full_name: fullName,
-  });
+  await admin.from("profiles").upsert({ id: user.id, full_name: fullName });
 
   const { error: memberError } = await admin.from("org_members").insert({
     org_id: org.id,
@@ -72,7 +84,7 @@ export async function POST(request: Request) {
 
   if (memberError) {
     await admin.from("organizations").delete().eq("id", org.id);
-    return NextResponse.json({ error: memberError.message }, { status: 500 });
+    return { error: memberError.message };
   }
 
   const { error: profileError } = await admin.from("member_profiles").insert({
@@ -85,25 +97,84 @@ export async function POST(request: Request) {
   });
 
   if (profileError) {
-    return NextResponse.json({ error: profileError.message }, { status: 500 });
+    await admin.from("org_members").delete().eq("org_id", org.id).eq("user_id", user.id);
+    await admin.from("organizations").delete().eq("id", org.id);
+    return { error: profileError.message };
   }
 
-  await admin.from("audit_logs").insert({
-    org_id: org.id,
-    actor_id: user.id,
-    action: "org_created",
-    resource_type: "organizations",
-    resource_id: org.id,
-    metadata: { name: org.name, type: org.type },
-  });
-
-  return NextResponse.json({
-    success: true,
+  return {
     org: {
       id: org.id,
       name: org.name,
       type: org.type,
-      inviteCode: org.invite_code,
+      inviteCode: org.invite_code ?? "",
     },
-  });
+  };
+}
+
+export async function POST(request: Request) {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const body = await request.json();
+    const { name, type, campus, councilOrLeague, contactEmail } = body;
+
+    if (!name || typeof name !== "string") {
+      return NextResponse.json({ error: "Organization name is required" }, { status: 400 });
+    }
+    if (!type || !VALID_ORG_TYPES.includes(type)) {
+      return NextResponse.json({ error: "Valid organization type is required" }, { status: 400 });
+    }
+
+    const params = {
+      name: name.trim(),
+      type: type as OrgType,
+      campus: typeof campus === "string" ? campus : undefined,
+      councilOrLeague: typeof councilOrLeague === "string" ? councilOrLeague : undefined,
+      contactEmail: typeof contactEmail === "string" ? contactEmail : undefined,
+    };
+
+    // Prefer RPC (works with anon key + user session; run migration 015)
+    let result = await createViaRpc(supabase, params);
+
+    const rpcMissing = (
+      result.error
+      && (result.error.includes("does not exist")
+        || result.error.includes("Could not find the function"))
+    );
+
+    if (rpcMissing) {
+      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!serviceKey || serviceKey.includes("your-service")) {
+        return NextResponse.json(
+          {
+            error:
+              "Onboarding is not configured. Run Supabase migration 015_onboarding_rpc.sql in the SQL editor, or set SUPABASE_SERVICE_ROLE_KEY in .env.local.",
+          },
+          { status: 503 },
+        );
+      }
+      try {
+        result = await createViaServiceRole(user, params);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Server configuration error";
+        return NextResponse.json({ error: msg }, { status: 503 });
+      }
+    } else if (result.error) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+
+    if (!result.org) {
+      return NextResponse.json({ error: "Failed to create organization" }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, org: result.org });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Unexpected server error";
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
 }

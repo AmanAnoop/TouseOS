@@ -29,6 +29,7 @@ export function OnboardingWizard() {
     name: string;
     inviteCode: string;
   } | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: "",
     campus: "",
@@ -37,7 +38,15 @@ export function OnboardingWizard() {
   });
 
   async function createOrg() {
-    if (!orgType || !form.name.trim()) return;
+    setSubmitError(null);
+    if (!orgType) {
+      setSubmitError("Choose an organization type first (use Back).");
+      return;
+    }
+    if (!form.name.trim()) {
+      setSubmitError("Organization name is required.");
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch("/api/onboarding/create-org", {
@@ -45,18 +54,35 @@ export function OnboardingWizard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, type: orgType }),
       });
-      const data = await res.json();
+      let data: { error?: string; org?: { name: string; inviteCode?: string } } = {};
+      try {
+        data = await res.json();
+      } catch {
+        setSubmitError("Server error — check the terminal and Supabase setup.");
+        return;
+      }
       if (!res.ok) {
-        toast.error(data.error ?? "Could not create organization");
+        const msg = data.error ?? "Could not create organization";
+        setSubmitError(msg);
+        toast.error(msg);
+        return;
+      }
+      if (!data.org?.name) {
+        setSubmitError("Unexpected response from server.");
         return;
       }
       setCreatedOrg({
         name: data.org.name,
-        inviteCode: data.org.inviteCode,
+        inviteCode: data.org.inviteCode ?? "",
       });
       setStep("success");
-      toast.success("Workspace created!");
+      toast.success("Workspace created! Redirecting…");
+      setTimeout(() => {
+        router.push("/dashboard");
+        router.refresh();
+      }, 2000);
     } catch {
+      setSubmitError("Network error — try again");
       toast.error("Network error — try again");
     } finally {
       setLoading(false);
@@ -233,7 +259,13 @@ export function OnboardingWizard() {
         )}
 
         {step === "details" && (
-          <div className="space-y-4">
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void createOrg();
+            }}
+          >
             <PageHeader
               title="Workspace details"
               description="You can change these anytime in Settings."
@@ -265,20 +297,23 @@ export function OnboardingWizard() {
                 onChange={(e) => setForm({ ...form, contactEmail: e.target.value })}
               />
             </div>
+            {submitError && (
+              <Alert type="error" title="Could not create workspace" description={submitError} />
+            )}
             <div className="flex gap-3">
-              <Button variant="secondary" className="flex-1" onClick={() => setStep("type")}>
+              <Button type="button" variant="secondary" className="flex-1" onClick={() => setStep("type")}>
                 Back
               </Button>
               <Button
+                type="submit"
                 className="flex-1"
                 loading={loading}
-                disabled={!form.name.trim()}
-                onClick={createOrg}
+                disabled={!form.name.trim() || loading}
               >
                 Create workspace
               </Button>
             </div>
-          </div>
+          </form>
         )}
 
         {step === "join" && (
@@ -340,7 +375,7 @@ export function OnboardingWizard() {
               </Button>
             </Card>
             <Button className="w-full" onClick={() => { router.push("/dashboard"); router.refresh(); }}>
-              Go to dashboard
+              Continue to dashboard
             </Button>
           </div>
         )}
