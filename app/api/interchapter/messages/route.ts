@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-
-function threadId(orgA: string, orgB: string) {
-  const [a, b] = [orgA, orgB].sort();
-  return `interchapter:${a}:${b}`;
-}
+import { interchapterThreadId } from "@/lib/interchapter-thread";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -18,7 +14,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "org_id and partner_org_id required" }, { status: 400 });
   }
 
-  const tid = threadId(orgId, partnerOrgId);
+  const tid = interchapterThreadId(orgId, partnerOrgId);
 
   const { data, error } = await supabase
     .from("messages")
@@ -51,7 +47,7 @@ export async function POST(request: Request) {
 
   if (!membership) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const tid = threadId(orgId, partnerOrgId);
+  const tid = interchapterThreadId(orgId, partnerOrgId);
 
   const { data, error } = await supabase
     .from("messages")

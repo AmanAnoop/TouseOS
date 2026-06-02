@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { BookOpen, Plus, Save } from "lucide-react";
+import { BookOpen, Download, Plus, Save } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -11,6 +11,7 @@ import {
 import { ROLE_LABELS } from "@/lib/permissions";
 import { formatDate } from "@/lib/utils";
 import type { TransitionBinder } from "@/types";
+import { buildTransitionBinderHtml, downloadTransitionBinderHtml } from "@/lib/transition-export";
 
 const BINDER_ROLES = [
   "president","treasurer","social_chair","recruitment_chair","risk_manager",
@@ -22,6 +23,7 @@ export default function TransitionPage() {
   const [binders, setBinders] = useState<TransitionBinder[]>([]);
   const [loading, setLoading] = useState(true);
   const [orgId, setOrgId] = useState<string | null>(null);
+  const [orgName, setOrgName] = useState("Chapter");
   const [tab, setTab] = useState("view");
   const [selectedBinder, setSelectedBinder] = useState<TransitionBinder | null>(null);
 
@@ -43,9 +45,10 @@ export default function TransitionPage() {
     async function init() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id, role").eq("user_id", user.id).limit(1).single();
+      const { data: m } = await supabase.from("org_members").select("org_id, role, organizations(name)").eq("user_id", user.id).limit(1).single();
       if (m) {
         setOrgId(m.org_id);
+        setOrgName(String(((m.organizations as unknown) as Record<string, unknown>)?.name ?? "Chapter"));
         load(m.org_id);
         setForm((prev) => ({ ...prev, role: String(m.role) }));
       }
@@ -191,7 +194,25 @@ export default function TransitionPage() {
         title={`${ROLE_LABELS[selectedBinder?.role as keyof typeof ROLE_LABELS] ?? selectedBinder?.role} Binder`}
         description={`${selectedBinder?.outgoing_name ?? "Officer"} · ${selectedBinder?.semester} ${selectedBinder?.year}`}
         size="xl"
-        footer={<Button onClick={() => setSelectedBinder(null)}>Close</Button>}
+        footer={
+          <div className="flex gap-2">
+            {selectedBinder && (
+              <Button
+                variant="secondary"
+                icon={<Download size={14} />}
+                onClick={() => {
+                  const html = buildTransitionBinderHtml(selectedBinder, orgName);
+                  const role = ROLE_LABELS[selectedBinder.role as keyof typeof ROLE_LABELS] ?? selectedBinder.role;
+                  downloadTransitionBinderHtml(`transition-${role}-${selectedBinder.year}.html`, html);
+                  toast.success("Binder exported — open in browser and Print to PDF");
+                }}
+              >
+                Export HTML
+              </Button>
+            )}
+            <Button onClick={() => setSelectedBinder(null)}>Close</Button>
+          </div>
+        }
       >
         {selectedBinder && (
           <div className="space-y-5">

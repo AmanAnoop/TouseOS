@@ -5,16 +5,26 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { cn } from "@/lib/utils";
 import { ServiceWorkerRegister } from "@/components/layout/service-worker-register";
+import { ImpersonationBanner } from "@/components/layout/impersonation-banner";
 import type { Organization, Profile } from "@/types";
 
 interface AppShellProps {
   org: Organization | null;
   orgs: Organization[];
   profile: Profile | null;
+  impersonating?: boolean;
+  impersonateOrgName?: string;
   children: React.ReactNode;
 }
 
-export function AppShell({ org, orgs, profile, children }: AppShellProps) {
+export function AppShell({
+  org,
+  orgs,
+  profile,
+  impersonating,
+  impersonateOrgName,
+  children,
+}: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
@@ -58,6 +68,9 @@ export function AppShell({ org, orgs, profile, children }: AppShellProps) {
             "pb-nav-mobile lg:pb-6",
           )}
         >
+          {impersonating && impersonateOrgName && (
+            <ImpersonationBanner orgName={impersonateOrgName} />
+          )}
           {children}
         </div>
       </main>

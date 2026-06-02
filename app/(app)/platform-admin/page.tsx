@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Building, Copy, Shield, Users } from "lucide-react";
+import { Building, Copy, Eye, Flag, Shield, Users } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
-import { Alert, Badge, Button, Card, EmptyState, Modal, PageHeader, StatCard } from "@/components/ui";
+import { Alert, Badge, Button, Card, EmptyState, Modal, PageHeader, StatCard, Tabs } from "@/components/ui";
 import { formatCurrency, formatDate, orgTypeLabel } from "@/lib/utils";
 
 interface PlatformOrg {
@@ -45,6 +45,32 @@ export default function PlatformAdminPage() {
     campaigns: Array<{ title: string; raised_amount: number; goal_amount: number; is_active: boolean }>;
   } | null>(null);
   const [orgDetailLoading, setOrgDetailLoading] = useState(false);
+  const [tab, setTab] = useState("orgs");
+  const [reports, setReports] = useState<Array<{
+    id: string;
+    org_name: string;
+    resource_id: string;
+    reason: string;
+    status: string;
+    created_at: string;
+  }>>([]);
+
+  async function viewAsChapter(orgId: string) {
+    const res = await fetch("/api/platform-admin/impersonate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.error ?? "Could not start view-as session");
+      return;
+    }
+    toast.success(`Viewing as ${data.orgName}`);
+    setSelectedOrgId(null);
+    router.push("/dashboard");
+    router.refresh();
+  }
 
   async function openOrgDetail(orgId: string) {
     setSelectedOrgId(orgId);
@@ -86,6 +112,11 @@ export default function PlatformAdminPage() {
       const statsData = await statsRes.json();
       if (orgsRes.ok) setOrgs(orgsData.orgs ?? []);
       if (statsRes.ok) setStats(statsData);
+      const reportsRes = await fetch("/api/platform-admin/greekmatch-reports");
+      if (reportsRes.ok) {
+        const reportsData = await reportsRes.json();
+        setReports(reportsData.reports ?? []);
+      }
       setLoading(false);
     }
     load();
@@ -131,31 +162,100 @@ export default function PlatformAdminPage() {
         </Card>
       )}
 
+      <Tabs
+        tabs={[
+          { id: "orgs", label: "Organizations", count: orgs.length },
+          { id: "moderation", label: "GreekMatch reports", count: reports.filter((r) => r.status === "open").length || undefined },
+        ]}
+        active={tab}
+        onChange={setTab}
+      />
+
       {loading ? (
         <Card className="h-40 animate-pulse bg-surface-2 border-0">&nbsp;</Card>
-      ) : orgs.length === 0 ? (
-        <EmptyState icon={<Building size={24} />} title="No organizations" description="Orgs will appear here as chapters onboard." />
+      ) : tab === "orgs" ? (
+        orgs.length === 0 ? (
+          <EmptyState icon={<Building size={24} />} title="No organizations" description="Orgs will appear here as chapters onboard." />
+        ) : (
+          <div className="space-y-2">
+            {orgs.map((o) => (
+              <Card
+                key={o.id}
+                padding="sm"
+                className="cursor-pointer hover:border-greek-300 transition-colors"
+                onClick={() => openOrgDetail(o.id)}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="font-semibold text-sm">{o.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {orgTypeLabel(o.type)}
+                      {o.campus ? ` · ${o.campus}` : ""}
+                      {" · "}Created {formatDate(o.created_at)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge label={`${o.memberCount} members`} color="gray" />
+                    <Badge label={`${o.eventCount} events`} color="gray" />
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )
+      ) : reports.length === 0 ? (
+        <EmptyState icon={<Flag size={24} />} title="No reports" description="GreekMatch user reports appear here for platform review." />
       ) : (
         <div className="space-y-2">
-          {orgs.map((o) => (
-            <Card
-              key={o.id}
-              padding="sm"
-              className="cursor-pointer hover:border-greek-300 transition-colors"
-              onClick={() => openOrgDetail(o.id)}
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
+          {reports.map((r) => (
+            <Card key={r.id} padding="sm">
+              <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
-                  <p className="font-semibold text-sm">{o.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {orgTypeLabel(o.type)}
-                    {o.campus ? ` · ${o.campus}` : ""}
-                    {" · "}Created {formatDate(o.created_at)}
+                  <p className="text-sm font-semibold">{r.org_name}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Target user {r.resource_id.slice(0, 8)}… · {formatDate(r.created_at)}
                   </p>
+                  <p className="text-sm mt-1">{r.reason}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge label={`${o.memberCount} members`} color="gray" />
-                  <Badge label={`${o.eventCount} events`} color="gray" />
+                  <Badge label={r.status} color={r.status === "open" ? "yellow" : "green"} />
+                  {r.status === "open" && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={async () => {
+                          const res = await fetch("/api/platform-admin/greekmatch-reports", {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ reportId: r.id, status: "reviewed" }),
+                          });
+                          if (res.ok) {
+                            setReports((prev) => prev.map((x) => x.id === r.id ? { ...x, status: "reviewed" } : x));
+                            toast.success("Marked reviewed");
+                          }
+                        }}
+                      >
+                        Reviewed
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={async () => {
+                          const res = await fetch("/api/platform-admin/greekmatch-reports", {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ reportId: r.id, status: "dismissed" }),
+                          });
+                          if (res.ok) {
+                            setReports((prev) => prev.map((x) => x.id === r.id ? { ...x, status: "dismissed" } : x));
+                          }
+                        }}
+                      >
+                        Dismiss
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             </Card>
@@ -170,17 +270,26 @@ export default function PlatformAdminPage() {
         size="lg"
         footer={
           selectedOrgId ? (
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={<Copy size={14} />}
-              onClick={() => {
-                navigator.clipboard.writeText(selectedOrgId);
-                toast.success("Organization ID copied");
-              }}
-            >
-              Copy org ID
-            </Button>
+            <div className="flex flex-wrap gap-2 w-full">
+              <Button
+                size="sm"
+                icon={<Eye size={14} />}
+                onClick={() => viewAsChapter(selectedOrgId)}
+              >
+                View as chapter
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<Copy size={14} />}
+                onClick={() => {
+                  navigator.clipboard.writeText(selectedOrgId);
+                  toast.success("Organization ID copied");
+                }}
+              >
+                Copy org ID
+              </Button>
+            </div>
           ) : undefined
         }
       >

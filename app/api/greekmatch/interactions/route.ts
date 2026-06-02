@@ -67,7 +67,7 @@ export async function POST(request: Request) {
         action: "greekmatch_report",
         resource_type: "greekmatch_profiles",
         resource_id: targetUserId,
-        metadata: { reason: reportReason ?? "unspecified" },
+        metadata: { reason: reportReason ?? "unspecified", status: "open" },
       });
     }
   }

@@ -1,6 +1,12 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/layout/app-shell";
+import { isPlatformAdminEmail } from "@/lib/platform-admin";
+import {
+  IMPERSONATE_ORG_COOKIE,
+  isPlatformImpersonationEnabled,
+} from "@/lib/platform-impersonate";
 import type { Organization, Profile } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -33,7 +39,30 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ]);
 
   const profile = profileRes.data as Profile | null;
-  const orgs = (orgsRes.data ?? []) as Organization[];
+  let orgs = (orgsRes.data ?? []) as Organization[];
+
+  const cookieStore = await cookies();
+  const impersonateOrgId = cookieStore.get(IMPERSONATE_ORG_COOKIE)?.value;
+  const impersonating =
+    Boolean(impersonateOrgId)
+    && isPlatformImpersonationEnabled()
+    && isPlatformAdminEmail(user.email);
+
+  if (impersonating && impersonateOrgId) {
+    const idx = orgs.findIndex((o) => o.id === impersonateOrgId);
+    if (idx > 0) {
+      const [target] = orgs.splice(idx, 1);
+      orgs = [target, ...orgs];
+    } else if (idx === -1) {
+      const { data: impOrg } = await supabase
+        .from("organizations")
+        .select("*")
+        .eq("id", impersonateOrgId)
+        .single();
+      if (impOrg) orgs = [impOrg as Organization, ...orgs];
+    }
+  }
+
   const org = orgs[0] ?? null;
 
   // First-time onboarding
@@ -42,7 +71,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <AppShell org={org} orgs={orgs} profile={profile}>
+    <AppShell
+      org={org}
+      orgs={orgs}
+      profile={profile}
+      impersonating={impersonating}
+      impersonateOrgName={impersonating ? org?.name : undefined}
+    >
       {children}
     </AppShell>
   );
