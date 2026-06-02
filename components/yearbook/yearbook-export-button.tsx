@@ -11,7 +11,7 @@ interface YearbookExportButtonProps {
 
 export function YearbookExportButton({ data }: YearbookExportButtonProps) {
   function handleExport() {
-    if (data.events.length === 0 && data.photos.length === 0) {
+    if (data.events.length === 0 && data.photos.length === 0 && !(data.sections ?? []).length) {
       toast.error("Add events and approved photos before exporting");
       return;
     }

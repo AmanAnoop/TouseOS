@@ -38,8 +38,21 @@ export default function PhilanthropyPage() {
     init();
   }, [supabase, load]);
 
+  function campaignSlug(title: string) {
+    const base = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 32);
+    return `${base || "campaign"}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  function shareLink(slug: string | null) {
+    if (!slug) { toast.error("No public page for this campaign"); return; }
+    const url = `${window.location.origin}/donate/${slug}`;
+    navigator.clipboard.writeText(url);
+    toast.success("Donation link copied");
+  }
+
   async function createCampaign() {
     if (!orgId || !form.title) return;
+    const slug = campaignSlug(form.title);
     const { error } = await supabase.from("philanthropy_campaigns").insert({
       org_id: orgId,
       title: form.title,
@@ -49,6 +62,7 @@ export default function PhilanthropyPage() {
       start_date: form.startDate || null,
       end_date: form.endDate || null,
       is_active: true,
+      public_page_slug: slug,
     });
     if (error) { toast.error(error.message); return; }
     toast.success("Campaign created!");
@@ -126,11 +140,19 @@ export default function PhilanthropyPage() {
                   <p className="text-xs text-muted-foreground mt-3 line-clamp-2">{campaign.description}</p>
                 )}
 
-                <div className="flex gap-2 mt-4">
-                  <Button variant="secondary" size="sm" icon={<Share2 size={12} />} className="flex-1">Share link</Button>
-                  <Button variant="secondary" size="sm" icon={<QrCode size={12} />}>QR code</Button>
-                  {campaign.is_active && (
-                    <Button size="sm" icon={<DollarSign size={12} />} className="flex-1 bg-green-600 hover:bg-green-700">Donate</Button>
+                <div className="flex gap-2 mt-4 flex-wrap">
+                  <Button variant="secondary" size="sm" icon={<Share2 size={12} />} className="flex-1" onClick={() => shareLink(campaign.public_page_slug)}>
+                    Share link
+                  </Button>
+                  {campaign.public_page_slug && (
+                    <a href={`/donate/${campaign.public_page_slug}`} target="_blank" rel="noopener noreferrer" className="flex-1">
+                      <Button variant="secondary" size="sm" icon={<QrCode size={12} />} className="w-full">Open page</Button>
+                    </a>
+                  )}
+                  {campaign.is_active && campaign.public_page_slug && (
+                    <a href={`/donate/${campaign.public_page_slug}`} className="flex-1">
+                      <Button size="sm" icon={<DollarSign size={12} />} className="w-full bg-green-600 hover:bg-green-700">Donate</Button>
+                    </a>
                   )}
                 </div>
               </Card>

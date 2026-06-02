@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ClipboardList, Eye, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { ClipboardList, Eye, FileEdit, Plus, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -100,6 +101,7 @@ export default function FormsPage() {
   const [tab, setTab] = useState("forms");
   const [createOpen, setCreateOpen] = useState(false);
   const [previewForm, setPreviewForm] = useState<FormTemplate | null>(null);
+  const [responseTotal, setResponseTotal] = useState(0);
 
   const [newForm, setNewForm] = useState({
     title: "", type: "general", description: "",
@@ -111,6 +113,11 @@ export default function FormsPage() {
     setLoading(true);
     const { data } = await supabase.from("forms").select("*").eq("org_id", oid).order("created_at", { ascending: false });
     setForms((data ?? []) as FormTemplate[]);
+    const res = await fetch(`/api/forms/responses?org_id=${oid}`);
+    if (res.ok) {
+      const json = await res.json();
+      setResponseTotal(json.total ?? 0);
+    }
     setLoading(false);
   }, [supabase]);
 
@@ -181,7 +188,6 @@ export default function FormsPage() {
   }
 
   const required = forms.filter((f) => f.is_required);
-  const responses = 0; // Would aggregate from form_responses
 
   return (
     <div className="space-y-5">
@@ -198,7 +204,7 @@ export default function FormsPage() {
       <div className="grid grid-cols-3 gap-3">
         <StatCard title="Active forms" value={forms.length} icon={<ClipboardList size={18} />} />
         <StatCard title="Required forms" value={required.length} icon={<ClipboardList size={18} />} />
-        <StatCard title="Responses" value={responses} icon={<ClipboardList size={18} />} />
+        <StatCard title="Responses" value={responseTotal} icon={<ClipboardList size={18} />} />
       </div>
 
       <Tabs
@@ -238,6 +244,9 @@ export default function FormsPage() {
                     </p>
                   </div>
                   <div className="flex gap-2 flex-shrink-0">
+                    <Link href={`/forms/${form.id}/fill`} className="p-1.5 rounded-md hover:bg-greek-50 text-greek-600" title="Fill form">
+                      <FileEdit size={14} />
+                    </Link>
                     <button onClick={() => setPreviewForm(form)} className="p-1.5 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-foreground">
                       <Eye size={14} />
                     </button>

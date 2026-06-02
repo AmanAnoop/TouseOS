@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { createNotification } from "@/lib/notifications";
+import { sendBulkEmail, textToHtml } from "@/lib/email";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -31,6 +32,7 @@ export async function POST(request: Request) {
 
   const serviceSupabase = await createServiceClient();
   let pushSent = 0;
+  const emailBodies: string[] = [];
 
   for (const p of payments ?? []) {
     const mp = p.member_profiles as { full_name?: string; email?: string } | null;
@@ -52,14 +54,29 @@ export async function POST(request: Request) {
         link: "/payments",
       });
       if (!error) pushSent++;
+      if (mp?.email) {
+        emailBodies.push(mp.email);
+      }
     }
+  }
+
+  const uniqueEmails = [...new Set(emailBodies)];
+  let emailsSent = 0;
+  if (uniqueEmails.length > 0) {
+    const result = await sendBulkEmail({
+      to: uniqueEmails,
+      subject: "Payment reminder from your chapter",
+      html: textToHtml("You have an outstanding balance on TouseOS. Please sign in to review and pay at your earliest convenience."),
+    });
+    emailsSent = result.sent;
   }
 
   return NextResponse.json({
     reminded,
     pushSent,
+    emailsSent,
     message: reminded > 0
-      ? `Sent ${reminded} payment reminder${reminded > 1 ? "s" : ""} (in-app + push where enabled).`
+      ? `Sent ${reminded} reminder${reminded > 1 ? "s" : ""} (in-app, ${emailsSent} email${emailsSent !== 1 ? "s" : ""}, push where enabled).`
       : "No outstanding payments to remind.",
   });
 }

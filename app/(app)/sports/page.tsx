@@ -101,7 +101,7 @@ export default async function SportsPage() {
         <Card>
           <CardHeader title="Upcoming trips" icon={<Calendar size={16} />} action={<Link href="/travel" className="text-xs text-sports-600 hover:underline">View all</Link>} />
           {trips.length === 0 ? (
-            <EmptyState icon={<Calendar size={20} />} title="No upcoming trips" action={<Link href="/travel/new" className="text-sm text-sports-600 hover:underline">Plan trip →</Link>} />
+            <EmptyState icon={<Calendar size={20} />} title="No upcoming trips" action={<Link href="/travel?create=1" className="text-sm text-sports-600 hover:underline">Plan trip →</Link>} />
           ) : (
             <div className="space-y-3">
               {trips.map((trip: Record<string, unknown>) => (

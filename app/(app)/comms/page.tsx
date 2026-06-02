@@ -33,6 +33,8 @@ export default function CommsPage() {
   const [emailDraft, setEmailDraft] = useState({
     subject: "", body: "", audience: "all",
   });
+  const [smsOpen, setSmsOpen] = useState(false);
+  const [smsDraft, setSmsDraft] = useState({ body: "", audience: "active" });
   const [scheduledMessages, setScheduledMessages] = useState<Array<Record<string, unknown>>>([]);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [scheduleDraft, setScheduleDraft] = useState({
@@ -119,6 +121,23 @@ export default function CommsPage() {
     toast.success("Cancelled");
   }
 
+  async function sendSmsBlast() {
+    if (!orgId || !smsDraft.body.trim()) return;
+    const res = await fetch("/api/comms/sms", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId, body: smsDraft.body, audience: smsDraft.audience, channel: "sms" }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.error ?? "Failed to send SMS");
+      return;
+    }
+    toast.success(data.message ?? "SMS sent");
+    setSmsOpen(false);
+    setSmsDraft({ body: "", audience: "active" });
+  }
+
   async function sendEmailBlast() {
     if (!orgId || !emailDraft.subject || !emailDraft.body) return;
     const res = await fetch("/api/comms/email-blast", {
@@ -142,6 +161,9 @@ export default function CommsPage() {
         description="Announcements, email blasts, and message templates"
         action={
           <div className="flex gap-2">
+            <Button variant="secondary" size="sm" onClick={() => setSmsOpen(true)}>
+              SMS blast
+            </Button>
             <Button variant="secondary" size="sm" icon={<Mail size={14} />} onClick={() => setEmailBlastOpen(true)}>
               Email blast
             </Button>
@@ -158,6 +180,7 @@ export default function CommsPage() {
           { id: "announcements", label: "Announcements", count: announcements.length },
           { id: "templates", label: "Templates" },
           { id: "schedule", label: "Scheduled" },
+          { id: "sms", label: "SMS" },
         ]}
         active={tab}
         onChange={setTab}
@@ -203,6 +226,27 @@ export default function CommsPage() {
           onCancel={cancelScheduled}
         />
       )}
+
+      {tab === "sms" && (
+        <Card>
+          <p className="text-sm text-muted-foreground mb-3">
+            Send SMS to active members with phone numbers on file. Quiet hours (9pm–9am) apply. Requires Twilio configuration.
+          </p>
+          <Button size="sm" onClick={() => setSmsOpen(true)}>Compose SMS blast</Button>
+        </Card>
+      )}
+
+      <Modal open={smsOpen} onClose={() => setSmsOpen(false)} title="SMS blast" footer={
+        <>
+          <Button variant="secondary" onClick={() => setSmsOpen(false)}>Cancel</Button>
+          <Button onClick={sendSmsBlast} disabled={!smsDraft.body.trim()}>Send SMS</Button>
+        </>
+      }>
+        <div className="space-y-3">
+          <Textarea label="Message" value={smsDraft.body} onChange={(e) => setSmsDraft({ ...smsDraft, body: e.target.value })} placeholder="Chapter meeting tomorrow at 7pm..." />
+          <Alert type="warning" title="Only members with phone numbers receive SMS. PNM texting remains on the PNM page with consent tracking." />
+        </div>
+      </Modal>
 
       {/* Compose modal */}
       <Modal

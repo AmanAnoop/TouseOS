@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { formatDateTime } from "@/lib/utils";
 import EventRsvpButton from "./rsvp-button";
+import { EventDetailActions } from "@/components/events/event-detail-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -110,6 +111,15 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
             <div className="flex items-center justify-center gap-6 py-3 rounded-xl bg-greek-50 dark:bg-greek-950/30">
               <CountdownBlock event={event} />
             </div>
+          )}
+
+          {isPast && (
+            <EventDetailActions
+              orgId={String(event.org_id)}
+              eventId={id}
+              eventTitle={String(event.title)}
+              isPast={isPast}
+            />
           )}
 
           {/* Stats row */}

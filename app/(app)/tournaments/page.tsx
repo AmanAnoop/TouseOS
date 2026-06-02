@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -35,7 +36,11 @@ export default async function TournamentsPage() {
       <PageHeader
         title="Tournament & League Management"
         description="Schedules, results, brackets, and roster submissions"
-        action={<Button size="sm" icon={<Plus size={14} />}>Add game/tournament</Button>}
+        action={
+          <Link href="/events/new">
+            <Button size="sm" icon={<Plus size={14} />}>Add game/tournament</Button>
+          </Link>
+        }
       />
 
       <div className="grid grid-cols-3 gap-3">
@@ -49,7 +54,11 @@ export default async function TournamentsPage() {
           icon={<Trophy size={24} />}
           title="No games or tournaments scheduled"
           description="Add your upcoming games, tournaments, and tryouts from the Events page."
-          action={<Button size="sm" icon={<Plus size={14} />}>Add event</Button>}
+          action={
+            <Link href="/events/new">
+              <Button size="sm" icon={<Plus size={14} />}>Add event</Button>
+            </Link>
+          }
         />
       ) : (
         <div className="space-y-5">

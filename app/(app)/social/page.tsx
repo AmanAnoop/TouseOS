@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { CheckCircle, Download, Flag, Image, Plus, Star, Upload, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
@@ -10,6 +11,10 @@ import {
 } from "@/components/ui";
 import type { Photo, PhotoAlbum } from "@/types";
 import { PhotoApprovalGrid } from "@/components/social/photo-approval-grid";
+import { PhotoRequestsPanel } from "@/components/social/photo-requests-panel";
+import { PrComplianceChecklist } from "@/components/social/pr-compliance-checklist";
+import { ActivePhotoPrompts } from "@/components/social/active-photo-prompts";
+import { PrComplianceHistory } from "@/components/social/pr-compliance-history";
 
 const APPROVAL_COLOR = {
   pending: "yellow",
@@ -20,13 +25,16 @@ const APPROVAL_COLOR = {
   removed: "gray",
 } as const;
 
-export default function SocialPage() {
+function SocialPageContent() {
+  const searchParams = useSearchParams();
   const supabase = createClient();
   const [albums, setAlbums] = useState<PhotoAlbum[]>([]);
   const [selectedAlbum, setSelectedAlbum] = useState<PhotoAlbum | null>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("albums");
+  const [mainTab, setMainTab] = useState<"albums" | "requests" | "compliance">("albums");
+  const [deepLinkReady, setDeepLinkReady] = useState(false);
   const [orgId, setOrgId] = useState<string | null>(null);
   const [contentPackOpen, setContentPackOpen] = useState(false);
   const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
@@ -68,6 +76,52 @@ export default function SocialPage() {
   useEffect(() => {
     if (selectedAlbum) loadPhotos(selectedAlbum.id);
   }, [selectedAlbum, loadPhotos]);
+
+  useEffect(() => {
+    if (!orgId || deepLinkReady) return;
+
+    const eventId = searchParams.get("eventId");
+    const albumId = searchParams.get("albumId");
+    const wantUpload = searchParams.get("upload") === "1";
+
+    if (!eventId && !albumId) {
+      setDeepLinkReady(true);
+      return;
+    }
+
+    async function openAlbum() {
+      let targetAlbum: PhotoAlbum | undefined = albumId
+        ? albums.find((a) => a.id === albumId)
+        : eventId
+          ? albums.find((a) => a.event_id === eventId)
+          : undefined;
+
+      if (!targetAlbum && eventId) {
+        const res = await fetch(`/api/events/event-album?org_id=${orgId}&event_id=${eventId}`);
+        const data = await res.json();
+        if (res.ok && data.album) {
+          const { data: full } = await supabase
+            .from("photo_albums")
+            .select("*")
+            .eq("id", data.album.id)
+            .single();
+          if (full) targetAlbum = full as PhotoAlbum;
+          if (orgId) loadAlbums(orgId);
+        }
+      }
+
+      if (targetAlbum) {
+        setMainTab("albums");
+        setSelectedAlbum(targetAlbum);
+        if (wantUpload) {
+          setTimeout(() => fileRef.current?.click(), 500);
+        }
+      }
+      setDeepLinkReady(true);
+    }
+
+    openAlbum();
+  }, [orgId, albums, searchParams, deepLinkReady, loadAlbums, supabase]);
 
   async function approvePhoto(id: string, status: string) {
     await supabase.from("photos").update({ status }).eq("id", id);
@@ -219,17 +273,33 @@ export default function SocialPage() {
         </div>
       )}
 
+      {orgId && <ActivePhotoPrompts orgId={orgId} />}
+
       {!selectedAlbum ? (
         <>
-          {loading ? (
+          <Tabs
+            tabs={[
+              { id: "albums", label: "Albums" },
+              { id: "requests", label: "Photo requests" },
+              { id: "compliance", label: "PR compliance" },
+            ]}
+            active={mainTab}
+            onChange={(id) => setMainTab(id as "albums" | "requests" | "compliance")}
+          />
+
+          {mainTab === "compliance" && orgId ? (
+            <PrComplianceHistory orgId={orgId} />
+          ) : mainTab === "requests" && orgId ? (
+            <PhotoRequestsPanel orgId={orgId} />
+          ) : loading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="aspect-video bg-surface-2 rounded-xl animate-pulse" />
               ))}
             </div>
-          ) : albums.length === 0 ? (
+          ) : mainTab === "albums" && albums.length === 0 ? (
             <EmptyState icon={<Image size={24} />} title="No photo albums" description="Create an album for your next event." />
-          ) : (
+          ) : mainTab === "albums" ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {albums.map((album) => (
                 <button
@@ -253,7 +323,7 @@ export default function SocialPage() {
                 </button>
               ))}
             </div>
-          )}
+          ) : null}
         </>
       ) : (
         <>
@@ -394,25 +464,23 @@ export default function SocialPage() {
             />
           </div>
 
-          <Card padding="sm" className="bg-surface-1">
-            <p className="text-xs font-semibold text-foreground mb-2">PR Compliance checklist</p>
-            {[
-              "Alcohol visible in any photos?",
-              "Unsafe behavior visible?",
-              "Non-members visible without consent?",
-              "Sponsor tagged if applicable?",
-              "Co-host chapter approved?",
-              "Caption reviewed by PR chair?",
-              "National/chapter guidelines followed?",
-            ].map((item) => (
-              <label key={item} className="flex items-center gap-2 py-1 cursor-pointer">
-                <input type="checkbox" className="rounded" />
-                <span className="text-xs text-muted-foreground">{item}</span>
-              </label>
-            ))}
-          </Card>
+          {orgId && (
+            <PrComplianceChecklist
+              orgId={orgId}
+              photoIds={selectedPhotos}
+              onApproved={() => toast.success("Ready to export content pack")}
+            />
+          )}
         </div>
       </Modal>
     </div>
+  );
+}
+
+export default function SocialPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-muted-foreground">Loading...</div>}>
+      <SocialPageContent />
+    </Suspense>
   );
 }

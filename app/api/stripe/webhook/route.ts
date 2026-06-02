@@ -86,6 +86,57 @@ export async function POST(request: Request) {
         metadata: { amount: session.amount_total, session_id: session.id },
       });
     }
+
+    if (session.metadata?.type === "philanthropy" && session.metadata?.campaignId) {
+      const campaignId = session.metadata.campaignId;
+      const orgId = session.metadata.orgId;
+      const paymentIntentId = session.payment_intent ? String(session.payment_intent) : session.id;
+      const donationAmount = (session.amount_total ?? 0) / 100;
+
+      if (donationAmount > 0) {
+        const { data: existing } = await supabase
+          .from("donations")
+          .select("id")
+          .eq("stripe_payment_intent_id", paymentIntentId)
+          .maybeSingle();
+
+        if (!existing) {
+          const { data: campaign } = await supabase
+            .from("philanthropy_campaigns")
+            .select("raised_amount")
+            .eq("id", campaignId)
+            .single();
+
+          const isAnonymous = session.metadata.isAnonymous === "true";
+          await supabase.from("donations").insert({
+            campaign_id: campaignId,
+            org_id: orgId,
+            donor_name: session.metadata.donorName ?? "Guest",
+            donor_email: session.metadata.donorEmail || null,
+            amount: donationAmount,
+            message: session.metadata.message || null,
+            is_anonymous: isAnonymous,
+            stripe_payment_intent_id: paymentIntentId,
+          });
+
+          if (campaign) {
+            const newRaised = Number(campaign.raised_amount ?? 0) + donationAmount;
+            await supabase
+              .from("philanthropy_campaigns")
+              .update({ raised_amount: newRaised })
+              .eq("id", campaignId);
+          }
+
+          await supabase.from("audit_logs").insert({
+            org_id: orgId,
+            action: "donation_received",
+            resource_type: "philanthropy_campaigns",
+            resource_id: campaignId,
+            metadata: { amount: donationAmount, session_id: session.id, stripe: true },
+          });
+        }
+      }
+    }
   }
 
   if (event.type === "payment_intent.payment_failed") {

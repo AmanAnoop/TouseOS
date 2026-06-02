@@ -105,6 +105,15 @@ supabase/migrations/008_phase3_engagement.sql
 supabase/migrations/009_phase4_sports_interchapter_push.sql
 supabase/migrations/010_notification_preferences.sql
 supabase/migrations/011_payment_plans_rls.sql
+supabase/migrations/012_parent_pay_hardship_recurring.sql
+supabase/migrations/013_rush_interest_matcher.sql
+supabase/migrations/014_pnm_relationships_rls.sql
+supabase/migrations/015_onboarding_rpc.sql          # required for create/join org
+supabase/migrations/016_feature_fixes_rls.sql     # forms, waivers, housing RLS
+supabase/migrations/017_backlog_wave.sql          # coaching, NME, donations, social assets
+supabase/migrations/018_wave3_social_alumni.sql   # photo requests RLS, alumni campaigns, collab posts
+supabase/migrations/019_wave4_prompts_yearbook.sql # event photo prompts, PR compliance, yearbook sections
+supabase/migrations/020_wave5_photo_album_link.sql  # prompt batches → event albums, member album create
 ```
 
 ### 3. Environment variables

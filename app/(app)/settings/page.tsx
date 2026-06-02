@@ -260,7 +260,22 @@ export default function SettingsPage() {
                     <p className="text-sm font-medium text-foreground">Archive organization</p>
                     <p className="text-xs text-muted-foreground">Hides the org from member view. Data is preserved.</p>
                   </div>
-                  <Button variant="secondary" size="sm">Archive</Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={async () => {
+                      if (!orgId || !confirm("Archive this organization? Members will lose access until restored.")) return;
+                      const settings = { ...(org?.settings as object ?? {}), archived: true, archived_at: new Date().toISOString() };
+                      const { error } = await supabase.from("organizations").update({ settings }).eq("id", orgId);
+                      if (error) toast.error(error.message);
+                      else {
+                        toast.success("Organization archived");
+                        router.push("/onboarding");
+                      }
+                    }}
+                  >
+                    Archive
+                  </Button>
                 </div>
               </div>
             </Card>

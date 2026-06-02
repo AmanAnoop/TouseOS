@@ -5,6 +5,7 @@ import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
 import { BookOpen, Camera, Heart } from "lucide-react";
 import { YearbookExportButton } from "@/components/yearbook/yearbook-export-button";
+import { YearbookPageExtras } from "@/components/yearbook/yearbook-page-extras";
 import type { YearbookExportData } from "@/lib/yearbook-export";
 
 export const metadata = { title: "Digital Yearbook" };
@@ -24,15 +25,17 @@ export default async function YearbookPage() {
   const semesterStart = new Date();
   semesterStart.setMonth(semesterStart.getMonth() - 5);
 
-  const [eventsRes, photosRes, albumsRes] = await Promise.all([
+  const [eventsRes, photosRes, albumsRes, sectionsRes] = await Promise.all([
     supabase.from("events").select("id, title, type, starts_at").eq("org_id", orgId).gte("starts_at", semesterStart.toISOString()).order("starts_at"),
     supabase.from("photos").select("id, url, caption, created_at, album_id, status").eq("org_id", orgId).eq("status", "approved").order("created_at", { ascending: false }).limit(48),
     supabase.from("photo_albums").select("id, title, event_id, cover_url").eq("org_id", orgId),
+    supabase.from("yearbook_sections").select("*").eq("org_id", orgId).order("order_index"),
   ]);
 
   const events = (eventsRes.data ?? []) as Array<Record<string, unknown>>;
   const photos = (photosRes.data ?? []) as Array<Record<string, unknown>>;
   const albums = (albumsRes.data ?? []) as Array<Record<string, unknown>>;
+  const customSections = (sectionsRes.data ?? []) as Array<Record<string, unknown>>;
 
   const albumByEvent = new Map(albums.filter((a) => a.event_id).map((a) => [String(a.event_id), a]));
 
@@ -53,6 +56,14 @@ export default async function YearbookPage() {
       url: String(p.url),
       caption: p.caption ? String(p.caption) : null,
       createdAt: String(p.created_at),
+    })),
+    sections: customSections.map((s) => ({
+      id: String(s.id),
+      sectionType: String(s.section_type),
+      title: String(s.title),
+      body: s.body ? String(s.body) : null,
+      personName: s.person_name ? String(s.person_name) : null,
+      imageUrl: s.image_url ? String(s.image_url) : null,
     })),
   };
 
@@ -112,6 +123,24 @@ export default async function YearbookPage() {
               })}
             </div>
           </div>
+
+          {customSections.length > 0 && (
+            <div>
+              <h2 className="text-lg font-semibold mb-3">Senior spotlights & awards</h2>
+              <div className="grid sm:grid-cols-2 gap-3">
+                {customSections.map((s) => (
+                  <Card key={String(s.id)} padding="sm">
+                    <p className="text-xs text-muted-foreground capitalize">{String(s.section_type).replace(/_/g, " ")}</p>
+                    <p className="font-semibold text-sm">{String(s.title)}</p>
+                    {s.person_name ? <p className="text-xs text-greek-600">{String(s.person_name)}</p> : null}
+                    {s.body ? <p className="text-xs text-muted-foreground mt-1 line-clamp-4">{String(s.body)}</p> : null}
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <YearbookPageExtras orgId={orgId} />
 
           {photos.length > 0 && (
             <div>

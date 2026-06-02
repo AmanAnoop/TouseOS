@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Bell, BookOpen, Building, Calendar, ChevronDown,
-  ClipboardList, DollarSign, FileText, Heart, Home, Image,
+  ClipboardList, DollarSign, FileText, GraduationCap, Heart, Home, Image,
   LogOut, MessageSquare, Moon, Plus, Settings, Shield,
   Sun, Trophy, Users, Warehouse, X, Zap,
 } from "lucide-react";
@@ -68,6 +68,8 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
   const [dark, setDark] = useState(false);
   const [orgOpen, setOrgOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [platformAdmin, setPlatformAdmin] = useState(false);
+  const [universityAdmin, setUniversityAdmin] = useState(false);
   const { count: unreadCount } = useUnreadNotifications();
 
   const isSports = orgType === "club_sports";
@@ -78,6 +80,17 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
     const isDark = pref === "dark" || (!pref && window.matchMedia("(prefers-color-scheme: dark)").matches);
     setDark(isDark);
     document.documentElement.classList.toggle("dark", isDark);
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/platform-admin/check")
+      .then((r) => r.json())
+      .then((d) => setPlatformAdmin(Boolean(d.ok)))
+      .catch(() => setPlatformAdmin(false));
+    fetch("/api/university-admin/check")
+      .then((r) => r.json())
+      .then((d) => setUniversityAdmin(Boolean(d.ok)))
+      .catch(() => setUniversityAdmin(false));
   }, []);
 
   function toggleDark() {
@@ -115,6 +128,7 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
     { href: "/big-little", label: "Big/Little", icon: <Heart size={18} /> },
     { href: "/social", label: "Touse Social", icon: <Image size={18} /> },
     { href: "/social-calendar", label: "Social Calendar", icon: <Calendar size={18} /> },
+    { href: "/social-collab", label: "Collab planner", icon: <Users size={18} /> },
     { href: "/social-assets", label: "Asset Library", icon: <Image size={18} /> },
     { href: "/risk", label: "Risk Management", icon: <Shield size={18} /> },
     { href: "/nme", label: "New Members", icon: <BookOpen size={18} /> },
@@ -153,6 +167,8 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
     { href: "/vendors", label: "Vendor Memory", icon: <Building size={18} /> },
     { href: "/ai-assistant", label: "AI Assistant ✨", icon: <Zap size={18} /> },
     { href: "/admin", label: "Admin Dashboard", icon: <Settings size={18} /> },
+    ...(platformAdmin ? [{ href: "/platform-admin", label: "Platform admin", icon: <Shield size={18} /> }] : []),
+    ...(universityAdmin ? [{ href: "/university-admin", label: "University admin", icon: <GraduationCap size={18} /> }] : []),
     { href: "/settings", label: "Settings", icon: <Settings size={18} /> },
   ];
 

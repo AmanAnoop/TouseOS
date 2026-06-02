@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { sendInviteEmail } from "@/lib/email";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -32,8 +33,12 @@ export async function POST(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // In production, send via Supabase Auth inviteUserByEmail or a transactional email service
-  // For now, return the invite info
+  const emailResult = await sendInviteEmail({
+    to: email,
+    orgName: org?.name ?? "your chapter",
+    inviteCode: org?.invite_code ?? "",
+  });
+
   await supabase.from("audit_logs").insert({
     org_id: orgId,
     actor_id: user.id,
@@ -46,6 +51,9 @@ export async function POST(request: Request) {
   return NextResponse.json({
     success: true,
     inviteCode: org?.invite_code,
-    message: `Invite created for ${email}. In production, send via your email provider.`,
+    emailSent: emailResult.sent,
+    message: emailResult.sent
+      ? `Invite email sent to ${email}.`
+      : `Invite created for ${email}. Share code ${org?.invite_code} (configure RESEND_API_KEY for email delivery).`,
   });
 }

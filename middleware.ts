@@ -53,6 +53,8 @@ export async function middleware(request: NextRequest) {
     !pathname.startsWith("/p/") && // public event pages
     !pathname.startsWith("/pay/") && // parent payment portal
     !pathname.startsWith("/join/") && // public PNM interest form
+    !pathname.startsWith("/donate/") && // public philanthropy pages
+    pathname !== "/onboarding" &&
     !pathname.startsWith("/_next") &&
     !pathname.startsWith("/favicon") &&
     !pathname.startsWith("/manifest");

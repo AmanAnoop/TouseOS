@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Calculator, Calendar, Car, Hotel, Plane, Plus, Users,
 } from "lucide-react";
@@ -28,6 +29,7 @@ const COST_CATEGORIES = [
 ];
 
 export default function TravelPage() {
+  const searchParams = useSearchParams();
   const supabase = createClient();
   const [trips, setTrips] = useState<SportsTravelTrip[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,6 +62,12 @@ export default function TravelPage() {
     }
     init();
   }, [supabase, load]);
+
+  useEffect(() => {
+    if (searchParams.get("create") === "1") {
+      setCreateOpen(true);
+    }
+  }, [searchParams]);
 
   async function createTrip() {
     if (!orgId || !form.title || !form.departureDate) return;

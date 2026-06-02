@@ -86,6 +86,7 @@ export default function TasksPage() {
       assignee_name: form.assigneeName || null,
       status: (editTask?.status ?? "todo") as TaskStatus,
       tags: form.tags ? form.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
+      is_recurring: form.isRecurring,
     };
 
     if (editTask) {

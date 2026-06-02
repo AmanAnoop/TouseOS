@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { BarChart2, Plus, Target, Trophy, Users } from "lucide-react";
+import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import {
   Button, Card, CardHeader, EmptyState, Modal,
@@ -26,22 +27,30 @@ export default function CoachesPage() {
   const [practiceNotes, setPracticeNotes] = useState("");
   const [gameNotes, setGameNotes] = useState("");
 
-  const [goals] = useState([
-    "Win conference championship",
-    "Achieve 85% attendance at practices",
-    "Develop 3 new players for starting lineup",
-  ]);
+  const [orgId, setOrgId] = useState<string | null>(null);
+  const [goals, setGoals] = useState<Array<{ id: string; content: string }>>([]);
+  const [goalInput, setGoalInput] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
-    const { data } = await supabase
-      .from("member_profiles")
-      .select("id, full_name, position, attendance_rate, jersey_number, is_injured")
-      .eq("org_id", oid)
-      .eq("membership_status", "active")
-      .order("position")
-      .order("full_name");
-    setPlayers((data ?? []) as Player[]);
+    const [playersRes, notesRes] = await Promise.all([
+      supabase
+        .from("member_profiles")
+        .select("id, full_name, position, attendance_rate, jersey_number, is_injured")
+        .eq("org_id", oid)
+        .eq("membership_status", "active")
+        .order("position")
+        .order("full_name"),
+      fetch(`/api/coaching?org_id=${oid}`).then((r) => (r.ok ? r.json() : [])),
+    ]);
+    setPlayers((playersRes.data ?? []) as Player[]);
+    const notes = notesRes as Array<{ id: string; note_type: string; content: string }>;
+    setGoals(notes.filter((n) => n.note_type === "goal").map((n) => ({ id: n.id, content: n.content })));
+    const practice = notes.find((n) => n.note_type === "practice");
+    const game = notes.find((n) => n.note_type === "game");
+    if (practice) setPracticeNotes(practice.content);
+    if (game) setGameNotes(game.content);
     setLoading(false);
   }, [supabase]);
 
@@ -50,10 +59,27 @@ export default function CoachesPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) load(m.org_id);
+      if (m) { setOrgId(m.org_id); load(m.org_id); }
     }
     init();
   }, [supabase, load]);
+
+  async function saveNote(noteType: "practice" | "game" | "goal", content: string, title?: string) {
+    if (!orgId || !content.trim()) return;
+    setSaving(true);
+    const res = await fetch("/api/coaching", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId, noteType, content, title }),
+    });
+    setSaving(false);
+    if (!res.ok) {
+      toast.error("Failed to save");
+      return;
+    }
+    toast.success("Saved");
+    load(orgId);
+  }
 
   const positions = [...new Set(players.map((p) => p.position).filter(Boolean))];
   const avgAttendance = players.length > 0 ? Math.round(players.reduce((s, p) => s + p.attendance_rate, 0) / players.length) : 0;
@@ -81,12 +107,21 @@ export default function CoachesPage() {
 
       {/* Team goals */}
       <Card>
-        <CardHeader title="Team goals" description="Season objectives" action={<Button variant="ghost" size="sm" icon={<Plus size={12} />}>Add</Button>} />
+        <CardHeader title="Team goals" description="Season objectives" />
+        <div className="flex gap-2 mb-3">
+          <input
+            className="flex-1 h-9 rounded-lg border border-border px-3 text-sm"
+            placeholder="Add a team goal..."
+            value={goalInput}
+            onChange={(e) => setGoalInput(e.target.value)}
+          />
+          <Button size="sm" icon={<Plus size={12} />} onClick={() => { saveNote("goal", goalInput, "Team goal"); setGoalInput(""); }}>Add</Button>
+        </div>
         <div className="space-y-2">
           {goals.map((goal, i) => (
-            <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-surface-1 border border-border">
+            <div key={goal.id} className="flex items-center gap-3 p-3 rounded-lg bg-surface-1 border border-border">
               <span className="w-6 h-6 rounded-full bg-sports-600 text-white text-xs flex items-center justify-center flex-shrink-0 font-bold">{i + 1}</span>
-              <p className="text-sm text-foreground">{goal}</p>
+              <p className="text-sm text-foreground">{goal.content}</p>
             </div>
           ))}
         </div>
@@ -133,7 +168,7 @@ export default function CoachesPage() {
 
       {/* Practice plan modal */}
       <Modal open={practiceOpen} onClose={() => setPracticeOpen(false)} title="Create practice plan"
-        footer={<><Button variant="secondary" onClick={() => setPracticeOpen(false)}>Cancel</Button><Button onClick={() => setPracticeOpen(false)}>Save plan</Button></>}
+        footer={<><Button variant="secondary" onClick={() => setPracticeOpen(false)}>Cancel</Button><Button loading={saving} onClick={() => { saveNote("practice", practiceNotes, "Practice plan"); setPracticeOpen(false); }}>Save plan</Button></>}
       >
         <div className="space-y-4">
           <div className="grid grid-cols-3 gap-2">
@@ -161,7 +196,7 @@ export default function CoachesPage() {
 
       {/* Game notes modal */}
       <Modal open={gameNotesOpen} onClose={() => setGameNotesOpen(false)} title="Game notes"
-        footer={<><Button variant="secondary" onClick={() => setGameNotesOpen(false)}>Cancel</Button><Button onClick={() => setGameNotesOpen(false)}>Save notes</Button></>}
+        footer={<><Button variant="secondary" onClick={() => setGameNotesOpen(false)}>Cancel</Button><Button loading={saving} onClick={() => { saveNote("game", gameNotes, "Game notes"); setGameNotesOpen(false); }}>Save notes</Button></>}
       >
         <Textarea
           label="Game notes (captain/coach only)"

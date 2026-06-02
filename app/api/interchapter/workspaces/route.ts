@@ -58,7 +58,7 @@ export async function PATCH(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id, chatMessage, task, budgetLine, guest, riskItem, senderName } = await request.json();
+  const { id, chatMessage, task, taskToggle, budgetLine, guest, riskItem, senderName } = await request.json();
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
   const { data: ws } = await supabase.from("interchapter_workspaces").select("*").eq("id", id).single();
@@ -78,6 +78,12 @@ export async function PATCH(request: Request) {
   if (task) {
     const tasks = (ws.shared_tasks as unknown[]) ?? [];
     updates.shared_tasks = [...tasks, { id: crypto.randomUUID(), ...task, done: false }];
+  }
+  if (taskToggle?.id !== undefined) {
+    const tasks = ((ws.shared_tasks as Array<{ id: string; done?: boolean }>) ?? []).map((t) =>
+      t.id === taskToggle.id ? { ...t, done: Boolean(taskToggle.done) } : t,
+    );
+    updates.shared_tasks = tasks;
   }
   if (budgetLine) {
     const budget = (ws.shared_budget as { line_items?: unknown[] }) ?? {};

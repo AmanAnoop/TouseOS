@@ -73,8 +73,7 @@ export default function BigLittlePage() {
     if (big.major && little.major && big.major.toLowerCase() === little.major.toLowerCase()) score += 15;
     // Same hometown
     if (big.hometown && little.hometown && big.hometown.toLowerCase() === little.hometown.toLowerCase()) score += 10;
-    // Random variation
-    score += Math.floor(Math.random() * 20);
+    if (big.class_year && little.class_year && big.class_year === little.class_year) score += 8;
     return Math.min(100, score);
   }
 
