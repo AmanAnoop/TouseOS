@@ -55,7 +55,7 @@ export function AppShell({ org, orgs, profile, children }: AppShellProps) {
         <div
           className={cn(
             "flex-1 px-4 py-4 sm:px-6 sm:py-6",
-            "pb-24 lg:pb-6", // extra bottom padding for mobile nav
+            "pb-nav-mobile lg:pb-6",
           )}
         >
           {children}

@@ -24,7 +24,24 @@ export async function GET(request: Request) {
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data ?? []);
+
+  const batches = data ?? [];
+  if (batches.length === 0) return NextResponse.json([]);
+
+  const eventIds = [...new Set(batches.map((b) => b.event_id).filter(Boolean))];
+  const { data: events } = await supabase
+    .from("events")
+    .select("id, title")
+    .in("id", eventIds);
+
+  const titleByEvent = new Map((events ?? []).map((e) => [e.id, e.title]));
+
+  return NextResponse.json(
+    batches.map((b) => ({
+      ...b,
+      event_title: titleByEvent.get(b.event_id) ?? null,
+    })),
+  );
 }
 
 export async function POST(request: Request) {
@@ -52,11 +69,36 @@ export async function POST(request: Request) {
 
   if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
 
+  let albumId: string | null = null;
+  const { data: existingAlbum } = await supabase
+    .from("photo_albums")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("event_id", eventId)
+    .maybeSingle();
+
+  if (existingAlbum?.id) {
+    albumId = existingAlbum.id;
+  } else {
+    const { data: newAlbum } = await supabase
+      .from("photo_albums")
+      .insert({
+        org_id: orgId,
+        event_id: eventId,
+        title: `${event.title} — Photos`,
+        allow_member_upload: true,
+      })
+      .select("id")
+      .single();
+    albumId = newAlbum?.id ?? null;
+  }
+
   const { data: batch, error } = await supabase
     .from("event_photo_prompt_batches")
     .insert({
       org_id: orgId,
       event_id: eventId,
+      album_id: albumId,
       prompts,
       created_by: user.id,
     })
@@ -83,7 +125,7 @@ export async function POST(request: Request) {
           type: "photo_prompt",
           title: "Upload event photos",
           body: `${prompts.length} photo prompts for "${event.title}" — open Touse Social to contribute.`,
-          link: `/social`,
+          link: albumId ? `/social?eventId=${eventId}&albumId=${albumId}` : `/social?eventId=${eventId}`,
           sendPush: false,
         }),
       ),

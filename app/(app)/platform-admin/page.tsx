@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Building, Shield, Users } from "lucide-react";
+import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { Alert, Badge, Card, EmptyState, PageHeader, StatCard } from "@/components/ui";
 import { formatDate, orgTypeLabel } from "@/lib/utils";
@@ -106,7 +107,15 @@ export default function PlatformAdminPage() {
       ) : (
         <div className="space-y-2">
           {orgs.map((o) => (
-            <Card key={o.id} padding="sm">
+            <Card
+              key={o.id}
+              padding="sm"
+              className="cursor-pointer hover:border-greek-300 transition-colors"
+              onClick={() => {
+                navigator.clipboard.writeText(o.id);
+                toast.success("Organization ID copied");
+              }}
+            >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <p className="font-semibold text-sm">{o.name}</p>

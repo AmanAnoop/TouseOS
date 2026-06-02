@@ -57,6 +57,14 @@ export default async function YearbookPage() {
       caption: p.caption ? String(p.caption) : null,
       createdAt: String(p.created_at),
     })),
+    sections: customSections.map((s) => ({
+      id: String(s.id),
+      sectionType: String(s.section_type),
+      title: String(s.title),
+      body: s.body ? String(s.body) : null,
+      personName: s.person_name ? String(s.person_name) : null,
+      imageUrl: s.image_url ? String(s.image_url) : null,
+    })),
   };
 
   return (

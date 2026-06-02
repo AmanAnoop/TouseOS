@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { CheckCircle, Download, Flag, Image, Plus, Star, Upload, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
@@ -13,6 +14,7 @@ import { PhotoApprovalGrid } from "@/components/social/photo-approval-grid";
 import { PhotoRequestsPanel } from "@/components/social/photo-requests-panel";
 import { PrComplianceChecklist } from "@/components/social/pr-compliance-checklist";
 import { ActivePhotoPrompts } from "@/components/social/active-photo-prompts";
+import { PrComplianceHistory } from "@/components/social/pr-compliance-history";
 
 const APPROVAL_COLOR = {
   pending: "yellow",
@@ -23,14 +25,16 @@ const APPROVAL_COLOR = {
   removed: "gray",
 } as const;
 
-export default function SocialPage() {
+function SocialPageContent() {
+  const searchParams = useSearchParams();
   const supabase = createClient();
   const [albums, setAlbums] = useState<PhotoAlbum[]>([]);
   const [selectedAlbum, setSelectedAlbum] = useState<PhotoAlbum | null>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("albums");
-  const [mainTab, setMainTab] = useState<"albums" | "requests">("albums");
+  const [mainTab, setMainTab] = useState<"albums" | "requests" | "compliance">("albums");
+  const [deepLinkReady, setDeepLinkReady] = useState(false);
   const [orgId, setOrgId] = useState<string | null>(null);
   const [contentPackOpen, setContentPackOpen] = useState(false);
   const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
@@ -72,6 +76,52 @@ export default function SocialPage() {
   useEffect(() => {
     if (selectedAlbum) loadPhotos(selectedAlbum.id);
   }, [selectedAlbum, loadPhotos]);
+
+  useEffect(() => {
+    if (!orgId || deepLinkReady) return;
+
+    const eventId = searchParams.get("eventId");
+    const albumId = searchParams.get("albumId");
+    const wantUpload = searchParams.get("upload") === "1";
+
+    if (!eventId && !albumId) {
+      setDeepLinkReady(true);
+      return;
+    }
+
+    async function openAlbum() {
+      let targetAlbum: PhotoAlbum | undefined = albumId
+        ? albums.find((a) => a.id === albumId)
+        : eventId
+          ? albums.find((a) => a.event_id === eventId)
+          : undefined;
+
+      if (!targetAlbum && eventId) {
+        const res = await fetch(`/api/events/event-album?org_id=${orgId}&event_id=${eventId}`);
+        const data = await res.json();
+        if (res.ok && data.album) {
+          const { data: full } = await supabase
+            .from("photo_albums")
+            .select("*")
+            .eq("id", data.album.id)
+            .single();
+          if (full) targetAlbum = full as PhotoAlbum;
+          if (orgId) loadAlbums(orgId);
+        }
+      }
+
+      if (targetAlbum) {
+        setMainTab("albums");
+        setSelectedAlbum(targetAlbum);
+        if (wantUpload) {
+          setTimeout(() => fileRef.current?.click(), 500);
+        }
+      }
+      setDeepLinkReady(true);
+    }
+
+    openAlbum();
+  }, [orgId, albums, searchParams, deepLinkReady, loadAlbums, supabase]);
 
   async function approvePhoto(id: string, status: string) {
     await supabase.from("photos").update({ status }).eq("id", id);
@@ -231,12 +281,15 @@ export default function SocialPage() {
             tabs={[
               { id: "albums", label: "Albums" },
               { id: "requests", label: "Photo requests" },
+              { id: "compliance", label: "PR compliance" },
             ]}
             active={mainTab}
-            onChange={(id) => setMainTab(id as "albums" | "requests")}
+            onChange={(id) => setMainTab(id as "albums" | "requests" | "compliance")}
           />
 
-          {mainTab === "requests" && orgId ? (
+          {mainTab === "compliance" && orgId ? (
+            <PrComplianceHistory orgId={orgId} />
+          ) : mainTab === "requests" && orgId ? (
             <PhotoRequestsPanel orgId={orgId} />
           ) : loading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -421,5 +474,13 @@ export default function SocialPage() {
         </div>
       </Modal>
     </div>
+  );
+}
+
+export default function SocialPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-muted-foreground">Loading...</div>}>
+      <SocialPageContent />
+    </Suspense>
   );
 }

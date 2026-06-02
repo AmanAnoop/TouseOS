@@ -67,6 +67,12 @@
 }
 
 @layer utilities {
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .pb-nav-mobile {
+    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+  }
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;

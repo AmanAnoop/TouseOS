@@ -113,6 +113,7 @@ supabase/migrations/016_feature_fixes_rls.sql     # forms, waivers, housing RLS
 supabase/migrations/017_backlog_wave.sql          # coaching, NME, donations, social assets
 supabase/migrations/018_wave3_social_alumni.sql   # photo requests RLS, alumni campaigns, collab posts
 supabase/migrations/019_wave4_prompts_yearbook.sql # event photo prompts, PR compliance, yearbook sections
+supabase/migrations/020_wave5_photo_album_link.sql  # prompt batches → event albums, member album create
 ```
 
 ### 3. Environment variables
