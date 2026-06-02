@@ -14,6 +14,7 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import { AvailabilityMatcher, type AvailabilityEntry } from "@/components/interchapter/availability-matcher";
 import { JointBudgetSplitter } from "@/components/interchapter/joint-budget-splitter";
+import { InterchapterSummaryPanel } from "@/components/interchapter/interchapter-summary-panel";
 
 interface Proposal {
   id: string;
@@ -242,6 +243,8 @@ export default function InterchapterPage() {
           </div>
         </div>
       )}
+
+      <InterchapterSummaryPanel orgId={orgId} />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard title="Incoming" value={incoming.length} icon={<MessageSquare size={18} />} />

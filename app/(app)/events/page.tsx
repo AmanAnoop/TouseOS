@@ -10,6 +10,7 @@ import {
 } from "@/components/ui";
 import type { Event } from "@/types";
 import { EventCard } from "@/components/events/event-card";
+import { usePermissions } from "@/hooks/use-permissions";
 
 const TABS = [
   { id: "upcoming", label: "Upcoming" },
@@ -19,6 +20,7 @@ const TABS = [
 
 export default function EventsPage() {
   const supabase = createClient();
+  const { can, loading: permLoading } = usePermissions();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("upcoming");
@@ -57,9 +59,11 @@ export default function EventsPage() {
         title="Events"
         description="Manage chapter events, RSVP, and check-in"
         action={
-          <Link href="/events/new">
-            <Button size="sm" icon={<Plus size={14} />}>New event</Button>
-          </Link>
+          !permLoading && can("manage_events") ? (
+            <Link href="/events/new">
+              <Button size="sm" icon={<Plus size={14} />}>New event</Button>
+            </Link>
+          ) : undefined
         }
       />
 

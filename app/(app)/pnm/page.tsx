@@ -15,6 +15,7 @@ import { ProfileEnrichmentPanel } from "@/components/pnm/profile-enrichment-pane
 import { RushMatchPanel } from "@/components/pnm/rush-match-panel";
 import { RelationshipGraphPanel } from "@/components/pnm/relationship-graph-panel";
 import { RecruitmentLinksPanel } from "@/components/pnm/recruitment-links-panel";
+import { RecruitmentAnalyticsPanel } from "@/components/pnm/recruitment-analytics-panel";
 
 const PIPELINE_STAGES: PnmStatus[] = [
   "lead","contacted","invited","attended","interested",
@@ -357,6 +358,10 @@ export default function PnmPage() {
 
       
       
+      {tab === "analytics" && orgId && (
+        <RecruitmentAnalyticsPanel orgId={orgId} />
+      )}
+
       {tab === "recruitment" && (
         <RecruitmentLinksPanel orgName={orgName} inviteCode={inviteCode} />
       )}

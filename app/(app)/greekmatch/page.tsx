@@ -8,6 +8,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { Badge, Button, EmptyState, Modal, Spinner } from "@/components/ui";
 import toast from "react-hot-toast";
+import { rankGreekMatchCandidates } from "@/lib/greekmatch-scorer";
 
 interface GmProfile {
   id: string;
@@ -22,6 +23,7 @@ interface GmProfile {
   gender: string | null;
   show_org_name: boolean;
   org_name?: string;
+  matchScore?: number;
 }
 
 export default function GreekMatchPage() {
@@ -79,7 +81,10 @@ export default function GreekMatchPage() {
           org_name: (p.organizations as Record<string, unknown>)?.name as string | undefined,
         })) as unknown as GmProfile[];
 
-      setCandidates(filtered);
+      const viewerProfile = mine as GmProfile;
+      const ranked = rankGreekMatchCandidates(viewerProfile, filtered);
+
+      setCandidates(ranked);
       setSeenCount(seenIds.size);
       setLoading(false);
     }
@@ -253,6 +258,9 @@ export default function GreekMatchPage() {
                   <div>
                     <h2 className="text-2xl font-bold leading-tight">
                       {currentProfile.display_name}
+                      {(currentProfile as GmProfile & { matchScore?: number }).matchScore != null && (
+                        <Badge label={`${(currentProfile as GmProfile & { matchScore?: number }).matchScore}% match`} color="green" />
+                      )}
                       {currentProfile.age && <span className="text-xl font-normal ml-2">{currentProfile.age}</span>}
                     </h2>
                     {currentProfile.major && (

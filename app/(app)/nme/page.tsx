@@ -4,6 +4,7 @@ import {
   Badge, Card, CardHeader, EmptyState, PageHeader, ProgressBar, StatCard,
 } from "@/components/ui";
 import { BookOpen, CheckCircle2, Users } from "lucide-react";
+import { NmeSeedButton } from "@/components/nme/nme-seed-button";
 
 export const metadata = { title: "New Member Education" };
 export const dynamic = "force-dynamic";
@@ -53,6 +54,7 @@ export default async function NmePage() {
       <PageHeader
         title="New Member Education"
         description="Track module completion, quizzes, and anti-hazing acknowledgements"
+        action={<NmeSeedButton orgId={m.org_id} moduleCount={modules.length} />}
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

@@ -29,11 +29,12 @@ function formatBytes(bytes: number | null): string {
 
 interface DocumentCardProps {
   doc: Document & { version?: number };
-  onDelete: (id: string, storagePath: string) => void;
+  onDelete?: (id: string, storagePath: string) => void;
   onViewVersions?: (doc: Document) => void;
 }
 
 export function DocumentCard({ doc, onDelete, onViewVersions }: DocumentCardProps) {
+  const showDelete = Boolean(onDelete);
   return (
     <Card padding="sm" className="group hover:border-greek-300 transition-colors">
       <div className="flex items-start gap-3">
@@ -70,10 +71,12 @@ export function DocumentCard({ doc, onDelete, onViewVersions }: DocumentCardProp
             className="p-1.5 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-foreground">
             <Download size={14} />
           </a>
-          <button onClick={() => onDelete(doc.id, doc.storage_path)}
-            className="p-1.5 rounded-md hover:bg-red-50 text-muted-foreground hover:text-red-500">
-            <Trash2 size={14} />
-          </button>
+          {showDelete && (
+            <button onClick={() => onDelete!(doc.id, doc.storage_path)}
+              className="p-1.5 rounded-md hover:bg-red-50 text-muted-foreground hover:text-red-500">
+              <Trash2 size={14} />
+            </button>
+          )}
         </div>
       </div>
     </Card>

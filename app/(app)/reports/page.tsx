@@ -9,9 +9,12 @@ import {
   Badge, Button, Card, CardHeader, PageHeader, Select, Tabs,
 } from "@/components/ui";
 import { downloadCsv, formatDate, orgTypeLabel } from "@/lib/utils";
+import { usePermissions } from "@/hooks/use-permissions";
+import { Alert } from "@/components/ui";
 
 export default function ReportsPage() {
   const supabase = createClient();
+  const { can, loading: permLoading } = usePermissions();
   const [orgId, setOrgId] = useState<string | null>(null);
   const [orgType, setOrgType] = useState("general_org");
   const [orgName, setOrgName] = useState("");
@@ -40,6 +43,7 @@ export default function ReportsPage() {
 
   async function runReport() {
     if (!orgId) return;
+    if (!can("view_reports")) return;
     setLoading(true);
 
     try {
@@ -236,12 +240,20 @@ downloadCsv(`${orgName}-semester-rewind.csv`, [{
     ...(isSports ? REPORTS.sports : []),
   ];
 
+  const canViewReports = !permLoading && can("view_reports");
+
   return (
     <div className="space-y-5">
       <PageHeader
         title="Reports"
         description={`Export ${orgTypeLabel(orgType)} data as CSV`}
       />
+
+      {!canViewReports && !permLoading && (
+        <Alert type="warning" title="Limited access" description="Officer or advisor roles can export chapter reports. You can still view your own profile data in Account." />
+      )}
+
+
 
       <Card>
         <CardHeader title="Generate report" icon={<BarChart2 size={16} />} />
@@ -257,6 +269,7 @@ downloadCsv(`${orgName}-semester-rewind.csv`, [{
           <Button
             onClick={runReport}
             loading={loading}
+            disabled={!canViewReports}
             icon={<Download size={14} />}
             className="flex-shrink-0"
           >

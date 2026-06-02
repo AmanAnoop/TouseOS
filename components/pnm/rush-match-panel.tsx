@@ -48,6 +48,22 @@ export function RushMatchPanel({ orgId, pnm, refreshKey }: RushMatchPanelProps) 
     setLoading(false);
   }, [orgId, pnm]);
 
+
+  async function recomputeAll() {
+    if (!orgId) return;
+    setLoading(true);
+    const res = await fetch("/api/pnm/matches/bulk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId }),
+    });
+    if (res.ok) {
+      toast.success("All PNM matches updated");
+      if (pnm) await load(true);
+    } else toast.error("Bulk recompute failed");
+    setLoading(false);
+  }
+
   useEffect(() => {
     load(false);
   }, [load, refreshKey]);
@@ -67,15 +83,14 @@ export function RushMatchPanel({ orgId, pnm, refreshKey }: RushMatchPanelProps) 
         description="Ranked by shared interests, major, hometown, and connections"
         icon={<Users size={16} />}
         action={
-          <Button
-            size="sm"
-            variant="secondary"
-            icon={<RefreshCw size={14} />}
-            loading={loading}
-            onClick={() => load(true)}
-          >
-            Recompute
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="secondary" loading={loading} onClick={() => recomputeAll()}>
+              All PNMs
+            </Button>
+            <Button size="sm" variant="secondary" icon={<RefreshCw size={14} />} loading={loading} onClick={() => load(true)}>
+              Recompute
+            </Button>
+          </div>
         }
       />
 

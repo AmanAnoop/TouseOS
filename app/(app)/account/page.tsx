@@ -5,6 +5,7 @@ import {
   KeyRound, Mail, Save, Shield, User, X,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { InterestsEditor } from "@/components/members/interests-editor";
 import { createClient } from "@/lib/supabase/client";
 import {
   Alert, Avatar, Button, Card, CardHeader,
@@ -45,6 +46,8 @@ export default function AccountPage() {
   }>>([]);
 
   const [currentUserEmail, setCurrentUserEmail] = useState("");
+  const [memberProfileId, setMemberProfileId] = useState<string | null>(null);
+  const [memberInterests, setMemberInterests] = useState<string[]>([]);
 
   useEffect(() => {
     async function init() {
@@ -54,10 +57,11 @@ export default function AccountPage() {
       setCurrentUserEmail(user.email ?? "");
       setEmailForm({ email: user.email ?? "" });
 
-      const [pRes, mRes, npRes] = await Promise.all([
+      const [pRes, mRes, npRes, mpRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", user.id).single(),
         supabase.from("org_members").select("id, role, status, joined_at, organizations(name, type, campus)").eq("user_id", user.id).neq("status", "removed"),
         supabase.from("profiles").select("notification_email, notification_sms, notification_push, notification_preferences").eq("id", user.id).single(),
+        supabase.from("member_profiles").select("id, interests").eq("user_id", user.id).limit(1).maybeSingle(),
       ]);
 
       if (pRes.data) {
@@ -78,6 +82,11 @@ export default function AccountPage() {
           joined_at: String(m.joined_at),
           org: m.organizations as { name: string; type: string; campus: string | null },
         })));
+      }
+
+      if (mpRes.data) {
+        setMemberProfileId(String(mpRes.data.id));
+        setMemberInterests((mpRes.data.interests as string[]) ?? []);
       }
 
       if (npRes.data) {
@@ -197,6 +206,9 @@ export default function AccountPage() {
           <div className="space-y-4">
             <Input label="Full name" value={profile.fullName} onChange={(e) => setProfile({ ...profile, fullName: e.target.value })} />
             <Input label="Preferred name" placeholder="Nickname" value={profile.preferredName} onChange={(e) => setProfile({ ...profile, preferredName: e.target.value })} />
+            {memberProfileId && (
+              <InterestsEditor memberId={memberProfileId} initialInterests={memberInterests} />
+            )}
             <Input label="Phone number" type="tel" placeholder="+1 (555) 000-0000" value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} />
           </div>
           <Button onClick={saveProfile} loading={saving} icon={<Save size={14} />} className="mt-4">Save changes</Button>

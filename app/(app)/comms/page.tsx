@@ -13,6 +13,7 @@ import {
 import type { Announcement } from "@/types";
 import { AnnouncementFeed, COMMS_AUDIENCES } from "@/components/comms/announcement-feed";
 import { ScheduledMessagesPanel } from "@/components/comms/scheduled-messages-panel";
+import { CommsAnalyticsPanel } from "@/components/comms/comms-analytics-panel";
 
 export default function CommsPage() {
   const supabase = createClient();
@@ -153,6 +154,7 @@ export default function CommsPage() {
 
       <Tabs
         tabs={[
+          { id: "analytics", label: "Analytics" },
           { id: "announcements", label: "Announcements", count: announcements.length },
           { id: "templates", label: "Templates" },
           { id: "schedule", label: "Scheduled" },
@@ -160,6 +162,10 @@ export default function CommsPage() {
         active={tab}
         onChange={setTab}
       />
+
+      {tab === "analytics" && orgId && (
+        <CommsAnalyticsPanel orgId={orgId} />
+      )}
 
       {tab === "announcements" && (
         <>

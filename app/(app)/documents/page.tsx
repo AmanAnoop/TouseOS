@@ -14,6 +14,7 @@ import { formatDate, downloadCsv } from "@/lib/utils";
 import type { Document } from "@/types";
 import { DocumentCard, formatBytes } from "@/components/documents/document-card";
 import { DocumentVersionHistory } from "@/components/documents/document-version-history";
+import { usePermissions } from "@/hooks/use-permissions";
 
 const CATEGORIES = [
   "General", "Bylaws & governance", "Risk & compliance",
@@ -23,6 +24,7 @@ const CATEGORIES = [
 
 export default function DocumentsPage() {
   const supabase = createClient();
+  const { can, loading: permLoading } = usePermissions();
   const [docs, setDocs] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [orgId, setOrgId] = useState<string | null>(null);
@@ -38,6 +40,8 @@ export default function DocumentsPage() {
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [versionDoc, setVersionDoc] = useState<Document | null>(null);
+
+  const canManageDocs = !permLoading && can("manage_documents");
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
@@ -140,7 +144,9 @@ export default function DocumentsPage() {
         action={
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={exportList}>Export list</Button>
-            <Button size="sm" icon={<Upload size={14} />} onClick={() => setUploadOpen(true)}>Upload</Button>
+            {canManageDocs && (
+              <Button size="sm" icon={<Upload size={14} />} onClick={() => setUploadOpen(true)}>Upload</Button>
+            )}
           </div>
         }
       />
@@ -160,7 +166,7 @@ export default function DocumentsPage() {
           icon={<Folder size={24} />}
           title="No documents"
           description="Upload bylaws, risk forms, waivers, and other chapter documents."
-          action={<Button size="sm" icon={<Upload size={14} />} onClick={() => setUploadOpen(true)}>Upload document</Button>}
+          action={canManageDocs ? <Button size="sm" icon={<Upload size={14} />} onClick={() => setUploadOpen(true)}>Upload document</Button> : undefined}
         />
       ) : (
         <div className="grid sm:grid-cols-2 gap-3">
@@ -168,7 +174,7 @@ export default function DocumentsPage() {
             <DocumentCard
               key={doc.id}
               doc={doc}
-              onDelete={deleteDocument}
+              onDelete={canManageDocs ? deleteDocument : undefined}
               onViewVersions={setVersionDoc}
             />
           ))}
