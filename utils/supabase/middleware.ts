@@ -1,17 +1,19 @@
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey =
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
 /**
- * Creates a Supabase client for middleware and returns both the client and
- * the response (with refreshed session cookies). Call `supabase.auth.getUser()`
- * before returning `supabaseResponse`.
+ * Supabase middleware helper. Call `await supabase.auth.getUser()` then return `response`.
  */
 export function createMiddlewareClient(request: NextRequest) {
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error(
+      "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+    );
+  }
+
   let supabaseResponse = NextResponse.next({
     request: { headers: request.headers },
   });
