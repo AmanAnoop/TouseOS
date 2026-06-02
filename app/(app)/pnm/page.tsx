@@ -13,6 +13,8 @@ import type { PnmLead, PnmStatus } from "@/types";
 import { PnmVotingPanel } from "@/components/pnm/voting-panel";
 import { ProfileEnrichmentPanel } from "@/components/pnm/profile-enrichment-panel";
 import { RushMatchPanel } from "@/components/pnm/rush-match-panel";
+import { RelationshipGraphPanel } from "@/components/pnm/relationship-graph-panel";
+import { RecruitmentLinksPanel } from "@/components/pnm/recruitment-links-panel";
 
 const PIPELINE_STAGES: PnmStatus[] = [
   "lead","contacted","invited","attended","interested",
@@ -38,6 +40,9 @@ export default function PnmPage() {
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
   const [matcherPnmId, setMatcherPnmId] = useState<string | null>(null);
   const [enrichKey, setEnrichKey] = useState(0);
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [orgName, setOrgName] = useState("");
+  const [chapterMembers, setChapterMembers] = useState<Array<{ id: string; full_name: string }>>([]);
 
   const [newLead, setNewLead] = useState({
     fullName: "", email: "", phone: "", instagramHandle: "",
@@ -55,7 +60,17 @@ export default function PnmPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) { setOrgId(m.org_id); loadLeads(m.org_id); }
+      if (m) {
+        setOrgId(m.org_id);
+        loadLeads(m.org_id);
+        const { data: org } = await supabase.from("organizations").select("name, invite_code").eq("id", m.org_id).single();
+        if (org) {
+          setOrgName(String(org.name ?? ""));
+          setInviteCode(org.invite_code ? String(org.invite_code) : null);
+        }
+        const { data: mems } = await supabase.from("member_profiles").select("id, full_name").eq("org_id", m.org_id).eq("membership_status", "active").order("full_name");
+        setChapterMembers((mems ?? []) as Array<{ id: string; full_name: string }>);
+      }
     }
     init();
   }, [supabase, loadLeads]);
@@ -151,6 +166,7 @@ export default function PnmPage() {
           { id: "list", label: "List view" },
           { id: "analytics", label: "Analytics" },
           { id: "matcher", label: "Rush matcher" },
+          { id: "recruitment", label: "Recruitment links" },
           { id: "voting", label: "Voting" },
         ]}
         active={tab}
@@ -340,6 +356,11 @@ export default function PnmPage() {
       </Modal>
 
       
+      
+      {tab === "recruitment" && (
+        <RecruitmentLinksPanel orgName={orgName} inviteCode={inviteCode} />
+      )}
+
       {tab === "matcher" && orgId && (
         <div className="grid lg:grid-cols-3 gap-5">
           <Card className="lg:col-span-1 max-h-[70vh] overflow-y-auto">
@@ -370,6 +391,11 @@ export default function PnmPage() {
               orgId={orgId}
               pnm={leads.find((l) => l.id === matcherPnmId) ?? null}
               refreshKey={enrichKey}
+            />
+            <RelationshipGraphPanel
+              orgId={orgId}
+              pnm={leads.find((l) => l.id === matcherPnmId) ?? null}
+              members={chapterMembers}
             />
           </div>
         </div>

@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button, Card, Input } from "@/components/ui";
 import { Heart, CheckCircle2 } from "lucide-react";
 
 export default function PnmInterestFormPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const slug = params.slug as string;
   const supabase = createClient();
 
@@ -25,6 +26,7 @@ export default function PnmInterestFormPage() {
     hometown: "",
     instagramHandle: "",
     referralSource: "",
+    interests: "",
     smsConsent: false,
   });
 
@@ -47,25 +49,32 @@ export default function PnmInterestFormPage() {
     if (!org || !form.fullName) return;
     setSubmitting(true);
 
-    const { error } = await supabase.from("pnm_leads").insert({
-      org_id: org.id,
-      full_name: form.fullName,
-      email: form.email || null,
-      phone: form.phone || null,
-      instagram_handle: form.instagramHandle || null,
-      class_year: form.classYear || null,
-      major: form.major || null,
-      hometown: form.hometown || null,
-      referral_source: form.referralSource || null,
-      communication_consent: form.smsConsent,
-      consent_timestamp: form.smsConsent ? new Date().toISOString() : null,
-      consent_source: "interest_form",
-      campaign: slug,
-      status: "lead",
+    const res = await fetch("/api/join/interest", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        inviteCode: slug,
+        fullName: form.fullName,
+        email: form.email,
+        phone: form.phone,
+        classYear: form.classYear,
+        major: form.major,
+        hometown: form.hometown,
+        instagramHandle: form.instagramHandle,
+        referralSource: form.referralSource,
+        interests: form.interests,
+        smsConsent: form.smsConsent,
+        campaign: searchParams.get("campaign"),
+        referredByMember: searchParams.get("ref"),
+      }),
     });
 
     setSubmitting(false);
-    if (error) { alert("Submission failed. Please try again."); return; }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(err.error ?? "Submission failed. Please try again.");
+      return;
+    }
     setSubmitted(true);
   }
 
@@ -142,6 +151,12 @@ export default function PnmInterestFormPage() {
             </div>
             <Input label="Hometown" value={form.hometown} onChange={(e) => setForm({ ...form, hometown: e.target.value })} placeholder="Austin, TX" />
             <Input label="Instagram handle (optional)" value={form.instagramHandle} onChange={(e) => setForm({ ...form, instagramHandle: e.target.value })} placeholder="@yourusername" />
+            <Input
+              label="Interests (optional)"
+              value={form.interests}
+              onChange={(e) => setForm({ ...form, interests: e.target.value })}
+              placeholder="Sports, music, philanthropy…"
+            />
             <Input label="How did you hear about us?" value={form.referralSource} onChange={(e) => setForm({ ...form, referralSource: e.target.value })} placeholder="Friend, social media, campus event..." />
 
             {/* SMS consent */}
