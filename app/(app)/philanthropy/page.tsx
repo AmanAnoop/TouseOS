@@ -80,7 +80,7 @@ export default function PhilanthropyPage() {
       <PageHeader
         title="Philanthropy & Fundraising"
         description={`${campaigns.length} campaigns · ${formatCurrency(totalRaised)} raised total`}
-        action={<Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>New campaign</Button>}
+        action={<Button size="sm" className="officer-touch" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>New campaign</Button>}
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

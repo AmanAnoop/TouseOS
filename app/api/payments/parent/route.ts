@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { getOrgStripeDestination } from "@/lib/org-stripe";
 import { createPaymentLink } from "@/lib/stripe";
 import {
   computeCheckoutAmount,
@@ -81,12 +82,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Nothing due on this payment" }, { status: 400 });
   }
 
+  const connectedAccountId = await getOrgStripeDestination(supabase, full.org_id);
+
   const session = await createPaymentLink({
     amount: checkoutAmount,
     description: paymentItemTitle(row),
     orgName: orgNameFromPayment(row),
     memberEmail: email ?? memberEmailFromPayment(row),
     metadata: { paymentId: payment.id, orgId: full.org_id, parentPay: "true" },
+    connectedAccountId,
   });
 
   await supabase

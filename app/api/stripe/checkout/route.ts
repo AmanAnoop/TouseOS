@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getOrgStripeDestination } from "@/lib/org-stripe";
 import { createPaymentLink } from "@/lib/stripe";
 
 export async function POST(request: Request) {
@@ -22,12 +23,15 @@ export async function POST(request: Request) {
   const applyLateFee =
     payment.status === "overdue" || duePast || payment.status === "partial";
   const lateFee = applyLateFee ? Number(payment.late_fee ?? 0) : 0;
+  const connectedAccountId = await getOrgStripeDestination(supabase, payment.org_id);
+
   const session = await createPaymentLink({
     amount: remaining + lateFee,
     description: (payment.payment_items as Record<string, unknown>)?.title as string ?? "Dues payment",
     orgName: (payment.organizations as Record<string, unknown>)?.name as string ?? "Chapter",
     memberEmail: email,
     metadata: { paymentId, orgId: payment.org_id },
+    connectedAccountId,
   });
 
   // Save session ID to payment record

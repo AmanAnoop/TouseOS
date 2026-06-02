@@ -237,15 +237,15 @@ function SocialPageContent() {
         action={
           selectedAlbum ? (
             <div className="flex gap-2">
-              <Button variant="secondary" size="sm" icon={<Upload size={14} />} onClick={() => fileRef.current?.click()}>
+              <Button variant="secondary" size="sm" className="officer-touch" icon={<Upload size={14} />} onClick={() => fileRef.current?.click()}>
                 Upload photos
               </Button>
-              <Button size="sm" icon={<Image size={14} />} onClick={() => setContentPackOpen(true)}>
+              <Button size="sm" className="officer-touch" icon={<Image size={14} />} onClick={() => setContentPackOpen(true)}>
                 Content pack
               </Button>
             </div>
           ) : (
-            <Button size="sm" icon={<Plus size={14} />} onClick={async () => {
+            <Button size="sm" className="officer-touch" icon={<Plus size={14} />} onClick={async () => {
               if (!orgId) return;
               const title = prompt("Album title?");
               if (!title) return;

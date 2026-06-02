@@ -150,7 +150,7 @@ export default function TasksPage() {
               <User size={14} />
               {filter === "mine" ? "My tasks" : "All tasks"}
             </button>
-            <Button size="sm" icon={<Plus size={14} />} onClick={() => { setEditTask(null); setCreateOpen(true); }}>
+            <Button size="sm" className="officer-touch" icon={<Plus size={14} />} onClick={() => { setEditTask(null); setCreateOpen(true); }}>
               New task
             </Button>
           </div>

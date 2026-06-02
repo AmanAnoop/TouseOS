@@ -111,6 +111,14 @@ export function StripeConnectPanel({
           className="mt-3"
         />
       )}
+      {status.chargesEnabled && (
+        <Alert
+          type="success"
+          title="Destination charges active"
+          description="Member dues, parent pay links, and philanthropy donations will transfer to this connected account."
+          className="mt-3"
+        />
+      )}
     </Card>
   );
 }

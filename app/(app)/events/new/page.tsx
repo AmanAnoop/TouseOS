@@ -243,8 +243,8 @@ export default function NewEventPage() {
       </div>
 
       <div className="flex gap-3 pt-2">
-        <Button variant="secondary" onClick={() => router.back()} className="flex-1">Cancel</Button>
-        <Button onClick={createEvent} loading={saving} disabled={!form.title || !form.startsAt} className="flex-1">
+        <Button variant="secondary" onClick={() => router.back()} className="flex-1 officer-touch">Cancel</Button>
+        <Button onClick={createEvent} loading={saving} disabled={!form.title || !form.startsAt} className="flex-1 officer-touch">
           Create event
         </Button>
       </div>

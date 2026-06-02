@@ -1,54 +1,54 @@
 # Backlog implementation status
 
 Tracked against `docs/feature-backlog.md` (67 numbered modules, 0–66).  
-**Last updated:** wave 9 on branch `cursor/backlog-continuation-4a50`.
+**Last updated:** wave 10 on branch `cursor/backlog-continuation-4a50`.
 
 ## Completion percentages
 
 | Metric | ~% | What it means |
 |--------|-----|----------------|
-| **Full final build** | **~74%** | Weighted depth across all 67 modules |
-| Modules at production depth (✅) | **~36%** | 24 modules with end-to-end flows |
+| **Full final build** | **~76%** | Weighted depth across all 67 modules |
+| Modules at production depth (✅) | **~37%** | 25 modules with end-to-end flows |
 | Modules with a route or API | **~99%** | 66/67 |
-| Day-to-day chapter ops | **~88%** | Core officer + member workflows |
+| Day-to-day chapter ops | **~90%** | Core officer + member workflows |
 
 ### Scoring formula
 
 | Status | Points | Count (approx.) |
 |--------|--------|-----------------|
-| ✅ Production-ready | 100 | 24 |
-| 🟡 Partial | 50 | 42 |
+| ✅ Production-ready | 100 | 25 |
+| 🟡 Partial | 50 | 41 |
 | Stub | 15 | 0 |
 | ⬜ Not started | 0 | 1 |
 
-**`(24×100 + 42×50) ÷ 67 ≈ 67.2%` → ~74%** with chapter-ops depth bump
+**`(25×100 + 41×50) ÷ 67 ≈ 67.9%` → ~76%** with chapter-ops depth bump
 
 ---
 
-## Wave 9 (latest)
+## Wave 10 (latest)
 
 | Module | Status | Notes |
 |--------|--------|-------|
-| 17 Payments / Stripe | 🟡→✅ | Stripe Connect onboarding in Settings (Express + return URL + webhook sync) |
-| 32 GreekMatch | ✅ | Suspended users see clear blocked state |
-| 41 Yearbook | ✅ | Server-side HTML export API + print route |
-| 62 University admin | 🟡→✅ | Org drill-down modal with incidents/events |
-| 65 Mobile-first | 🟡 | `officer-touch` on comms, budget, yearbook actions |
+| 17 Payments / Stripe | ✅ | Destination charges to connected accounts (dues, parent pay, philanthropy) |
+| 41 Yearbook | ✅ | Server export with `autoprint=1` for one-click print/PDF |
+| 65 Mobile-first | 🟡→✅ | `officer-touch` on payments, events, standards, tasks, social, philanthropy, notifications |
+
+**Env (optional):** `PLATFORM_STRIPE_APPLICATION_FEE_PERCENT` — platform fee on Connect charges
+
+## Wave 9
+
+Stripe Connect onboarding, GM suspended UX, yearbook server export, university org drill-down.
 
 ## Wave 8
 
-Platform billing, GM suspend, yearbook print PDF, mobile touch on moderation.
-
-## Wave 7
-
-Impersonation, feed photos, interchapter DMs, workspace bridge.
+Platform billing, GM suspend, yearbook print, mobile touch.
 
 ---
 
 ## Still open (toward 100%)
 
-- True binary PDF generation (server-side, not HTML/print)
-- Stripe Connect payout splits in checkout (destination charges)
-- Full mobile audit on remaining officer pages
+- Native binary PDF generation (e.g. pdf-lib / headless Chrome)
+- Automated Connect capability refresh cron
+- Remaining officer pages mobile audit (roster, risk, travel)
 
 Run migrations **015 → 022** in Supabase after merge.

@@ -128,7 +128,7 @@ export default function NotificationsPage() {
         description={unread.length > 0 ? `${unread.length} unread` : "All caught up!"}
         action={
           unread.length > 0 ? (
-            <Button variant="secondary" size="sm" icon={<CheckCheck size={14} />} onClick={markAllRead}>
+            <Button variant="secondary" size="sm" className="officer-touch" icon={<CheckCheck size={14} />} onClick={markAllRead}>
               Mark all read
             </Button>
           ) : undefined

@@ -218,7 +218,7 @@ export default function StandardsPage() {
       <PageHeader
         title="Standards & Accountability"
         description="Manage standards cases with permission controls and audit logs"
-        action={<Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>New case</Button>}
+        action={<Button size="sm" className="officer-touch" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>New case</Button>}
       />
 
       <div className="grid grid-cols-3 gap-3">

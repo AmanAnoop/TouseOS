@@ -5,6 +5,14 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   typescript: true,
 });
 
+function applicationFeeAmountCents(totalCents: number): number | undefined {
+  const raw = process.env.PLATFORM_STRIPE_APPLICATION_FEE_PERCENT;
+  if (!raw) return undefined;
+  const percent = Number(raw);
+  if (!Number.isFinite(percent) || percent <= 0) return undefined;
+  return Math.max(0, Math.round(totalCents * (percent / 100)));
+}
+
 export async function createPaymentLink(opts: {
   amount: number;
   currency?: string;
@@ -12,7 +20,17 @@ export async function createPaymentLink(opts: {
   orgName: string;
   memberEmail?: string;
   metadata?: Record<string, string>;
+  connectedAccountId?: string;
 }) {
+  const unitAmount = Math.round(opts.amount * 100);
+  const paymentIntentData =
+    opts.connectedAccountId
+      ? {
+          application_fee_amount: applicationFeeAmountCents(unitAmount),
+          transfer_data: { destination: opts.connectedAccountId },
+        }
+      : undefined;
+
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ["card", "us_bank_account"],
     line_items: [
@@ -23,7 +41,7 @@ export async function createPaymentLink(opts: {
             name: opts.description,
             metadata: { org: opts.orgName },
           },
-          unit_amount: Math.round(opts.amount * 100),
+          unit_amount: unitAmount,
         },
         quantity: 1,
       },
@@ -32,7 +50,11 @@ export async function createPaymentLink(opts: {
     success_url: `${process.env.NEXT_PUBLIC_APP_URL}/payments?success=1`,
     cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/payments?cancelled=1`,
     customer_email: opts.memberEmail,
-    metadata: opts.metadata,
+    metadata: {
+      ...opts.metadata,
+      ...(opts.connectedAccountId ? { stripeDestination: opts.connectedAccountId } : {}),
+    },
+    ...(paymentIntentData ? { payment_intent_data: paymentIntentData } : {}),
   });
 
   return session;
@@ -48,7 +70,17 @@ export async function createPhilanthropyCheckout(opts: {
   donorEmail?: string;
   message?: string;
   isAnonymous?: boolean;
+  connectedAccountId?: string;
 }) {
+  const unitAmount = Math.round(opts.amount * 100);
+  const paymentIntentData =
+    opts.connectedAccountId
+      ? {
+          application_fee_amount: applicationFeeAmountCents(unitAmount),
+          transfer_data: { destination: opts.connectedAccountId },
+        }
+      : undefined;
+
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ["card"],
     line_items: [
@@ -58,7 +90,7 @@ export async function createPhilanthropyCheckout(opts: {
           product_data: {
             name: `Donation – ${opts.campaignTitle}`,
           },
-          unit_amount: Math.round(opts.amount * 100),
+          unit_amount: unitAmount,
         },
         quantity: 1,
       },
@@ -75,7 +107,9 @@ export async function createPhilanthropyCheckout(opts: {
       donorEmail: opts.donorEmail ?? "",
       message: opts.message ?? "",
       isAnonymous: opts.isAnonymous ? "true" : "false",
+      ...(opts.connectedAccountId ? { stripeDestination: opts.connectedAccountId } : {}),
     },
+    ...(paymentIntentData ? { payment_intent_data: paymentIntentData } : {}),
   });
 
   return session;

@@ -31,6 +31,18 @@ export function YearbookExportButton({ data, orgId }: YearbookExportButtonProps)
     toast.success("Downloading yearbook file from server");
   }
 
+  function handleServerPrintExport() {
+    if (empty) {
+      toast.error("Add content before exporting");
+      return;
+    }
+    window.open(
+      `/api/yearbook/export?org_id=${encodeURIComponent(orgId)}&autoprint=1`,
+      "_blank",
+    );
+    toast.success("Opening print-ready yearbook");
+  }
+
   return (
     <div className="flex flex-wrap gap-2">
       <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={handleExport} disabled={empty} className="officer-touch">
@@ -38,6 +50,9 @@ export function YearbookExportButton({ data, orgId }: YearbookExportButtonProps)
       </Button>
       <Button variant="secondary" size="sm" icon={<Server size={14} />} onClick={handleServerExport} disabled={empty} className="officer-touch">
         Server export
+      </Button>
+      <Button variant="secondary" size="sm" onClick={handleServerPrintExport} disabled={empty} className="officer-touch">
+        Export & print
       </Button>
     </div>
   );

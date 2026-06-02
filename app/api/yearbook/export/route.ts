@@ -67,8 +67,12 @@ export async function GET(request: Request) {
   });
 
   const filename = `${orgName.toLowerCase().replace(/\s+/g, "-")}-yearbook.html`;
+  const autoprint = new URL(request.url).searchParams.get("autoprint") === "1";
+  const htmlOut = autoprint && !html.includes("autoprint=1")
+    ? html.replace("</body>", `<script>window.addEventListener("load",function(){setTimeout(function(){window.print()},600)});</script></body>`)
+    : html;
 
-  return new NextResponse(html, {
+  return new NextResponse(htmlOut, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
       "Content-Disposition": `attachment; filename="${filename}"`,
