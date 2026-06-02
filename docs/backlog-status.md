@@ -1,52 +1,29 @@
 # Backlog implementation status
 
 Tracked against `docs/feature-backlog.md` (67 numbered modules, 0–66).  
-**Last updated:** wave 12 on branch `cursor/backlog-continuation-4a50`.
+**Last updated:** SportsOS / ClubOS separation on branch `cursor/sportsos-clubos-separation-4a50`.
 
 ## Completion percentages
 
 | Metric | ~% | What it means |
 |--------|-----|----------------|
-| **Full final build** | **~81%** | Weighted depth across all 67 modules |
-| Modules at production depth (✅) | **~40%** | 27 modules with end-to-end flows |
+| **Full final build** | **~83%** | Weighted depth across all 67 modules |
+| Modules at production depth (✅) | **~42%** | 28 modules with end-to-end flows |
 | Modules with a route or API | **~99%** | 66/67 |
-| Day-to-day chapter ops | **~93%** | Core officer + member workflows |
+| Day-to-day chapter ops | **~94%** | Core officer + member workflows |
 
-### Scoring formula
+## Product separation (latest)
 
-| Status | Points | Count (approx.) |
-|--------|--------|-----------------|
-| ✅ Production-ready | 100 | 27 |
-| 🟡 Partial | 50 | 39 |
-| Stub | 15 | 0 |
-| ⬜ Not started | 0 | 1 |
+| Product | Org type | Home | Notes |
+|---------|----------|------|-------|
+| **TouseGreek** | fraternity, sorority | `/dashboard` | Greek-only nav; PNM, risk, engagement, etc. |
+| **SportsOS** | `club_sports` | `/sports` | Sports-only nav + route guard; team features |
+| **ClubOS** | `general_org` | `/club` | Club-only nav; membership, service hours, committees |
 
-**`(27×100 + 39×50) ÷ 67 ≈ 69.4%` → ~81%** with chapter-ops depth bump
+Central config: `lib/org-product.ts` · Route guard: `ProductRouteGuard` · Migration **023** for ClubOS tables.
 
----
+## Wave 12 (prior)
 
-## Wave 12 (latest)
+PDF yearbook, Stripe reconciliation, launch checklist.
 
-| Module | Status | Notes |
-|--------|--------|-------|
-| 41 Yearbook | ✅ | Binary PDF export (`pdf-lib`, `/api/yearbook/export/pdf`) |
-| 17 Stripe Connect | ✅ | Treasurer reconciliation panel + API |
-| 66 MVP / launch | ✅ | `docs/launch-checklist.md` formal go-live checklist |
-
-## Wave 11
-
-Global mobile UI, officer shortcuts, incident export, Stripe sync cron.
-
-## Waves 7–10
-
-Impersonation, billing, Connect onboarding, destination charges, feed photos.
-
----
-
-## Still open (toward 100%)
-
-- Headless print service for yearbook (optional; PDF covers most cases)
-- Payout-level Stripe balance reconciliation (beyond payment-intent match)
-- Advanced AI modules (backlog §18+)
-
-Run migrations **015 → 022** in Supabase after merge.
+Run migrations **015 → 023** in Supabase after merge.

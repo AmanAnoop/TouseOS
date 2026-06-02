@@ -2,12 +2,13 @@
 
 **The campus organization operating system** — one platform for fraternities, sororities, club sports teams, and student orgs to run members, money, events, recruitment, compliance, and content in a single mobile-first workspace.
 
-TouseOS ships as two tailored experiences on shared infrastructure:
+TouseOS ships as **three tailored experiences** on shared infrastructure (`lib/org-product.ts`):
 
-| Experience | Built for | Highlights |
-|------------|-----------|------------|
-| **Touse Greek** | Fraternities & sororities | PNM CRM, GreekMatch, interchapter proposals, standards, NME, big/little, photo approval, chapter health score |
-| **SportsOS** | Club sports teams | Tryouts, waivers, travel & trip costs, injuries, equipment, league standings, tournament brackets |
+| Experience | Org type | Built for | Highlights |
+|------------|----------|-----------|------------|
+| **TouseGreek** | `fraternity`, `sorority` | Greek chapters | PNM CRM, GreekMatch, interchapter, standards, NME, risk, big/little, chapter feed |
+| **SportsOS** | `club_sports` | Club sports teams | Team dashboard, tryouts, waivers, travel & trip costs, injuries, equipment, standings |
+| **ClubOS** | `general_org` | Student organizations | Membership pipeline, committees, service hours, fundraising, org feed (not Greek recruitment) |
 
 ---
 
@@ -60,10 +61,13 @@ Cross-chapter event proposals, idea marketplace, shared workspaces (on accept), 
 ### Social / content
 Photo albums, approval workflow, Instagram content packs (AI captions), social calendar, chapter feed, event memories, digital yearbook with HTML export, PR compliance checklist, social asset library.
 
-### SportsOS
-Team dashboard, tryouts, waivers, travel trips, injury reports, equipment, league standings, tournament brackets.
+### SportsOS (`club_sports`)
+Dedicated nav, route guards, and `/sports` team dashboard — tryouts, waivers, travel, injuries, equipment, tournaments.
 
-> **Rollout status:** ~63% of numbered backlog modules have working pages; ~45–50% of sub-features are at production depth. See [docs/feature-backlog.md](docs/feature-backlog.md) for the full spec.
+### ClubOS (`general_org`)
+Dedicated nav, route guards, and `/club` dashboard — membership applications, service hours, committees; neutral event types (no mixers/PNM).
+
+> **Rollout status:** See [docs/backlog-status.md](docs/backlog-status.md). Run migration `023_club_org.sql` for ClubOS tables.
 
 ---
 

@@ -10,7 +10,7 @@ const ORG_TYPES = [
   { value: "fraternity", label: "Fraternity", description: "Greek-letter fraternity", icon: "🏛️" },
   { value: "sorority", label: "Sorority", description: "Greek-letter sorority", icon: "🌸" },
   { value: "club_sports", label: "Club Sports", description: "Club sports team (SportsOS)", icon: "🏆" },
-  { value: "general_org", label: "Student Organization", description: "General campus org", icon: "🎓" },
+  { value: "general_org", label: "Student Organization", description: "Clubs, societies & campus orgs (ClubOS)", icon: "🎓" },
 ];
 
 export function OnboardingWizard() {

@@ -6,8 +6,9 @@ import {
   EmptyState, Alert,
 } from "@/components/ui";
 import {
-  formatCurrency, formatDateTime, isGreekOrg, isSportsOrg,
+  formatCurrency, formatDateTime, isGreekOrg, isSportsOrg, isClubOrg,
 } from "@/lib/utils";
+import { getProductId, productLabel } from "@/lib/org-product";
 import { computeHealthScore } from "@/lib/health-score";
 import { HealthScoreBadge } from "@/components/dashboard/health-score-badge";
 import { OfficerQuickActions } from "@/components/dashboard/officer-quick-actions";
@@ -48,8 +49,8 @@ export default async function DashboardPage() {
   const [
     membersRes, eventsRes, paymentsRes, paymentDeadlinesRes, announcementsRes, tasksRes,
     reimbsRes, budgetsRes, photosRes, pnmRes,
-    tripsRes, waiversRes, allEventsRes,
-    pastEventsRes, recentPhotosRes, recentAnnouncementsRes,
+    tripsRes, waiversRes, tryoutsRes, clubMembershipRes, clubServiceRes,
+    allEventsRes, pastEventsRes, recentPhotosRes, recentAnnouncementsRes,
   ] = await Promise.all([
     supabase.from("member_profiles").select("id, full_name, membership_status, payment_status, attendance_rate, forms_completed, forms_required, created_at, is_injured").eq("org_id", orgId),
     supabase.from("events").select("id, title, type, starts_at, location, status").eq("org_id", orgId).gte("starts_at", new Date().toISOString()).order("starts_at").limit(5),
@@ -60,12 +61,23 @@ export default async function DashboardPage() {
     supabase.from("reimbursements").select("id, amount, status, created_at").eq("org_id", orgId),
     supabase.from("budgets").select("*, budget_lines(*)").eq("org_id", orgId).order("created_at", { ascending: false }).limit(1),
     supabase.from("photos").select("id, url, caption, uploader_name, created_at, status").eq("org_id", orgId).order("created_at", { ascending: false }).limit(4),
-    supabase.from("pnm_leads").select("status").eq("org_id", orgId),
+    isGreekOrg(orgType)
+      ? supabase.from("pnm_leads").select("status").eq("org_id", orgId)
+      : Promise.resolve({ data: [] }),
     isSportsOrg(orgType)
       ? supabase.from("sports_travel_trips").select("id, title, status").eq("org_id", orgId).limit(3)
       : Promise.resolve({ data: [] }),
     isSportsOrg(orgType)
       ? supabase.from("sports_waivers").select("status").eq("org_id", orgId)
+      : Promise.resolve({ data: [] }),
+    isSportsOrg(orgType)
+      ? supabase.from("sports_tryouts").select("id, status").eq("org_id", orgId)
+      : Promise.resolve({ data: [] }),
+    isClubOrg(orgType)
+      ? supabase.from("club_membership_applications").select("id, status").eq("org_id", orgId)
+      : Promise.resolve({ data: [] }),
+    isClubOrg(orgType)
+      ? supabase.from("club_service_hours").select("hours, verified").eq("org_id", orgId)
       : Promise.resolve({ data: [] }),
     supabase.from("events").select("id").eq("org_id", orgId),
     supabase.from("events").select("id, title, starts_at").eq("org_id", orgId).lt("starts_at", new Date().toISOString()).order("starts_at", { ascending: false }).limit(8),
@@ -82,7 +94,12 @@ export default async function DashboardPage() {
   const budgets = (budgetsRes.data ?? []) as Array<{ budget_lines?: Array<{ budgeted: number; actual: number; type: string }> }>;
   const photos = (photosRes.data ?? []) as Array<Record<string, unknown>>;
   const pnmLeads = (pnmRes.data ?? []) as Array<{ status: string }>;
+  const sportsTryouts = (tryoutsRes.data ?? []) as Array<{ id: string; status: string }>;
+  const clubApplications = (clubMembershipRes.data ?? []) as Array<{ id: string; status: string }>;
+  const clubHours = (clubServiceRes.data ?? []) as Array<{ hours: number; verified: boolean }>;
   const waivers = (waiversRes.data ?? []) as Array<{ status: string }>;
+  const product = getProductId(orgType);
+  const totalClubHours = clubHours.reduce((s, h) => s + Number(h.hours), 0);
   const allEventIds = ((allEventsRes.data ?? []) as Array<{ id: string }>).map((e) => e.id);
   const pastEvents = (pastEventsRes.data ?? []) as Array<{ id: string; title: string; starts_at: string }>;
   const recentPhotos = (recentPhotosRes.data ?? []) as Array<{ created_at: string }>;
@@ -268,7 +285,7 @@ export default async function DashboardPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">{String(org.name)}</h1>
           <p className="text-muted-foreground text-sm mt-0.5">
-            {isGreekOrg(orgType) ? "TouseGreek" : isSportsOrg(orgType) ? "SportsOS" : "Organization"} workspace
+            {productLabel(product)} workspace
           </p>
         </div>
         <HealthScoreBadge composite={composite} />
@@ -486,7 +503,31 @@ export default async function DashboardPage() {
             <StatCard title="Injured players" value={members.filter((m) => (m as MemberProfile & { is_injured?: boolean }).is_injured).length} icon={<AlertTriangle size={16} />} />
             <StatCard title="Waivers complete" value={waivers.filter((w) => w.status === "completed").length} delta={`${waivers.length} total`} icon={<Shield size={16} />} />
             <StatCard title="Travel trips" value={(tripsRes.data ?? []).length} icon={<Calendar size={16} />} />
-            <StatCard title="Tryout candidates" value={pnmLeads.length} icon={<Trophy size={16} />} />
+            <StatCard title="Tryout candidates" value={sportsTryouts.filter((t) => !["accepted", "cut"].includes(t.status)).length} icon={<Trophy size={16} />} />
+          </div>
+        </Card>
+      )}
+
+      {isClubOrg(orgType) && (
+        <Card>
+          <CardHeader title="Club dashboard" icon={<Users size={16} />} action={<Link href="/club" className="text-xs text-club-600 hover:underline">Full dashboard</Link>} />
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+            <StatCard title="Active members" value={members.filter((m) => m.membership_status === "active").length} icon={<Users size={16} />} />
+            <StatCard title="Membership apps" value={clubApplications.filter((a) => a.status === "applied").length} icon={<Zap size={16} />} />
+            <StatCard title="Service hours" value={totalClubHours.toFixed(1)} icon={<Heart size={16} />} />
+            <StatCard title="Collection rate" value={`${collectionRate}%`} icon={<DollarSign size={16} />} />
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { href: "/club/membership", label: "Membership" },
+              { href: "/club/committees", label: "Committees" },
+              { href: "/club/service-hours", label: "Service hours" },
+              { href: "/philanthropy", label: "Fundraising" },
+              { href: "/social", label: "Photos & updates" },
+              { href: "/events", label: "Events" },
+            ].map((link) => (
+              <Link key={link.href} href={link.href} className="text-sm font-medium text-club-600 hover:underline p-2 rounded-lg hover:bg-surface-1">{link.label} →</Link>
+            ))}
           </div>
         </Card>
       )}

@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   Bell, BookOpen, Building, Calendar, ChevronDown,
   ClipboardList, DollarSign, FileText, GraduationCap, Heart, Home, Image,
   LogOut, MessageSquare, Moon, Plus, Settings, Shield,
-  Sun, Trophy, Users, Warehouse, X, Zap,
+  Sun, Trophy, Users, Warehouse, X, Zap, HandHeart, LayoutGrid,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -15,41 +15,75 @@ import { Avatar } from "@/components/ui";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { useUnreadNotifications } from "@/hooks/use-unread-notifications";
 import type { Organization, Profile } from "@/types";
+import {
+  getProductId,
+  navForProduct,
+  productAccent,
+  productLabel,
+  productHomePath,
+} from "@/lib/org-product";
+import { SidebarNavLink } from "@/components/layout/sidebar-nav-link";
 
-interface NavItem {
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  badge?: number;
-  section?: string;
-  orgTypes?: string[];
-}
+const ICONS: Record<string, React.ReactNode> = {
+  "/dashboard": <Home size={18} />,
+  "/health": <Heart size={18} />,
+  "/roster": <Users size={18} />,
+  "/events": <Calendar size={18} />,
+  "/payments": <DollarSign size={18} />,
+  "/reimbursements": <DollarSign size={18} />,
+  "/budget": <BookOpen size={18} />,
+  "/tasks": <ClipboardList size={18} />,
+  "/documents": <FileText size={18} />,
+  "/forms": <ClipboardList size={18} />,
+  "/governance": <BookOpen size={18} />,
+  "/attendance-points": <Trophy size={18} />,
+  "/engagement": <Heart size={18} />,
+  "/comms": <MessageSquare size={18} />,
+  "/feed": <Zap size={18} />,
+  "/pnm": <Zap size={18} />,
+  "/big-little": <Heart size={18} />,
+  "/social": <Image size={18} />,
+  "/social-calendar": <Calendar size={18} />,
+  "/social-collab": <Users size={18} />,
+  "/social-assets": <Image size={18} />,
+  "/risk": <Shield size={18} />,
+  "/nme": <BookOpen size={18} />,
+  "/standards": <ClipboardList size={18} />,
+  "/housing": <Warehouse size={18} />,
+  "/alumni": <Users size={18} />,
+  "/philanthropy": <Building size={18} />,
+  "/interchapter": <Zap size={18} />,
+  "/event-memories": <Calendar size={18} />,
+  "/sports": <Trophy size={18} />,
+  "/tryouts": <Trophy size={18} />,
+  "/tournaments": <Trophy size={18} />,
+  "/standings": <Trophy size={18} />,
+  "/yearbook": <BookOpen size={18} />,
+  "/waivers": <Shield size={18} />,
+  "/travel": <Building size={18} />,
+  "/equipment": <Warehouse size={18} />,
+  "/injuries": <ClipboardList size={18} />,
+  "/coaches": <Trophy size={18} />,
+  "/club": <LayoutGrid size={18} />,
+  "/club/membership": <UserPlusIcon />,
+  "/club/committees": <Users size={18} />,
+  "/club/service-hours": <HandHeart size={18} />,
+  "/profile": <Users size={18} />,
+  "/account": <Settings size={18} />,
+  "/notifications": <Bell size={18} />,
+  "/greekmatch": <Heart size={18} />,
+  "/reports": <FileText size={18} />,
+  "/transition": <BookOpen size={18} />,
+  "/vendors": <Building size={18} />,
+  "/ai-assistant": <Zap size={18} />,
+  "/admin": <Settings size={18} />,
+  "/platform-admin": <Shield size={18} />,
+  "/university-admin": <GraduationCap size={18} />,
+  "/settings": <Settings size={18} />,
+};
 
-function NavLink({ item, active, collapsed }: { item: NavItem; active: boolean; collapsed: boolean }) {
-  return (
-    <Link
-      href={item.href}
-      className={cn(
-        "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
-        active
-          ? "bg-greek-50 text-greek-700 font-medium dark:bg-greek-950/50 dark:text-greek-400"
-          : "text-muted-foreground hover:bg-surface-1 hover:text-foreground",
-        collapsed && "justify-center px-2",
-      )}
-    >
-      <span className="w-5 h-5 flex-shrink-0">{item.icon}</span>
-      {!collapsed && (
-        <>
-          <span className="flex-1 truncate">{item.label}</span>
-          {item.badge !== undefined && item.badge > 0 && (
-            <span className="text-xs bg-greek-600 text-white rounded-full px-1.5 py-0.5 leading-none">
-              {item.badge}
-            </span>
-          )}
-        </>
-      )}
-    </Link>
-  );
+function UserPlusIcon() {
+  return <Users size={18} />;
 }
 
 interface SidebarProps {
@@ -72,8 +106,22 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
   const [universityAdmin, setUniversityAdmin] = useState(false);
   const { count: unreadCount } = useUnreadNotifications();
 
-  const isSports = orgType === "club_sports";
-  const isGreek = orgType === "fraternity" || orgType === "sorority";
+  const product = getProductId(orgType);
+  const accent = productAccent(product);
+  const isGreek = product === "greek";
+  const { core, feature, featureSectionTitle } = navForProduct(product);
+
+  const coreNav = useMemo(
+    () => core.map((i) => ({ href: i.href, label: i.label, icon: ICONS[i.href] ?? <Home size={18} /> })),
+    [core],
+  );
+  const featureNav = useMemo(
+    () => feature.map((i) => ({ href: i.href, label: i.label, icon: ICONS[i.href] ?? <Zap size={18} /> })),
+    [feature],
+  );
+
+  const logoBg =
+    accent === "sports" ? "bg-sports-600" : accent === "club" ? "bg-club-600" : "bg-greek-600";
 
   useEffect(() => {
     const pref = localStorage.getItem("theme");
@@ -105,74 +153,27 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
     router.push("/login");
   }
 
-  const coreNav: NavItem[] = [
-    { href: "/dashboard", label: "Dashboard", icon: <Home size={18} /> },
-    { href: "/health", label: "Health Score", icon: <Heart size={18} /> },
-    { href: "/roster", label: isSports ? "Team Roster" : "Member Roster", icon: <Users size={18} /> },
-    { href: "/events", label: "Events", icon: <Calendar size={18} /> },
-    { href: "/payments", label: "Dues & Payments", icon: <DollarSign size={18} /> },
-    { href: "/reimbursements", label: "Reimbursements", icon: <DollarSign size={18} /> },
-    { href: "/budget", label: "Budget & Finance", icon: <BookOpen size={18} /> },
-    { href: "/tasks", label: "Tasks", icon: <ClipboardList size={18} /> },
-    { href: "/documents", label: "Documents", icon: <FileText size={18} /> },
-    { href: "/forms", label: "Forms & Waivers", icon: <ClipboardList size={18} /> },
-    { href: "/governance", label: "Governance", icon: <BookOpen size={18} /> },
-    { href: "/attendance-points", label: "Points System", icon: <Trophy size={18} /> },
-    { href: "/engagement", label: "Engagement", icon: <Heart size={18} /> },
-    { href: "/comms", label: "Communications", icon: <MessageSquare size={18} /> },
-    { href: "/feed", label: "Chapter Feed", icon: <Zap size={18} /> },
+  const profileNav = [
+    { href: "/profile", label: "My Profile", icon: ICONS["/profile"] },
+    { href: "/account", label: "Account & Security", icon: ICONS["/account"] },
+    { href: "/notifications", label: "Notifications", icon: ICONS["/notifications"], badge: unreadCount },
+    ...(isGreek && org ? [{ href: "/greekmatch", label: "💚 GreekMatch", icon: ICONS["/greekmatch"] }] : []),
   ];
 
-  const greekNav: NavItem[] = [
-    { href: "/pnm", label: "PNM Recruitment", icon: <Zap size={18} /> },
-    { href: "/big-little", label: "Big/Little", icon: <Heart size={18} /> },
-    { href: "/social", label: "Touse Social", icon: <Image size={18} /> },
-    { href: "/social-calendar", label: "Social Calendar", icon: <Calendar size={18} /> },
-    { href: "/social-collab", label: "Collab planner", icon: <Users size={18} /> },
-    { href: "/social-assets", label: "Asset Library", icon: <Image size={18} /> },
-    { href: "/risk", label: "Risk Management", icon: <Shield size={18} /> },
-    { href: "/nme", label: "New Members", icon: <BookOpen size={18} /> },
-    { href: "/standards", label: "Standards", icon: <ClipboardList size={18} /> },
-    { href: "/housing", label: "Housing", icon: <Warehouse size={18} /> },
-    { href: "/alumni", label: "Alumni CRM", icon: <Users size={18} /> },
-    { href: "/philanthropy", label: "Philanthropy", icon: <Building size={18} /> },
-    { href: "/interchapter", label: "ExecLink", icon: <Zap size={18} /> },
-    { href: "/event-memories", label: "Memories", icon: <Calendar size={18} /> },
+  const bottomNav = [
+    { href: "/reports", label: "Reports", icon: ICONS["/reports"] },
+    { href: "/transition", label: product === "sports" ? "Captain Binder" : product === "club" ? "Officer Binder" : "Officer Binder", icon: ICONS["/transition"] },
+    { href: "/vendors", label: "Vendor Memory", icon: ICONS["/vendors"] },
+    { href: "/ai-assistant", label: "AI Assistant ✨", icon: ICONS["/ai-assistant"] },
+    { href: "/admin", label: "Admin Dashboard", icon: ICONS["/admin"] },
+    ...(platformAdmin ? [{ href: "/platform-admin", label: "Platform admin", icon: ICONS["/platform-admin"] }] : []),
+    ...(universityAdmin ? [{ href: "/university-admin", label: "University admin", icon: ICONS["/university-admin"] }] : []),
+    { href: "/settings", label: "Settings", icon: ICONS["/settings"] },
   ];
 
-  const sportsNav: NavItem[] = [
-    { href: "/tryouts", label: "Tryouts", icon: <Trophy size={18} /> },
-    { href: "/tournaments", label: "Tournaments", icon: <Trophy size={18} /> },
-    { href: "/standings", label: "League Standings", icon: <Trophy size={18} /> },
-    { href: "/social", label: "Photos & Social", icon: <Image size={18} /> },
-    { href: "/yearbook", label: "Yearbook", icon: <BookOpen size={18} /> },
-    { href: "/waivers", label: "Waivers & Compliance", icon: <Shield size={18} /> },
-    { href: "/travel", label: "Travel Management", icon: <Building size={18} /> },
-    { href: "/equipment", label: "Equipment & Uniforms", icon: <Warehouse size={18} /> },
-    { href: "/injuries", label: "Injury Reports", icon: <ClipboardList size={18} /> },
-    { href: "/coaches", label: "Coaching Tools", icon: <Trophy size={18} /> },
-    { href: "/philanthropy", label: "Fundraising", icon: <DollarSign size={18} /> },
-  ];
-
-  const profileNav: NavItem[] = [
-    { href: "/profile", label: "My Profile", icon: <Users size={18} /> },
-    { href: "/account", label: "Account & Security", icon: <Settings size={18} /> },
-    { href: "/notifications", label: "Notifications", icon: <Bell size={18} />, badge: unreadCount },
-    ...(isGreek && org ? [{ href: "/greekmatch", label: "💚 GreekMatch", icon: <Heart size={18} /> }] : []),
-  ];
-
-  const bottomNav: NavItem[] = [
-    { href: "/reports", label: "Reports", icon: <FileText size={18} /> },
-    { href: "/transition", label: "Officer Binder", icon: <BookOpen size={18} /> },
-    { href: "/vendors", label: "Vendor Memory", icon: <Building size={18} /> },
-    { href: "/ai-assistant", label: "AI Assistant ✨", icon: <Zap size={18} /> },
-    { href: "/admin", label: "Admin Dashboard", icon: <Settings size={18} /> },
-    ...(platformAdmin ? [{ href: "/platform-admin", label: "Platform admin", icon: <Shield size={18} /> }] : []),
-    ...(universityAdmin ? [{ href: "/university-admin", label: "University admin", icon: <GraduationCap size={18} /> }] : []),
-    { href: "/settings", label: "Settings", icon: <Settings size={18} /> },
-  ];
-
-  const featureNav = isGreek ? greekNav : isSports ? sportsNav : [];
+  function isActive(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
 
   return (
     <aside
@@ -182,22 +183,18 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
         "transition-[width] duration-200",
       )}
     >
-      {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-border min-h-[60px]">
         {!collapsed && (
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-md bg-greek-600 flex items-center justify-center text-white font-bold text-xs">
-              TO
+          <Link href={productHomePath(product)} className="flex items-center gap-2">
+            <div className={cn("w-7 h-7 rounded-md flex items-center justify-center text-white font-bold text-xs", logoBg)}>
+              {product === "sports" ? "SP" : product === "club" ? "CL" : "TG"}
             </div>
-            <span className="font-bold text-sm text-foreground">TouseOS</span>
+            <span className="font-bold text-sm text-foreground">{productLabel(product)}</span>
           </Link>
         )}
         <div className="flex items-center gap-1 ml-auto">
           {mobile && (
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground"
-            >
+            <button onClick={onClose} className="p-1.5 rounded-md text-muted-foreground hover:text-foreground">
               <X size={18} />
             </button>
           )}
@@ -215,7 +212,6 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
         </div>
       </div>
 
-      {/* Org switcher */}
       {!collapsed && org && (
         <div className="px-3 py-2 border-b border-border">
           <button
@@ -230,7 +226,7 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-foreground truncate">{org.name}</p>
-              <p className="text-xs text-muted-foreground capitalize">{org.type.replace("_", " ")}</p>
+              <p className="text-xs text-muted-foreground">{productLabel(product)}</p>
             </div>
             <ChevronDown size={14} className={cn("text-muted-foreground transition-transform flex-shrink-0", orgOpen && "rotate-180")} />
           </button>
@@ -239,7 +235,7 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
               {orgs.map((o) => (
                 <Link
                   key={o.id}
-                  href={`/org/${o.id}/dashboard`}
+                  href="/dashboard"
                   className="flex items-center gap-2 px-3 py-2 hover:bg-surface-1 text-sm"
                   onClick={() => setOrgOpen(false)}
                 >
@@ -264,10 +260,9 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
         </div>
       )}
 
-      {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-2 px-2 scrollbar-hide">
         {coreNav.map((item) => (
-          <NavLink key={item.href} item={item} active={pathname === item.href || pathname.startsWith(item.href + "/")} collapsed={collapsed} />
+          <SidebarNavLink key={`${item.href}-${item.label}`} item={item} active={isActive(item.href)} collapsed={collapsed} accent={accent} />
         ))}
 
         {profileNav.length > 0 && (
@@ -278,54 +273,44 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
               </div>
             )}
             {profileNav.map((item) => (
-              <NavLink key={item.href} item={item} active={pathname === item.href || pathname.startsWith(item.href + "/")} collapsed={collapsed} />
+              <SidebarNavLink key={item.href} item={item} active={isActive(item.href)} collapsed={collapsed} accent={accent} />
             ))}
           </>
         )}
 
-                {featureNav.length > 0 && (
+        {featureNav.length > 0 && (
           <>
             {!collapsed && (
               <div className="px-3 pt-4 pb-1">
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  {isGreek ? "Greek Life" : "SportsOS"}
+                  {featureSectionTitle}
                 </p>
               </div>
             )}
             {featureNav.map((item) => (
-              <NavLink key={item.href} item={item} active={pathname === item.href || pathname.startsWith(item.href + "/")} collapsed={collapsed} />
+              <SidebarNavLink key={item.href} item={item} active={isActive(item.href)} collapsed={collapsed} accent={accent} />
             ))}
           </>
         )}
 
         {!collapsed && (
           <div className="px-3 pt-4 pb-1">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Admin
-            </p>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Admin</p>
           </div>
         )}
         {bottomNav.map((item) => (
-          <NavLink key={item.href} item={item} active={pathname === item.href || pathname.startsWith(item.href + "/")} collapsed={collapsed} />
+          <SidebarNavLink key={item.href} item={item} active={isActive(item.href)} collapsed={collapsed} accent={accent} />
         ))}
       </nav>
 
-      {/* Footer */}
       <div className="border-t border-border p-3 flex flex-col gap-1">
         <div className="flex items-center gap-2">
-          <button
-            onClick={toggleDark}
-            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-1"
-            aria-label="Toggle theme"
-          >
+          <button onClick={toggleDark} className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-1" aria-label="Toggle theme">
             {dark ? <Sun size={16} /> : <Moon size={16} />}
           </button>
           <NotificationBell />
           {!collapsed && (
-            <button
-              onClick={signOut}
-              className="ml-auto p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-1"
-            >
+            <button onClick={signOut} className="ml-auto p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-1">
               <LogOut size={16} />
             </button>
           )}
