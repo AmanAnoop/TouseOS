@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Building, Copy, Eye, Flag, Shield, Users } from "lucide-react";
+import { PlatformBillingPanel } from "@/components/platform-admin/platform-billing-panel";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { Alert, Badge, Button, Card, EmptyState, Modal, PageHeader, StatCard, Tabs } from "@/components/ui";
@@ -53,7 +54,31 @@ export default function PlatformAdminPage() {
     reason: string;
     status: string;
     created_at: string;
+    suspended?: boolean;
+    target_display_name?: string | null;
+    profile_paused?: boolean;
   }>>([]);
+
+  async function suspendProfile(reportId: string, userId: string, suspend: boolean) {
+    const res = await fetch("/api/platform-admin/greekmatch-suspend", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reportId, userId, suspend }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.error ?? "Action failed");
+      return;
+    }
+    toast.success(suspend ? "Profile suspended" : "Profile reactivated");
+    setReports((prev) =>
+      prev.map((x) =>
+        x.id === reportId
+          ? { ...x, suspended: suspend, status: suspend ? "reviewed" : x.status, profile_paused: suspend }
+          : x,
+      ),
+    );
+  }
 
   async function viewAsChapter(orgId: string) {
     const res = await fetch("/api/platform-admin/impersonate", {
@@ -165,6 +190,7 @@ export default function PlatformAdminPage() {
       <Tabs
         tabs={[
           { id: "orgs", label: "Organizations", count: orgs.length },
+          { id: "billing", label: "Billing" },
           { id: "moderation", label: "GreekMatch reports", count: reports.filter((r) => r.status === "open").length || undefined },
         ]}
         active={tab}
@@ -173,6 +199,8 @@ export default function PlatformAdminPage() {
 
       {loading ? (
         <Card className="h-40 animate-pulse bg-surface-2 border-0">&nbsp;</Card>
+      ) : tab === "billing" ? (
+        <PlatformBillingPanel />
       ) : tab === "orgs" ? (
         orgs.length === 0 ? (
           <EmptyState icon={<Building size={24} />} title="No organizations" description="Orgs will appear here as chapters onboard." />
@@ -213,17 +241,40 @@ export default function PlatformAdminPage() {
                 <div>
                   <p className="text-sm font-semibold">{r.org_name}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Target user {r.resource_id.slice(0, 8)}… · {formatDate(r.created_at)}
+                    {r.target_display_name ?? `User ${r.resource_id.slice(0, 8)}…`}
+                    {" · "}
+                    {formatDate(r.created_at)}
                   </p>
                   <p className="text-sm mt-1">{r.reason}</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Badge label={r.status} color={r.status === "open" ? "yellow" : "green"} />
+                  {r.suspended && <Badge label="Suspended" color="red" />}
+                  {!r.suspended && (
+                    <Button
+                      size="sm"
+                      className="min-h-[44px] touch-manipulation"
+                      onClick={() => suspendProfile(r.id, r.resource_id, true)}
+                    >
+                      Suspend profile
+                    </Button>
+                  )}
+                  {r.suspended && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="min-h-[44px] touch-manipulation"
+                      onClick={() => suspendProfile(r.id, r.resource_id, false)}
+                    >
+                      Unsuspend
+                    </Button>
+                  )}
                   {r.status === "open" && (
                     <>
                       <Button
                         size="sm"
                         variant="secondary"
+                        className="min-h-[44px] touch-manipulation"
                         onClick={async () => {
                           const res = await fetch("/api/platform-admin/greekmatch-reports", {
                             method: "PATCH",
@@ -241,6 +292,7 @@ export default function PlatformAdminPage() {
                       <Button
                         size="sm"
                         variant="secondary"
+                        className="min-h-[44px] touch-manipulation"
                         onClick={async () => {
                           const res = await fetch("/api/platform-admin/greekmatch-reports", {
                             method: "PATCH",

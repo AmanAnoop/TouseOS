@@ -84,7 +84,7 @@ export function FeedComposer({ orgId, onPosted }: { orgId: string; onPosted?: ()
 
   if (!open) {
     return (
-      <Button size="sm" variant="secondary" icon={<Megaphone size={14} />} onClick={() => setOpen(true)} className="w-full">
+      <Button size="sm" variant="secondary" icon={<Megaphone size={14} />} onClick={() => setOpen(true)} className="w-full officer-touch">
         Post to feed
       </Button>
     );
