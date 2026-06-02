@@ -4,22 +4,36 @@ import { useState, useEffect, useCallback } from "react";
 import { AlertTriangle, Plus, Scale } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
-import { Badge, Button, Card, EmptyState,
+import {
+  Badge, Button, Card, EmptyState, Input,
   Modal, PageHeader, Select, StatCard, Tabs, Textarea,
 } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
 
+interface RestorativeAction {
+  action: string;
+  dueDate?: string;
+  completed?: boolean;
+}
+
 interface StandardsCase {
   id: string;
+  respondent_id: string | null;
   respondent_name: string | null;
   case_type: string;
   description: string;
   status: string;
   sanctions: string[];
+  restorative_actions: RestorativeAction[];
   hearing_date: string | null;
   resolved_at: string | null;
   notes: string | null;
   created_at: string;
+}
+
+interface Member {
+  id: string;
+  full_name: string;
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -30,16 +44,31 @@ const STATUS_COLOR: Record<string, string> = {
   closed: "gray",
 };
 
+const SANCTION_OPTIONS = [
+  "Written warning",
+  "Probation",
+  "Social suspension",
+  "Fine",
+  "Service hours",
+  "Education module",
+  "Loss of privileges",
+];
+
 export default function StandardsPage() {
   const supabase = createClient();
   const [cases, setCases] = useState<StandardsCase[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [orgId, setOrgId] = useState<string | null>(null);
   const [tab, setTab] = useState("open");
   const [createOpen, setCreateOpen] = useState(false);
   const [selected, setSelected] = useState<StandardsCase | null>(null);
+  const [sanctionInput, setSanctionInput] = useState("");
+  const [restorativeForm, setRestorativeForm] = useState({ action: "", dueDate: "" });
+  const [editNotes, setEditNotes] = useState("");
 
   const [form, setForm] = useState({
+    respondentId: "",
     respondentName: "",
     caseType: "conduct",
     description: "",
@@ -49,12 +78,25 @@ export default function StandardsPage() {
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
-    const { data } = await supabase
-      .from("standards_cases")
-      .select("*")
-      .eq("org_id", oid)
-      .order("created_at", { ascending: false });
-    setCases((data ?? []) as StandardsCase[]);
+    const [{ data: caseData }, { data: memberData }] = await Promise.all([
+      supabase
+        .from("standards_cases")
+        .select("*")
+        .eq("org_id", oid)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("member_profiles")
+        .select("id, full_name")
+        .eq("org_id", oid)
+        .eq("membership_status", "active")
+        .order("full_name"),
+    ]);
+    setCases((caseData ?? []).map((c) => ({
+      ...c,
+      sanctions: c.sanctions ?? [],
+      restorative_actions: (c.restorative_actions ?? []) as RestorativeAction[],
+    })) as StandardsCase[]);
+    setMembers((memberData ?? []) as Member[]);
     setLoading(false);
   }, [supabase]);
 
@@ -68,39 +110,108 @@ export default function StandardsPage() {
     init();
   }, [supabase, load]);
 
+  useEffect(() => {
+    if (selected) setEditNotes(selected.notes ?? "");
+  }, [selected]);
+
   async function createCase() {
     if (!orgId || !form.description) return;
-    const { error } = await supabase.from("standards_cases").insert({
-      org_id: orgId,
-      respondent_name: form.respondentName || null,
-      case_type: form.caseType,
-      description: form.description,
-      hearing_date: form.hearingDate || null,
-      notes: form.notes || null,
-      status: "open",
+    const member = members.find((m) => m.id === form.respondentId);
+    const res = await fetch("/api/standards/cases", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        respondentId: form.respondentId || null,
+        respondentName: member?.full_name ?? (form.respondentName || null),
+        caseType: form.caseType,
+        description: form.description,
+        hearingDate: form.hearingDate || null,
+        notes: form.notes || null,
+      }),
     });
-    if (error) { toast.error(error.message); return; }
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.error ?? "Could not create case");
+      return;
+    }
     toast.success("Case created");
     setCreateOpen(false);
-    setForm({ respondentName: "", caseType: "conduct", description: "", hearingDate: "", notes: "" });
+    setForm({ respondentId: "", respondentName: "", caseType: "conduct", description: "", hearingDate: "", notes: "" });
     load(orgId);
   }
 
+  async function patchCase(updates: Record<string, unknown>) {
+    if (!orgId || !selected) return;
+    const res = await fetch("/api/standards/cases", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ caseId: selected.id, orgId, ...updates }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.error ?? "Update failed");
+      return;
+    }
+    setCases((prev) => prev.map((c) => (c.id === selected.id ? { ...c, ...data } : c)));
+    setSelected({ ...selected, ...data });
+    toast.success("Case updated");
+  }
+
   async function updateStatus(id: string, status: string) {
-    const updates: Record<string, unknown> = { status };
-    if (status === "resolved" || status === "closed") updates.resolved_at = new Date().toISOString();
-    await supabase.from("standards_cases").update(updates).eq("id", id);
-    setCases((prev) => prev.map((c) => c.id === id ? { ...c, ...updates } : c));
-    toast.success(`Case ${status}`);
-    setSelected(null);
+    if (!orgId) return;
+    const res = await fetch("/api/standards/cases", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ caseId: id, orgId, status }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.error ?? "Update failed");
+      return;
+    }
+    setCases((prev) => prev.map((c) => (c.id === id ? { ...c, ...data } : c)));
+    if (selected?.id === id) setSelected({ ...selected, ...data });
+    toast.success(`Case ${status.replace("_", " ")}`);
+    if (status === "closed" || status === "resolved") setSelected(null);
+  }
+
+  function addSanction(label: string) {
+    if (!selected || !label) return;
+    const next = [...new Set([...(selected.sanctions ?? []), label])];
+    patchCase({ sanctions: next });
+    setSanctionInput("");
+  }
+
+  function removeSanction(label: string) {
+    if (!selected) return;
+    patchCase({ sanctions: (selected.sanctions ?? []).filter((s) => s !== label) });
+  }
+
+  function addRestorative() {
+    if (!selected || !restorativeForm.action.trim()) return;
+    const next = [
+      ...(selected.restorative_actions ?? []),
+      { action: restorativeForm.action.trim(), dueDate: restorativeForm.dueDate || undefined, completed: false },
+    ];
+    patchCase({ restorativeActions: next });
+    setRestorativeForm({ action: "", dueDate: "" });
+  }
+
+  function toggleRestorative(index: number) {
+    if (!selected) return;
+    const next = (selected.restorative_actions ?? []).map((r, i) =>
+      i === index ? { ...r, completed: !r.completed } : r,
+    );
+    patchCase({ restorativeActions: next });
   }
 
   const filtered = cases.filter((c) =>
     tab === "all" || c.status === tab || (tab === "open" && ["open", "hearing_scheduled"].includes(c.status)),
   );
 
-  const open = cases.filter((c) => ["open","hearing_scheduled"].includes(c.status)).length;
-  const resolved = cases.filter((c) => ["resolved","closed"].includes(c.status)).length;
+  const open = cases.filter((c) => ["open", "hearing_scheduled"].includes(c.status)).length;
+  const resolved = cases.filter((c) => ["resolved", "closed"].includes(c.status)).length;
 
   return (
     <div className="space-y-5">
@@ -127,7 +238,7 @@ export default function StandardsPage() {
       />
 
       {loading ? (
-        <div className="space-y-2">{[1,2,3].map((i) => <Card key={i} className="h-16 animate-pulse bg-surface-2 border-0">&nbsp;</Card>)}</div>
+        <div className="space-y-2">{[1, 2, 3].map((i) => <Card key={i} className="h-16 animate-pulse bg-surface-2 border-0">&nbsp;</Card>)}</div>
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={<Scale size={24} />}
@@ -158,6 +269,9 @@ export default function StandardsPage() {
                   <div className="flex items-center gap-3 mt-1">
                     <span className="text-xs text-muted-foreground">Opened {formatDate(c.created_at)}</span>
                     {c.hearing_date && <span className="text-xs text-blue-600">Hearing: {formatDate(c.hearing_date)}</span>}
+                    {(c.sanctions?.length ?? 0) > 0 && (
+                      <span className="text-xs text-red-600">{c.sanctions.length} sanction(s)</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -166,7 +280,6 @@ export default function StandardsPage() {
         </div>
       )}
 
-      {/* Create modal */}
       <Modal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
@@ -180,10 +293,22 @@ export default function StandardsPage() {
         }
       >
         <div className="space-y-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium">Respondent name (optional — leave blank for anonymous)</label>
-            <input className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" value={form.respondentName} onChange={(e) => setForm({ ...form, respondentName: e.target.value })} />
-          </div>
+          <Select
+            label="Respondent (member)"
+            value={form.respondentId}
+            onChange={(e) => setForm({ ...form, respondentId: e.target.value, respondentName: "" })}
+            options={[
+              { value: "", label: "Anonymous / not listed" },
+              ...members.map((m) => ({ value: m.id, label: m.full_name })),
+            ]}
+          />
+          {!form.respondentId && (
+            <Input
+              label="Respondent name (if not on roster)"
+              value={form.respondentName}
+              onChange={(e) => setForm({ ...form, respondentName: e.target.value })}
+            />
+          )}
           <Select label="Case type" value={form.caseType} onChange={(e) => setForm({ ...form, caseType: e.target.value })} options={[
             { value: "conduct", label: "Conduct" },
             { value: "attendance", label: "Attendance violation" },
@@ -191,20 +316,16 @@ export default function StandardsPage() {
             { value: "other", label: "Other" },
           ]} />
           <Textarea label="Description *" placeholder="Describe the situation..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="min-h-[100px]" />
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium">Hearing date (optional)</label>
-            <input type="date" className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" value={form.hearingDate} onChange={(e) => setForm({ ...form, hearingDate: e.target.value })} />
-          </div>
+          <Input label="Hearing date (optional)" type="date" value={form.hearingDate} onChange={(e) => setForm({ ...form, hearingDate: e.target.value })} />
           <Textarea label="Notes" placeholder="Internal notes..." value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
         </div>
       </Modal>
 
-      {/* Case detail modal */}
       <Modal
         open={!!selected}
         onClose={() => setSelected(null)}
         title={selected ? `Case: ${selected.respondent_name ?? "Anonymous"}` : ""}
-        size="md"
+        size="lg"
         footer={
           <div className="flex gap-2 flex-wrap w-full">
             {selected?.status === "open" && (
@@ -233,24 +354,61 @@ export default function StandardsPage() {
               <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold mb-1">Description</p>
               <p className="text-sm text-foreground whitespace-pre-wrap">{selected.description}</p>
             </div>
-            {selected.notes && (
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold mb-1">Notes</p>
-                <p className="text-sm text-foreground">{selected.notes}</p>
+
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold mb-2">Sanctions</p>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {(selected.sanctions ?? []).map((s) => (
+                  <button key={s} type="button" onClick={() => removeSanction(s)} className="inline-flex">
+                    <Badge label={`${s} ×`} color="red" />
+                  </button>
+                ))}
               </div>
-            )}
+              <div className="flex gap-2 flex-wrap">
+                <Select
+                  value={sanctionInput}
+                  onChange={(e) => setSanctionInput(e.target.value)}
+                  options={[{ value: "", label: "Add sanction..." }, ...SANCTION_OPTIONS.map((s) => ({ value: s, label: s }))]}
+                />
+                <Button size="sm" variant="secondary" onClick={() => addSanction(sanctionInput)} disabled={!sanctionInput}>
+                  Add
+                </Button>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold mb-2">Restorative actions</p>
+              <div className="space-y-2 mb-2">
+                {(selected.restorative_actions ?? []).map((r, i) => (
+                  <label key={`${r.action}-${i}`} className="flex items-start gap-2 text-sm">
+                    <input type="checkbox" checked={Boolean(r.completed)} onChange={() => toggleRestorative(i)} />
+                    <span className={r.completed ? "line-through text-muted-foreground" : ""}>
+                      {r.action}
+                      {r.dueDate ? ` (due ${formatDate(r.dueDate)})` : ""}
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Input placeholder="Action (e.g. apology letter)" value={restorativeForm.action} onChange={(e) => setRestorativeForm({ ...restorativeForm, action: e.target.value })} />
+                <Input type="date" value={restorativeForm.dueDate} onChange={(e) => setRestorativeForm({ ...restorativeForm, dueDate: e.target.value })} />
+                <Button size="sm" onClick={addRestorative} disabled={!restorativeForm.action.trim()}>Add</Button>
+              </div>
+            </div>
+
+            <Textarea
+              label="Internal notes"
+              value={editNotes}
+              onChange={(e) => setEditNotes(e.target.value)}
+              onBlur={() => {
+                if (editNotes !== (selected.notes ?? "")) patchCase({ notes: editNotes });
+              }}
+            />
+
             {selected.hearing_date && (
               <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400 text-sm">
                 <AlertTriangle size={14} />
                 Hearing scheduled: {formatDate(selected.hearing_date)}
-              </div>
-            )}
-            {selected.sanctions?.length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold mb-1">Sanctions</p>
-                <div className="flex flex-wrap gap-2">
-                  {selected.sanctions.map((s) => <Badge key={s} label={s} color="red" />)}
-                </div>
               </div>
             )}
           </div>

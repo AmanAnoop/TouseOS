@@ -38,6 +38,49 @@ export async function createPaymentLink(opts: {
   return session;
 }
 
+export async function createPhilanthropyCheckout(opts: {
+  campaignId: string;
+  orgId: string;
+  campaignTitle: string;
+  amount: number;
+  slug: string;
+  donorName?: string;
+  donorEmail?: string;
+  message?: string;
+  isAnonymous?: boolean;
+}) {
+  const session = await stripe.checkout.sessions.create({
+    payment_method_types: ["card"],
+    line_items: [
+      {
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: `Donation – ${opts.campaignTitle}`,
+          },
+          unit_amount: Math.round(opts.amount * 100),
+        },
+        quantity: 1,
+      },
+    ],
+    mode: "payment",
+    success_url: `${process.env.NEXT_PUBLIC_APP_URL}/donate/${opts.slug}?success=1`,
+    cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/donate/${opts.slug}?cancelled=1`,
+    customer_email: opts.donorEmail || undefined,
+    metadata: {
+      type: "philanthropy",
+      campaignId: opts.campaignId,
+      orgId: opts.orgId,
+      donorName: opts.isAnonymous ? "Anonymous" : (opts.donorName ?? "Guest"),
+      donorEmail: opts.donorEmail ?? "",
+      message: opts.message ?? "",
+      isAnonymous: opts.isAnonymous ? "true" : "false",
+    },
+  });
+
+  return session;
+}
+
 export async function createDonationLink(opts: {
   campaignId: string;
   campaignTitle: string;

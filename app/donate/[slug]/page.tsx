@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
-import { Heart } from "lucide-react";
+import { useParams, useSearchParams } from "next/navigation";
+import { CreditCard, Heart } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { Button, Card, Input, PageHeader, ProgressBar, Textarea } from "@/components/ui";
@@ -10,12 +10,22 @@ import { formatCurrency } from "@/lib/utils";
 
 export default function PublicDonatePage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const slug = params.slug as string;
   const supabase = createClient();
   const [campaign, setCampaign] = useState<Record<string, unknown> | null>(null);
   const [form, setForm] = useState({ amount: "", donorName: "", donorEmail: "", message: "", isAnonymous: false });
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("success") === "1") {
+      toast.success("Thank you! Your card payment was received.");
+    }
+    if (searchParams.get("cancelled") === "1") {
+      toast("Checkout cancelled", { icon: "ℹ️" });
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     async function load() {
@@ -31,7 +41,31 @@ export default function PublicDonatePage() {
     load();
   }, [supabase, slug]);
 
-  async function donate() {
+  async function donateWithCard() {
+    if (!campaign || !form.amount) return;
+    setSubmitting(true);
+    const res = await fetch("/api/philanthropy/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        campaignId: campaign.id,
+        amount: form.amount,
+        donorName: form.donorName,
+        donorEmail: form.donorEmail,
+        message: form.message,
+        isAnonymous: form.isAnonymous,
+      }),
+    });
+    setSubmitting(false);
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.error ?? "Checkout failed");
+      return;
+    }
+    if (data.url) window.location.href = data.url;
+  }
+
+  async function recordManualDonation() {
     if (!campaign || !form.amount) return;
     setSubmitting(true);
     const res = await fetch("/api/philanthropy/donate", {
@@ -89,9 +123,15 @@ export default function PublicDonatePage() {
             <input type="checkbox" checked={form.isAnonymous} onChange={(e) => setForm({ ...form, isAnonymous: e.target.checked })} />
             Donate anonymously
           </label>
-          <Button className="w-full" icon={<Heart size={14} />} loading={submitting} onClick={donate}>
-            Donate
+          <Button className="w-full" icon={<CreditCard size={14} />} loading={submitting} onClick={donateWithCard}>
+            Pay with card
           </Button>
+          <Button className="w-full" variant="secondary" icon={<Heart size={14} />} loading={submitting} onClick={recordManualDonation}>
+            Record cash / check (manual)
+          </Button>
+          <p className="text-xs text-muted-foreground text-center">
+            Card payments are processed securely via Stripe. Manual entries are for offline gifts logged by the chapter.
+          </p>
         </Card>
       </div>
     </div>

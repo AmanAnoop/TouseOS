@@ -68,6 +68,7 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
   const [dark, setDark] = useState(false);
   const [orgOpen, setOrgOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [platformAdmin, setPlatformAdmin] = useState(false);
   const { count: unreadCount } = useUnreadNotifications();
 
   const isSports = orgType === "club_sports";
@@ -78,6 +79,13 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
     const isDark = pref === "dark" || (!pref && window.matchMedia("(prefers-color-scheme: dark)").matches);
     setDark(isDark);
     document.documentElement.classList.toggle("dark", isDark);
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/platform-admin/check")
+      .then((r) => r.json())
+      .then((d) => setPlatformAdmin(Boolean(d.ok)))
+      .catch(() => setPlatformAdmin(false));
   }, []);
 
   function toggleDark() {
@@ -153,6 +161,7 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
     { href: "/vendors", label: "Vendor Memory", icon: <Building size={18} /> },
     { href: "/ai-assistant", label: "AI Assistant ✨", icon: <Zap size={18} /> },
     { href: "/admin", label: "Admin Dashboard", icon: <Settings size={18} /> },
+    ...(platformAdmin ? [{ href: "/platform-admin", label: "Platform admin", icon: <Shield size={18} /> }] : []),
     { href: "/settings", label: "Settings", icon: <Settings size={18} /> },
   ];
 
