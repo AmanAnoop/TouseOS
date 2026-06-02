@@ -129,7 +129,14 @@ export default function SharedWorkspacePage() {
           <div className="space-y-2 mt-3 mb-3">
             {ws.shared_tasks.map((t) => (
               <div key={t.id} className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={t.done} readOnly className="rounded" />
+                <input
+                  type="checkbox"
+                  checked={t.done}
+                  className="rounded cursor-pointer"
+                  onChange={async () => {
+                    await patch({ taskToggle: { id: t.id, done: !t.done } });
+                  }}
+                />
                 <span className={t.done ? "line-through text-muted-foreground" : ""}>{t.title}</span>
               </div>
             ))}

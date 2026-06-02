@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
+import { SemesterRewindButton } from "@/components/event-memories/semester-rewind-button";
 import { formatDate } from "@/lib/utils";
-import { Calendar, Camera, Clock, Download, Image } from "lucide-react";
+import { Calendar, Camera, Clock, Image } from "lucide-react";
 
 export const metadata = { title: "Event Memories" };
 export const dynamic = "force-dynamic";
@@ -12,8 +13,14 @@ export default async function EventMemoriesPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
+  const { data: m } = await supabase
+    .from("org_members")
+    .select("org_id, organizations(name)")
+    .eq("user_id", user.id)
+    .limit(1)
+    .single();
   if (!m) redirect("/onboarding");
+  const orgName = String((m.organizations as { name?: string } | null)?.name ?? "chapter");
 
   const [eventsRes, albumsRes] = await Promise.all([
     supabase.from("events").select("id, title, type, starts_at, ends_at, cover_image_url").eq("org_id", m.org_id).lt("starts_at", new Date().toISOString()).order("starts_at", { ascending: false }).limit(20),
@@ -111,10 +118,7 @@ export default async function EventMemoriesPage() {
                 Auto-generate a PDF recap with top photos, stats, and highlights from {events.length} events.
               </p>
             </div>
-            <button className="flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white rounded-xl px-4 py-2 text-sm font-semibold transition-colors flex-shrink-0">
-              <Download size={16} />
-              Generate
-            </button>
+            <SemesterRewindButton orgId={m.org_id} orgName={orgName} eventCount={events.length} />
           </div>
         </Card>
       )}

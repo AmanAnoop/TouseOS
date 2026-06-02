@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
-  const { orgId, title, description, priority, dueDate, assigneeName, tags } = body;
+  const { orgId, title, description, priority, dueDate, assigneeName, tags, isRecurring } = body;
 
   const { data, error } = await supabase.from("tasks").insert({
     org_id: orgId,
@@ -40,6 +40,7 @@ export async function POST(request: Request) {
     assignee_name: assigneeName || null,
     status: "todo",
     tags: tags ?? [],
+    is_recurring: Boolean(isRecurring),
   }).select().single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

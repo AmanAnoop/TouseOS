@@ -105,6 +105,11 @@ supabase/migrations/008_phase3_engagement.sql
 supabase/migrations/009_phase4_sports_interchapter_push.sql
 supabase/migrations/010_notification_preferences.sql
 supabase/migrations/011_payment_plans_rls.sql
+supabase/migrations/012_parent_pay_hardship_recurring.sql
+supabase/migrations/013_rush_interest_matcher.sql
+supabase/migrations/014_pnm_relationships_rls.sql
+supabase/migrations/015_onboarding_rpc.sql          # required for create/join org
+supabase/migrations/016_feature_fixes_rls.sql     # forms, waivers, housing RLS
 ```
 
 ### 3. Environment variables

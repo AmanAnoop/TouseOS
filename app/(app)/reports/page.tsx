@@ -85,10 +85,16 @@ export default function ReportsPage() {
           break;
         }
         case "attendance": {
-          const { data } = await supabase.from("event_rsvps").select("*, events(title, starts_at), member_profiles(full_name)").eq(
-            "event_id",
-            supabase.from("events").select("id").eq("org_id", orgId)
-          );
+          const { data: orgEvents } = await supabase.from("events").select("id").eq("org_id", orgId);
+          const eventIds = (orgEvents ?? []).map((e) => e.id);
+          if (eventIds.length === 0) {
+            downloadCsv(`${orgName}-attendance.csv`, []);
+            break;
+          }
+          const { data } = await supabase
+            .from("event_rsvps")
+            .select("*, events(title, starts_at), member_profiles(full_name)")
+            .in("event_id", eventIds);
           downloadCsv(`${orgName}-attendance.csv`, (data ?? []).map((r: Record<string, unknown>) => ({
             Member: (r.member_profiles as Record<string, unknown>)?.full_name ?? "—",
             Event: (r.events as Record<string, unknown>)?.title ?? "—",

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
 import { AlertTriangle, CheckCircle2, Plus, Shield } from "lucide-react";
 import toast from "react-hot-toast";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -62,17 +61,52 @@ export default function RiskPage() {
   });
   const [selectedEventId, setSelectedEventId] = useState("");
   const [notes, setNotes] = useState("");
+  const [incidents, setIncidents] = useState<Array<Record<string, unknown>>>([]);
+  const [incidentOpen, setIncidentOpen] = useState(false);
+  const [incidentForm, setIncidentForm] = useState({
+    description: "",
+    severity: "medium",
+    isAnonymous: false,
+    reportType: "general",
+    involvedParties: "",
+  });
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
-    const [ckRes, evRes] = await Promise.all([
+    const [ckRes, evRes, incRes] = await Promise.all([
       supabase.from("risk_checklists").select("*").eq("org_id", oid).order("created_at", { ascending: false }),
       supabase.from("events").select("id, title, starts_at").eq("org_id", oid).gte("starts_at", new Date().toISOString()).order("starts_at").limit(20),
+      fetch(`/api/incidents?org_id=${oid}`).then((r) => (r.ok ? r.json() : [])),
     ]);
     setChecklists((ckRes.data ?? []) as RiskChecklist[]);
     setEvents((evRes.data ?? []) as Array<{ id: string; title: string; starts_at: string }>);
+    setIncidents(Array.isArray(incRes) ? incRes : []);
     setLoading(false);
   }, [supabase]);
+
+  async function fileIncident() {
+    if (!orgId || !incidentForm.description.trim()) return;
+    const res = await fetch("/api/incidents", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        description: incidentForm.description,
+        severity: incidentForm.severity,
+        isAnonymous: incidentForm.isAnonymous,
+        reportType: incidentForm.reportType,
+        involvedParties: incidentForm.involvedParties || null,
+      }),
+    });
+    if (!res.ok) {
+      toast.error((await res.json()).error ?? "Failed to file report");
+      return;
+    }
+    toast.success("Incident report filed");
+    setIncidentOpen(false);
+    setIncidentForm({ description: "", severity: "medium", isAnonymous: false, reportType: "general", involvedParties: "" });
+    load(orgId);
+  }
 
   useEffect(() => {
     async function init() {
@@ -193,17 +227,101 @@ export default function RiskPage() {
       )}
 
       <Card>
-        <CardHeader title="Incident reports" description="File and track risk incidents" icon={<AlertTriangle size={16} />}
-          action={<Link href="/api/incidents" className="text-xs text-greek-600 hover:underline">View all</Link>} />
-        <div className="space-y-2">
-          {["Anonymous report", "Officer-only report", "Standards referral"].map((type) => (
-            <div key={type} className="flex items-center justify-between p-3 border border-border rounded-lg">
-              <p className="text-sm font-medium">{type}</p>
-              <Button size="sm" variant="secondary">File report</Button>
-            </div>
-          ))}
-        </div>
+        <CardHeader
+          title="Incident reports"
+          description="File and track risk incidents"
+          icon={<AlertTriangle size={16} />}
+          action={
+            <Button size="sm" variant="secondary" onClick={() => setIncidentOpen(true)}>
+              File report
+            </Button>
+          }
+        />
+        {incidents.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No incidents filed yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {incidents.slice(0, 8).map((inc) => (
+              <div key={String(inc.id)} className="p-3 border border-border rounded-lg">
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <Badge label={String(inc.severity)} color={inc.severity === "critical" ? "red" : inc.severity === "high" ? "orange" : "yellow"} />
+                  <Badge label={String(inc.status)} color="gray" />
+                  {Boolean(inc.is_anonymous) && <Badge label="Anonymous" color="blue" />}
+                </div>
+                <p className="text-sm line-clamp-2">{String(inc.description)}</p>
+                <p className="text-xs text-muted-foreground mt-1">{formatDate(String(inc.created_at))}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
+
+      <Modal
+        open={incidentOpen}
+        onClose={() => setIncidentOpen(false)}
+        title="File incident report"
+        size="lg"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIncidentOpen(false)}>Cancel</Button>
+            <Button onClick={fileIncident}>Submit report</Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium">Report type</label>
+            <select
+              className="h-9 rounded-lg border border-border bg-background px-3 text-sm"
+              value={incidentForm.reportType}
+              onChange={(e) => setIncidentForm({ ...incidentForm, reportType: e.target.value })}
+            >
+              <option value="general">General incident</option>
+              <option value="anonymous">Anonymous report</option>
+              <option value="standards_referral">Standards referral</option>
+            </select>
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={incidentForm.isAnonymous || incidentForm.reportType === "anonymous"}
+              onChange={(e) => setIncidentForm({ ...incidentForm, isAnonymous: e.target.checked })}
+              disabled={incidentForm.reportType === "anonymous"}
+            />
+            <span className="text-sm">Submit anonymously</span>
+          </label>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium">Severity</label>
+            <select
+              className="h-9 rounded-lg border border-border bg-background px-3 text-sm"
+              value={incidentForm.severity}
+              onChange={(e) => setIncidentForm({ ...incidentForm, severity: e.target.value })}
+            >
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="critical">Critical</option>
+            </select>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium">Description *</label>
+            <textarea
+              className="min-h-[100px] w-full rounded-lg border border-border bg-background px-3 py-2 text-sm resize-none"
+              value={incidentForm.description}
+              onChange={(e) => setIncidentForm({ ...incidentForm, description: e.target.value })}
+              placeholder="Describe what happened..."
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium">Involved parties (optional)</label>
+            <textarea
+              className="min-h-[60px] w-full rounded-lg border border-border bg-background px-3 py-2 text-sm resize-none"
+              value={incidentForm.involvedParties}
+              onChange={(e) => setIncidentForm({ ...incidentForm, involvedParties: e.target.value })}
+            />
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         open={createOpen}

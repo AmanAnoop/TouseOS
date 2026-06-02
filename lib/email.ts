@@ -86,6 +86,36 @@ export async function sendBulkEmail(options: {
   return { sent, failed, mode: "live" };
 }
 
+export async function sendInviteEmail(options: {
+  to: string;
+  orgName: string;
+  inviteCode: string;
+  appUrl?: string;
+}): Promise<{ sent: boolean; mode: "live" | "log" }> {
+  const base = options.appUrl ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const html = `
+    <p style="font-family:sans-serif;font-size:14px;">You've been invited to join <strong>${options.orgName}</strong> on TouseOS.</p>
+    <p style="font-family:sans-serif;font-size:14px;">Sign up at <a href="${base}/signup">${base}/signup</a> and use invite code: <strong>${options.inviteCode}</strong></p>
+    <p style="font-family:sans-serif;font-size:14px;">Or go to onboarding: <a href="${base}/onboarding">${base}/onboarding</a></p>
+  `;
+  const resend = getResendClient();
+  if (!resend) {
+    console.info("[email:invite]", options.to, options.inviteCode);
+    return { sent: false, mode: "log" };
+  }
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to: options.to,
+      subject: `Invitation to join ${options.orgName} on TouseOS`,
+      html,
+    });
+    return { sent: true, mode: "live" };
+  } catch {
+    return { sent: false, mode: "log" };
+  }
+}
+
 export function textToHtml(text: string): string {
   return text
     .split("\n")
