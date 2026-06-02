@@ -110,6 +110,7 @@ supabase/migrations/013_rush_interest_matcher.sql
 supabase/migrations/014_pnm_relationships_rls.sql
 supabase/migrations/015_onboarding_rpc.sql          # required for create/join org
 supabase/migrations/016_feature_fixes_rls.sql     # forms, waivers, housing RLS
+supabase/migrations/017_backlog_wave.sql          # coaching, NME, donations, social assets
 ```
 
 ### 3. Environment variables

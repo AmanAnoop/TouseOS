@@ -503,6 +503,8 @@ export interface PhilanthropyCampaign {
   beneficiary: string | null;
   start_date: string | null;
   end_date: string | null;
+  public_page_slug: string | null;
+  stripe_payment_link: string | null;
   is_active: boolean;
   created_at: string;
 }

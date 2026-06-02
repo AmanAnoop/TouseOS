@@ -29,7 +29,8 @@ interface Vote {
   title: string;
   description: string | null;
   status: string;
-  votes: Record<string, number>;
+  options: string[];
+  votes: Record<string, string>;
 }
 
 export default function GovernancePage() {
@@ -42,7 +43,8 @@ export default function GovernancePage() {
   const [meetingOpen, setMeetingOpen] = useState(false);
   const [voteOpen, setVoteOpen] = useState(false);
   const [form, setForm] = useState({ title: "", scheduledAt: "", location: "", agenda: "", quorumRequired: "0" });
-  const [voteForm, setVoteForm] = useState({ title: "", description: "" });
+  const [voteForm, setVoteForm] = useState({ title: "", description: "", options: "Yes, No, Abstain" });
+  const [userId, setUserId] = useState<string | null>(null);
 
   const load = useCallback(async (oid: string) => {
     const [mRes, vRes] = await Promise.all([
@@ -57,6 +59,7 @@ export default function GovernancePage() {
     async function init() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      setUserId(user.id);
       const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
       if (m) { setOrgId(m.org_id); load(m.org_id); }
     }
@@ -83,18 +86,53 @@ export default function GovernancePage() {
 
   async function createVote() {
     if (!orgId || !voteForm.title) return;
+    const options = voteForm.options.split(",").map((s) => s.trim()).filter(Boolean);
     const { error } = await supabase.from("governance_votes").insert({
       org_id: orgId,
       title: voteForm.title,
       description: voteForm.description || null,
       status: "open",
+      options: options.length ? options : ["Yes", "No", "Abstain"],
       votes: {},
     });
     if (error) { toast.error(error.message); return; }
     toast.success("Vote created");
     setVoteOpen(false);
-    setVoteForm({ title: "", description: "" });
+    setVoteForm({ title: "", description: "", options: "Yes, No, Abstain" });
     load(orgId);
+  }
+
+  function tallyVote(v: Vote) {
+    const options = v.options ?? ["Yes", "No", "Abstain"];
+    const counts: Record<string, number> = Object.fromEntries(options.map((o) => [o, 0]));
+    Object.values(v.votes ?? {}).forEach((choice) => {
+      if (counts[choice] !== undefined) counts[choice]++;
+    });
+    return counts;
+  }
+
+  async function castVote(voteId: string, option: string) {
+    const res = await fetch("/api/governance/votes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ voteId, option }),
+    });
+    if (!res.ok) {
+      toast.error((await res.json()).error ?? "Vote failed");
+      return;
+    }
+    toast.success("Vote recorded");
+    if (orgId) load(orgId);
+  }
+
+  async function closeVote(voteId: string) {
+    await fetch("/api/governance/votes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ voteId, action: "close" }),
+    });
+    toast.success("Vote closed");
+    if (orgId) load(orgId);
   }
 
   async function updateQuorum(id: string, present: number) {
@@ -155,13 +193,47 @@ export default function GovernancePage() {
           <EmptyState icon={<Gavel size={24} />} title="No active votes" action={<Button size="sm" onClick={() => setVoteOpen(true)}>Create vote</Button>} />
         ) : (
           <div className="space-y-3">
-            {votes.map((v) => (
-              <Card key={v.id}>
-                <p className="font-semibold">{v.title}</p>
-                {v.description && <p className="text-sm text-muted-foreground mt-1">{v.description}</p>}
-                <Badge label={v.status} color={v.status === "open" ? "blue" : "gray"} className="mt-2" />
-              </Card>
-            ))}
+            {votes.map((v) => {
+              const options = v.options ?? ["Yes", "No", "Abstain"];
+              const counts = tallyVote(v);
+              const myBallot = userId ? v.votes?.[userId] : undefined;
+              return (
+                <Card key={v.id}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-semibold">{v.title}</p>
+                      {v.description && <p className="text-sm text-muted-foreground mt-1">{v.description}</p>}
+                    </div>
+                    <Badge label={v.status} color={v.status === "open" ? "blue" : "gray"} />
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {options.map((opt) => (
+                      <span key={opt} className="text-xs bg-surface-1 px-2 py-1 rounded border border-border">
+                        {opt}: <strong>{counts[opt] ?? 0}</strong>
+                      </span>
+                    ))}
+                  </div>
+                  {v.status === "open" && (
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {options.map((opt) => (
+                        <Button
+                          key={opt}
+                          size="sm"
+                          variant={myBallot === opt ? "primary" : "secondary"}
+                          onClick={() => castVote(v.id, opt)}
+                        >
+                          {opt}
+                        </Button>
+                      ))}
+                      {can("manage_org_settings") && (
+                        <Button size="sm" variant="ghost" onClick={() => closeVote(v.id)}>Close vote</Button>
+                      )}
+                    </div>
+                  )}
+                  {myBallot && <p className="text-xs text-muted-foreground mt-2">Your vote: {myBallot}</p>}
+                </Card>
+              );
+            })}
           </div>
         )
       )}
@@ -180,6 +252,7 @@ export default function GovernancePage() {
         <div className="space-y-3">
           <Input label="Motion / question" value={voteForm.title} onChange={(e) => setVoteForm({ ...voteForm, title: e.target.value })} />
           <Textarea label="Description" value={voteForm.description} onChange={(e) => setVoteForm({ ...voteForm, description: e.target.value })} />
+          <Input label="Options (comma-separated)" value={voteForm.options} onChange={(e) => setVoteForm({ ...voteForm, options: e.target.value })} />
         </div>
       </Modal>
     </div>
