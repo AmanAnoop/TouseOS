@@ -10,7 +10,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
-import { Button, Input, Card } from "@/components/ui";
+import { Alert, Button, Input, Card } from "@/components/ui";
+import { getSupabaseEnvStatus } from "@/lib/supabase/env-status";
 
 const schema = z.object({
   email: z.string().email("Valid email required"),
@@ -24,6 +25,7 @@ function LoginForm() {
   const next = searchParams.get("next") ?? "/dashboard";
   const supabase = createClient();
   const [loading, setLoading] = useState(false);
+  const envStatus = getSupabaseEnvStatus();
 
   const {
     register,
@@ -37,7 +39,10 @@ function LoginForm() {
     setLoading(false);
 
     if (error) {
-      toast.error(error.message);
+      const msg = error.message.includes("fetch failed")
+        ? "Cannot reach Supabase. Check NEXT_PUBLIC_SUPABASE_URL and your API key in .env.local, then restart npm run dev."
+        : error.message;
+      toast.error(msg);
     } else {
       router.push(next);
       router.refresh();
@@ -47,11 +52,15 @@ function LoginForm() {
   return (
     <Card>
       <div className="mb-6">
-        <h1 className="text-xl font-bold text-foreground">Welcome back</h1>
+        <h1 className="font-display text-2xl font-semibold text-navy">Welcome back</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Sign in to your TouseOS workspace.
         </p>
       </div>
+
+      {!envStatus.configured && envStatus.message && (
+        <Alert type="error" title="Supabase not configured" description={envStatus.message} className="mb-4" />
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
         <Input
@@ -62,22 +71,21 @@ function LoginForm() {
           error={errors.email?.message}
           {...register("email")}
         />
-        <Input
-          label="Password"
-          type="password"
-          placeholder="••••••••"
-          autoComplete="current-password"
-          error={errors.password?.message}
-          {...register("password")}
-          trailing={
-            <Link
-              href="/forgot-password"
-              className="text-xs text-greek-600 hover:underline"
-            >
-              Forgot?
+        <div>
+          <Input
+            label="Password"
+            type="password"
+            placeholder="••••••••"
+            autoComplete="current-password"
+            error={errors.password?.message}
+            {...register("password")}
+          />
+          <div className="flex justify-end mt-1">
+            <Link href="/forgot-password" className="text-xs text-racing hover:text-gold transition-colors">
+              Forgot password?
             </Link>
-          }
-        />
+          </div>
+        </div>
 
         <Button type="submit" loading={loading} className="w-full mt-1">
           Sign in
@@ -86,7 +94,7 @@ function LoginForm() {
 
       <p className="text-center text-sm text-muted-foreground mt-5">
         No account?{" "}
-        <Link href="/signup" className="text-greek-600 font-medium hover:underline">
+        <Link href="/signup" className="text-racing font-medium hover:text-gold transition-colors">
           Create one
         </Link>
       </p>

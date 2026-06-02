@@ -18,7 +18,7 @@ export function AppShell({ org, orgs, profile, children }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen overflow-hidden bg-parchment">
       <ServiceWorkerRegister />
       {/* Desktop sidebar */}
       <div className="hidden lg:flex flex-shrink-0">
@@ -34,7 +34,7 @@ export function AppShell({ org, orgs, profile, children }: AppShellProps) {
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 lg:hidden flex">
           <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            className="absolute inset-0 bg-navy/60 backdrop-blur-sm"
             onClick={() => setSidebarOpen(false)}
           />
           <div className="relative z-10 flex">

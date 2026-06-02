@@ -85,7 +85,7 @@ export default function SharedWorkspacePage() {
 
   return (
     <div className="space-y-5">
-      <Link href="/interchapter" className="inline-flex items-center gap-1 text-sm text-greek-600 hover:underline">
+      <Link href="/interchapter" className="inline-flex items-center gap-1 text-sm text-racing hover:underline">
         <ArrowLeft size={14} /> Back to ExecLink
       </Link>
 

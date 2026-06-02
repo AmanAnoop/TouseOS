@@ -212,8 +212,8 @@ export default function InterchapterPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Zap size={16} className="text-greek-600" />
-            <span className="text-xs font-bold text-greek-600 uppercase tracking-wide">ExecLink</span>
+            <Zap size={16} className="text-racing" />
+            <span className="text-xs font-bold text-racing uppercase tracking-wide">ExecLink</span>
           </div>
           <h1 className="text-2xl font-bold text-foreground">Touse Exchange</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Coordinate mixers, philanthropy, and events with other chapters</p>
@@ -225,14 +225,14 @@ export default function InterchapterPage() {
       </div>
 
       {incoming.length > 0 && (
-        <div className="p-4 rounded-xl bg-greek-50 dark:bg-greek-950/30 border border-greek-200 dark:border-greek-800">
+        <div className="p-4 rounded-xl bg-racing-50 border border-racing-200 dark:border-racing-800">
           <div className="flex items-center gap-2 mb-3">
-            <Zap size={16} className="text-greek-600" />
-            <p className="font-semibold text-greek-700 dark:text-greek-400">{incoming.length} incoming proposal{incoming.length > 1 ? "s" : ""}</p>
+            <Zap size={16} className="text-racing" />
+            <p className="font-semibold text-racing-700">{incoming.length} incoming proposal{incoming.length > 1 ? "s" : ""}</p>
           </div>
           <div className="space-y-2">
             {incoming.map((p) => (
-              <button key={p.id} onClick={() => setSelectedProposal(p)} className="w-full flex items-center justify-between p-3 rounded-lg bg-card border border-border hover:border-greek-300 transition-colors text-left">
+              <button key={p.id} onClick={() => setSelectedProposal(p)} className="w-full flex items-center justify-between p-3 rounded-lg bg-card border border-border hover:border-racing-300 transition-colors text-left">
                 <div>
                   <p className="text-sm font-medium">{p.event_name}</p>
                   <p className="text-xs text-muted-foreground capitalize">{p.event_type.replace("_", " ")}</p>
@@ -273,10 +273,10 @@ export default function InterchapterPage() {
               const isIncoming = p.target_org_id === orgId;
               const statusColor: Record<string, string> = { pending: "yellow", accepted: "green", declined: "red", counter_proposed: "blue", cancelled: "gray" };
               return (
-                <Card key={p.id} onClick={() => setSelectedProposal(p)} className="cursor-pointer hover:border-greek-300 transition-colors">
+                <Card key={p.id} onClick={() => setSelectedProposal(p)} className="cursor-pointer hover:border-racing-300 transition-colors">
                   <div className="flex items-start gap-3">
-                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${isIncoming ? "bg-greek-50 dark:bg-greek-950/30" : "bg-blue-50 dark:bg-blue-950/30"}`}>
-                      <Calendar size={16} className={isIncoming ? "text-greek-600" : "text-blue-600"} />
+                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${isIncoming ? "bg-racing-50" : "bg-blue-50"}`}>
+                      <Calendar size={16} className={isIncoming ? "text-racing" : "text-blue-600"} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -308,8 +308,8 @@ export default function InterchapterPage() {
                     onClick={() => upvoteIdea(idea.id, idea.upvotes)}
                     className="flex flex-col items-center gap-0.5 p-2 rounded-lg hover:bg-surface-1 transition-colors flex-shrink-0"
                   >
-                    <ThumbsUp size={14} className="text-greek-600" />
-                    <span className="text-xs font-bold text-greek-600">{idea.upvotes}</span>
+                    <ThumbsUp size={14} className="text-racing" />
+                    <span className="text-xs font-bold text-racing">{idea.upvotes}</span>
                   </button>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -429,7 +429,7 @@ export default function InterchapterPage() {
             {selectedProposal.venue_ideas && <div><p className="text-xs text-muted-foreground mb-1">Venue ideas</p><p className="text-sm">{selectedProposal.venue_ideas}</p></div>}
             {selectedProposal.philanthropy_beneficiary && <div><p className="text-xs text-muted-foreground mb-1">Philanthropy beneficiary</p><p className="text-sm">{selectedProposal.philanthropy_beneficiary}</p></div>}
             {selectedProposal.status === "accepted" && (
-              <a href={`/interchapter/workspace?proposal=${selectedProposal.id}`} className="text-sm text-greek-600 hover:underline block mt-2">Open shared workspace →</a>
+              <a href={`/interchapter/workspace?proposal=${selectedProposal.id}`} className="text-sm text-racing hover:underline block mt-2">Open shared workspace →</a>
             )}
           </div>
         )}

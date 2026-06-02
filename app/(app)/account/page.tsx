@@ -237,7 +237,7 @@ export default function AccountPage() {
             <Button onClick={changePassword} loading={saving} disabled={!passwordForm.password} className="mt-3">Change password</Button>
           </Card>
 
-          <Card className="border-red-200 dark:border-red-900">
+          <Card className="border-red-200">
             <CardHeader title="Security" icon={<Shield size={16} className="text-red-500" />} />
             <p className="text-sm text-muted-foreground mb-3">Sign out from all devices for extra security.</p>
             <Button variant="secondary" onClick={async () => {
@@ -278,7 +278,7 @@ export default function AccountPage() {
             orgMemberships.map((m) => (
               <Card key={m.id} padding="sm">
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-greek-50 dark:bg-greek-950/30 flex items-center justify-center text-greek-700 font-bold flex-shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-racing-50 flex items-center justify-center text-racing-700 font-bold flex-shrink-0">
                     {m.org.name.slice(0, 2).toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -302,7 +302,7 @@ export default function AccountPage() {
           )}
           <p className="text-xs text-center text-muted-foreground">
             To join another organization, go to{" "}
-            <a href="/onboarding" className="text-greek-600 hover:underline">Onboarding</a> and enter an invite code.
+            <a href="/onboarding" className="text-racing hover:underline">Onboarding</a> and enter an invite code.
           </p>
         </div>
       )}

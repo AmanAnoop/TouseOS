@@ -137,7 +137,7 @@ export function PaymentDetailModal({ open, onClose, orgId, payment, onRefresh, c
             href={p.receipt_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 text-sm text-greek-600 hover:underline"
+            className="inline-flex items-center gap-2 text-sm text-racing hover:underline"
           >
             <ExternalLink size={14} />
             View Stripe receipt

@@ -200,7 +200,7 @@ export default function PnmPage() {
               </div>
               <div className="space-y-2">
                 {stageLeads.map((lead) => (
-                  <Card key={lead.id} padding="sm" className="cursor-pointer hover:border-greek-300 transition-colors">
+                  <Card key={lead.id} padding="sm" className="cursor-pointer hover:border-racing-300 transition-colors">
                     <div className="flex items-center gap-2">
                       <Avatar name={lead.full_name} size="sm" />
                       <div className="flex-1 min-w-0">
@@ -299,7 +299,7 @@ export default function PnmPage() {
                   <Badge label={String(count)} color={STATUS_COLOR[stage] as "green"} />
                 </div>
                 <div className="mt-2 h-2 rounded-full bg-surface-2">
-                  <div className="h-full rounded-full bg-greek-500" style={{ width: `${pct}%` }} />
+                  <div className="h-full rounded-full bg-racing-500" style={{ width: `${pct}%` }} />
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">{pct}% of pipeline</p>
               </Card>
@@ -376,7 +376,7 @@ export default function PnmPage() {
                   key={l.id}
                   type="button"
                   onClick={() => setMatcherPnmId(l.id)}
-                  className={`w-full text-left p-2 rounded-lg text-sm transition-colors ${matcherPnmId === l.id ? "bg-greek-100 dark:bg-greek-950/40 font-medium" : "hover:bg-surface-1"}`}
+                  className={`w-full text-left p-2 rounded-lg text-sm transition-colors ${matcherPnmId === l.id ? "bg-racing-100 font-medium" : "hover:bg-surface-1"}`}
                 >
                   {l.full_name}
                   {l.interests?.length > 0 && (
@@ -426,7 +426,7 @@ export default function PnmPage() {
         }
       >
         <div className="space-y-4">
-          <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 text-sm text-yellow-800 dark:text-yellow-300">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
             <strong>Consent required.</strong> Only opted-in PNMs will receive messages. STOP/HELP handling is automatic. Quiet hours apply (9pm–9am).
           </div>
           <div className="flex flex-col gap-1.5">

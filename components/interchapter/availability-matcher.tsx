@@ -72,7 +72,7 @@ export function AvailabilityMatcher({
           </div>
           <div className="flex flex-wrap gap-2">
             {dates.map((d) => (
-              <span key={d} className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-greek-50 border border-greek-200 text-xs">
+              <span key={d} className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-racing-50 border border-racing-200 text-xs">
                 {formatDate(d)}
                 <button onClick={() => setDates((prev) => prev.filter((x) => x !== d))}>
                   <X size={12} />

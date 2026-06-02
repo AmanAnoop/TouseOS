@@ -6,6 +6,7 @@ import {
   MoreHorizontal, Plus, User,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { usePermissions } from "@/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
 import { Button, Card, EmptyState, Input, Modal,
   PageHeader, Select, StatCard, Tabs, Textarea,
@@ -17,6 +18,7 @@ import { TaskDetailPanel } from "@/components/tasks/task-detail-panel";
 
 export default function TasksPage() {
   const supabase = createClient();
+  const { can, loading: permLoading } = usePermissions();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [orgId, setOrgId] = useState<string | null>(null);
@@ -27,6 +29,8 @@ export default function TasksPage() {
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [detailTask, setDetailTask] = useState<Task | null>(null);
   const [userName, setUserName] = useState("");
+
+  const canManageTasks = !permLoading && (can("manage_org_settings") || can("manage_events"));
 
   const [form, setForm] = useState({
     title: "", description: "", priority: "medium" as TaskPriority, isRecurring: false,
@@ -144,12 +148,12 @@ export default function TasksPage() {
           <div className="flex gap-2">
             <button
               onClick={() => setFilter((f) => f === "all" ? "mine" : "all")}
-              className={`flex items-center gap-1.5 h-9 px-3 rounded-lg text-sm border transition-colors ${filter === "mine" ? "bg-greek-50 border-greek-300 text-greek-700" : "border-border text-muted-foreground hover:bg-surface-1"}`}
+              className={`flex items-center gap-1.5 h-9 px-3 rounded-lg text-sm border transition-colors ${filter === "mine" ? "bg-racing-50 border-racing-300 text-racing-700" : "border-border text-muted-foreground hover:bg-surface-1"}`}
             >
               <User size={14} />
               {filter === "mine" ? "My tasks" : "All tasks"}
             </button>
-            <Button size="sm" icon={<Plus size={14} />} onClick={() => { setEditTask(null); setCreateOpen(true); }}>
+            <Button size="sm" icon={<Plus size={14} />} onClick={() => { setEditTask(null); setCreateOpen(true); }} disabled={!canManageTasks}>
               New task
             </Button>
           </div>
@@ -157,7 +161,7 @@ export default function TasksPage() {
       />
 
       {overdue.length > 0 && (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-sm">
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
           <AlertCircle size={16} className="flex-shrink-0" />
           <span><strong>{overdue.length} task{overdue.length > 1 ? "s" : ""}</strong> overdue — {overdue.map((t) => t.title).join(", ")}</span>
         </div>
@@ -221,7 +225,7 @@ export default function TasksPage() {
               {[1,2,3,4,5].map((i) => <div key={i} className="h-10 bg-surface-2 rounded animate-pulse" />)}
             </div>
           ) : filtered.length === 0 ? (
-            <EmptyState icon={<CheckCircle2 size={24} />} title="No tasks" action={<Button size="sm" onClick={() => setCreateOpen(true)}>Create task</Button>} />
+            <EmptyState icon={<CheckCircle2 size={24} />} title="No tasks" action={canManageTasks ? <Button size="sm" onClick={() => setCreateOpen(true)}>Create task</Button> : undefined} />
           ) : (
             <div className="divide-y divide-border">
               {[...byStatus.in_progress, ...byStatus.todo, ...byStatus.done].map((task) => (

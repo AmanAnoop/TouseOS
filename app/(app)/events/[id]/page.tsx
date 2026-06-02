@@ -107,7 +107,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
 
           {/* Countdown */}
           {isUpcoming && (
-            <div className="flex items-center justify-center gap-6 py-3 rounded-xl bg-greek-50 dark:bg-greek-950/30">
+            <div className="flex items-center justify-center gap-6 py-3 rounded-xl bg-racing-50">
               <CountdownBlock event={event} />
             </div>
           )}
@@ -191,7 +191,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
                   <Music size={15} className="text-muted-foreground" />
                 </div>
                 <a href={String(event.playlist_url)} target="_blank" rel="noopener noreferrer"
-                  className="text-sm text-greek-600 hover:underline flex items-center gap-1">
+                  className="text-sm text-racing hover:underline flex items-center gap-1">
                   Event playlist
                   <ExternalLink size={12} />
                 </a>
@@ -218,7 +218,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
                   .filter((r: Record<string, unknown>) => r.status === "going")
                   .slice(0, 12)
                   .map((r: Record<string, unknown>) => (
-                    <div key={String(r.id)} className="w-9 h-9 rounded-full bg-greek-100 dark:bg-greek-950/40 flex items-center justify-center text-xs font-bold text-greek-700">
+                    <div key={String(r.id)} className="w-9 h-9 rounded-full bg-racing-100 flex items-center justify-center text-xs font-bold text-racing-700">
                       {String(r.guest_name ?? "?")[0]?.toUpperCase()}
                     </div>
                   ))}
@@ -282,7 +282,7 @@ function CountdownBlock({ event }: { event: Record<string, unknown> }) {
 function CountdownUnit({ value, label }: { value: number; label: string }) {
   return (
     <div className="text-center">
-      <p className="text-2xl font-bold text-greek-700 dark:text-greek-400 tabular-nums">{value}</p>
+      <p className="text-2xl font-bold text-racing-700 tabular-nums">{value}</p>
       <p className="text-xs text-muted-foreground">{label}</p>
     </div>
   );

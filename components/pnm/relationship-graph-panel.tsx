@@ -139,9 +139,9 @@ export function RelationshipGraphPanel({ orgId, pnm, members }: RelationshipGrap
       />
 
       {followUp?.member_profiles && (
-        <div className="mb-4 p-3 rounded-lg bg-greek-50 dark:bg-greek-950/30 border border-greek-200 dark:border-greek-800">
+        <div className="mb-4 p-3 rounded-lg bg-racing-50 border border-racing-200 dark:border-racing-800">
           <p className="text-xs text-muted-foreground mb-1">Follow-up owner</p>
-          <Link href={`/roster/${followUp.member_profiles.id}`} className="text-sm font-medium text-greek-700 dark:text-greek-300 hover:underline">
+          <Link href={`/roster/${followUp.member_profiles.id}`} className="text-sm font-medium text-racing-700 hover:underline">
             {followUp.member_profiles.full_name}
           </Link>
         </div>

@@ -240,11 +240,11 @@ export default function ReimbursementsPage() {
             <label className="text-sm font-medium block mb-1.5">Receipt</label>
             <div
               onClick={() => fileRef.current?.click()}
-              className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors ${receiptFile ? "border-greek-400 bg-greek-50 dark:bg-greek-950/20" : "border-border hover:border-greek-300"}`}
+              className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors ${receiptFile ? "border-racing-400 bg-racing-50" : "border-border hover:border-racing-300"}`}
             >
               {receiptFile ? (
                 <div className="flex items-center justify-center gap-2">
-                  <Receipt size={16} className="text-greek-600" />
+                  <Receipt size={16} className="text-racing" />
                   <p className="text-sm font-medium text-foreground">{receiptFile.name}</p>
                   <button onClick={(e) => { e.stopPropagation(); setReceiptFile(null); }} className="text-muted-foreground hover:text-red-500">
                     <X size={14} />
@@ -301,13 +301,13 @@ export default function ReimbursementsPage() {
               <div className="p-2 bg-surface-1 rounded"><p className="text-xs text-muted-foreground">Date</p><p className="text-sm font-medium">{formatDate(selected.created_at)}</p></div>
             </div>
             {selected.receipt_url && (
-              <a href={selected.receipt_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-greek-600 hover:underline p-3 rounded-lg border border-border">
+              <a href={selected.receipt_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-racing hover:underline p-3 rounded-lg border border-border">
                 <Receipt size={16} />
                 View receipt
               </a>
             )}
             {selected.rejection_reason && (
-              <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 text-sm text-red-700">
+              <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
                 Rejection reason: {selected.rejection_reason}
               </div>
             )}

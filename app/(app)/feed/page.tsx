@@ -50,9 +50,9 @@ export default async function FeedPage() {
   return (
     <div className="max-w-xl mx-auto space-y-4">
       <div className="text-center py-2">
-        <div className="inline-flex items-center gap-2 bg-greek-50 dark:bg-greek-950/30 rounded-full px-4 py-1.5">
-          <div className="w-2 h-2 rounded-full bg-greek-500 animate-pulse" />
-          <span className="text-sm font-semibold text-greek-700 dark:text-greek-400">{orgName} · Private Feed</span>
+        <div className="inline-flex items-center gap-2 bg-racing-50 rounded-full px-4 py-1.5">
+          <div className="w-2 h-2 rounded-full bg-racing-500 animate-pulse" />
+          <span className="text-sm font-semibold text-racing-700">{orgName} · Private Feed</span>
         </div>
       </div>
 
@@ -71,8 +71,8 @@ export default async function FeedPage() {
               return (
                 <Card key={item.id} className={isPinned ? "border-yellow-300 dark:border-yellow-700" : ""}>
                   <div className="flex items-start gap-3">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${isPinned ? "bg-yellow-50 dark:bg-yellow-950/30" : "bg-greek-50 dark:bg-greek-950/30"}`}>
-                      {isPinned ? <Star size={16} className="text-yellow-500 fill-yellow-500" /> : <Bell size={16} className="text-greek-600" />}
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${isPinned ? "bg-yellow-50 dark:bg-yellow-950/30" : "bg-racing-50"}`}>
+                      {isPinned ? <Star size={16} className="text-yellow-500 fill-yellow-500" /> : <Bell size={16} className="text-racing" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -91,15 +91,15 @@ export default async function FeedPage() {
               const e = item.data;
               return (
                 <a key={item.id} href={`/events/${String(e.id)}`}>
-                  <Card className="hover:border-greek-300 transition-colors cursor-pointer overflow-hidden p-0">
+                  <Card className="hover:border-racing-300 transition-colors cursor-pointer overflow-hidden p-0">
                     {Boolean(e.cover_image_url) && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={String(e.cover_image_url)} alt={String(e.title)} className="w-full h-36 object-cover" />
                     )}
                     <div className="p-4">
                       <div className="flex items-center gap-2 mb-1">
-                        <Zap size={14} className="text-greek-600" />
-                        <span className="text-xs font-semibold text-greek-600 uppercase tracking-wide">Upcoming event</span>
+                        <Zap size={14} className="text-racing" />
+                        <span className="text-xs font-semibold text-racing uppercase tracking-wide">Upcoming event</span>
                       </div>
                       <p className="font-bold text-foreground">{String(e.title)}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">{new Date(String(e.starts_at)).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</p>
@@ -118,7 +118,7 @@ export default async function FeedPage() {
                   <div className="p-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-greek-100 dark:bg-greek-950/50 flex items-center justify-center text-xs font-bold text-greek-700">
+                        <div className="w-7 h-7 rounded-full bg-racing-100 flex items-center justify-center text-xs font-bold text-racing-700">
                           {String(p.uploader_name ?? "?")[0]?.toUpperCase()}
                         </div>
                         <p className="text-sm font-medium">{String(p.uploader_name ?? "Member")}</p>

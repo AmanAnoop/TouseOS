@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { LogOut, Shield } from "lucide-react";
 import toast from "react-hot-toast";
+import { usePermissions } from "@/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import {
@@ -15,6 +16,7 @@ import { MemberRolesPanel, type OrgMemberWithProfile } from "@/components/settin
 
 export default function SettingsPage() {
   const supabase = createClient();
+  const { can, loading: permLoading } = usePermissions();
   const router = useRouter();
   const [tab, setTab] = useState("profile");
   const [orgId, setOrgId] = useState<string | null>(null);
@@ -64,7 +66,8 @@ export default function SettingsPage() {
     init();
   }, [supabase]);
 
-  const isAdmin = ["owner", "president", "advisor"].includes(myRole);
+  const canManageSettings = !permLoading && can("manage_org_settings");
+  const isAdmin = canManageSettings || ["owner", "president", "advisor"].includes(myRole);
   const activeMembers = members.filter((m) => m.status !== "removed");
 
   async function saveOrgProfile() {
@@ -236,7 +239,7 @@ export default function SettingsPage() {
                   <p className="text-xs text-muted-foreground mt-0.5">{integration.description}</p>
                   <p className="text-xs font-mono text-muted-foreground mt-1 bg-surface-2 px-2 py-0.5 rounded">{integration.config}</p>
                 </div>
-                <a href={integration.docsUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-greek-600 hover:underline flex-shrink-0">Docs</a>
+                <a href={integration.docsUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-racing hover:underline flex-shrink-0">Docs</a>
               </div>
             </Card>
           ))}
@@ -252,10 +255,10 @@ export default function SettingsPage() {
           </Card>
 
           {isAdmin && (
-            <Card className="border-red-200 dark:border-red-900">
+            <Card className="border-red-200">
               <CardHeader title="Danger zone" description="Irreversible actions. Proceed carefully." icon={<Shield size={16} className="text-red-500" />} />
               <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 rounded-lg border border-red-200 dark:border-red-900">
+                <div className="flex items-center justify-between p-3 rounded-lg border border-red-200">
                   <div>
                     <p className="text-sm font-medium text-foreground">Archive organization</p>
                     <p className="text-xs text-muted-foreground">Hides the org from member view. Data is preserved.</p>

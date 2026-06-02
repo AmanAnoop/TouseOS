@@ -215,7 +215,7 @@ export default function SocialPage() {
 
       {uploadProgress > 0 && (
         <div className="w-full h-1.5 bg-surface-2 rounded-full">
-          <div className="h-full bg-greek-500 rounded-full transition-all" style={{ width: `${uploadProgress}%` }} />
+          <div className="h-full bg-racing-500 rounded-full transition-all" style={{ width: `${uploadProgress}%` }} />
         </div>
       )}
 
@@ -235,7 +235,7 @@ export default function SocialPage() {
                 <button
                   key={album.id}
                   onClick={() => { setSelectedAlbum(album); setTab("photos"); }}
-                  className="aspect-video relative rounded-xl overflow-hidden bg-greek-100 dark:bg-greek-950/30 hover:scale-105 transition-transform text-left"
+                  className="aspect-video relative rounded-xl overflow-hidden bg-racing-100 hover:scale-105 transition-transform text-left"
                 >
                   {album.cover_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -373,7 +373,7 @@ export default function SocialPage() {
               >
                 <img src={photo.url} alt={photo.caption ?? ""} className="w-full h-full object-cover" />
                 {selectedPhotos.includes(photo.id) && (
-                  <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-greek-500 flex items-center justify-center text-white text-xs font-bold">
+                  <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-racing-500 flex items-center justify-center text-white text-xs font-bold">
                     {selectedPhotos.indexOf(photo.id) + 1}
                   </div>
                 )}

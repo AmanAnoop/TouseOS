@@ -71,7 +71,7 @@ export function JointBudgetSplitter({
         )}
         {totalNum > 0 && (
           <div className="grid sm:grid-cols-2 gap-3">
-            <div className="p-4 rounded-lg border border-greek-200 bg-greek-50 dark:bg-greek-950/20">
+            <div className="p-4 rounded-lg border border-racing-200 bg-racing-50">
               <p className="text-xs text-muted-foreground">{orgAName}</p>
               <p className="text-xl font-bold text-foreground">{formatCurrency(shareA)}</p>
               <Badge label={`${pctA}%`} color="blue" className="mt-1" />

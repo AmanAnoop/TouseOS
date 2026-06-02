@@ -5,6 +5,7 @@ import {
   Mail, Plus, Send,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { usePermissions } from "@/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
 import {
   Alert, Button, Card,
@@ -17,12 +18,14 @@ import { CommsAnalyticsPanel } from "@/components/comms/comms-analytics-panel";
 
 export default function CommsPage() {
   const supabase = createClient();
+  const { can, loading: permLoading } = usePermissions();
   const [tab, setTab] = useState("announcements");
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [orgId, setOrgId] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<{ name: string } | null>(null);
   const [composeOpen, setComposeOpen] = useState(false);
+  const canSendComms = !permLoading && can("send_mass_texts");
   const [emailBlastOpen, setEmailBlastOpen] = useState(false);
   const [query, setQuery] = useState("");
 
@@ -145,7 +148,7 @@ export default function CommsPage() {
             <Button variant="secondary" size="sm" icon={<Mail size={14} />} onClick={() => setEmailBlastOpen(true)}>
               Email blast
             </Button>
-            <Button size="sm" icon={<Plus size={14} />} onClick={() => setComposeOpen(true)}>
+            <Button size="sm" icon={<Plus size={14} />} onClick={() => setComposeOpen(true)} disabled={!canSendComms}>
               Announcement
             </Button>
           </div>
@@ -184,13 +187,13 @@ export default function CommsPage() {
             { name: "Welcome new members", body: "Please join us in welcoming our new members to the chapter! We're so excited to have you 🎉" },
             { name: "Emergency broadcast", body: "🚨 IMPORTANT CHAPTER UPDATE: [Message]. Please respond immediately and check your email for more details." },
           ].map((template) => (
-            <Card key={template.name} padding="sm" className="cursor-pointer hover:border-greek-300 transition-colors" onClick={() => {
+            <Card key={template.name} padding="sm" className="cursor-pointer hover:border-racing-300 transition-colors" onClick={() => {
               setDraft({ ...draft, body: template.body, title: template.name });
               setComposeOpen(true);
             }}>
               <p className="font-semibold text-sm text-foreground">{template.name}</p>
               <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{template.body}</p>
-              <p className="text-xs text-greek-600 mt-2">Use template →</p>
+              <p className="text-xs text-racing mt-2">Use template →</p>
             </Card>
           ))}
         </div>

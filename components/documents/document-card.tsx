@@ -36,7 +36,7 @@ interface DocumentCardProps {
 export function DocumentCard({ doc, onDelete, onViewVersions }: DocumentCardProps) {
   const showDelete = Boolean(onDelete);
   return (
-    <Card padding="sm" className="group hover:border-greek-300 transition-colors">
+    <Card padding="sm" className="group hover:border-racing-300 transition-colors">
       <div className="flex items-start gap-3">
         <div className="w-9 h-9 rounded-lg bg-surface-1 border border-border flex items-center justify-center flex-shrink-0">
           {fileIcon(doc.mime_type)}

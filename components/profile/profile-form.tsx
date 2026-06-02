@@ -72,7 +72,7 @@ export function ProfileForm({ form, saving, onChange, onToggleInterest, onSave }
               className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
                 form.interests.includes(interest)
                   ? "bg-greek-600 text-white border-greek-600"
-                  : "border-border text-muted-foreground hover:border-greek-400"
+                  : "border-border text-muted-foreground hover:border-racing-400"
               }`}
             >
               {interest}

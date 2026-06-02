@@ -53,9 +53,9 @@ export function TreasurerDashboard({ payments, planCount }: TreasurerDashboardPr
         <Card padding="sm">
           <CardHeader title="Quick links" icon={<Calendar size={14} />} />
           <div className="flex flex-col gap-1 text-sm">
-            <Link href="/payments/plan" className="text-greek-600 hover:underline">Payment plans →</Link>
-            <Link href="/budget" className="text-greek-600 hover:underline">Budget & reimbursements →</Link>
-            <Link href="/reports" className="text-greek-600 hover:underline">Export finance reports →</Link>
+            <Link href="/payments/plan" className="text-racing hover:underline">Payment plans →</Link>
+            <Link href="/budget" className="text-racing hover:underline">Budget & reimbursements →</Link>
+            <Link href="/reports" className="text-racing hover:underline">Export finance reports →</Link>
           </div>
         </Card>
       </div>

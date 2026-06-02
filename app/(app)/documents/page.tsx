@@ -198,7 +198,7 @@ export default function DocumentsPage() {
         <div className="space-y-4">
           <div
             onClick={() => fileRef.current?.click()}
-            className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${selectedFile ? "border-greek-400 bg-greek-50 dark:bg-greek-950/20" : "border-border hover:border-greek-300"}`}
+            className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${selectedFile ? "border-racing-400 bg-racing-50" : "border-border hover:border-racing-300"}`}
           >
             <Upload size={24} className="mx-auto text-muted-foreground mb-2" />
             {selectedFile ? (

@@ -41,7 +41,7 @@ export function EventPnlPanel({ rows }: EventPnlPanelProps) {
             {rows.map((r) => (
               <tr key={r.eventId} className="border-b border-border/60 last:border-0">
                 <td className="py-2.5 pr-3">
-                  <Link href={`/events/${r.eventId}`} className="font-medium text-greek-600 hover:underline">
+                  <Link href={`/events/${r.eventId}`} className="font-medium text-racing hover:underline">
                     {r.title}
                   </Link>
                 </td>

@@ -29,7 +29,7 @@ export function PushSettingsPanel({ compact }: PushSettingsPanelProps) {
       <CardHeader
         title="Browser push"
         description="Get alerts even when TouseOS is in the background"
-        icon={push.subscribed ? <BellRing size={16} className="text-greek-600" /> : <Bell size={16} />}
+        icon={push.subscribed ? <BellRing size={16} className="text-racing" /> : <Bell size={16} />}
         action={<Badge label={statusLabel} color={statusColor} dot />}
       />
 

@@ -175,8 +175,8 @@ export default function BigLittlePage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <div className="w-10 h-10 rounded-full bg-greek-50 dark:bg-greek-950/30 flex items-center justify-center">
-                      <span className="text-xs font-bold text-greek-700">{score}%</span>
+                    <div className="w-10 h-10 rounded-full bg-racing-50 flex items-center justify-center">
+                      <span className="text-xs font-bold text-racing-700">{score}%</span>
                     </div>
                     <Button size="sm" onClick={() => {
                       setSelectedBig(big.id);
@@ -270,8 +270,8 @@ export default function BigLittlePage() {
             </select>
           </div>
           {selectedBig && selectedLittle && (
-            <div className="p-3 bg-greek-50 dark:bg-greek-950/30 rounded-lg">
-              <p className="text-sm font-semibold text-greek-700">
+            <div className="p-3 bg-racing-50 rounded-lg">
+              <p className="text-sm font-semibold text-racing-700">
                 Compatibility: {computeMatchScore(
                   members.find((m) => m.id === selectedBig)!,
                   members.find((m) => m.id === selectedLittle)!,

@@ -173,7 +173,7 @@ export default function NotificationsPage() {
             <div
               key={n.id}
               onClick={() => { if (!n.read_at) markRead(n.id); if (n.link) window.location.href = n.link; }}
-              className={`flex items-start gap-3 p-4 rounded-xl border transition-colors cursor-pointer ${n.read_at ? "bg-card border-border" : "bg-greek-50 dark:bg-greek-950/20 border-greek-200 dark:border-greek-800"}`}
+              className={`flex items-start gap-3 p-4 rounded-xl border transition-colors cursor-pointer ${n.read_at ? "bg-card border-border" : "bg-racing-50 border-racing-200 dark:border-racing-800"}`}
             >
               <span className="text-xl flex-shrink-0 mt-0.5">{TYPE_ICON[n.type] ?? TYPE_ICON.general}</span>
               <div className="flex-1 min-w-0">
@@ -187,7 +187,7 @@ export default function NotificationsPage() {
               {!n.read_at && (
                 <button
                   onClick={(e) => { e.stopPropagation(); markRead(n.id); }}
-                  className="flex-shrink-0 p-1 rounded-md text-muted-foreground hover:text-greek-600"
+                  className="flex-shrink-0 p-1 rounded-md text-muted-foreground hover:text-racing"
                 >
                   <Check size={14} />
                 </button>

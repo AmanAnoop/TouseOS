@@ -76,7 +76,7 @@ export default async function SocialAssetsPage() {
               <div className="flex items-center gap-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={String(org.logo_url)} alt="Logo" className="w-16 h-16 object-contain rounded-lg border border-border" />
-                <a href={String(org.logo_url)} download className="flex items-center gap-1 text-xs text-greek-600 hover:underline">
+                <a href={String(org.logo_url)} download className="flex items-center gap-1 text-xs text-racing hover:underline">
                   <Download size={12} />
                   Download
                 </a>
@@ -104,7 +104,7 @@ export default async function SocialAssetsPage() {
                 {cat.items.map((item) => (
                   <div key={item} className="flex items-center justify-between">
                     <span className="text-xs text-muted-foreground">{item}</span>
-                    <button className="text-xs text-greek-600 hover:underline">Use</button>
+                    <button className="text-xs text-racing hover:underline">Use</button>
                   </div>
                 ))}
               </div>
@@ -127,7 +127,7 @@ export default async function SocialAssetsPage() {
               href={tool.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex flex-col gap-1 p-3 rounded-xl border border-border hover:border-greek-300 hover:bg-surface-1 transition-colors"
+              className="flex flex-col gap-1 p-3 rounded-xl border border-border hover:border-racing-300 hover:bg-surface-1 transition-colors"
             >
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium text-foreground">{tool.name}</p>

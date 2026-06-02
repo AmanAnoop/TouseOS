@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Toaster } from "react-hot-toast";
+import { cormorant } from "@/lib/fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -11,7 +12,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#059669",
+  themeColor: "#0F2318",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -19,13 +20,14 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body>
+    <html lang="en" className={cormorant.variable} suppressHydrationWarning>
+      <body className="bg-parchment text-navy antialiased">
         {children}
         <Toaster
           position="top-right"
           toastOptions={{
-            className: "!bg-card !text-foreground !border !border-border !shadow-card-md !text-sm",
+            className:
+              "!bg-white !text-navy !border !border-[#E8E4DC] !shadow-card-md !text-sm !font-sans",
           }}
         />
       </body>

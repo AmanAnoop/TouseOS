@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { ClipboardList, Eye, Plus, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
+import { usePermissions } from "@/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
 import {
   Badge, Button, Card
@@ -94,11 +95,13 @@ const TEMPLATE_FORMS: Array<{ title: string; type: string; fields: FormField[] }
 
 export default function FormsPage() {
   const supabase = createClient();
+  const { can, loading: permLoading } = usePermissions();
   const [forms, setForms] = useState<FormTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [orgId, setOrgId] = useState<string | null>(null);
   const [tab, setTab] = useState("forms");
   const [createOpen, setCreateOpen] = useState(false);
+  const canManageForms = !permLoading && (can("manage_documents") || can("manage_org_settings"));
   const [previewForm, setPreviewForm] = useState<FormTemplate | null>(null);
 
   const [newForm, setNewForm] = useState({
@@ -189,7 +192,7 @@ export default function FormsPage() {
         title="Forms & Signatures"
         description="Build and manage waivers, consent forms, and required documents"
         action={
-          <Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>
+          <Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)} disabled={!canManageForms}>
             Build form
           </Button>
         }
@@ -218,7 +221,7 @@ export default function FormsPage() {
             icon={<ClipboardList size={24} />}
             title="No forms yet"
             description="Build custom forms or start from a template."
-            action={<Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>Build form</Button>}
+            action={canManageForms ? <Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>Build form</Button> : undefined}
           />
         ) : (
           <div className="space-y-2">
@@ -257,7 +260,7 @@ export default function FormsPage() {
           <p className="text-sm text-muted-foreground">Start from a pre-built template. You can customize after creating.</p>
           <div className="grid sm:grid-cols-2 gap-3">
             {TEMPLATE_FORMS.map((template) => (
-              <Card key={template.title} padding="sm" className="hover:border-greek-300 transition-colors">
+              <Card key={template.title} padding="sm" className="hover:border-racing-300 transition-colors">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-semibold text-sm">{template.title}</p>

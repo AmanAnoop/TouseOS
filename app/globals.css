@@ -1,68 +1,97 @@
+@import url("https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@400,500,600,700,800&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --surface-0: 0 0% 100%;
-    --surface-1: 220 14% 96%;
-    --surface-2: 220 13% 91%;
-    --background: 0 0% 100%;
-    --foreground: 222 47% 11%;
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 160 84% 39%;
-    --primary: 160 84% 39%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 222 47% 11%;
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
-    --accent: 220 14% 96%;
-    --accent-foreground: 222 47% 11%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-  }
+    --surface-0: 255 255 255;
+    --surface-1: 248 246 241;
+    --surface-2: 241 237 228;
 
-  .dark {
-    --surface-0: 222 47% 7%;
-    --surface-1: 222 47% 11%;
-    --surface-2: 222 47% 15%;
-    --background: 222 47% 7%;
-    --foreground: 210 40% 96%;
-    --card: 222 47% 9%;
-    --card-foreground: 210 40% 96%;
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 160 84% 39%;
-    --primary: 160 84% 39%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 96%;
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 217 33% 17%;
-    --accent-foreground: 210 40% 96%;
-    --destructive: 0 63% 55%;
-    --destructive-foreground: 0 0% 100%;
+    --background: 248 246 241;
+    --foreground: 10 22 40;
+
+    --card: 255 255 255;
+    --card-foreground: 10 22 40;
+
+    --border: 232 228 220;
+    --input: 232 228 220;
+    --ring: 27 77 46;
+
+    --primary: 27 77 46;
+    --primary-foreground: 255 255 255;
+
+    --secondary: 255 255 255;
+    --secondary-foreground: 10 22 40;
+
+    --muted: 241 237 228;
+    --muted-foreground: 107 114 128;
+
+    --accent: 201 168 76;
+    --accent-foreground: 10 22 40;
+
+    --destructive: 139 32 32;
+    --destructive-foreground: 255 255 255;
+
+    --radius: 0.5rem;
   }
 
   * {
-    border-color: hsl(var(--border));
-  }
-
-  body {
-    background-color: hsl(var(--background));
-    color: hsl(var(--foreground));
-    font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+    border-color: rgb(var(--border));
   }
 
   html {
     scroll-behavior: smooth;
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: light;
+  }
+
+  body {
+    background-color: rgb(var(--background));
+    color: rgb(var(--foreground));
+    font-family: "Cabinet Grotesk", ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: var(--font-display), "Cormorant Garamond", Georgia, serif;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+}
+
+@layer components {
+  .regal-sidebar {
+    background: linear-gradient(
+      180deg,
+      rgb(15 35 24) 0%,
+      rgb(12 28 20) 55%,
+      rgb(10 22 40) 100%
+    );
+    border-right: 1px solid rgb(26 61 40 / 0.6);
+  }
+
+  .regal-stat-card {
+    @apply rounded-lg border border-white/10 p-5;
+    background: linear-gradient(145deg, rgb(10 22 40) 0%, rgb(15 35 24) 100%);
+    box-shadow: 0 8px 32px rgb(10 22 40 / 0.2);
+  }
+
+  .regal-stat-card .stat-value {
+    @apply text-3xl font-display font-semibold text-gold tracking-tight;
+  }
+
+  .regal-stat-card .stat-label {
+    @apply text-sm text-white/70 font-medium;
   }
 }
 

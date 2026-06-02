@@ -74,7 +74,7 @@ export default async function NmePage() {
           <div className="space-y-2">
             {(modules.length > 0 ? modules : DEFAULT_MODULES.map((m, i) => ({ ...m, id: String(i), is_required: m.required, order_index: i }))).map((mod: Record<string, unknown>) => (
               <div key={String(mod.id)} className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-surface-1 transition-colors">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${mod.is_required ? "bg-greek-50 dark:bg-greek-950/30 text-greek-600" : "bg-surface-2 text-muted-foreground"}`}>
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${mod.is_required ? "bg-racing-50 text-racing" : "bg-surface-2 text-muted-foreground"}`}>
                   <BookOpen size={15} />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -117,12 +117,12 @@ export default async function NmePage() {
 
       <Card>
         <CardHeader title="Anti-hazing compliance" description="Every new member must acknowledge the anti-hazing policy" />
-        <div className="p-4 rounded-xl bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900">
+        <div className="p-4 rounded-xl bg-green-50 border border-green-200">
           <div className="flex items-start gap-3">
             <CheckCircle2 size={20} className="text-green-600 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="font-semibold text-sm text-green-800 dark:text-green-300">Anti-hazing acknowledgement active</p>
-              <p className="text-xs text-green-700 dark:text-green-400 mt-1">
+              <p className="font-semibold text-sm text-green-800">Anti-hazing acknowledgement active</p>
+              <p className="text-xs text-green-700 mt-1">
                 All new members are required to read and electronically sign the anti-hazing acknowledgement
                 before participating in any chapter activities. Records are stored and available for advisor review.
               </p>

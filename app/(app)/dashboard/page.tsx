@@ -303,7 +303,7 @@ export default async function DashboardPage() {
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Health breakdown */}
         <Card>
-          <CardHeader title="Organization health" icon={<Heart size={16} />} action={<Link href="/health" className="text-xs text-greek-600 hover:underline">Details</Link>} />
+          <CardHeader title="Organization health" icon={<Heart size={16} />} action={<Link href="/health" className="text-xs text-racing hover:underline">Details</Link>} />
           <div className="space-y-3">
             {Object.entries(breakdown).map(([key, val]) => (
               val !== undefined && (
@@ -321,7 +321,7 @@ export default async function DashboardPage() {
 
         {/* Compliance status */}
         <Card>
-          <CardHeader title="Compliance status" icon={<Shield size={16} />} action={<Link href="/forms" className="text-xs text-greek-600 hover:underline">Forms</Link>} />
+          <CardHeader title="Compliance status" icon={<Shield size={16} />} action={<Link href="/forms" className="text-xs text-racing hover:underline">Forms</Link>} />
           <div className="grid grid-cols-2 gap-3">
             {[
               { label: "Forms complete", ok: formsIncomplete === 0, detail: formsIncomplete === 0 ? "All members current" : `${formsIncomplete} incomplete` },
@@ -347,14 +347,14 @@ export default async function DashboardPage() {
         <UpcomingDeadlines items={deadlineItems} />
         {/* Upcoming events */}
         <Card>
-          <CardHeader title="Upcoming events" icon={<Calendar size={16} />} action={<Link href="/events" className="text-xs text-greek-600 hover:underline">View all</Link>} />
+          <CardHeader title="Upcoming events" icon={<Calendar size={16} />} action={<Link href="/events" className="text-xs text-racing hover:underline">View all</Link>} />
           {events.length === 0 ? (
-            <EmptyState icon={<Calendar size={20} />} title="No upcoming events" action={<Link href="/events/new" className="text-sm text-greek-600 hover:underline">Create event →</Link>} />
+            <EmptyState icon={<Calendar size={20} />} title="No upcoming events" action={<Link href="/events/new" className="text-sm text-racing hover:underline">Create event →</Link>} />
           ) : (
             <div className="space-y-3">
               {events.map((e) => (
                 <Link key={e.id} href={`/events/${e.id}`} className="flex items-start gap-3 hover:bg-surface-1 rounded-lg p-2 -mx-2 transition-colors">
-                  <div className="w-10 h-10 rounded-lg bg-greek-50 dark:bg-greek-950/30 flex items-center justify-center text-greek-600 flex-shrink-0">
+                  <div className="w-10 h-10 rounded-lg bg-racing-50 flex items-center justify-center text-racing flex-shrink-0">
                     <Calendar size={16} />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -370,7 +370,7 @@ export default async function DashboardPage() {
 
         {/* Announcements */}
         <Card>
-          <CardHeader title="Recent announcements" icon={<Zap size={16} />} action={<Link href="/comms" className="text-xs text-greek-600 hover:underline">View all</Link>} />
+          <CardHeader title="Recent announcements" icon={<Zap size={16} />} action={<Link href="/comms" className="text-xs text-racing hover:underline">View all</Link>} />
           {announcements.length === 0 ? (
             <EmptyState icon={<Zap size={20} />} title="No announcements" />
           ) : (
@@ -390,7 +390,7 @@ export default async function DashboardPage() {
 
         {/* Dues collection */}
         <Card>
-          <CardHeader title="Unpaid balances" icon={<DollarSign size={16} />} action={<Link href="/payments" className="text-xs text-greek-600 hover:underline">Manage</Link>} />
+          <CardHeader title="Unpaid balances" icon={<DollarSign size={16} />} action={<Link href="/payments" className="text-xs text-racing hover:underline">Manage</Link>} />
           <ProgressBar value={collectionRate} label={`${formatCurrency(totalCollected)} of ${formatCurrency(totalExpected)}`} color={collectionRate >= 75 ? "green" : collectionRate >= 50 ? "yellow" : "red"} size="md" />
           <div className="grid grid-cols-3 gap-3 text-center mt-4">
             {[
@@ -409,7 +409,7 @@ export default async function DashboardPage() {
 
         {/* Tasks + deadlines */}
         <Card>
-          <CardHeader title="Officer tasks & deadlines" icon={<CheckCircle2 size={16} />} action={<Link href="/tasks" className="text-xs text-greek-600 hover:underline">View all</Link>} />
+          <CardHeader title="Officer tasks & deadlines" icon={<CheckCircle2 size={16} />} action={<Link href="/tasks" className="text-xs text-racing hover:underline">View all</Link>} />
           {tasks.length === 0 ? (
             <EmptyState icon={<CheckCircle2 size={20} />} title="All caught up!" />
           ) : (
@@ -433,7 +433,7 @@ export default async function DashboardPage() {
 
         {/* Recent media */}
         <Card className="lg:col-span-2">
-          <CardHeader title="Recent photo activity" icon={<Image size={16} />} action={<Link href="/social" className="text-xs text-greek-600 hover:underline">Social hub</Link>} />
+          <CardHeader title="Recent photo activity" icon={<Image size={16} />} action={<Link href="/social" className="text-xs text-racing hover:underline">Social hub</Link>} />
           {photos.length === 0 ? (
             <EmptyState icon={<Image size={20} />} title="No recent photos" description="Upload event photos from the Social page." />
           ) : (
@@ -469,7 +469,7 @@ export default async function DashboardPage() {
               { href: "/standards", label: "Standards" }, { href: "/alumni", label: "Alumni CRM" },
               { href: "/philanthropy", label: "Philanthropy" }, { href: "/interchapter", label: "ExecLink" },
             ].map((link) => (
-              <Link key={link.href} href={link.href} className="text-sm font-medium text-greek-600 hover:underline p-2 rounded-lg hover:bg-surface-1">{link.label} →</Link>
+              <Link key={link.href} href={link.href} className="text-sm font-medium text-racing hover:underline p-2 rounded-lg hover:bg-surface-1">{link.label} →</Link>
             ))}
           </div>
         </Card>
