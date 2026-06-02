@@ -224,7 +224,7 @@ export default function NewEventPage() {
         <h3 className="text-sm font-semibold text-foreground flex items-center gap-2"><DollarSign size={15} />Finance</h3>
         <Input label="Event budget ($)" type="number" placeholder="500.00" value={form.budgetAmount} onChange={(e) => setForm({ ...form, budgetAmount: e.target.value })} />
 
-        <label className="flex items-start gap-3 cursor-pointer p-3 rounded-lg bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800">
+        <label className="flex items-start gap-3 cursor-pointer p-3 rounded-lg bg-yellow-50 border border-yellow-200">
           <input
             type="checkbox"
             className="rounded mt-0.5"
@@ -232,7 +232,7 @@ export default function NewEventPage() {
             onChange={(e) => setForm({ ...form, alcohol: e.target.checked })}
           />
           <div>
-            <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">Alcohol will be present</p>
+            <p className="text-sm font-medium text-yellow-800">Alcohol will be present</p>
             <p className="text-xs text-yellow-700 dark:text-yellow-400">A risk management checklist will be required before this event can be approved.</p>
           </div>
         </label>

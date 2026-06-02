@@ -13,14 +13,15 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const buttonBase =
-  "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50";
+  "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-racing/50 disabled:pointer-events-none disabled:opacity-50";
 
 const buttonVariants: Record<ButtonVariant, string> = {
-  primary: "bg-greek-600 text-white hover:bg-greek-700 active:bg-greek-800",
-  secondary: "bg-surface-1 text-foreground hover:bg-surface-2 border border-border",
-  ghost: "text-foreground hover:bg-surface-1",
-  danger: "bg-red-600 text-white hover:bg-red-700",
-  outline: "border border-border text-foreground hover:bg-surface-1",
+  primary:
+    "bg-racing text-white hover:bg-gold hover:text-navy active:bg-gold-700 shadow-sm",
+  secondary: "bg-white text-navy hover:bg-parchment border border-border",
+  ghost: "text-navy hover:bg-parchment/80",
+  danger: "bg-[#8B2020] text-white hover:bg-[#6B1818]",
+  outline: "border-2 border-navy text-navy bg-transparent hover:bg-navy hover:text-white",
 };
 
 const buttonSizes: Record<ButtonSize, string> = {
@@ -52,7 +53,7 @@ Button.displayName = "Button";
 /* ── Badge ──────────────────────────────────────────────── */
 type BadgeColor =
   | "green" | "red" | "yellow" | "blue" | "purple"
-  | "orange" | "gray" | "emerald" | "pink" | "indigo";
+  | "orange" | "gray" | "emerald" | "pink" | "indigo" | "gold";
 
 interface BadgeProps {
   label: string;
@@ -62,16 +63,17 @@ interface BadgeProps {
 }
 
 const badgeColors: Record<BadgeColor, string> = {
-  green: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
-  red: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
-  yellow: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
-  blue: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
-  purple: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
-  orange: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
-  gray: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
-  emerald: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
-  pink: "bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300",
-  indigo: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300",
+  green: "bg-racing-50 text-racing border border-racing/20",
+  red: "bg-red-50 text-[#8B2020] border border-red-200/80",
+  yellow: "bg-gold-50 text-navy border border-gold/30",
+  blue: "bg-navy-50 text-navy border border-navy/10",
+  purple: "bg-purple-50 text-purple-900 border border-purple-200/60",
+  orange: "bg-orange-50 text-orange-900 border border-orange-200/60",
+  gray: "bg-parchment text-muted-foreground border border-border",
+  emerald: "bg-racing-50 text-racing border border-racing/20",
+  pink: "bg-pink-50 text-pink-900 border border-pink-200/60",
+  indigo: "bg-indigo-50 text-indigo-900 border border-indigo-200/60",
+  gold: "bg-gold text-navy font-semibold border border-gold-700/30",
 };
 
 export function Badge({ label, color = "gray", dot, className }: BadgeProps) {
@@ -111,7 +113,7 @@ export function Card({ className, children, padding = "md", onClick }: CardProps
     <div
       onClick={onClick}
       className={cn(
-        "rounded-xl border border-border bg-card shadow-card",
+        "rounded-lg border border-border bg-white shadow-regal",
         onClick && "cursor-pointer",
         padding === "none" ? "" :
         padding === "sm" ? "p-4" :
@@ -137,12 +139,12 @@ export function CardHeader({ title, description, action, icon, className }: Card
     <div className={cn("flex items-start justify-between gap-4 mb-4", className)}>
       <div className="flex items-start gap-3">
         {icon && (
-          <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-greek-50 dark:bg-greek-950 flex items-center justify-center text-greek-600">
+          <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-racing-50 flex items-center justify-center text-racing">
             {icon}
           </div>
         )}
         <div>
-          <h3 className="font-semibold text-foreground">{title}</h3>
+          <h3 className="font-display text-lg font-semibold text-navy">{title}</h3>
           {description && <p className="text-sm text-muted-foreground mt-0.5">{description}</p>}
         </div>
       </div>
@@ -166,7 +168,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       {label && (
         <label className="text-sm font-medium text-foreground">
           {label}
-          {props.required && <span className="text-red-500 ml-1">*</span>}
+          {props.required && <span className="text-destructive ml-1">*</span>}
         </label>
       )}
       <div className="relative flex items-center">
@@ -178,13 +180,13 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         <input
           ref={ref}
           className={cn(
-            "flex h-9 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm",
+            "flex h-9 w-full rounded-lg border border-border/80 bg-white px-3 py-2 text-sm text-navy",
             "placeholder:text-muted-foreground",
-            "focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent",
+            "focus:outline-none focus:ring-2 focus:ring-racing/40 focus:border-racing/30",
             "disabled:cursor-not-allowed disabled:opacity-50",
             icon && "pl-9",
             trailing && "pr-9",
-            error && "border-red-500 focus:ring-red-500",
+            error && "border-destructive focus:ring-destructive/40",
             className,
           )}
           {...props}
@@ -193,7 +195,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           <span className="absolute right-3 text-muted-foreground">{trailing}</span>
         )}
       </div>
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p className="text-xs text-destructive">{error}</p>}
       {hint && !error && <p className="text-xs text-muted-foreground">{hint}</p>}
     </div>
   ),
@@ -213,22 +215,22 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
       {label && (
         <label className="text-sm font-medium text-foreground">
           {label}
-          {props.required && <span className="text-red-500 ml-1">*</span>}
+          {props.required && <span className="text-destructive ml-1">*</span>}
         </label>
       )}
       <textarea
         ref={ref}
         className={cn(
-          "flex min-h-[80px] w-full rounded-lg border border-border bg-background px-3 py-2 text-sm",
+          "flex min-h-[80px] w-full rounded-lg border border-border/80 bg-white px-3 py-2 text-sm text-navy",
           "placeholder:text-muted-foreground resize-none",
-          "focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent",
+          "focus:outline-none focus:ring-2 focus:ring-racing/40 focus:border-racing/30",
           "disabled:cursor-not-allowed disabled:opacity-50",
           error && "border-red-500 focus:ring-red-500",
           className,
         )}
         {...props}
       />
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p className="text-xs text-destructive">{error}</p>}
       {hint && !error && <p className="text-xs text-muted-foreground">{hint}</p>}
     </div>
   ),
@@ -252,10 +254,10 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       <select
         ref={ref}
         className={cn(
-          "flex h-9 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm",
-          "focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent",
+          "flex h-9 w-full rounded-lg border border-border/80 bg-white px-3 py-2 text-sm text-navy",
+          "focus:outline-none focus:ring-2 focus:ring-racing/40 focus:border-racing/30",
           "disabled:cursor-not-allowed disabled:opacity-50",
-          error && "border-red-500",
+          error && "border-destructive",
           className,
         )}
         {...props}
@@ -265,7 +267,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           <option key={opt.value} value={opt.value}>{opt.label}</option>
         ))}
       </select>
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   ),
 );
@@ -343,24 +345,24 @@ interface StatCardProps {
 
 export function StatCard({ title, value, delta, deltaType = "neutral", icon, className }: StatCardProps) {
   return (
-    <Card className={cn("flex flex-col gap-3", className)}>
+    <div className={cn("regal-stat-card flex flex-col gap-3", className)}>
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground font-medium">{title}</p>
-        {icon && (
-          <div className="text-muted-foreground">{icon}</div>
-        )}
+        <p className="stat-label">{title}</p>
+        {icon && <div className="text-gold/80">{icon}</div>}
       </div>
-      <p className="text-2xl font-bold text-foreground tracking-tight">{value}</p>
+      <p className="stat-value">{value}</p>
       {delta && (
-        <p className={cn("text-xs font-medium", {
-          "text-green-600": deltaType === "up",
-          "text-red-500": deltaType === "down",
-          "text-muted-foreground": deltaType === "neutral",
-        })}>
+        <p
+          className={cn("text-xs font-medium", {
+            "text-gold": deltaType === "up",
+            "text-red-300": deltaType === "down",
+            "text-white/50": deltaType === "neutral",
+          })}
+        >
           {delta}
         </p>
       )}
-    </Card>
+    </div>
   );
 }
 
@@ -376,6 +378,7 @@ interface TableProps<T extends Record<string, unknown>> {
   columns: Column<T>[];
   data: T[];
   onRowClick?: (row: T) => void;
+  selectedRowIndex?: number;
   emptyMessage?: string;
   loading?: boolean;
 }
@@ -384,19 +387,20 @@ export function Table<T extends Record<string, unknown>>({
   columns,
   data,
   onRowClick,
+  selectedRowIndex,
   emptyMessage = "No records found.",
   loading,
 }: TableProps<T>) {
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto rounded-lg border border-border bg-white shadow-card">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border">
+          <tr className="bg-navy text-white">
             {columns.map((col) => (
               <th
                 key={col.key}
                 className={cn(
-                  "text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider",
+                  "text-left py-3 px-4 text-xs font-semibold uppercase tracking-wider first:rounded-tl-lg last:rounded-tr-lg",
                   col.className,
                 )}
               >
@@ -408,7 +412,7 @@ export function Table<T extends Record<string, unknown>>({
         <tbody>
           {loading ? (
             Array.from({ length: 4 }).map((_, i) => (
-              <tr key={i} className="border-b border-border">
+              <tr key={i} className="border-b border-border bg-white">
                 {columns.map((col) => (
                   <td key={col.key} className="py-3 px-4">
                     <Skeleton className="h-4 w-full" />
@@ -418,7 +422,7 @@ export function Table<T extends Record<string, unknown>>({
             ))
           ) : data.length === 0 ? (
             <tr>
-              <td colSpan={columns.length} className="py-12 text-center text-muted-foreground">
+              <td colSpan={columns.length} className="py-12 text-center text-muted-foreground bg-white">
                 {emptyMessage}
               </td>
             </tr>
@@ -427,8 +431,9 @@ export function Table<T extends Record<string, unknown>>({
               <tr
                 key={i}
                 className={cn(
-                  "border-b border-border last:border-0 transition-colors",
-                  onRowClick && "cursor-pointer hover:bg-surface-1",
+                  "border-b border-border last:border-0 transition-colors bg-white",
+                  selectedRowIndex === i && "border-l-4 border-l-gold bg-gold-50/40",
+                  onRowClick && "cursor-pointer hover:bg-parchment",
                 )}
                 onClick={() => onRowClick?.(row)}
               >
@@ -474,7 +479,7 @@ export function Modal({ open, onClose, title, description, children, footer, siz
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-navy/60 backdrop-blur-sm"
         onClick={onClose}
       />
       <div
@@ -486,7 +491,7 @@ export function Modal({ open, onClose, title, description, children, footer, siz
       >
         <div className="flex items-start justify-between p-5 border-b border-border">
           <div>
-            <h2 className="text-base font-semibold text-foreground">{title}</h2>
+            <h2 className="font-display text-xl font-semibold text-navy">{title}</h2>
             {description && <p className="text-sm text-muted-foreground mt-0.5">{description}</p>}
           </div>
           <button
@@ -546,11 +551,11 @@ interface ProgressBarProps {
 }
 
 const progressColors = {
-  green: "bg-greek-500",
-  blue: "bg-sports-500",
-  yellow: "bg-yellow-500",
-  red: "bg-red-500",
-  purple: "bg-purple-500",
+  green: "bg-racing",
+  blue: "bg-navy",
+  yellow: "bg-gold",
+  red: "bg-[#8B2020]",
+  purple: "bg-purple-600",
 };
 
 export function ProgressBar({ value, max = 100, color = "green", size = "sm", label, className }: ProgressBarProps) {
@@ -593,15 +598,15 @@ export function Tabs({ tabs, active, onChange, className }: TabsProps) {
             "flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors",
             "border-b-2 -mb-px",
             active === tab.id
-              ? "border-greek-600 text-greek-600"
-              : "border-transparent text-muted-foreground hover:text-foreground",
+              ? "border-racing text-racing"
+              : "border-transparent text-muted-foreground hover:text-navy",
           )}
         >
           {tab.label}
           {tab.count !== undefined && (
             <span className={cn(
               "text-xs rounded-full px-1.5 py-0.5",
-              active === tab.id ? "bg-greek-100 text-greek-700" : "bg-surface-2 text-muted-foreground",
+              active === tab.id ? "bg-racing-50 text-racing" : "bg-parchment text-muted-foreground",
             )}>
               {tab.count}
             </span>
@@ -638,9 +643,9 @@ export function SearchInput({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         className={cn(
-          "w-full h-9 pl-9 pr-4 rounded-lg border border-border bg-background text-sm",
+          "w-full h-9 pl-9 pr-4 rounded-lg border border-border/80 bg-white text-sm text-navy",
           "placeholder:text-muted-foreground",
-          "focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent",
+          "focus:outline-none focus:ring-2 focus:ring-racing/40 focus:border-racing/30",
         )}
       />
     </div>
@@ -665,7 +670,7 @@ export function PageHeader({ title, description, action, breadcrumb, className }
             {breadcrumb}
           </p>
         )}
-        <h1 className="text-xl font-bold text-foreground">{title}</h1>
+        <h1 className="font-display text-2xl font-semibold text-navy tracking-tight">{title}</h1>
         {description && (
           <p className="text-sm text-muted-foreground mt-0.5">{description}</p>
         )}
@@ -679,7 +684,7 @@ export function PageHeader({ title, description, action, breadcrumb, className }
 export function Spinner({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
   return (
     <svg
-      className={cn("animate-spin text-greek-600", {
+      className={cn("animate-spin text-racing", {
         "w-4 h-4": size === "sm",
         "w-6 h-6": size === "md",
         "w-8 h-8": size === "lg",
@@ -702,10 +707,10 @@ interface AlertProps {
 }
 
 const alertStyles: Record<string, string> = {
-  info: "bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-950/30 dark:border-blue-800 dark:text-blue-300",
-  success: "bg-green-50 border-green-200 text-green-800 dark:bg-green-950/30 dark:border-green-800 dark:text-green-300",
-  warning: "bg-yellow-50 border-yellow-200 text-yellow-800 dark:bg-yellow-950/30 dark:border-yellow-800 dark:text-yellow-300",
-  error: "bg-red-50 border-red-200 text-red-800 dark:bg-red-950/30 dark:border-red-800 dark:text-red-300",
+  info: "bg-navy-50 border-navy/20 text-navy",
+  success: "bg-racing-50 border-racing/25 text-racing",
+  warning: "bg-gold-50 border-gold/40 text-navy",
+  error: "bg-red-50 border-[#8B2020]/30 text-[#8B2020]",
 };
 
 export function Alert({ type = "info", title, description, className }: AlertProps) {

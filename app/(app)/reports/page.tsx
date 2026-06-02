@@ -298,11 +298,11 @@ downloadCsv(`${orgName}-semester-rewind.csv`, [{
           <Card
             key={report.id}
             padding="sm"
-            className={`cursor-pointer transition-colors hover:border-greek-300 ${reportType === report.id ? "border-greek-400 bg-greek-50 dark:bg-greek-950/20" : ""}`}
+            className={`cursor-pointer transition-colors hover:border-racing-300 ${reportType === report.id ? "border-racing-400 bg-racing-50" : ""}`}
             onClick={() => setReportType(report.id)}
           >
             <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-lg bg-greek-50 dark:bg-greek-950/30 flex items-center justify-center text-greek-600 flex-shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-racing-50 flex items-center justify-center text-racing flex-shrink-0">
                 <FileText size={14} />
               </div>
               <div className="flex-1">

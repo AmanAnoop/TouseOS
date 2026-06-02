@@ -91,7 +91,7 @@ export function RecruitmentLinksPanel({ orgName, inviteCode }: RecruitmentLinksP
           <div key={link.label} className="p-3 rounded-lg border border-border">
             <p className="text-sm font-medium">{link.label}</p>
             <p className="text-xs text-muted-foreground mb-2">{link.description}</p>
-            <p className="text-xs font-mono break-all text-greek-600 mb-2">{link.url}</p>
+            <p className="text-xs font-mono break-all text-racing mb-2">{link.url}</p>
             <Button size="sm" variant="secondary" icon={<Copy size={14} />} onClick={() => copy(link.url)}>
               Copy
             </Button>

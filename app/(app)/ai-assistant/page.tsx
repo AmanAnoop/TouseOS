@@ -76,7 +76,7 @@ export default function AiAssistantPage() {
       />
 
       {/* Disclaimer */}
-      <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-3 mb-4 text-xs text-yellow-800 dark:text-yellow-300">
+      <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4 text-xs text-yellow-800">
         <strong>Important:</strong> AI suggestions are drafts only. Never use AI for final decisions on standards cases, risk approval, discipline, recruitment acceptance, or medical decisions. Always review and edit before sending.
       </div>
 
@@ -89,9 +89,9 @@ export default function AiAssistantPage() {
               <button
                 key={qp.label}
                 onClick={() => sendMessage(qp.prompt)}
-                className="flex items-center gap-2 p-3 rounded-xl border border-border bg-card hover:border-greek-300 hover:bg-greek-50 dark:hover:bg-greek-950/20 transition-colors text-left"
+                className="flex items-center gap-2 p-3 rounded-xl border border-border bg-card hover:border-racing-300 hover:bg-racing-50 dark:hover:bg-greek-950/20 transition-colors text-left"
               >
-                <span className="text-greek-600 flex-shrink-0">{qp.icon}</span>
+                <span className="text-racing flex-shrink-0">{qp.icon}</span>
                 <span className="text-sm font-medium text-foreground">{qp.label}</span>
               </button>
             ))}
@@ -104,8 +104,8 @@ export default function AiAssistantPage() {
         {messages.map((msg, idx) => (
           <div key={idx} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
             {msg.role === "assistant" && (
-              <div className="w-7 h-7 rounded-full bg-greek-100 dark:bg-greek-950/50 flex items-center justify-center mr-2 flex-shrink-0 self-end">
-                <Sparkles size={14} className="text-greek-600" />
+              <div className="w-7 h-7 rounded-full bg-racing-100 flex items-center justify-center mr-2 flex-shrink-0 self-end">
+                <Sparkles size={14} className="text-racing" />
               </div>
             )}
             <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${msg.role === "user" ? "bg-greek-600 text-white rounded-br-md" : "bg-card border border-border rounded-bl-md"}`}>
@@ -126,8 +126,8 @@ export default function AiAssistantPage() {
         ))}
         {loading && (
           <div className="flex justify-start">
-            <div className="w-7 h-7 rounded-full bg-greek-100 dark:bg-greek-950/50 flex items-center justify-center mr-2">
-              <Sparkles size={14} className="text-greek-600" />
+            <div className="w-7 h-7 rounded-full bg-racing-100 flex items-center justify-center mr-2">
+              <Sparkles size={14} className="text-racing" />
             </div>
             <div className="bg-card border border-border rounded-2xl rounded-bl-md px-4 py-3">
               <Loader2 size={16} className="animate-spin text-muted-foreground" />

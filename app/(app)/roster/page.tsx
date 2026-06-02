@@ -221,7 +221,7 @@ export default function RosterPage() {
                 <Card
                   key={m.id}
                   padding="sm"
-                  className="cursor-pointer hover:border-greek-300 transition-colors"
+                  className="cursor-pointer hover:border-racing-300 transition-colors"
                   onClick={() => router.push(`/roster/${m.id}`)}
                 >
                   <div className="flex items-center gap-3">
@@ -238,7 +238,7 @@ export default function RosterPage() {
                   {(m.phone || m.email) && (
                     <div className="flex gap-3 mt-2 pt-2 border-t border-border">
                       {m.email && (
-                        <a href={`mailto:${m.email}`} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-greek-600" onClick={(e) => e.stopPropagation()}>
+                        <a href={`mailto:${m.email}`} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-racing" onClick={(e) => e.stopPropagation()}>
                           <Mail size={12} />
                           {m.email}
                         </a>

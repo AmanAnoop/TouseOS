@@ -108,7 +108,7 @@ export function VendorsClient() {
             <div className="space-y-3">
               {byCategory[category].map((vendor) => (
                 <div key={vendor.id} className="flex items-start gap-3 p-3 rounded-lg border border-border">
-                  <Building size={16} className="text-greek-600 mt-1" />
+                  <Building size={16} className="text-racing mt-1" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-semibold text-sm">{vendor.name}</p>
@@ -125,7 +125,7 @@ export function VendorsClient() {
                     {vendor.notes && <p className="text-xs text-muted-foreground italic mt-1">{vendor.notes}</p>}
                   </div>
                   {vendor.contact_phone && (
-                    <a href={`tel:${vendor.contact_phone}`} className="p-2 text-muted-foreground hover:text-greek-600">
+                    <a href={`tel:${vendor.contact_phone}`} className="p-2 text-muted-foreground hover:text-racing">
                       <Phone size={14} />
                     </a>
                   )}

@@ -64,16 +64,16 @@ export default async function YearbookPage() {
         action={
           <div className="flex items-center gap-2">
             <YearbookExportButton data={exportData} />
-            <Link href="/social" className="text-sm text-greek-600 hover:underline flex items-center gap-1">
+            <Link href="/social" className="text-sm text-racing hover:underline flex items-center gap-1">
               <Camera size={14} /> Manage photos
             </Link>
           </div>
         }
       />
 
-      <Card padding="sm" className="bg-greek-50 dark:bg-greek-950/20 border-greek-200">
+      <Card padding="sm" className="bg-racing-50 border-racing-200">
         <div className="flex items-center gap-3">
-          <BookOpen size={20} className="text-greek-600" />
+          <BookOpen size={20} className="text-racing" />
           <div>
             <p className="font-semibold text-sm">{events.length} events · {photos.length} approved photos</p>
             <p className="text-xs text-muted-foreground">Auto-compiled from your chapter activity this semester · Export as HTML for print/PDF</p>

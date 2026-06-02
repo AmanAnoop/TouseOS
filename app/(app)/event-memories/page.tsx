@@ -66,7 +66,7 @@ export default async function EventMemoriesPage() {
                         </div>
                       </div>
                       {album && (
-                        <a href={`/social`} className="flex items-center gap-1 text-xs text-greek-600 hover:underline flex-shrink-0">
+                        <a href={`/social`} className="flex items-center gap-1 text-xs text-racing hover:underline flex-shrink-0">
                           <Image size={12} />
                           View album
                         </a>

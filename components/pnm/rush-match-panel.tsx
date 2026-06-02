@@ -129,7 +129,7 @@ export function RushMatchPanel({ orgId, pnm, refreshKey }: RushMatchPanelProps) 
                   {m.shared_interests?.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
                       {m.shared_interests.slice(0, 5).map((i) => (
-                        <span key={i} className="text-[10px] bg-greek-50 dark:bg-greek-950/30 text-greek-700 dark:text-greek-300 rounded px-1.5 py-0.5">
+                        <span key={i} className="text-[10px] bg-racing-50 text-racing-700 rounded px-1.5 py-0.5">
                           {i}
                         </span>
                       ))}

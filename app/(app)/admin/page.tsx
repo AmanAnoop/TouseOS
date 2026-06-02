@@ -88,8 +88,8 @@ export default async function AdminPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Shield size={16} className="text-greek-600" />
-            <span className="text-xs font-bold text-greek-600 uppercase tracking-wide">Admin</span>
+            <Shield size={16} className="text-racing" />
+            <span className="text-xs font-bold text-racing uppercase tracking-wide">Admin</span>
           </div>
           <h1 className="text-2xl font-bold text-foreground">{String(org.name)}</h1>
           <p className="text-sm text-muted-foreground capitalize">{orgTypeLabel(String(org.type))} · {String(org.campus ?? "Campus")} · Role: {role.replace("_", " ")}</p>
@@ -139,7 +139,7 @@ export default async function AdminPage() {
                   <span className="text-xs capitalize">{status.replace(/_/g, " ")}</span>
                   <div className="flex items-center gap-2">
                     <div className="h-1.5 rounded-full bg-surface-2 w-16">
-                      <div className="h-full rounded-full bg-greek-500" style={{ width: `${Math.round((count / members.length) * 100)}%` }} />
+                      <div className="h-full rounded-full bg-racing-500" style={{ width: `${Math.round((count / members.length) * 100)}%` }} />
                     </div>
                     <span className="text-xs font-medium w-4 text-right">{count}</span>
                   </div>

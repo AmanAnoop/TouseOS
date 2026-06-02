@@ -38,7 +38,7 @@ export function ReimbursementList({
           <Card
             key={r.id}
             padding="sm"
-            className="cursor-pointer hover:border-greek-300 transition-colors"
+            className="cursor-pointer hover:border-racing-300 transition-colors"
             onClick={() => onSelect(r)}
           >
             <div className="flex items-start gap-3">

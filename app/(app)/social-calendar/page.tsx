@@ -146,7 +146,7 @@ export default function SocialCalendarPage() {
       {tab === "templates" ? (
         <div className="grid sm:grid-cols-2 gap-3">
           {CAPTION_TEMPLATES.map((tpl) => (
-            <Card key={tpl.label} padding="sm" className="hover:border-greek-300 transition-colors">
+            <Card key={tpl.label} padding="sm" className="hover:border-racing-300 transition-colors">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="font-semibold text-sm">{tpl.label}</p>

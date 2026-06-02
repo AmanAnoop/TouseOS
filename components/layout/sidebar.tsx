@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Bell, BookOpen, Building, Calendar, ChevronDown,
   ClipboardList, DollarSign, FileText, Heart, Home, Image,
-  LogOut, MessageSquare, Moon, Plus, Settings, Shield,
-  Sun, Trophy, Users, Warehouse, X, Zap,
+  LogOut, MessageSquare, Plus, Settings, Shield,
+  Trophy, Users, Warehouse, X, Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -30,19 +30,19 @@ function NavLink({ item, active, collapsed }: { item: NavItem; active: boolean; 
     <Link
       href={item.href}
       className={cn(
-        "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
+        "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-200",
         active
-          ? "bg-greek-50 text-greek-700 font-medium dark:bg-greek-950/50 dark:text-greek-400"
-          : "text-muted-foreground hover:bg-surface-1 hover:text-foreground",
-        collapsed && "justify-center px-2",
+          ? "bg-sidebar-active text-white font-medium shadow-sm border-l-2 border-gold pl-[10px]"
+          : "text-white/70 hover:bg-white/5 hover:text-white border-l-2 border-transparent",
+        collapsed && "justify-center px-2 border-l-0 pl-2",
       )}
     >
-      <span className="w-5 h-5 flex-shrink-0">{item.icon}</span>
+      <span className={cn("w-5 h-5 flex-shrink-0", active ? "text-gold opacity-100" : "opacity-70")}>{item.icon}</span>
       {!collapsed && (
         <>
           <span className="flex-1 truncate">{item.label}</span>
           {item.badge !== undefined && item.badge > 0 && (
-            <span className="text-xs bg-greek-600 text-white rounded-full px-1.5 py-0.5 leading-none">
+            <span className="text-xs bg-gold text-navy font-semibold rounded-full px-1.5 py-0.5 leading-none">
               {item.badge}
             </span>
           )}
@@ -65,27 +65,12 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
-  const [dark, setDark] = useState(false);
   const [orgOpen, setOrgOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const { count: unreadCount } = useUnreadNotifications();
 
   const isSports = orgType === "club_sports";
   const isGreek = orgType === "fraternity" || orgType === "sorority";
-
-  useEffect(() => {
-    const pref = localStorage.getItem("theme");
-    const isDark = pref === "dark" || (!pref && window.matchMedia("(prefers-color-scheme: dark)").matches);
-    setDark(isDark);
-    document.documentElement.classList.toggle("dark", isDark);
-  }, []);
-
-  function toggleDark() {
-    const next = !dark;
-    setDark(next);
-    document.documentElement.classList.toggle("dark", next);
-    localStorage.setItem("theme", next ? "dark" : "light");
-  }
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -161,26 +146,26 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
   return (
     <aside
       className={cn(
-        "flex flex-col h-full bg-card border-r border-border",
+        "regal-sidebar flex flex-col h-full text-white",
         collapsed ? "w-16" : "w-64",
         "transition-[width] duration-200",
       )}
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-border min-h-[60px]">
+      <div className="flex items-center justify-between p-4 border-b border-white/10 min-h-[60px]">
         {!collapsed && (
           <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-md bg-greek-600 flex items-center justify-center text-white font-bold text-xs">
-              TO
+            <div className="w-8 h-8 rounded-md bg-gold/20 border border-gold/40 flex items-center justify-center text-gold font-display font-bold text-sm">
+              T
             </div>
-            <span className="font-bold text-sm text-foreground">TouseOS</span>
+            <span className="font-display text-lg font-semibold text-white tracking-wide">TouseOS</span>
           </Link>
         )}
         <div className="flex items-center gap-1 ml-auto">
           {mobile && (
             <button
               onClick={onClose}
-              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground"
+              className="p-1.5 rounded-md text-white/60 hover:text-gold hover:bg-white/5"
             >
               <X size={18} />
             </button>
@@ -188,7 +173,7 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
           {!mobile && (
             <button
               onClick={() => setCollapsed(!collapsed)}
-              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hidden lg:flex"
+              className="p-1.5 rounded-md text-white/60 hover:text-gold hover:bg-white/5 hidden lg:flex"
             >
               <ChevronDown
                 size={16}
@@ -201,10 +186,10 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
 
       {/* Org switcher */}
       {!collapsed && org && (
-        <div className="px-3 py-2 border-b border-border">
+        <div className="px-3 py-2 border-b border-white/10">
           <button
             onClick={() => setOrgOpen(!orgOpen)}
-            className="w-full flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-surface-1 transition-colors text-left"
+            className="w-full flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-white/5 transition-colors text-left"
           >
             <div
               className="w-7 h-7 rounded-md flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
@@ -213,18 +198,18 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
               {org.name.slice(0, 2).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-foreground truncate">{org.name}</p>
-              <p className="text-xs text-muted-foreground capitalize">{org.type.replace("_", " ")}</p>
+              <p className="text-xs font-semibold text-white truncate">{org.name}</p>
+              <p className="text-xs text-white/50 capitalize">{org.type.replace("_", " ")}</p>
             </div>
-            <ChevronDown size={14} className={cn("text-muted-foreground transition-transform flex-shrink-0", orgOpen && "rotate-180")} />
+            <ChevronDown size={14} className={cn("text-white/50 transition-transform flex-shrink-0", orgOpen && "rotate-180")} />
           </button>
           {orgOpen && (
-            <div className="mt-1 border border-border rounded-lg overflow-hidden bg-card shadow-card-md">
+            <div className="mt-1 border border-white/10 rounded-lg overflow-hidden bg-navy shadow-card-md">
               {orgs.map((o) => (
                 <Link
                   key={o.id}
                   href={`/org/${o.id}/dashboard`}
-                  className="flex items-center gap-2 px-3 py-2 hover:bg-surface-1 text-sm"
+                  className="flex items-center gap-2 px-3 py-2 hover:bg-white/10 text-sm text-white/90"
                   onClick={() => setOrgOpen(false)}
                 >
                   <div
@@ -238,7 +223,7 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
               ))}
               <Link
                 href="/onboarding/create-org"
-                className="flex items-center gap-2 px-3 py-2 hover:bg-surface-1 text-sm text-muted-foreground border-t border-border"
+                className="flex items-center gap-2 px-3 py-2 hover:bg-white/10 text-sm text-white/60 border-t border-white/10"
               >
                 <Plus size={14} />
                 New organization
@@ -258,7 +243,7 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
           <>
             {!collapsed && (
               <div className="px-3 pt-4 pb-1">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">You</p>
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-gold/80">You</p>
               </div>
             )}
             {profileNav.map((item) => (
@@ -271,7 +256,7 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
           <>
             {!collapsed && (
               <div className="px-3 pt-4 pb-1">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-gold/80">
                   {isGreek ? "Greek Life" : "SportsOS"}
                 </p>
               </div>
@@ -284,7 +269,7 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
 
         {!collapsed && (
           <div className="px-3 pt-4 pb-1">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-gold/80">
               Admin
             </p>
           </div>
@@ -295,30 +280,24 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-border p-3 flex flex-col gap-1">
+      <div className="border-t border-white/10 p-3 flex flex-col gap-1">
         <div className="flex items-center gap-2">
-          <button
-            onClick={toggleDark}
-            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-1"
-            aria-label="Toggle theme"
-          >
-            {dark ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
           <NotificationBell />
           {!collapsed && (
             <button
               onClick={signOut}
-              className="ml-auto p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-1"
+              className="ml-auto p-1.5 rounded-md text-white/60 hover:text-gold hover:bg-white/5"
+              aria-label="Sign out"
             >
               <LogOut size={16} />
             </button>
           )}
         </div>
         {!collapsed && profile && (
-          <Link href="/profile" className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-surface-1 transition-colors">
+          <Link href="/profile" className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors">
             <Avatar name={profile.full_name || "User"} src={profile.avatar_url} size="sm" />
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-foreground truncate">{profile.full_name}</p>
+              <p className="text-xs font-medium text-white/90 truncate">{profile.full_name}</p>
             </div>
           </Link>
         )}

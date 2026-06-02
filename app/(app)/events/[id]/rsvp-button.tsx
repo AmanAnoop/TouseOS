@@ -99,7 +99,7 @@ export default function EventRsvpButton({
   if (status === "going") {
     return (
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 flex-1 justify-center py-3 rounded-xl bg-greek-50 dark:bg-greek-950/30 text-greek-700 dark:text-greek-400">
+        <div className="flex items-center gap-2 flex-1 justify-center py-3 rounded-xl bg-racing-50 text-racing-700">
           <Check size={16} />
           <span className="font-semibold">You&apos;re going!</span>
         </div>

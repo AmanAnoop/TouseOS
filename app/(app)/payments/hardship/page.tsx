@@ -72,7 +72,7 @@ export default function HardshipRequestPage() {
   if (submitted) {
     return (
       <div className="max-w-md mx-auto text-center py-12 space-y-4">
-        <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-950/30 flex items-center justify-center mx-auto">
+        <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto">
           <Heart size={24} className="text-green-600" />
         </div>
         <h2 className="text-xl font-bold text-foreground">Request submitted</h2>

@@ -148,7 +148,7 @@ export default function TravelPage() {
                     { label: "Itinerary", icon: "🗺️", ok: Boolean(trip.itinerary) },
                     { label: "Roster confirmed", icon: "✅", ok: false },
                   ].map((item) => (
-                    <div key={item.label} className={`flex items-center gap-1.5 p-2 rounded-lg text-xs ${item.ok ? "bg-green-50 dark:bg-green-950/20 text-green-700" : "bg-red-50 dark:bg-red-950/20 text-red-600"}`}>
+                    <div key={item.label} className={`flex items-center gap-1.5 p-2 rounded-lg text-xs ${item.ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
                       <span>{item.icon}</span>
                       <span>{item.label}</span>
                       <span className="ml-auto font-bold">{item.ok ? "✓" : "✗"}</span>

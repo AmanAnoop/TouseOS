@@ -122,7 +122,7 @@ export default async function PublicEventPage({ params }: { params: Promise<{ id
               <div className="w-9 h-9 rounded-xl bg-surface-1 border border-border flex items-center justify-center flex-shrink-0">
                 <Music size={16} className="text-muted-foreground" />
               </div>
-              <a href={String(evt.playlist_url)} target="_blank" rel="noopener noreferrer" className="text-sm text-greek-600 hover:underline flex items-center gap-1">
+              <a href={String(evt.playlist_url)} target="_blank" rel="noopener noreferrer" className="text-sm text-racing hover:underline flex items-center gap-1">
                 Event playlist <ExternalLink size={12} />
               </a>
             </div>

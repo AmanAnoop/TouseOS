@@ -50,7 +50,7 @@ export function BottomNav({ orgType, onMenuOpen }: BottomNavProps) {
   const items = [...NAV.slice(0, 4), ...extras.slice(0, 1)];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-card/95 backdrop-blur-sm border-t border-border lg:hidden safe-area-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-sm border-t border-[#E8E4DC] lg:hidden safe-area-bottom">
       <div className="flex items-stretch">
         {items.map((item) => {
           const Icon = item.icon;
@@ -61,7 +61,7 @@ export function BottomNav({ orgType, onMenuOpen }: BottomNavProps) {
               href={item.href}
               className={cn(
                 "flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors",
-                active ? "text-greek-600" : "text-muted-foreground",
+                active ? "text-racing border-t-2 border-gold -mt-px pt-px" : "text-muted-foreground",
               )}
             >
               <Icon size={20} strokeWidth={active ? 2.5 : 1.75} />
@@ -76,7 +76,7 @@ export function BottomNav({ orgType, onMenuOpen }: BottomNavProps) {
           <Menu size={20} strokeWidth={1.75} />
           More
           {unreadCount > 0 && (
-            <span className="absolute top-1.5 right-4 min-w-[16px] h-4 px-1 rounded-full bg-greek-600 text-white text-[10px] font-bold flex items-center justify-center leading-none">
+            <span className="absolute top-1.5 right-4 min-w-[16px] h-4 px-1 rounded-full bg-gold text-navy font-semibold text-[10px] font-bold flex items-center justify-center leading-none">
               {unreadCount > 99 ? "99+" : unreadCount}
             </span>
           )}

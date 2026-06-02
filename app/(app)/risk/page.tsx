@@ -194,7 +194,7 @@ export default function RiskPage() {
 
       <Card>
         <CardHeader title="Incident reports" description="File and track risk incidents" icon={<AlertTriangle size={16} />}
-          action={<Link href="/api/incidents" className="text-xs text-greek-600 hover:underline">View all</Link>} />
+          action={<Link href="/api/incidents" className="text-xs text-racing hover:underline">View all</Link>} />
         <div className="space-y-2">
           {["Anonymous report", "Officer-only report", "Standards referral"].map((type) => (
             <div key={type} className="flex items-center justify-between p-3 border border-border rounded-lg">

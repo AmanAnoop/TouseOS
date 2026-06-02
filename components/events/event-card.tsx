@@ -26,7 +26,7 @@ interface EventCardProps {
 export function EventCard({ event }: EventCardProps) {
   return (
     <Link href={`/events/${event.id}`}>
-      <Card padding="none" className="overflow-hidden hover:border-greek-300 transition-colors cursor-pointer h-full">
+      <Card padding="none" className="overflow-hidden hover:border-racing-300 transition-colors cursor-pointer h-full">
         <div
           className="h-36 bg-gradient-to-br from-greek-500 to-greek-700 relative"
           style={event.cover_image_url ? {

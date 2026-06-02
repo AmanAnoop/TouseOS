@@ -239,7 +239,7 @@ export default function SettingsPage() {
                   <p className="text-xs text-muted-foreground mt-0.5">{integration.description}</p>
                   <p className="text-xs font-mono text-muted-foreground mt-1 bg-surface-2 px-2 py-0.5 rounded">{integration.config}</p>
                 </div>
-                <a href={integration.docsUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-greek-600 hover:underline flex-shrink-0">Docs</a>
+                <a href={integration.docsUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-racing hover:underline flex-shrink-0">Docs</a>
               </div>
             </Card>
           ))}
@@ -255,10 +255,10 @@ export default function SettingsPage() {
           </Card>
 
           {isAdmin && (
-            <Card className="border-red-200 dark:border-red-900">
+            <Card className="border-red-200">
               <CardHeader title="Danger zone" description="Irreversible actions. Proceed carefully." icon={<Shield size={16} className="text-red-500" />} />
               <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 rounded-lg border border-red-200 dark:border-red-900">
+                <div className="flex items-center justify-between p-3 rounded-lg border border-red-200">
                   <div>
                     <p className="text-sm font-medium text-foreground">Archive organization</p>
                     <p className="text-xs text-muted-foreground">Hides the org from member view. Data is preserved.</p>

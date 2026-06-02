@@ -260,7 +260,7 @@ export default function FormsPage() {
           <p className="text-sm text-muted-foreground">Start from a pre-built template. You can customize after creating.</p>
           <div className="grid sm:grid-cols-2 gap-3">
             {TEMPLATE_FORMS.map((template) => (
-              <Card key={template.title} padding="sm" className="hover:border-greek-300 transition-colors">
+              <Card key={template.title} padding="sm" className="hover:border-racing-300 transition-colors">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-semibold text-sm">{template.title}</p>

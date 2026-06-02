@@ -240,7 +240,7 @@ export function HousingClient() {
                 return (
                   <div
                     key={room.id}
-                    className={`p-3 rounded-lg border relative ${full ? "bg-greek-50 dark:bg-greek-950/30 border-greek-200" : "bg-surface-1 border-border"}`}
+                    className={`p-3 rounded-lg border relative ${full ? "bg-racing-50 border-racing-200" : "bg-surface-1 border-border"}`}
                   >
                     {canManage && (
                       <button
@@ -254,7 +254,7 @@ export function HousingClient() {
                     <p className="font-bold text-foreground">#{room.room_number}</p>
                     <p className="text-xs text-muted-foreground">Floor {room.floor ?? 1} · {occ}/{room.capacity}</p>
                     {room.monthly_rent != null && (
-                      <p className="text-xs font-medium text-greek-600">{formatCurrency(Number(room.monthly_rent))}/mo</p>
+                      <p className="text-xs font-medium text-racing">{formatCurrency(Number(room.monthly_rent))}/mo</p>
                     )}
                     {names && <p className="text-xs text-muted-foreground mt-1 truncate">{names}</p>}
                     <Badge label={full ? "Full" : "Available"} color={full ? "green" : "gray"} className="mt-1" />

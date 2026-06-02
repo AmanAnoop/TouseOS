@@ -187,13 +187,13 @@ export default function CommsPage() {
             { name: "Welcome new members", body: "Please join us in welcoming our new members to the chapter! We're so excited to have you 🎉" },
             { name: "Emergency broadcast", body: "🚨 IMPORTANT CHAPTER UPDATE: [Message]. Please respond immediately and check your email for more details." },
           ].map((template) => (
-            <Card key={template.name} padding="sm" className="cursor-pointer hover:border-greek-300 transition-colors" onClick={() => {
+            <Card key={template.name} padding="sm" className="cursor-pointer hover:border-racing-300 transition-colors" onClick={() => {
               setDraft({ ...draft, body: template.body, title: template.name });
               setComposeOpen(true);
             }}>
               <p className="font-semibold text-sm text-foreground">{template.name}</p>
               <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{template.body}</p>
-              <p className="text-xs text-greek-600 mt-2">Use template →</p>
+              <p className="text-xs text-racing mt-2">Use template →</p>
             </Card>
           ))}
         </div>

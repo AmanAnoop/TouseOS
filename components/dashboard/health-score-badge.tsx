@@ -13,9 +13,9 @@ export function HealthScoreBadge({ composite, href = "/health" }: HealthScoreBad
 
   const content = (
     <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border ${
-      healthMeta.color === "green" ? "border-green-200 bg-green-50 dark:bg-green-950/20" :
-      healthMeta.color === "yellow" ? "border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20" :
-      "border-red-200 bg-red-50 dark:bg-red-950/20"
+      healthMeta.color === "green" ? "border-green-200 bg-green-50" :
+      healthMeta.color === "yellow" ? "border-yellow-200 bg-yellow-50" :
+      "border-red-200 bg-red-50"
     }`}>
       <Heart size={18} className={
         healthMeta.color === "green" ? "text-green-600" :

@@ -150,7 +150,7 @@ export default async function SportsPage() {
           ) : (
             <div className="space-y-2">
               {injuries.map((inj: Record<string, unknown>) => (
-                <div key={String(inj.id)} className="flex items-center gap-3 p-2 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900">
+                <div key={String(inj.id)} className="flex items-center gap-3 p-2 rounded-lg bg-red-50 border border-red-200">
                   <AlertTriangle size={14} className="text-red-500 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">{String((inj.member_profiles as Record<string, unknown>)?.full_name ?? "Player")}</p>

@@ -70,7 +70,7 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
               // eslint-disable-next-line @next/next/no-img-element
               <img src={member.profile_photo_url} alt={member.full_name} className="w-20 h-20 rounded-2xl object-cover border-2 border-border" />
             ) : (
-              <div className="w-20 h-20 rounded-2xl bg-greek-100 dark:bg-greek-950/50 flex items-center justify-center text-2xl font-bold text-greek-700">
+              <div className="w-20 h-20 rounded-2xl bg-racing-100 flex items-center justify-center text-2xl font-bold text-racing-700">
                 {member.full_name.slice(0, 2).toUpperCase()}
               </div>
             )}
@@ -100,7 +100,7 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
         {/* Contact row */}
         <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-border">
           {member.email && (
-            <a href={`mailto:${member.email}`} className="flex items-center gap-1.5 text-sm text-greek-600 hover:underline">
+            <a href={`mailto:${member.email}`} className="flex items-center gap-1.5 text-sm text-racing hover:underline">
               <Mail size={14} />{member.email}
             </a>
           )}
@@ -212,7 +212,7 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
           <div className="p-3 rounded-lg bg-surface-1 border border-border">
             <p className="text-sm font-medium">{member.emergency_contact_name ?? "—"}</p>
             {member.emergency_contact_phone && (
-              <a href={`tel:${member.emergency_contact_phone}`} className="text-sm text-greek-600">{member.emergency_contact_phone}</a>
+              <a href={`tel:${member.emergency_contact_phone}`} className="text-sm text-racing">{member.emergency_contact_phone}</a>
             )}
           </div>
         </Card>

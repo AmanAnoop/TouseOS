@@ -34,7 +34,7 @@ export function UpcomingDeadlines({ items }: UpcomingDeadlinesProps) {
       <CardHeader
         title="Upcoming deadlines"
         icon={<Calendar size={16} />}
-        action={<Link href="/tasks" className="text-xs text-greek-600 hover:underline">All tasks</Link>}
+        action={<Link href="/tasks" className="text-xs text-racing hover:underline">All tasks</Link>}
       />
       {upcoming.length === 0 ? (
         <EmptyState icon={<Calendar size={20} />} title="No upcoming deadlines" />

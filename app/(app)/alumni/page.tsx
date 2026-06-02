@@ -137,7 +137,7 @@ export default function AlumniPage() {
                 <div key={field} className="flex items-center gap-3">
                   <span className="text-sm text-muted-foreground w-40 truncate flex-shrink-0">{field}</span>
                   <div className="flex-1 h-2 rounded-full bg-surface-2">
-                    <div className="h-full rounded-full bg-greek-500" style={{ width: `${(count / alumni.length) * 100}%` }} />
+                    <div className="h-full rounded-full bg-racing-500" style={{ width: `${(count / alumni.length) * 100}%` }} />
                   </div>
                   <span className="text-xs text-muted-foreground w-6 text-right">{count}</span>
                 </div>
@@ -156,7 +156,7 @@ export default function AlumniPage() {
               <Card
                 key={alumnus.id}
                 padding="sm"
-                className="cursor-pointer hover:border-greek-300 transition-colors"
+                className="cursor-pointer hover:border-racing-300 transition-colors"
                 onClick={() => setSelected(alumnus)}
               >
                 <div className="flex items-start gap-3">
@@ -186,7 +186,7 @@ export default function AlumniPage() {
                     )}
                   </div>
                   {alumnus.email && (
-                    <a href={`mailto:${alumnus.email}`} onClick={(e) => e.stopPropagation()} className="text-muted-foreground hover:text-greek-600">
+                    <a href={`mailto:${alumnus.email}`} onClick={(e) => e.stopPropagation()} className="text-muted-foreground hover:text-racing">
                       <Mail size={14} />
                     </a>
                   )}
@@ -219,13 +219,13 @@ export default function AlumniPage() {
               ))}
             </div>
             {selected.mentorship_interest && (
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-400 text-sm">
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 text-green-700 text-sm">
                 <Heart size={14} />
                 Interested in mentoring current members
               </div>
             )}
             {selected.email && (
-              <a href={`mailto:${selected.email}`} className="flex items-center gap-2 text-sm text-greek-600 hover:underline">
+              <a href={`mailto:${selected.email}`} className="flex items-center gap-2 text-sm text-racing hover:underline">
                 <Mail size={14} />{selected.email}
               </a>
             )}

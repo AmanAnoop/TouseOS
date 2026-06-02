@@ -52,7 +52,7 @@ function LoginForm() {
   return (
     <Card>
       <div className="mb-6">
-        <h1 className="text-xl font-bold text-foreground">Welcome back</h1>
+        <h1 className="font-display text-2xl font-semibold text-navy">Welcome back</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Sign in to your TouseOS workspace.
         </p>
@@ -81,7 +81,7 @@ function LoginForm() {
             {...register("password")}
           />
           <div className="flex justify-end mt-1">
-            <Link href="/forgot-password" className="text-xs text-greek-600 hover:underline">
+            <Link href="/forgot-password" className="text-xs text-racing hover:text-gold transition-colors">
               Forgot password?
             </Link>
           </div>
@@ -94,7 +94,7 @@ function LoginForm() {
 
       <p className="text-center text-sm text-muted-foreground mt-5">
         No account?{" "}
-        <Link href="/signup" className="text-greek-600 font-medium hover:underline">
+        <Link href="/signup" className="text-racing font-medium hover:text-gold transition-colors">
           Create one
         </Link>
       </p>

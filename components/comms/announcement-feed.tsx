@@ -40,7 +40,7 @@ export function AnnouncementFeed({ announcements, loading, query = "" }: Announc
   return (
     <div className="space-y-3">
       {filtered.map((a) => (
-        <Card key={a.id} padding="sm" className={a.pinned ? "border-greek-300 bg-greek-50/50 dark:bg-greek-950/10" : ""}>
+        <Card key={a.id} padding="sm" className={a.pinned ? "border-racing-300 bg-racing-50/50 dark:bg-greek-950/10" : ""}>
           <div className="flex items-start gap-3">
             <Avatar name={a.author_name ?? "Officer"} size="sm" />
             <div className="flex-1 min-w-0">

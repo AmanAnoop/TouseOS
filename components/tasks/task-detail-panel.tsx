@@ -108,7 +108,7 @@ export function TaskDetailPanel({ task, orgId, userId, userName, onClose, onUpda
             <ul className="space-y-1 mb-2">
               {attachments.map((url) => (
                 <li key={url} className="flex items-center justify-between text-sm">
-                  <a href={url} target="_blank" rel="noopener noreferrer" className="text-greek-600 truncate flex-1">
+                  <a href={url} target="_blank" rel="noopener noreferrer" className="text-racing truncate flex-1">
                     {url.split("/").pop()}
                   </a>
                   <button onClick={() => removeAttachment(url)} className="text-muted-foreground hover:text-red-500 ml-2">

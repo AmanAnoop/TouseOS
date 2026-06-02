@@ -174,7 +174,7 @@ export default function CheckInPage() {
         <div>
           <div className="h-2 rounded-full bg-surface-2">
             <div
-              className="h-full rounded-full bg-greek-500 transition-all"
+              className="h-full rounded-full bg-racing-500 transition-all"
               style={{ width: `${Math.min(100, Math.round((checked / total) * 100))}%` }}
             />
           </div>
@@ -273,7 +273,7 @@ export default function CheckInPage() {
 
                 {/* Checked in */}
                 {filtered.filter((a) => a.checked_in).map((a) => (
-                  <div key={a.id} className="flex items-center gap-3 p-3 rounded-xl border border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-950/20">
+                  <div key={a.id} className="flex items-center gap-3 p-3 rounded-xl border border-green-200 bg-green-50">
                     <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
                       <Check size={14} className="text-white" />
                     </div>

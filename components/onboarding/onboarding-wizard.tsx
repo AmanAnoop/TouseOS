@@ -175,12 +175,12 @@ export function OnboardingWizard() {
             />
             <div className="space-y-3">
               <Card
-                className="cursor-pointer hover:border-greek-400 transition-colors"
+                className="cursor-pointer hover:border-racing-400 transition-colors"
                 onClick={() => setStep("type")}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-greek-50 dark:bg-greek-950/30 flex items-center justify-center">
-                    <Building size={20} className="text-greek-600" />
+                  <div className="w-10 h-10 rounded-lg bg-racing-50 flex items-center justify-center">
+                    <Building size={20} className="text-racing" />
                   </div>
                   <div className="flex-1">
                     <p className="font-semibold">Create organization</p>
@@ -190,11 +190,11 @@ export function OnboardingWizard() {
                 </div>
               </Card>
               <Card
-                className="cursor-pointer hover:border-greek-400 transition-colors"
+                className="cursor-pointer hover:border-racing-400 transition-colors"
                 onClick={() => setStep("join")}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
                     <Users size={20} className="text-blue-600" />
                   </div>
                   <div className="flex-1">
@@ -242,7 +242,7 @@ export function OnboardingWizard() {
                     setOrgType(type.value);
                     setStep("details");
                   }}
-                  className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-border hover:border-greek-300 transition-colors text-left"
+                  className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-border hover:border-racing-300 transition-colors text-left"
                 >
                   <span className="text-2xl">{type.icon}</span>
                   <div>
@@ -353,7 +353,7 @@ export function OnboardingWizard() {
         {step === "success" && createdOrg && (
           <div className="space-y-4">
             <div className="flex flex-col items-center text-center py-4">
-              <CheckCircle2 size={48} className="text-greek-600 mb-3" />
+              <CheckCircle2 size={48} className="text-racing mb-3" />
               <h2 className="text-xl font-bold">{createdOrg.name} is ready</h2>
               <p className="text-sm text-muted-foreground mt-1">
                 Share this invite code so members can join.
@@ -361,7 +361,7 @@ export function OnboardingWizard() {
             </div>
             <Card className="text-center">
               <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Invite code</p>
-              <p className="text-3xl font-mono font-bold tracking-widest text-greek-700">
+              <p className="text-3xl font-mono font-bold tracking-widest text-racing-700">
                 {createdOrg.inviteCode}
               </p>
               <Button

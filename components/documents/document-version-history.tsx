@@ -97,7 +97,7 @@ export function DocumentVersionHistory({
       footer={<Button variant="secondary" onClick={onClose}>Close</Button>}
     >
       <div className="space-y-4">
-        <div className="p-3 rounded-lg bg-greek-50 dark:bg-greek-950/20 border border-greek-200 text-sm">
+        <div className="p-3 rounded-lg bg-racing-50 border border-racing-200 text-sm">
           <span className="font-medium">Current:</span> v{currentVersion} · {formatDate(doc.created_at)}
         </div>
 
@@ -106,7 +106,7 @@ export function DocumentVersionHistory({
             {versions.map((v) => (
               <li key={v.id} className="flex items-center justify-between p-2 rounded-lg border border-border text-sm">
                 <span>v{v.version} · {formatDate(v.created_at)}</span>
-                <a href={v.url} download className="text-greek-600 flex items-center gap-1">
+                <a href={v.url} download className="text-racing flex items-center gap-1">
                   <Download size={14} /> Download
                 </a>
               </li>
@@ -116,7 +116,7 @@ export function DocumentVersionHistory({
 
         <div
           onClick={() => fileRef.current?.click()}
-          className="border-2 border-dashed rounded-xl p-4 text-center cursor-pointer hover:border-greek-300"
+          className="border-2 border-dashed rounded-xl p-4 text-center cursor-pointer hover:border-racing-300"
         >
           <Upload size={20} className="mx-auto text-muted-foreground mb-1" />
           <p className="text-sm font-medium">Upload new version</p>

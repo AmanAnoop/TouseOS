@@ -93,7 +93,7 @@ export function ProfileEnrichmentPanel({ orgId, pnm, onEnriched }: ProfileEnrich
             href={instagramUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-sm text-greek-600 hover:underline pb-1"
+            className="inline-flex items-center gap-1 text-sm text-racing hover:underline pb-1"
           >
             Open profile <ExternalLink size={14} />
           </a>
@@ -144,7 +144,7 @@ export function ProfileEnrichmentPanel({ orgId, pnm, onEnriched }: ProfileEnrich
 
       <p className="text-xs text-muted-foreground">
         Need official API integration later? Use Meta&apos;s Instagram Graph API with org approval — see{" "}
-        <Link href="https://developers.facebook.com/docs/instagram-api" className="text-greek-600 hover:underline" target="_blank" rel="noopener noreferrer">
+        <Link href="https://developers.facebook.com/docs/instagram-api" className="text-racing hover:underline" target="_blank" rel="noopener noreferrer">
           Meta developer docs
         </Link>.
       </p>

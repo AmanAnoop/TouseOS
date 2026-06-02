@@ -140,10 +140,10 @@ export default function StandardsPage() {
             <Card
               key={c.id}
               onClick={() => setSelected(c)}
-              className="cursor-pointer hover:border-greek-300 transition-colors"
+              className="cursor-pointer hover:border-racing-300 transition-colors"
             >
               <div className="flex items-start gap-3">
-                <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${c.case_type === "conduct" ? "bg-red-50 dark:bg-red-950/30" : "bg-yellow-50 dark:bg-yellow-950/30"}`}>
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${c.case_type === "conduct" ? "bg-red-50" : "bg-yellow-50 dark:bg-yellow-950/30"}`}>
                   <Scale size={16} className={c.case_type === "conduct" ? "text-red-600" : "text-yellow-600"} />
                 </div>
                 <div className="flex-1 min-w-0">

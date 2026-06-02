@@ -116,10 +116,10 @@ export default function TransitionPage() {
               <Card
                 key={b.id}
                 onClick={() => setSelectedBinder(b)}
-                className="cursor-pointer hover:border-greek-300 transition-colors"
+                className="cursor-pointer hover:border-racing-300 transition-colors"
               >
                 <div className="flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-greek-50 dark:bg-greek-950/30 flex items-center justify-center text-greek-600 flex-shrink-0">
+                  <div className="w-9 h-9 rounded-lg bg-racing-50 flex items-center justify-center text-racing flex-shrink-0">
                     <BookOpen size={16} />
                   </div>
                   <div className="flex-1 min-w-0">
