@@ -68,6 +68,7 @@ const ICONS: Record<string, React.ReactNode> = {
   "/club/membership": <UserPlusIcon />,
   "/club/committees": <Users size={18} />,
   "/club/service-hours": <HandHeart size={18} />,
+  "/club/elections": <Users size={18} />,
   "/profile": <Users size={18} />,
   "/account": <Settings size={18} />,
   "/notifications": <Bell size={18} />,

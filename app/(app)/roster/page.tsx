@@ -16,6 +16,8 @@ import { downloadCsv, getStatusColor } from "@/lib/utils";
 import { ROLE_LABELS, can, type RoleName } from "@/lib/permissions";
 import type { MemberProfile } from "@/types";
 import { MemberTable } from "@/components/roster/member-table";
+import { SportsEligibilitySummary } from "@/components/roster/sports-eligibility-summary";
+import { isSportsOrg } from "@/lib/utils";
 
 const STATUS_OPTIONS = [
   { value: "", label: "All statuses" },
@@ -40,6 +42,7 @@ export default function RosterPage() {
   const [members, setMembers] = useState<MemberProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [orgId, setOrgId] = useState<string | null>(null);
+  const [orgType, setOrgType] = useState("");
   const [myRole, setMyRole] = useState<RoleName>("general_member");
 
   const [query, setQuery] = useState("");
@@ -68,13 +71,14 @@ export default function RosterPage() {
       if (!user) return;
       const { data: m } = await supabase
         .from("org_members")
-        .select("org_id, role")
+        .select("org_id, role, organizations(type)")
         .eq("user_id", user.id)
         .neq("status", "removed")
         .limit(1)
         .single();
       if (m) {
         setOrgId(m.org_id);
+        setOrgType(String(((m.organizations as unknown) as Record<string, unknown>)?.type ?? ""));
         setMyRole((String(m.role ?? "general_member") as RoleName));
         loadMembers(m.org_id);
       }
@@ -160,9 +164,9 @@ export default function RosterPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Member Roster"
+        title={isSportsOrg(orgType) ? "Team Roster" : "Member Roster"}
         description={`${members.length} members`}
-        breadcrumb="Organization"
+        breadcrumb={isSportsOrg(orgType) ? "SportsOS" : "Organization"}
         action={
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" icon={<Upload size={14} />} onClick={() => importRef.current?.click()} loading={importing}>Import CSV</Button>
@@ -176,6 +180,8 @@ export default function RosterPage() {
           </div>
         }
       />
+
+      {orgId && isSportsOrg(orgType) && <SportsEligibilitySummary orgId={orgId} />}
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">

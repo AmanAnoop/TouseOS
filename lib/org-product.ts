@@ -194,6 +194,7 @@ export const CLUB_FEATURE_NAV: NavItemDef[] = [
   { href: "/club/membership", label: "Membership", products: ["club"] },
   { href: "/club/committees", label: "Committees", products: ["club"] },
   { href: "/club/service-hours", label: "Service Hours", products: ["club"] },
+  { href: "/club/elections", label: "Officer Elections", products: ["club"] },
   { href: "/social", label: "Photos & Updates", products: ["club"] },
   { href: "/philanthropy", label: "Fundraising", products: ["club"] },
   { href: "/yearbook", label: "Year in Review", products: ["club"] },

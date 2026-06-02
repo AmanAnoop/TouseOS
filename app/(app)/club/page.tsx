@@ -145,6 +145,7 @@ export default async function ClubDashboardPage() {
           {[
             { href: "/club/membership", label: "Membership" },
             { href: "/club/committees", label: "Committees" },
+            { href: "/club/elections", label: "Elections" },
             { href: "/club/service-hours", label: "Service hours" },
             { href: "/roster", label: "Roster" },
             { href: "/budget", label: "Budget" },

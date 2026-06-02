@@ -1,18 +1,27 @@
 # Backlog implementation status
 
 Tracked against `docs/feature-backlog.md` (67 numbered modules, 0–66).  
-**Last updated:** SportsOS / ClubOS separation on branch `cursor/sportsos-clubos-separation-4a50`.
+**Last updated:** Wave 13 on branch `cursor/sportsos-clubos-separation-4a50`.
 
 ## Completion percentages
 
 | Metric | ~% | What it means |
 |--------|-----|----------------|
-| **Full final build** | **~83%** | Weighted depth across all 67 modules |
+| **Full final build** | **~85%** | Weighted depth across all 67 modules |
 | Modules at production depth (✅) | **~42%** | 28 modules with end-to-end flows |
 | Modules with a route or API | **~99%** | 66/67 |
 | Day-to-day chapter ops | **~94%** | Core officer + member workflows |
 
-## Product separation (latest)
+## Wave 13 (latest)
+
+| Module | Status | Notes |
+|--------|--------|-------|
+| 47–50 SportsOS roster/travel | ✅ | Travel trip workspace `/travel/[id]`, saved costs, roster, readiness score |
+| 47 Sports eligibility | ✅ | `lib/sports-eligibility.ts` + roster summary |
+| ClubOS elections | ✅ | `/club/elections`, votes, migration **024** |
+| ClubOS service goals | ✅ | Semester hour targets on service hours page |
+
+## Product separation
 
 | Product | Org type | Home | Notes |
 |---------|----------|------|-------|
@@ -26,4 +35,4 @@ Central config: `lib/org-product.ts` · Route guard: `ProductRouteGuard` · Migr
 
 PDF yearbook, Stripe reconciliation, launch checklist.
 
-Run migrations **015 → 023** in Supabase after merge.
+Run migrations **015 → 024** in Supabase after merge.
