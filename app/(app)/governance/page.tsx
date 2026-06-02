@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Gavel, Plus, Users } from "lucide-react";
 import toast from "react-hot-toast";
+import { usePermissions } from "@/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
 import {
   Badge, Button, Card, EmptyState, Input, Modal,
@@ -33,6 +34,7 @@ interface Vote {
 
 export default function GovernancePage() {
   const supabase = createClient();
+  const { can, loading: permLoading } = usePermissions();
   const [orgId, setOrgId] = useState<string | null>(null);
   const [tab, setTab] = useState("meetings");
   const [meetings, setMeetings] = useState<Meeting[]>([]);
@@ -109,7 +111,7 @@ export default function GovernancePage() {
         action={
           <div className="flex gap-2">
             <Button size="sm" variant="secondary" icon={<Gavel size={14} />} onClick={() => setVoteOpen(true)}>New vote</Button>
-            <Button size="sm" icon={<Plus size={14} />} onClick={() => setMeetingOpen(true)}>Schedule meeting</Button>
+            <Button size="sm" icon={<Plus size={14} />} onClick={() => setMeetingOpen(true)} disabled={permLoading || !can("manage_org_settings")}>Schedule meeting</Button>
           </div>
         }
       />
@@ -121,7 +123,7 @@ export default function GovernancePage() {
 
       {tab === "meetings" && (
         meetings.length === 0 ? (
-          <EmptyState icon={<Users size={24} />} title="No meetings scheduled" description="Schedule chapter meetings, standards hearings, or officer elections." action={<Button size="sm" icon={<Plus size={14} />} onClick={() => setMeetingOpen(true)}>Schedule meeting</Button>} />
+          <EmptyState icon={<Users size={24} />} title="No meetings scheduled" description="Schedule chapter meetings, standards hearings, or officer elections." action={<Button size="sm" icon={<Plus size={14} />} onClick={() => setMeetingOpen(true)} disabled={permLoading || !can("manage_org_settings")}>Schedule meeting</Button>} />
         ) : (
           <div className="space-y-3">
             {meetings.map((m) => (

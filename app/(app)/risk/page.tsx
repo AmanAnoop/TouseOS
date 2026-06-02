@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { AlertTriangle, CheckCircle2, Plus, Shield } from "lucide-react";
 import toast from "react-hot-toast";
+import { usePermissions } from "@/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
 import {
   Alert, Badge, Button, Card, CardHeader,
@@ -42,6 +43,7 @@ const CHECKLIST_ITEMS = [
 
 export default function RiskPage() {
   const supabase = createClient();
+  const { can, loading: permLoading } = usePermissions();
   const [checklists, setChecklists] = useState<RiskChecklist[]>([]);
   const [loading, setLoading] = useState(true);
   const [orgId, setOrgId] = useState<string | null>(null);
@@ -121,7 +123,7 @@ export default function RiskPage() {
         title="Risk Management"
         description="Event risk checklists, incident reports, and approval workflows"
         action={
-          <Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>
+          <Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)} disabled={permLoading || !can("manage_incidents")}>
             New risk checklist
           </Button>
         }
@@ -145,7 +147,7 @@ export default function RiskPage() {
           icon={<Shield size={24} />}
           title="No risk checklists"
           description="Create a risk checklist before your next social event."
-          action={<Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>Create checklist</Button>}
+          action={<Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)} disabled={permLoading || !can("manage_incidents")}>Create checklist</Button>}
         />
       ) : (
         <div className="space-y-3">
