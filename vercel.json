@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/recurring-dues",
       "schedule": "0 7 1 * *"
+    },
+    {
+      "path": "/api/cron/sync-stripe-connect",
+      "schedule": "0 5 * * *"
     }
   ]
 }

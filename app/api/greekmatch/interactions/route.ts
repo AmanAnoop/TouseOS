@@ -6,7 +6,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { targetUserId, action } = await request.json();
+  const { targetUserId, action, reportReason } = await request.json();
   if (!targetUserId || !action) {
     return NextResponse.json({ error: "targetUserId and action required" }, { status: 400 });
   }
@@ -49,6 +49,27 @@ export async function POST(request: Request) {
       { blocker_id: user.id, blocked_id: targetUserId },
       { onConflict: "blocker_id,blocked_id" },
     );
+  }
+
+  if (action === "report") {
+    const { data: membership } = await supabase
+      .from("org_members")
+      .select("org_id")
+      .eq("user_id", user.id)
+      .neq("status", "removed")
+      .limit(1)
+      .maybeSingle();
+
+    if (membership?.org_id) {
+      await supabase.from("audit_logs").insert({
+        org_id: membership.org_id,
+        actor_id: user.id,
+        action: "greekmatch_report",
+        resource_type: "greekmatch_profiles",
+        resource_id: targetUserId,
+        metadata: { reason: reportReason ?? "unspecified", status: "open" },
+      });
+    }
   }
 
   return NextResponse.json({ success: true, isMatch });

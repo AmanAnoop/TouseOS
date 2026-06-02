@@ -107,7 +107,7 @@ export function SocialAssetsClient({ orgId, org }: { orgId: string; org: OrgBran
     load();
   }
 
-  async function useContent(title: string, content: string) {
+  async function applyTemplateContent(title: string, content: string) {
     try {
       await navigator.clipboard.writeText(content);
       toast.success("Copied to clipboard");
@@ -195,7 +195,7 @@ export function SocialAssetsClient({ orgId, org }: { orgId: string; org: OrgBran
                         <p className="text-xs font-medium text-foreground">{item.title}</p>
                         <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{item.content}</p>
                       </div>
-                      <Button size="sm" variant="secondary" onClick={() => useContent(item.title, item.content)}>
+                      <Button size="sm" variant="secondary" onClick={() => applyTemplateContent(item.title, item.content)}>
                         Use
                       </Button>
                     </div>
@@ -245,7 +245,7 @@ export function SocialAssetsClient({ orgId, org }: { orgId: string; org: OrgBran
                     </div>
                     <div className="flex gap-1 flex-shrink-0">
                       {a.content && (
-                        <Button size="sm" variant="secondary" icon={<Copy size={12} />} onClick={() => useContent(a.title, a.content!)}>
+                        <Button size="sm" variant="secondary" icon={<Copy size={12} />} onClick={() => applyTemplateContent(a.title, a.content!)}>
                           Use
                         </Button>
                       )}

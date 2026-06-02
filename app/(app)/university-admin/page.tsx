@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { AlertTriangle, Building, Download, GraduationCap, Users } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
-import { Alert, Badge, Card, EmptyState, PageHeader, StatCard } from "@/components/ui";
+import { Alert, Badge, Card, EmptyState, Modal, PageHeader, StatCard } from "@/components/ui";
+import { formatDate } from "@/lib/utils";
 import { orgTypeLabel } from "@/lib/utils";
 
 interface UniversityOrg {
@@ -25,6 +26,22 @@ export default function UniversityAdminPage() {
   const [orgs, setOrgs] = useState<UniversityOrg[]>([]);
   const [campuses, setCampuses] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
+  const [orgDetail, setOrgDetail] = useState<{
+    org: Record<string, unknown>;
+    stats: { members: number; openIncidents: number; highRiskIncidents: number };
+    recentEvents: Array<{ id: string; title: string; starts_at: string }>;
+    recentIncidents: Array<{ id: string; title: string; severity: string; status: string; created_at: string }>;
+  } | null>(null);
+
+  async function openOrg(orgId: string) {
+    setSelectedOrgId(orgId);
+    setOrgDetail(null);
+    const res = await fetch(`/api/university-admin/org?org_id=${encodeURIComponent(orgId)}`);
+    const data = await res.json();
+    if (res.ok) setOrgDetail(data);
+    else toast.error(data.error ?? "Could not load org");
+  }
 
   useEffect(() => {
     async function load() {
@@ -132,7 +149,12 @@ export default function UniversityAdminPage() {
       ) : (
         <div className="space-y-2">
           {orgs.map((o) => (
-            <Card key={o.id} padding="sm">
+            <Card
+              key={o.id}
+              padding="sm"
+              className="cursor-pointer hover:border-greek-300 transition-colors"
+              onClick={() => openOrg(o.id)}
+            >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <p className="font-semibold text-sm">{o.name}</p>
@@ -153,6 +175,52 @@ export default function UniversityAdminPage() {
           ))}
         </div>
       )}
+
+      <Modal
+        open={!!selectedOrgId}
+        onClose={() => { setSelectedOrgId(null); setOrgDetail(null); }}
+        title={String(orgDetail?.org?.name ?? "Organization")}
+        size="lg"
+      >
+        {orgDetail ? (
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              <Badge label={orgTypeLabel(String(orgDetail.org.type ?? ""))} color="blue" />
+              {Boolean(orgDetail.org.campus) && <Badge label={String(orgDetail.org.campus)} color="gray" />}
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <StatCard title="Members" value={orgDetail.stats.members} icon={<Users size={16} />} />
+              <StatCard title="Open incidents" value={orgDetail.stats.openIncidents} icon={<AlertTriangle size={16} />} />
+              <StatCard title="High-risk" value={orgDetail.stats.highRiskIncidents} icon={<AlertTriangle size={16} />} />
+            </div>
+            {orgDetail.recentIncidents.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Recent incidents</p>
+                <ul className="space-y-1 text-sm">
+                  {orgDetail.recentIncidents.map((i) => (
+                    <li key={i.id} className="flex justify-between gap-2">
+                      <span>{i.title}</span>
+                      <Badge label={i.severity} color={i.severity === "high" || i.severity === "critical" ? "red" : "yellow"} />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {orgDetail.recentEvents.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Recent events</p>
+                <ul className="space-y-1 text-sm">
+                  {orgDetail.recentEvents.map((e) => (
+                    <li key={e.id}>{e.title} · {formatDate(e.starts_at)}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        ) : (
+          <Card className="h-24 animate-pulse bg-surface-2 border-0">&nbsp;</Card>
+        )}
+      </Modal>
     </div>
   );
 }

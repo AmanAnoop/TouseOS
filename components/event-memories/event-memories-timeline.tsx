@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Badge, Card } from "@/components/ui";
+import { Badge } from "@/components/ui";
 import { EventRecapButton } from "@/components/event-memories/event-recap-button";
 import { formatDate } from "@/lib/utils";
 import { Calendar, Camera, Clock, Image } from "lucide-react";

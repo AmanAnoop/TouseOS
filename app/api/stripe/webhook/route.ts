@@ -173,5 +173,29 @@ export async function POST(request: Request) {
     }
   }
 
+  if (event.type === "account.updated") {
+    const account = event.data.object;
+    const accountId = account.id;
+    const { data: orgs } = await supabase
+      .from("organizations")
+      .select("id, settings")
+      .eq("stripe_account_id", accountId)
+      .limit(1);
+
+    const org = orgs?.[0];
+    if (org) {
+      const settings = {
+        ...(org.settings as object ?? {}),
+        stripe_connect: {
+          charges_enabled: account.charges_enabled,
+          details_submitted: account.details_submitted,
+          synced_at: new Date().toISOString(),
+          source: "webhook",
+        },
+      };
+      await supabase.from("organizations").update({ settings }).eq("id", org.id);
+    }
+  }
+
   return NextResponse.json({ received: true });
 }

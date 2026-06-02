@@ -12,6 +12,7 @@ import {
 import { OrgProfileForm, type OrgProfileFormData } from "@/components/settings/org-profile-form";
 import { InviteCodeCard } from "@/components/settings/invite-code-card";
 import { MemberRolesPanel, type OrgMemberWithProfile } from "@/components/settings/member-roles-panel";
+import { StripeConnectPanel } from "@/components/settings/stripe-connect-panel";
 
 export default function SettingsPage() {
   const supabase = createClient();
@@ -34,7 +35,7 @@ export default function SettingsPage() {
       if (!user) return;
       const { data: m } = await supabase
         .from("org_members")
-        .select("org_id, role, organizations(*)")
+        .select("org_id, role, organizations(*, platform_plan, platform_plan_status)")
         .eq("user_id", user.id)
         .neq("status", "removed")
         .limit(1)
@@ -154,6 +155,14 @@ export default function SettingsPage() {
 
       {tab === "profile" && (
         <div className="space-y-4">
+          {isAdmin && Boolean(org?.platform_plan) && (
+            <Card padding="sm">
+              <p className="text-xs text-muted-foreground uppercase font-semibold mb-1">TouseOS plan</p>
+              <p className="text-sm font-medium capitalize">
+                {String(org?.platform_plan)} · {String(org?.platform_plan_status ?? "active")}
+              </p>
+            </Card>
+          )}
           <OrgProfileForm
             form={orgForm}
             org={org}
@@ -185,6 +194,12 @@ export default function SettingsPage() {
       {tab === "integrations" && (
         <div className="space-y-4">
           <Alert type="info" title="Configure integrations to unlock payment processing, SMS, and AI features." />
+          {isAdmin && orgId && (
+            <StripeConnectPanel
+              orgId={orgId}
+              initialAccountId={org?.stripe_account_id ? String(org.stripe_account_id) : null}
+            />
+          )}
           {[
             {
               name: "Supabase",

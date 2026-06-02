@@ -15,6 +15,7 @@ import { formatCurrency } from "@/lib/utils";
 import { AvailabilityMatcher, type AvailabilityEntry } from "@/components/interchapter/availability-matcher";
 import { JointBudgetSplitter } from "@/components/interchapter/joint-budget-splitter";
 import { InterchapterSummaryPanel } from "@/components/interchapter/interchapter-summary-panel";
+import { InterchapterMessagesPanel } from "@/components/interchapter/interchapter-messages-panel";
 
 interface Proposal {
   id: string;
@@ -62,6 +63,7 @@ export default function InterchapterPage() {
   const [availability, setAvailability] = useState<AvailabilityEntry[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [userName, setUserName] = useState("");
+  const [partnerOrgs, setPartnerOrgs] = useState<Array<{ id: string; name: string }>>([]);
 
   const [proposalForm, setProposalForm] = useState({
     targetOrgId: "", eventName: "", eventType: "mixer",
@@ -118,6 +120,28 @@ export default function InterchapterPage() {
     }
     init();
   }, [supabase, load]);
+
+  useEffect(() => {
+    if (!orgId || proposals.length === 0) {
+      setPartnerOrgs([]);
+      return;
+    }
+    const ids = [
+      ...new Set(
+        proposals.flatMap((p) => {
+          if (p.proposing_org_id === orgId) return [p.target_org_id];
+          if (p.target_org_id === orgId) return [p.proposing_org_id];
+          return [];
+        }),
+      ),
+    ];
+    if (ids.length === 0) return;
+    supabase
+      .from("organizations")
+      .select("id, name")
+      .in("id", ids)
+      .then(({ data }) => setPartnerOrgs((data ?? []) as Array<{ id: string; name: string }>));
+  }, [proposals, orgId, supabase]);
 
   async function submitProposal() {
     if (!orgId || !proposalForm.eventName || !proposalForm.targetOrgId) return;
@@ -259,6 +283,7 @@ export default function InterchapterPage() {
           { id: "ideas", label: "Idea marketplace", count: ideas.length },
           { id: "availability", label: "Availability", count: availability.length },
           { id: "budget", label: "Budget split" },
+          { id: "messages", label: "Messages", count: partnerOrgs.length || undefined },
         ]}
         active={tab}
         onChange={setTab}
@@ -344,6 +369,10 @@ export default function InterchapterPage() {
 
       {tab === "budget" && (
         <JointBudgetSplitter orgAName="Your chapter" orgBName="Partner chapter" />
+      )}
+
+      {tab === "messages" && orgId && (
+        <InterchapterMessagesPanel orgId={orgId} userName={userName} partners={partnerOrgs} />
       )}
 
       {/* Propose event modal */}

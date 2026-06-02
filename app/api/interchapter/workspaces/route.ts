@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { interchapterThreadId } from "@/lib/interchapter-thread";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -68,12 +69,33 @@ export async function PATCH(request: Request) {
 
   if (chatMessage) {
     const messages = (ws.chat_messages as unknown[]) ?? [];
-    updates.chat_messages = [...messages, {
+    const entry = {
       id: crypto.randomUUID(),
       sender: senderName ?? "Officer",
       body: chatMessage,
       created_at: new Date().toISOString(),
-    }];
+    };
+    updates.chat_messages = [...messages, entry];
+
+    const orgIds = (ws.org_ids as string[]) ?? [];
+    if (orgIds.length >= 2) {
+      const [orgA, orgB] = orgIds;
+      const tid = interchapterThreadId(orgA, orgB);
+      const bodyText = `[Workspace: ${ws.title}] ${chatMessage}`;
+      await Promise.all(
+        orgIds.map((oid) =>
+          supabase.from("messages").insert({
+            org_id: oid,
+            sender_id: user.id,
+            sender_name: senderName ?? "Officer",
+            thread_id: tid,
+            body: bodyText,
+            recipient_org_id: orgIds.find((id) => id !== oid) ?? null,
+            audience: "interchapter",
+          }),
+        ),
+      );
+    }
   }
   if (task) {
     const tasks = (ws.shared_tasks as unknown[]) ?? [];

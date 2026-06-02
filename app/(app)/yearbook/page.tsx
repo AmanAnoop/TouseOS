@@ -5,6 +5,7 @@ import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
 import { BookOpen, Camera, Heart } from "lucide-react";
 import { YearbookExportButton } from "@/components/yearbook/yearbook-export-button";
+import { YearbookPrintTrigger } from "@/components/yearbook/yearbook-print-trigger";
 import { YearbookPageExtras } from "@/components/yearbook/yearbook-page-extras";
 import type { YearbookExportData } from "@/lib/yearbook-export";
 
@@ -74,7 +75,10 @@ export default async function YearbookPage() {
         description={`${orgName} semester scrapbook — events, memories, and approved photos`}
         action={
           <div className="flex items-center gap-2">
-            <YearbookExportButton data={exportData} />
+            <YearbookExportButton data={exportData} orgId={orgId} />
+            <YearbookPrintTrigger
+              disabled={events.length === 0 && photos.length === 0 && customSections.length === 0}
+            />
             <Link href="/social" className="text-sm text-greek-600 hover:underline flex items-center gap-1">
               <Camera size={14} /> Manage photos
             </Link>

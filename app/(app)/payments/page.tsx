@@ -18,6 +18,8 @@ import { PaymentDetailModal } from "@/components/payments/payment-detail-modal";
 import { MemberBalancesPanel, computeMemberBalances } from "@/components/payments/member-balances-panel";
 import { TreasurerDashboard } from "@/components/payments/treasurer-dashboard";
 import { HardshipReviewPanel } from "@/components/payments/hardship-review-panel";
+import { StripeDestinationBanner } from "@/components/payments/stripe-destination-banner";
+import { StripeReconciliationPanel } from "@/components/payments/stripe-reconciliation-panel";
 import { can, type RoleName } from "@/lib/permissions";
 
 export default function PaymentsPage() {
@@ -168,11 +170,11 @@ export default function PaymentsPage() {
           <div className="flex gap-2 flex-wrap">
             {canManage && (
               <>
-                <Button variant="secondary" size="sm" icon={<Send size={14} />} onClick={sendReminders}>
+                <Button variant="secondary" size="sm" className="officer-touch" icon={<Send size={14} />} onClick={sendReminders}>
                   Send reminders
                 </Button>
-                <Button variant="secondary" size="sm" onClick={() => setManualOpen(true)}>Log cash/check</Button>
-                <Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>
+                <Button variant="secondary" size="sm" className="officer-touch" onClick={() => setManualOpen(true)}>Log cash/check</Button>
+                <Button size="sm" className="officer-touch" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>
                   New charge
                 </Button>
               </>
@@ -190,6 +192,13 @@ export default function PaymentsPage() {
           </div>
         }
       />
+
+      {orgId && canManage && (
+        <>
+          <StripeDestinationBanner orgId={orgId} />
+          <StripeReconciliationPanel orgId={orgId} />
+        </>
+      )}
 
       {!canViewAll && (
         <Card>

@@ -91,7 +91,7 @@ export default function SharedWorkspacePage() {
 
       <PageHeader
         title={ws.title}
-        description="Shared planning workspace for co-hosted events"
+        description="Shared planning workspace for co-hosted events — chat syncs to ExecLink Messages"
         action={<Badge label={ws.status} color="green" />}
       />
 

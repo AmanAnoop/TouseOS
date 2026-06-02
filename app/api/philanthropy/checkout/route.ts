@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getOrgStripeDestination } from "@/lib/org-stripe";
 import { createPhilanthropyCheckout } from "@/lib/stripe";
 import { createServiceClient } from "@/lib/supabase/server";
 
@@ -26,6 +27,8 @@ export async function POST(request: Request) {
   }
 
   try {
+    const connectedAccountId = await getOrgStripeDestination(supabase, campaign.org_id);
+
     const session = await createPhilanthropyCheckout({
       campaignId: campaign.id,
       orgId: campaign.org_id,
@@ -36,6 +39,7 @@ export async function POST(request: Request) {
       donorEmail,
       message,
       isAnonymous: Boolean(isAnonymous),
+      connectedAccountId,
     });
 
     if (!session.url) {

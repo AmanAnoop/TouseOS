@@ -24,9 +24,9 @@ const buttonVariants: Record<ButtonVariant, string> = {
 };
 
 const buttonSizes: Record<ButtonSize, string> = {
-  sm: "h-8 px-3 text-sm",
-  md: "h-9 px-4 text-sm",
-  lg: "h-10 px-6 text-base",
+  sm: "min-h-[44px] h-10 px-3 text-sm touch-manipulation",
+  md: "min-h-[44px] h-11 px-4 text-sm touch-manipulation",
+  lg: "min-h-[48px] h-12 px-6 text-base touch-manipulation",
 };
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
@@ -178,7 +178,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         <input
           ref={ref}
           className={cn(
-            "flex h-9 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm",
+            "flex min-h-[44px] h-11 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm touch-manipulation",
             "placeholder:text-muted-foreground",
             "focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent",
             "disabled:cursor-not-allowed disabled:opacity-50",
@@ -252,7 +252,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       <select
         ref={ref}
         className={cn(
-          "flex h-9 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm",
+          "flex min-h-[44px] h-11 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm touch-manipulation",
           "focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent",
           "disabled:cursor-not-allowed disabled:opacity-50",
           error && "border-red-500",
@@ -638,7 +638,7 @@ export function SearchInput({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         className={cn(
-          "w-full h-9 pl-9 pr-4 rounded-lg border border-border bg-background text-sm",
+          "w-full min-h-[44px] h-11 pl-9 pr-4 rounded-lg border border-border bg-background text-sm touch-manipulation",
           "placeholder:text-muted-foreground",
           "focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent",
         )}
