@@ -10,6 +10,7 @@ import {
 } from "@/components/ui";
 import type { Photo, PhotoAlbum } from "@/types";
 import { PhotoApprovalGrid } from "@/components/social/photo-approval-grid";
+import { PhotoRequestsPanel } from "@/components/social/photo-requests-panel";
 
 const APPROVAL_COLOR = {
   pending: "yellow",
@@ -27,6 +28,7 @@ export default function SocialPage() {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("albums");
+  const [mainTab, setMainTab] = useState<"albums" | "requests">("albums");
   const [orgId, setOrgId] = useState<string | null>(null);
   const [contentPackOpen, setContentPackOpen] = useState(false);
   const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
@@ -221,15 +223,26 @@ export default function SocialPage() {
 
       {!selectedAlbum ? (
         <>
-          {loading ? (
+          <Tabs
+            tabs={[
+              { id: "albums", label: "Albums" },
+              { id: "requests", label: "Photo requests" },
+            ]}
+            active={mainTab}
+            onChange={(id) => setMainTab(id as "albums" | "requests")}
+          />
+
+          {mainTab === "requests" && orgId ? (
+            <PhotoRequestsPanel orgId={orgId} />
+          ) : loading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="aspect-video bg-surface-2 rounded-xl animate-pulse" />
               ))}
             </div>
-          ) : albums.length === 0 ? (
+          ) : mainTab === "albums" && albums.length === 0 ? (
             <EmptyState icon={<Image size={24} />} title="No photo albums" description="Create an album for your next event." />
-          ) : (
+          ) : mainTab === "albums" ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {albums.map((album) => (
                 <button
@@ -253,7 +266,7 @@ export default function SocialPage() {
                 </button>
               ))}
             </div>
-          )}
+          ) : null}
         </>
       ) : (
         <>

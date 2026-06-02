@@ -13,6 +13,7 @@ import {
 import { downloadCsv } from "@/lib/utils";
 import type { AlumniProfile } from "@/types";
 import toast from "react-hot-toast";
+import { AlumniCampaignsPanel } from "@/components/alumni/alumni-campaigns-panel";
 
 export default function AlumniPage() {
   const supabase = createClient();
@@ -106,6 +107,7 @@ export default function AlumniPage() {
         tabs={[
           { id: "directory", label: "Directory", count: alumni.length },
           { id: "mentors", label: "Mentors", count: mentors.length },
+          { id: "campaigns", label: "Campaigns" },
           { id: "careers", label: "Careers" },
         ]}
         active={tab}
@@ -114,7 +116,9 @@ export default function AlumniPage() {
 
       <SearchInput value={query} onChange={setQuery} placeholder="Search by name, employer, city, career..." />
 
-      {loading ? (
+      {tab === "campaigns" && orgId ? (
+        <AlumniCampaignsPanel orgId={orgId} />
+      ) : loading ? (
         <div className="grid sm:grid-cols-2 gap-3">{[1,2,3,4].map((i) => <Card key={i} className="h-20 animate-pulse bg-surface-2 border-0">&nbsp;</Card>)}</div>
       ) : (tab === "mentors" ? filtered.filter((a) => a.mentorship_interest) : filtered).length === 0 ? (
         <EmptyState
