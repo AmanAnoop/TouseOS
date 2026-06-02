@@ -23,6 +23,11 @@ export default function PlatformAdminPage() {
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [orgs, setOrgs] = useState<PlatformOrg[]>([]);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<{
+    counts: { organizations: number; members: number; events: number };
+    donationsRaised: number;
+    featureFlags: Record<string, boolean>;
+  } | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -41,9 +46,14 @@ export default function PlatformAdminPage() {
       }
 
       setAllowed(true);
-      const res = await fetch("/api/platform-admin/orgs");
-      const data = await res.json();
-      if (res.ok) setOrgs(data.orgs ?? []);
+      const [orgsRes, statsRes] = await Promise.all([
+        fetch("/api/platform-admin/orgs"),
+        fetch("/api/platform-admin/stats"),
+      ]);
+      const orgsData = await orgsRes.json();
+      const statsData = await statsRes.json();
+      if (orgsRes.ok) setOrgs(orgsData.orgs ?? []);
+      if (statsRes.ok) setStats(statsData);
       setLoading(false);
     }
     load();
@@ -71,11 +81,23 @@ export default function PlatformAdminPage() {
         description="Multi-tenant overview for TouseOS operators"
       />
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <StatCard title="Organizations" value={orgs.length} icon={<Building size={18} />} />
-        <StatCard title="Campuses" value={new Set(orgs.map((o) => o.campus).filter(Boolean)).size} icon={<Shield size={18} />} />
-        <StatCard title="Total members" value={totalMembers} icon={<Users size={18} />} />
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <StatCard title="Organizations" value={stats?.counts.organizations ?? orgs.length} icon={<Building size={18} />} />
+        <StatCard title="Platform members" value={stats?.counts.members ?? totalMembers} icon={<Users size={18} />} />
+        <StatCard title="Events hosted" value={stats?.counts.events ?? 0} icon={<Shield size={18} />} />
+        <StatCard title="Donations (all)" value={stats ? `$${Math.round(stats.donationsRaised).toLocaleString()}` : "—"} icon={<Building size={18} />} />
       </div>
+
+      {stats?.featureFlags && (
+        <Card padding="sm">
+          <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Feature flags (env)</p>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(stats.featureFlags).map(([key, on]) => (
+              <Badge key={key} label={`${key}: ${on ? "on" : "off"}`} color={on ? "green" : "gray"} />
+            ))}
+          </div>
+        </Card>
+      )}
 
       {loading ? (
         <Card className="h-40 animate-pulse bg-surface-2 border-0">&nbsp;</Card>

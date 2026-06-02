@@ -11,6 +11,8 @@ import {
 import type { Photo, PhotoAlbum } from "@/types";
 import { PhotoApprovalGrid } from "@/components/social/photo-approval-grid";
 import { PhotoRequestsPanel } from "@/components/social/photo-requests-panel";
+import { PrComplianceChecklist } from "@/components/social/pr-compliance-checklist";
+import { ActivePhotoPrompts } from "@/components/social/active-photo-prompts";
 
 const APPROVAL_COLOR = {
   pending: "yellow",
@@ -221,6 +223,8 @@ export default function SocialPage() {
         </div>
       )}
 
+      {orgId && <ActivePhotoPrompts orgId={orgId} />}
+
       {!selectedAlbum ? (
         <>
           <Tabs
@@ -407,23 +411,13 @@ export default function SocialPage() {
             />
           </div>
 
-          <Card padding="sm" className="bg-surface-1">
-            <p className="text-xs font-semibold text-foreground mb-2">PR Compliance checklist</p>
-            {[
-              "Alcohol visible in any photos?",
-              "Unsafe behavior visible?",
-              "Non-members visible without consent?",
-              "Sponsor tagged if applicable?",
-              "Co-host chapter approved?",
-              "Caption reviewed by PR chair?",
-              "National/chapter guidelines followed?",
-            ].map((item) => (
-              <label key={item} className="flex items-center gap-2 py-1 cursor-pointer">
-                <input type="checkbox" className="rounded" />
-                <span className="text-xs text-muted-foreground">{item}</span>
-              </label>
-            ))}
-          </Card>
+          {orgId && (
+            <PrComplianceChecklist
+              orgId={orgId}
+              photoIds={selectedPhotos}
+              onApproved={() => toast.success("Ready to export content pack")}
+            />
+          )}
         </div>
       </Modal>
     </div>

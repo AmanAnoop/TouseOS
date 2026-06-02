@@ -1,70 +1,57 @@
 # Backlog implementation status
 
 Tracked against `docs/feature-backlog.md` (67 numbered modules, 0–66).  
-**Last updated:** wave 3 on branch `cursor/backlog-continuation-4a50`.
+**Last updated:** wave 4 on branch `cursor/backlog-continuation-4a50`.
 
 ## Completion percentages
 
 | Metric | ~% | What it means |
 |--------|-----|----------------|
-| **Full final build** | **~62%** | Weighted depth across all 67 modules (see formula below) |
-| Modules at production depth (✅) | **~27%** | 18 modules with end-to-end, officer-ready flows |
-| Modules with a route or API | **~97%** | 65/67 have at least a page, API, or embedded UI |
-| Day-to-day chapter ops | **~78%** | Roster, dues, events, comms, PNM, social, standards, risk |
+| **Full final build** | **~64%** | Weighted depth across all 67 modules |
+| Modules at production depth (✅) | **~28%** | 19 modules with end-to-end flows |
+| Modules with a route or API | **~99%** | 66/67 (only planning doc 66 has no code) |
+| Day-to-day chapter ops | **~80%** | Core officer workflows usable in production |
 
-### How “full final build” is calculated
-
-Each module 0–66 is scored:
+### Scoring formula
 
 | Status | Points | Count (approx.) |
 |--------|--------|-----------------|
-| ✅ Production-ready | 100 | 18 |
-| 🟡 Partial (page + gaps) | 50 | 46 |
-| Stub / placeholder only | 15 | 1 |
-| ⬜ Not started | 0 | 2 |
+| ✅ Production-ready | 100 | 19 |
+| 🟡 Partial | 50 | 47 |
+| Stub | 15 | 0 |
+| ⬜ Not started | 0 | 1 |
 
-**Formula:** `(18×100 + 46×50 + 1×15 + 2×0) ÷ 67 ≈ 61.4%` → reported as **~62%**.
-
-To reach **100%**, remaining work includes: university admin depth, platform billing/impersonation, Instagram scraping-adjacent features (consent-only), full yearbook/senior pages, mobile polish everywhere, and hardening partial modules (budget, interchapter, GreekMatch, etc.).
+**`(19×100 + 47×50 + 1×0) ÷ 67 ≈ 63.4%` → ~64%** (rounded)
 
 ---
 
-## Wave 3 (this update)
+## Wave 4 (latest)
 
 | Module | Status | Notes |
 |--------|--------|-------|
-| 28 Alumni CRM | 🟡→✅ campaigns | Email campaigns tab + `/api/alumni/campaigns` |
-| 38 Collab post planner | 🟡 | `/social-collab` + checklist + caption draft |
-| 40 Photo requests | 🟡 | Tab on Touse Social + `/api/photo-requests` |
-| 44 One-click event recap | 🟡 | `/api/events/recap` + Recap button on memories |
-| 64 University admin | 🟡 | `/university-admin` campus org list + risk flags |
+| 37 Event photo prompts | 🟡 | Officer send + member banner; nationals-safe prompt set |
+| 43 PR compliance | ✅ | Persisted checklist + audit via `/api/pr-compliance` |
+| 41 Yearbook | 🟡 | Custom sections (seniors, awards, alumni, exec, philanthropy) |
+| 63 Platform admin | 🟡 | Usage stats + env feature flags |
+| 64 University admin | 🟡 | CSV campus export |
+| 14 Instagram leads | 🟡 | Campaign + Instagram lead counts in PNM analytics |
 
-## Prior waves (same branch)
+## Wave 3
 
-| Module | Status |
-|--------|--------|
-| 2 Onboarding | ✅ |
-| 6 Payments | ✅ |
-| 11 Comms SMS | ✅ |
-| 23 Risk / incidents | ✅ |
-| 24 Standards | ✅ |
-| 25 NME | ✅ |
-| 27 Philanthropy + Stripe | ✅ |
-| 42 Social asset library | ✅ |
-| 56 Coaching | ✅ |
-| 63 Platform admin | 🟡 |
+University admin, alumni campaigns, photo requests, collab planner, event recap.
+
+## Prior waves
+
+Onboarding, Stripe philanthropy, social library, standards, governance, NME, coaching, incidents, etc.
 
 ---
 
 ## Still open (toward 100%)
 
-- 37 Event photo prompts (dedicated flow)
-- 43 PR compliance checklist (full UI, not export note only)
-- 63 Platform admin: impersonation, feature flags, billing
-- 64 University: advisor workflows, reporting exports
-- 14 Instagram: campaign analytics (no scraping)
-- 41 Yearbook: senior pages, awards, alumni messages
-- 38 Collab: cross-org in-app messaging
-- Mobile-first pass (module 65) on all officer flows
+- Platform impersonation + billing
+- Full yearbook PDF with embedded section images
+- Event photo prompt → direct album upload linkage
+- Mobile polish (module 65) on every officer flow
+- Deep interchapter / GreekMatch / budget modules
 
-Run migrations **015 → 016 → 017 → 018** in Supabase after merge.
+Run migrations **015 → 019** in Supabase after merge.

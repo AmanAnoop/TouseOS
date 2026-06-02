@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Building, GraduationCap, Users } from "lucide-react";
+import { AlertTriangle, Building, Download, GraduationCap, Users } from "lucide-react";
+import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { Alert, Badge, Card, EmptyState, PageHeader, StatCard } from "@/components/ui";
 import { orgTypeLabel } from "@/lib/utils";
@@ -70,11 +71,45 @@ export default function UniversityAdminPage() {
   const sports = orgs.filter((o) => o.type === "club_sports").length;
   const atRisk = orgs.filter((o) => o.highRiskIncidents > 0).length;
 
+  function exportCsv() {
+    const header = "name,type,campus,council,member_count,high_risk_incidents\n";
+    const rows = orgs.map((o) =>
+      [
+        `"${o.name.replace(/"/g, '""')}"`,
+        o.type,
+        o.campus ?? "",
+        o.council_or_league ?? "",
+        o.memberCount,
+        o.highRiskIncidents,
+      ].join(","),
+    );
+    const blob = new Blob([header + rows.join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "campus-orgs-report.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Report downloaded");
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="University admin"
         description="Read-only oversight of Greek and student orgs on your campus"
+        action={
+          orgs.length > 0 ? (
+            <button
+              type="button"
+              onClick={exportCsv}
+              className="inline-flex items-center gap-1.5 text-sm text-greek-600 hover:underline"
+            >
+              <Download size={14} />
+              Export CSV
+            </button>
+          ) : undefined
+        }
       />
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

@@ -112,6 +112,7 @@ supabase/migrations/015_onboarding_rpc.sql          # required for create/join o
 supabase/migrations/016_feature_fixes_rls.sql     # forms, waivers, housing RLS
 supabase/migrations/017_backlog_wave.sql          # coaching, NME, donations, social assets
 supabase/migrations/018_wave3_social_alumni.sql   # photo requests RLS, alumni campaigns, collab posts
+supabase/migrations/019_wave4_prompts_yearbook.sql # event photo prompts, PR compliance, yearbook sections
 ```
 
 ### 3. Environment variables

@@ -8,8 +8,10 @@ interface Analytics {
   total: number;
   enriched: number;
   consented: number;
+  instagramLeads: number;
   pipeline: Array<{ status: string; count: number }>;
   campaigns: Array<{ campaign: string; count: number }>;
+  sources: Array<{ source: string; count: number }>;
 }
 
 export function RecruitmentAnalyticsPanel({ orgId }: { orgId: string | null }) {
@@ -30,7 +32,7 @@ export function RecruitmentAnalyticsPanel({ orgId }: { orgId: string | null }) {
         <StatCard title="Total PNMs" value={data.total} icon={<BarChart2 size={16} />} />
         <StatCard title="Profiles enriched" value={data.enriched} icon={<BarChart2 size={16} />} />
         <StatCard title="SMS consented" value={data.consented} icon={<BarChart2 size={16} />} />
-        <StatCard title="Campaigns" value={data.campaigns.length} icon={<BarChart2 size={16} />} />
+        <StatCard title="Instagram leads" value={data.instagramLeads ?? 0} icon={<BarChart2 size={16} />} />
       </div>
 
       <div className="grid lg:grid-cols-2 gap-4">
@@ -58,6 +60,21 @@ export function RecruitmentAnalyticsPanel({ orgId }: { orgId: string | null }) {
               {data.campaigns.map((row) => (
                 <div key={row.campaign} className="flex justify-between text-sm">
                   <span>{row.campaign}</span>
+                  <span className="font-semibold">{row.count}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+        <Card className="lg:col-span-2">
+          <CardHeader title="By referral source" />
+          {(data.sources ?? []).length === 0 ? (
+            <EmptyState title="No source data" />
+          ) : (
+            <div className="space-y-2">
+              {data.sources.map((row) => (
+                <div key={row.source} className="flex justify-between text-sm">
+                  <span>{row.source}</span>
                   <span className="font-semibold">{row.count}</span>
                 </div>
               ))}
