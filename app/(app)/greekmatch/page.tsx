@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import {
-  Flag, Heart, Info, RotateCcw, Settings, Star, X,
+  Flag, Heart, Info, RotateCcw, Settings, Shield, Star, X,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Badge, Button, EmptyState, Modal, Spinner } from "@/components/ui";
@@ -36,6 +36,7 @@ export default function GreekMatchPage() {
   const [matchModal, setMatchModal] = useState<GmProfile | null>(null);
   const [detailModal, setDetailModal] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [profileSuspended, setProfileSuspended] = useState(false);
   const [seenCount, setSeenCount] = useState(0);
   const cardRef = useRef<HTMLDivElement>(null);
   const dragStart = useRef<{ x: number; y: number } | null>(null);
@@ -51,10 +52,17 @@ export default function GreekMatchPage() {
         .from("greekmatch_profiles")
         .select("*")
         .eq("user_id", user.id)
-        .eq("is_active", true)
         .maybeSingle();
 
       if (!mine) { setLoading(false); return; }
+
+      if (mine.paused || !mine.is_active) {
+        setProfileSuspended(true);
+        setMyProfile(mine as GmProfile);
+        setLoading(false);
+        return;
+      }
+
       setMyProfile(mine as GmProfile);
 
       // Load seen list
@@ -178,6 +186,18 @@ export default function GreekMatchPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  if (profileSuspended) {
+    return (
+      <div className="max-w-sm mx-auto pt-16 px-4">
+        <EmptyState
+          icon={<Shield size={28} className="text-red-400" />}
+          title="Profile unavailable"
+          description="Your GreekMatch profile has been paused following a platform review. Contact your chapter officers or support if you believe this is an error."
+        />
       </div>
     );
   }

@@ -318,6 +318,7 @@ export default function BudgetPage() {
                   <Button
                     variant="secondary"
                     size="sm"
+                    className="officer-touch"
                     icon={<RefreshCw size={14} />}
                     loading={syncing}
                     onClick={syncFullBudget}

@@ -75,7 +75,7 @@ export default async function YearbookPage() {
         description={`${orgName} semester scrapbook — events, memories, and approved photos`}
         action={
           <div className="flex items-center gap-2">
-            <YearbookExportButton data={exportData} />
+            <YearbookExportButton data={exportData} orgId={orgId} />
             <YearbookPrintTrigger
               disabled={events.length === 0 && photos.length === 0 && customSections.length === 0}
             />

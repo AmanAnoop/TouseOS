@@ -354,6 +354,12 @@ export default function PlatformAdminPage() {
               {Boolean(orgDetail.org.campus) && (
                 <Badge label={String(orgDetail.org.campus)} color="gray" />
               )}
+              {Boolean(orgDetail.org.platform_plan) && (
+                <Badge label={`Plan: ${String(orgDetail.org.platform_plan)}`} color="purple" />
+              )}
+              {Boolean(orgDetail.org.platform_plan_status) && (
+                <Badge label={String(orgDetail.org.platform_plan_status)} color="gray" />
+              )}
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               <StatCard title="Members" value={orgDetail.stats.members} icon={<Users size={16} />} />

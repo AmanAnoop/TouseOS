@@ -160,14 +160,14 @@ export default function CommsPage() {
         title="Communications"
         description="Announcements, email blasts, and message templates"
         action={
-          <div className="flex gap-2">
-            <Button variant="secondary" size="sm" onClick={() => setSmsOpen(true)}>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" size="sm" className="officer-touch" onClick={() => setSmsOpen(true)}>
               SMS blast
             </Button>
-            <Button variant="secondary" size="sm" icon={<Mail size={14} />} onClick={() => setEmailBlastOpen(true)}>
+            <Button variant="secondary" size="sm" className="officer-touch" icon={<Mail size={14} />} onClick={() => setEmailBlastOpen(true)}>
               Email blast
             </Button>
-            <Button size="sm" icon={<Plus size={14} />} onClick={() => setComposeOpen(true)}>
+            <Button size="sm" className="officer-touch" icon={<Plus size={14} />} onClick={() => setComposeOpen(true)}>
               Announcement
             </Button>
           </div>
