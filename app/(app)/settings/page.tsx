@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { LogOut, Shield } from "lucide-react";
 import toast from "react-hot-toast";
+import { usePermissions } from "@/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import {
@@ -15,6 +16,7 @@ import { MemberRolesPanel, type OrgMemberWithProfile } from "@/components/settin
 
 export default function SettingsPage() {
   const supabase = createClient();
+  const { can, loading: permLoading } = usePermissions();
   const router = useRouter();
   const [tab, setTab] = useState("profile");
   const [orgId, setOrgId] = useState<string | null>(null);
@@ -64,7 +66,8 @@ export default function SettingsPage() {
     init();
   }, [supabase]);
 
-  const isAdmin = ["owner", "president", "advisor"].includes(myRole);
+  const canManageSettings = !permLoading && can("manage_org_settings");
+  const isAdmin = canManageSettings || ["owner", "president", "advisor"].includes(myRole);
   const activeMembers = members.filter((m) => m.status !== "removed");
 
   async function saveOrgProfile() {

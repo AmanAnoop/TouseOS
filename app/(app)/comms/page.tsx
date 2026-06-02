@@ -5,6 +5,7 @@ import {
   Mail, Plus, Send,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { usePermissions } from "@/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
 import {
   Alert, Button, Card,
@@ -17,12 +18,14 @@ import { CommsAnalyticsPanel } from "@/components/comms/comms-analytics-panel";
 
 export default function CommsPage() {
   const supabase = createClient();
+  const { can, loading: permLoading } = usePermissions();
   const [tab, setTab] = useState("announcements");
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [orgId, setOrgId] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<{ name: string } | null>(null);
   const [composeOpen, setComposeOpen] = useState(false);
+  const canSendComms = !permLoading && can("send_mass_texts");
   const [emailBlastOpen, setEmailBlastOpen] = useState(false);
   const [query, setQuery] = useState("");
 
@@ -145,7 +148,7 @@ export default function CommsPage() {
             <Button variant="secondary" size="sm" icon={<Mail size={14} />} onClick={() => setEmailBlastOpen(true)}>
               Email blast
             </Button>
-            <Button size="sm" icon={<Plus size={14} />} onClick={() => setComposeOpen(true)}>
+            <Button size="sm" icon={<Plus size={14} />} onClick={() => setComposeOpen(true)} disabled={!canSendComms}>
               Announcement
             </Button>
           </div>
