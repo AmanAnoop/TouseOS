@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  BookOpen, DollarSign, Download, Plus,
+  BookOpen, DollarSign, Download, Plus, RefreshCw,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
@@ -182,6 +182,30 @@ export default function BudgetPage() {
   }
 
 
+  async function syncFullBudget() {
+    if (!selectedBudget || !orgId) return;
+    setSyncing(true);
+    const res = await fetch("/api/budget/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId, budgetId: selectedBudget.id }),
+    });
+    setSyncing(false);
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.error ?? "Sync failed");
+      return;
+    }
+    if (data.budget) {
+      setSelectedBudget(data.budget);
+      setBudgets((prev) => prev.map((b) => (b.id === data.budget.id ? data.budget : b)));
+    }
+    const s = data.summary;
+    toast.success(
+      `Synced: dues $${s?.duesCollected?.toFixed(0) ?? 0}, philanthropy $${s?.philanthropyRaised?.toFixed(0) ?? 0}`,
+    );
+  }
+
   async function syncDuesToBudget() {
     if (!selectedBudget || !orgId) return;
     setSyncing(true);
@@ -290,6 +314,17 @@ export default function BudgetPage() {
           <div className="flex gap-2">
             {selectedBudget && (
               <>
+                {canEditBudget && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={<RefreshCw size={14} />}
+                    loading={syncing}
+                    onClick={syncFullBudget}
+                  >
+                    Sync all
+                  </Button>
+                )}
                 <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={exportBudget}>CSV</Button>
                 <Button variant="secondary" size="sm" onClick={exportBudgetHtml}>Report (HTML)</Button>
               </>

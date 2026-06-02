@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Building, Shield, Users } from "lucide-react";
+import { Building, Copy, Shield, Users } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
-import { Alert, Badge, Card, EmptyState, PageHeader, StatCard } from "@/components/ui";
-import { formatDate, orgTypeLabel } from "@/lib/utils";
+import { Alert, Badge, Button, Card, EmptyState, Modal, PageHeader, StatCard } from "@/components/ui";
+import { formatCurrency, formatDate, orgTypeLabel } from "@/lib/utils";
 
 interface PlatformOrg {
   id: string;
@@ -29,6 +29,37 @@ export default function PlatformAdminPage() {
     donationsRaised: number;
     featureFlags: Record<string, boolean>;
   } | null>(null);
+  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
+  const [orgDetail, setOrgDetail] = useState<{
+    org: Record<string, unknown>;
+    stats: {
+      members: number;
+      activeMembers: number;
+      events: number;
+      openIncidents: number;
+      duesCollected: number;
+      philanthropyRaised: number;
+    };
+    recentEvents: Array<{ id: string; title: string; starts_at: string; status: string }>;
+    recentIncidents: Array<{ id: string; severity: string; status: string; created_at: string }>;
+    campaigns: Array<{ title: string; raised_amount: number; goal_amount: number; is_active: boolean }>;
+  } | null>(null);
+  const [orgDetailLoading, setOrgDetailLoading] = useState(false);
+
+  async function openOrgDetail(orgId: string) {
+    setSelectedOrgId(orgId);
+    setOrgDetail(null);
+    setOrgDetailLoading(true);
+    const res = await fetch(`/api/platform-admin/org?org_id=${encodeURIComponent(orgId)}`);
+    setOrgDetailLoading(false);
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.error ?? "Could not load organization");
+      setSelectedOrgId(null);
+      return;
+    }
+    setOrgDetail(data);
+  }
 
   useEffect(() => {
     async function load() {
@@ -111,10 +142,7 @@ export default function PlatformAdminPage() {
               key={o.id}
               padding="sm"
               className="cursor-pointer hover:border-greek-300 transition-colors"
-              onClick={() => {
-                navigator.clipboard.writeText(o.id);
-                toast.success("Organization ID copied");
-              }}
+              onClick={() => openOrgDetail(o.id)}
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
@@ -134,6 +162,77 @@ export default function PlatformAdminPage() {
           ))}
         </div>
       )}
+
+      <Modal
+        open={!!selectedOrgId}
+        onClose={() => { setSelectedOrgId(null); setOrgDetail(null); }}
+        title={String(orgDetail?.org?.name ?? "Organization")}
+        size="lg"
+        footer={
+          selectedOrgId ? (
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<Copy size={14} />}
+              onClick={() => {
+                navigator.clipboard.writeText(selectedOrgId);
+                toast.success("Organization ID copied");
+              }}
+            >
+              Copy org ID
+            </Button>
+          ) : undefined
+        }
+      >
+        {orgDetailLoading ? (
+          <Card className="h-32 animate-pulse bg-surface-2 border-0">&nbsp;</Card>
+        ) : orgDetail ? (
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              <Badge label={orgTypeLabel(String(orgDetail.org.type ?? ""))} color="blue" />
+              {Boolean(orgDetail.org.campus) && (
+                <Badge label={String(orgDetail.org.campus)} color="gray" />
+              )}
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <StatCard title="Members" value={orgDetail.stats.members} icon={<Users size={16} />} />
+              <StatCard title="Active" value={orgDetail.stats.activeMembers} icon={<Users size={16} />} />
+              <StatCard title="Open incidents" value={orgDetail.stats.openIncidents} icon={<Shield size={16} />} />
+              <StatCard title="Dues collected" value={formatCurrency(orgDetail.stats.duesCollected)} icon={<Building size={16} />} />
+              <StatCard title="Philanthropy" value={formatCurrency(orgDetail.stats.philanthropyRaised)} icon={<Building size={16} />} />
+            </div>
+            {orgDetail.recentEvents.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Recent events</p>
+                <ul className="space-y-1 text-sm">
+                  {orgDetail.recentEvents.map((e) => (
+                    <li key={e.id} className="flex justify-between gap-2">
+                      <span>{e.title}</span>
+                      <span className="text-muted-foreground text-xs">{formatDate(e.starts_at)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {orgDetail.campaigns.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Philanthropy campaigns</p>
+                <ul className="space-y-1 text-sm">
+                  {orgDetail.campaigns.map((c, i) => (
+                    <li key={i} className="flex justify-between gap-2">
+                      <span>{c.title}</span>
+                      <span className="text-muted-foreground">
+                        {formatCurrency(Number(c.raised_amount))}
+                        {c.is_active ? " · active" : ""}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        ) : null}
+      </Modal>
     </div>
   );
 }

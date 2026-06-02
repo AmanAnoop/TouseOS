@@ -93,6 +93,26 @@ export default function GreekMatchPage() {
 
   const currentProfile = candidates[current];
 
+  const moderate = useCallback(async (action: "block" | "report") => {
+    if (!currentProfile) return;
+    const reason = action === "report"
+      ? window.prompt("Why are you reporting this profile? (optional)") ?? ""
+      : undefined;
+    const res = await fetch("/api/greekmatch/interactions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ targetUserId: currentProfile.user_id, action, reportReason: reason }),
+    });
+    if (!res.ok) {
+      toast.error("Could not submit");
+      return;
+    }
+    toast.success(action === "block" ? "Profile blocked" : "Report submitted — thank you");
+    setCurrent((c) => c + 1);
+    setSeenCount((s) => s + 1);
+    setDetailModal(false);
+  }, [currentProfile]);
+
   const interact = useCallback(async (action: "like" | "pass" | "super_like") => {
     if (!userId || !currentProfile) return;
 
@@ -340,13 +360,31 @@ export default function GreekMatchPage() {
       )}
 
       {currentProfile && (
-        <button
-          onClick={() => { setCurrent(0); toast.success("Reloaded profiles"); }}
-          className="mt-3 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-        >
-          <RotateCcw size={12} />
-          Reset
-        </button>
+        <div className="mt-3 flex items-center justify-center gap-4 flex-wrap">
+          <button
+            type="button"
+            onClick={() => moderate("report")}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-amber-600"
+          >
+            <Flag size={12} />
+            Report
+          </button>
+          <button
+            type="button"
+            onClick={() => moderate("block")}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-red-600"
+          >
+            Block
+          </button>
+          <button
+            type="button"
+            onClick={() => { setCurrent(0); toast.success("Reloaded profiles"); }}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+          >
+            <RotateCcw size={12} />
+            Reset
+          </button>
+        </div>
       )}
 
       {/* Profile detail modal */}
@@ -357,6 +395,7 @@ export default function GreekMatchPage() {
         size="md"
         footer={
           <div className="flex gap-2 w-full">
+            <Button variant="secondary" size="sm" onClick={() => moderate("report")} icon={<Flag size={14} />}>Report</Button>
             <Button variant="secondary" className="flex-1" onClick={() => { interact("pass"); setDetailModal(false); }} icon={<X size={14} />}>Pass</Button>
             <Button className="flex-1 bg-rose-500 hover:bg-rose-600" onClick={() => { interact("like"); setDetailModal(false); }} icon={<Heart size={14} className="fill-white" />}>Like</Button>
           </div>
