@@ -84,6 +84,12 @@ export default function RiskPage() {
     setLoading(false);
   }, [supabase]);
 
+  function exportIncidents() {
+    if (!orgId) return;
+    window.open(`/api/incidents/export?org_id=${encodeURIComponent(orgId)}`, "_blank");
+    toast.success("Downloading incident report CSV");
+  }
+
   async function fileIncident() {
     if (!orgId || !incidentForm.description.trim()) return;
     const res = await fetch("/api/incidents", {
@@ -232,9 +238,16 @@ export default function RiskPage() {
           description="File and track risk incidents"
           icon={<AlertTriangle size={16} />}
           action={
-            <Button size="sm" variant="secondary" onClick={() => setIncidentOpen(true)}>
-              File report
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {incidents.length > 0 && can("manage_incidents") && (
+                <Button size="sm" variant="secondary" onClick={exportIncidents}>
+                  Export CSV
+                </Button>
+              )}
+              <Button size="sm" variant="secondary" onClick={() => setIncidentOpen(true)}>
+                File report
+              </Button>
+            </div>
           }
         />
         {incidents.length === 0 ? (

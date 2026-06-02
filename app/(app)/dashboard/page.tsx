@@ -10,6 +10,7 @@ import {
 } from "@/lib/utils";
 import { computeHealthScore } from "@/lib/health-score";
 import { HealthScoreBadge } from "@/components/dashboard/health-score-badge";
+import { OfficerQuickActions } from "@/components/dashboard/officer-quick-actions";
 import { AttendanceTrendChart } from "@/components/dashboard/attendance-trend-chart";
 import { EngagementTrendChart } from "@/components/dashboard/engagement-trend-chart";
 import { UpcomingDeadlines, type DeadlineItem } from "@/components/dashboard/upcoming-deadlines";
@@ -41,6 +42,7 @@ export default async function DashboardPage() {
   const orgId = membership.org_id;
   const org = membership.organizations as unknown as Record<string, unknown>;
   const orgType = String(org.type ?? "general_org");
+  const myRole = String(membership.role ?? "general_member");
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
 
   const [
@@ -271,6 +273,8 @@ export default async function DashboardPage() {
         </div>
         <HealthScoreBadge composite={composite} />
       </div>
+
+      <OfficerQuickActions role={myRole} orgType={orgType} />
 
       {/* Primary stats row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-3">

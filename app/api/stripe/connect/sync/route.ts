@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getConnectAccountStatus, isStripeConnectEnabled } from "@/lib/stripe-connect";
+import { isStripeConnectEnabled } from "@/lib/stripe-connect";
+import { syncOrgStripeConnectSettings } from "@/lib/stripe-connect-sync";
 
 export async function POST(request: Request) {
   if (!isStripeConnectEnabled()) {
@@ -16,7 +17,7 @@ export async function POST(request: Request) {
 
   const { data: org } = await supabase
     .from("organizations")
-    .select("stripe_account_id, settings")
+    .select("stripe_account_id")
     .eq("id", orgId)
     .single();
 
@@ -24,17 +25,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No Stripe account linked" }, { status: 400 });
   }
 
-  const status = await getConnectAccountStatus(org.stripe_account_id);
-  const settings = {
-    ...(org.settings as object ?? {}),
-    stripe_connect: {
-      charges_enabled: status.chargesEnabled,
-      details_submitted: status.detailsSubmitted,
-      synced_at: new Date().toISOString(),
-    },
-  };
-
-  await supabase.from("organizations").update({ settings }).eq("id", orgId);
+  const status = await syncOrgStripeConnectSettings(supabase, orgId, org.stripe_account_id);
 
   await supabase.from("audit_logs").insert({
     org_id: orgId,
