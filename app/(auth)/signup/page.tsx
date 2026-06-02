@@ -35,7 +35,7 @@ export default function SignupPage() {
 
   async function onSubmit(data: FormData) {
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
+    const { data: signUpData, error } = await supabase.auth.signUp({
       email: data.email,
       password: data.password,
       options: { data: { full_name: data.fullName } },
@@ -44,10 +44,18 @@ export default function SignupPage() {
 
     if (error) {
       toast.error(error.message);
-    } else {
-      toast.success("Check your email to confirm your account.");
-      router.push("/onboarding");
+      return;
     }
+
+    if (signUpData.session) {
+      toast.success("Account created — set up your organization");
+      router.push("/onboarding");
+      router.refresh();
+      return;
+    }
+
+    toast.success("Check your email to confirm your account, then sign in to create your organization.");
+    router.push("/login?next=/onboarding");
   }
 
   return (

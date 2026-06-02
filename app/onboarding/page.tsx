@@ -5,24 +5,33 @@ import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
 export const metadata = { title: "Onboarding" };
 export const dynamic = "force-dynamic";
 
-export default async function OnboardingRoute() {
+export default async function OnboardingRoute({
+  searchParams,
+}: {
+  searchParams: Promise<{ create?: string }>;
+}) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/login?next=/onboarding");
 
-  const { data: m } = await supabase
-    .from("org_members")
-    .select("org_id")
-    .eq("user_id", user.id)
-    .eq("status", "active")
-    .limit(1)
-    .maybeSingle();
+  const params = await searchParams;
+  const forceCreate = params.create === "1";
 
-  if (m) redirect("/dashboard");
+  if (!forceCreate) {
+    const { data: m } = await supabase
+      .from("org_members")
+      .select("org_id")
+      .eq("user_id", user.id)
+      .neq("status", "removed")
+      .limit(1)
+      .maybeSingle();
+
+    if (m) redirect("/dashboard");
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-      <OnboardingWizard />
+      <OnboardingWizard mode={forceCreate ? "create" : "welcome"} allowBackToDashboard={forceCreate} />
     </div>
   );
 }
