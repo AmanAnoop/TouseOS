@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Camera, Plus } from "lucide-react";
 import toast from "react-hot-toast";
-import { Badge, Button, Card, EmptyState, Input, Modal, Select, Textarea } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, Modal, Select, Textarea } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
 
 interface PhotoRequest {

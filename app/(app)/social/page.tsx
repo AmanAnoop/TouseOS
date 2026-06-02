@@ -6,7 +6,7 @@ import { CheckCircle, Download, Flag, Image, Plus, Star, Upload, X } from "lucid
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import {
-  Badge, Button, Card, EmptyState,
+  Badge, Button, EmptyState,
   Modal, PageHeader, Tabs,
 } from "@/components/ui";
 import type { Photo, PhotoAlbum } from "@/types";

@@ -19,6 +19,7 @@ import { MemberBalancesPanel, computeMemberBalances } from "@/components/payment
 import { TreasurerDashboard } from "@/components/payments/treasurer-dashboard";
 import { HardshipReviewPanel } from "@/components/payments/hardship-review-panel";
 import { StripeDestinationBanner } from "@/components/payments/stripe-destination-banner";
+import { StripeReconciliationPanel } from "@/components/payments/stripe-reconciliation-panel";
 import { can, type RoleName } from "@/lib/permissions";
 
 export default function PaymentsPage() {
@@ -192,7 +193,12 @@ export default function PaymentsPage() {
         }
       />
 
-      {orgId && canManage && <StripeDestinationBanner orgId={orgId} />}
+      {orgId && canManage && (
+        <>
+          <StripeDestinationBanner orgId={orgId} />
+          <StripeReconciliationPanel orgId={orgId} />
+        </>
+      )}
 
       {!canViewAll && (
         <Card>

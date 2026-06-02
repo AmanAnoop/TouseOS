@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Server } from "lucide-react";
+import { Download, FileText, Server } from "lucide-react";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui";
 import { downloadYearbookHtml, type YearbookExportData } from "@/lib/yearbook-export";
@@ -43,6 +43,18 @@ export function YearbookExportButton({ data, orgId }: YearbookExportButtonProps)
     toast.success("Opening print-ready yearbook");
   }
 
+  function handlePdfExport() {
+    if (empty) {
+      toast.error("Add content before exporting");
+      return;
+    }
+    window.open(
+      `/api/yearbook/export/pdf?org_id=${encodeURIComponent(orgId)}`,
+      "_blank",
+    );
+    toast.success("Downloading PDF yearbook");
+  }
+
   return (
     <div className="flex flex-wrap gap-2">
       <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={handleExport} disabled={empty} className="officer-touch">
@@ -53,6 +65,9 @@ export function YearbookExportButton({ data, orgId }: YearbookExportButtonProps)
       </Button>
       <Button variant="secondary" size="sm" onClick={handleServerPrintExport} disabled={empty} className="officer-touch">
         Export & print
+      </Button>
+      <Button variant="secondary" size="sm" icon={<FileText size={14} />} onClick={handlePdfExport} disabled={empty} className="officer-touch">
+        Download PDF
       </Button>
     </div>
   );

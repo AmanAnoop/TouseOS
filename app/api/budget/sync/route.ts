@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     actual: number,
     description: string,
   ) {
-    let line = lines.find((l) => l.category === category && l.type === type);
+    const line = lines.find((l) => l.category === category && l.type === type);
     if (!line) {
       const { data: created } = await supabase
         .from("budget_lines")

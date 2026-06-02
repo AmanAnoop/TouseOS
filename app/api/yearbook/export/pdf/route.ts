@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { buildYearbookHtml } from "@/lib/yearbook-export";
 import { loadYearbookExportData } from "@/lib/yearbook-data";
+import { buildYearbookPdf } from "@/lib/yearbook-pdf";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -21,20 +21,17 @@ export async function GET(request: Request) {
   if (!m) return NextResponse.json({ error: "No organization" }, { status: 403 });
 
   const orgId = orgIdParam && orgIdParam === m.org_id ? orgIdParam : m.org_id;
-  const orgName = String(((m.organizations as unknown) as Record<string, unknown>)?.name ?? "Chapter");
+  const orgName = String(
+    ((m.organizations as unknown) as Record<string, unknown>)?.name ?? "Chapter",
+  );
 
-  const exportData = await loadYearbookExportData(supabase, orgId, orgName);
-  const html = buildYearbookHtml(exportData);
+  const data = await loadYearbookExportData(supabase, orgId, orgName);
+  const pdfBytes = await buildYearbookPdf(data);
+  const filename = `${orgName.toLowerCase().replace(/\s+/g, "-")}-yearbook.pdf`;
 
-  const filename = `${orgName.toLowerCase().replace(/\s+/g, "-")}-yearbook.html`;
-  const autoprint = new URL(request.url).searchParams.get("autoprint") === "1";
-  const htmlOut = autoprint && !html.includes("autoprint=1")
-    ? html.replace("</body>", `<script>window.addEventListener("load",function(){setTimeout(function(){window.print()},600)});</script></body>`)
-    : html;
-
-  return new NextResponse(htmlOut, {
+  return new NextResponse(Buffer.from(pdfBytes), {
     headers: {
-      "Content-Type": "text/html; charset=utf-8",
+      "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="${filename}"`,
     },
   });
