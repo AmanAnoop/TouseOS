@@ -36,7 +36,7 @@ export async function POST(request: Request) {
       status: "active",
     }, { onConflict: "org_id,user_id" });
 
-    const { data: profile } = await supabase.from("profiles").select("full_name, email").eq("id", user.id).single();
+    const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", user.id).single();
     const { data: existing } = await service
       .from("member_profiles")
       .select("id")
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
         org_id: org.id,
         user_id: user.id,
         full_name: profile?.full_name ?? "Member",
-        email: profile?.email ?? user.email ?? "member@local",
+        email: user.email ?? "member@local",
         role: "general_member",
         membership_status: "active",
       });

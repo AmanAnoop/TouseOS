@@ -1,16 +1,13 @@
 "use client";
 
 export const dynamic = "force-dynamic";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import toast from "react-hot-toast";
-import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
-import { friendlyAuthError } from "@/lib/auth-errors";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { SupabaseConfigAlert } from "@/components/auth/supabase-config-alert";
 import { Button, Input } from "@/components/ui";
@@ -26,12 +23,20 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const next = searchParams.get("next") ?? "/home";
   const [loading, setLoading] = useState(false);
+  const [canSignIn, setCanSignIn] = useState(true);
 
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
+
+  useEffect(() => {
+    fetch("/api/auth/supabase-config")
+      .then((r) => r.json())
+      .then((d: { authViaApi?: boolean }) => setCanSignIn(Boolean(d.authViaApi)))
+      .catch(() => setCanSignIn(false));
+  }, []);
 
   useEffect(() => {
     const err = searchParams.get("error");
@@ -43,23 +48,24 @@ function LoginForm() {
   }, [searchParams]);
 
   async function onSubmit(data: FormData) {
-    if (!isSupabaseConfigured()) {
-      toast.error("Sign-in is not configured on this server. Contact your administrator.");
-      return;
-    }
-
     setLoading(true);
     try {
-      const supabase = createClient();
-      const { error } = await supabase.auth.signInWithPassword(data);
-      if (error) {
-        toast.error(friendlyAuthError(error.message));
+      const res = await fetch("/api/auth/signin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const json = await res.json();
+
+      if (!res.ok) {
+        toast.error(json.error ?? "Could not sign in");
         return;
       }
+
       router.push(next.startsWith("/") ? next : "/home");
       router.refresh();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not sign in");
+    } catch {
+      toast.error("Could not reach the server. Try again.");
     } finally {
       setLoading(false);
     }
@@ -102,7 +108,7 @@ function LoginForm() {
           }
         />
 
-        <Button type="submit" loading={loading} className="mt-2 w-full" disabled={!isSupabaseConfigured()}>
+        <Button type="submit" loading={loading} className="mt-2 w-full" disabled={!canSignIn}>
           Sign in
         </Button>
       </form>

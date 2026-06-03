@@ -20,6 +20,9 @@ export function friendlyAuthError(message: string): string {
   if (m.includes("rate limit") || m.includes("too many requests")) {
     return "Too many attempts. Wait a minute and try again.";
   }
+  if (m.includes("invalid api key") || m.includes("invalid jwt")) {
+    return "Supabase API key is invalid for this app. In Vercel, set NEXT_PUBLIC_SUPABASE_ANON_KEY to the anon (public) key from Supabase → Settings → API — not the service_role secret. Redeploy after changing env vars.";
+  }
 
   return message;
 }

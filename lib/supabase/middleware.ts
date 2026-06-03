@@ -1,15 +1,13 @@
 import { createServerClient } from "@supabase/ssr";
 import type { User } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
+import {
+  getSupabaseAnonKeyForServer,
+  getSupabaseUrlForServer,
+  isSupabaseConfigured,
+} from "@/lib/supabase/public-config";
 
 type CookieToSet = { name: string; value: string; options?: Record<string, unknown> };
-
-function getSupabaseEnv() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
-  if (!url || !anonKey) return null;
-  return { url, anonKey };
-}
 
 function applyCookies(target: NextResponse, cookiesToSet: CookieToSet[]) {
   for (const { name, value, options } of cookiesToSet) {
@@ -26,8 +24,10 @@ export async function updateSupabaseSession(request: NextRequest): Promise<{
   latestCookies: CookieToSet[];
   user: User | null;
 }> {
-  const env = getSupabaseEnv();
-  if (!env) {
+  const url = getSupabaseUrlForServer();
+  const anonKey = getSupabaseAnonKeyForServer();
+
+  if (!isSupabaseConfigured() || !url || !anonKey) {
     return {
       response: NextResponse.next({ request }),
       latestCookies: [],
@@ -39,7 +39,7 @@ export async function updateSupabaseSession(request: NextRequest): Promise<{
   let latestCookies: CookieToSet[] = [];
   let user: User | null = null;
 
-  const supabase = createServerClient(env.url, env.anonKey, {
+  const supabase = createServerClient(url, anonKey, {
     cookies: {
       getAll() {
         return request.cookies.getAll();

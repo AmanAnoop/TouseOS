@@ -3,14 +3,11 @@
 export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import toast from "react-hot-toast";
-import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
-import { getPublicAppOrigin } from "@/lib/supabase/env";
-import { friendlyAuthError } from "@/lib/auth-errors";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { SupabaseConfigAlert } from "@/components/auth/supabase-config-alert";
 import { Button, Input } from "@/components/ui";
@@ -29,6 +26,7 @@ type FormData = z.infer<typeof schema>;
 export default function SignupPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [canSignUp, setCanSignUp] = useState(true);
 
   const {
     register,
@@ -36,41 +34,39 @@ export default function SignupPage() {
     formState: { errors },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
 
-  async function onSubmit(data: FormData) {
-    if (!isSupabaseConfigured()) {
-      toast.error("Sign-up is not configured on this server. Contact your administrator.");
-      return;
-    }
+  useEffect(() => {
+    fetch("/api/auth/supabase-config")
+      .then((r) => r.json())
+      .then((d: { authViaApi?: boolean }) => setCanSignUp(Boolean(d.authViaApi)))
+      .catch(() => setCanSignUp(false));
+  }, []);
 
+  async function onSubmit(data: FormData) {
     setLoading(true);
     try {
-      const supabase = createClient();
-      const origin = getPublicAppOrigin(window.location.origin) || window.location.origin;
-      const emailRedirectTo = `${origin}/auth/callback?next=${encodeURIComponent("/onboarding")}`;
-
-      const { data: signUpData, error } = await supabase.auth.signUp({
-        email: data.email,
-        password: data.password,
-        options: {
-          data: { full_name: data.fullName },
-          emailRedirectTo,
-        },
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+          fullName: data.fullName,
+        }),
       });
+      const json = await res.json();
 
-      if (error) {
-        toast.error(friendlyAuthError(error.message));
+      if (!res.ok) {
+        toast.error(json.error ?? "Could not create account");
+        if (json.issues?.length) {
+          console.error("Supabase config:", json.issues);
+        }
         return;
       }
 
-      if (signUpData.session) {
+      if (json.hasSession) {
         toast.success("Account created — set up your organization");
         router.push("/onboarding");
         router.refresh();
-        return;
-      }
-
-      if (signUpData.user && !signUpData.user.identities?.length) {
-        toast.error("An account with this email already exists. Sign in instead.");
         return;
       }
 
@@ -78,8 +74,8 @@ export default function SignupPage() {
         "Check your email for a confirmation link. After confirming, you will be signed in to set up your organization.",
       );
       router.push("/login?next=/onboarding");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not create account");
+    } catch {
+      toast.error("Could not reach the server. Try again.");
     } finally {
       setLoading(false);
     }
@@ -133,7 +129,7 @@ export default function SignupPage() {
           {...register("confirmPassword")}
         />
 
-        <Button type="submit" loading={loading} className="mt-2 w-full" disabled={!isSupabaseConfigured()}>
+        <Button type="submit" loading={loading} className="mt-2 w-full" disabled={!canSignUp}>
           Create account
         </Button>
       </form>
