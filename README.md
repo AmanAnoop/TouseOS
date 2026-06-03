@@ -118,12 +118,17 @@ supabase/migrations/017_backlog_wave.sql          # coaching, NME, donations, so
 supabase/migrations/018_wave3_social_alumni.sql   # photo requests RLS, alumni campaigns, collab posts
 supabase/migrations/019_wave4_prompts_yearbook.sql # event photo prompts, PR compliance, yearbook sections
 supabase/migrations/020_wave5_photo_album_link.sql  # prompt batches → event albums, member album create
+supabase/migrations/021_wave7_messages_thread.sql
+supabase/migrations/022_wave8_platform_billing.sql
+supabase/migrations/023_club_org.sql                 # ClubOS tables
+supabase/migrations/024_club_elections_goals.sql     # elections + service goals
 ```
 
 ### 3. Environment variables
 
 ```bash
 cp .env.example .env.local
+npm run launch:check    # verify required keys before deploy
 ```
 
 | Variable | Required | Purpose |
@@ -151,10 +156,19 @@ Open [http://localhost:3000](http://localhost:3000) → sign up → create or jo
 ### 5. Verify
 
 ```bash
+npm run launch:check
 npm run typecheck
 npm run lint
 npm run build
 ```
+
+After deploy, hit `GET /api/ready` on your production URL (returns 200 when required env vars are set).
+
+### 6. Launch
+
+- Checklist: [docs/launch-checklist.md](docs/launch-checklist.md)
+- Runbook: [docs/launch-runbook.md](docs/launch-runbook.md)
+- Status: [docs/product-status.md](docs/product-status.md)
 
 ---
 

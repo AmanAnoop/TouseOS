@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Heart, Plus, RefreshCw, Star, Users } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
 import { useOrg } from "@/hooks/use-org";
 import {
   Avatar,
@@ -31,7 +30,6 @@ interface Match {
 
 
 export default function BigLittlePage() {
-  const supabase = createClient();
   const { orgId } = useOrg();
   const [members, setMembers] = useState<MemberProfile[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
@@ -46,12 +44,12 @@ export default function BigLittlePage() {
     setLoading(true);
     const [membersRes, matchesRes] = await Promise.all([
       fetch(`/api/members?org_id=${encodeURIComponent(oid)}`),
-      supabase.from("big_little_matches").select("*, big:big_id(full_name, profile_photo_url, major, interests), little:little_id(full_name, profile_photo_url, major, interests)").eq("org_id", oid).order("created_at", { ascending: false }),
+      fetch(`/api/big-little/matches?org_id=${encodeURIComponent(oid)}`),
     ]);
     if (membersRes.ok) setMembers((await membersRes.json()) as MemberProfile[]);
-    setMatches((matchesRes.data ?? []) as unknown as Match[]);
+    setMatches(matchesRes.ok ? ((await matchesRes.json()) as Match[]) : []);
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
     if (orgId) load(orgId);
@@ -92,16 +90,24 @@ export default function BigLittlePage() {
     const little = members.find((m) => m.id === selectedLittle);
     const score = big && little ? computeMatchScore(big, little) : null;
 
-    const { error } = await supabase.from("big_little_matches").insert({
-      org_id: orgId,
-      big_id: selectedBig,
-      little_id: selectedLittle,
-      status: "confirmed",
-      match_score: score,
-      reveal_date: revealDate || null,
+    const res = await fetch("/api/big-little/matches", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        bigId: selectedBig,
+        littleId: selectedLittle,
+        status: "confirmed",
+        matchScore: score,
+        revealDate: revealDate || null,
+      }),
     });
 
-    if (error) { toast.error(error.message); return; }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error((err as { error?: string }).error ?? "Failed to create match");
+      return;
+    }
     toast.success("Match created!");
     setMatchOpen(false);
     setSelectedBig("");
@@ -111,8 +117,17 @@ export default function BigLittlePage() {
   }
 
   async function updateMatchStatus(id: string, status: "confirmed" | "revealed") {
-    await supabase.from("big_little_matches").update({ status }).eq("id", id);
-    setMatches((prev) => prev.map((m) => m.id === id ? { ...m, status } : m));
+    if (!orgId) return;
+    const res = await fetch("/api/big-little/matches", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, orgId, status }),
+    });
+    if (!res.ok) {
+      toast.error("Failed to update match");
+      return;
+    }
+    setMatches((prev) => prev.map((m) => (m.id === id ? { ...m, status } : m)));
     toast.success(`Match ${status}!`);
   }
 
