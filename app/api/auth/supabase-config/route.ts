@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {
+  getSupabaseEnvPresence,
   validateSupabaseBrowserConfig,
   validateSupabaseServerConfig,
 } from "@/lib/supabase/public-config";
@@ -8,6 +9,7 @@ import {
 export async function GET() {
   const server = validateSupabaseServerConfig();
   const browser = validateSupabaseBrowserConfig();
+  const envPresent = getSupabaseEnvPresence();
 
   return NextResponse.json({
     ok: server.ok,
@@ -26,14 +28,17 @@ export async function GET() {
       keySet: Boolean(browser.key),
       issues: browser.issues,
     },
-    authViaApi: server.ok,
-    vercelSteps: [
-      "Vercel → Project → Settings → Environment Variables",
-      "Add NEXT_PUBLIC_SUPABASE_URL = https://YOUR-REF.supabase.co",
-      "Add NEXT_PUBLIC_SUPABASE_ANON_KEY = anon or publishable key (not service_role)",
-      "Enable for Production + Preview, then Deployments → Redeploy",
+    envPresent,
+    requiredInVercel: [
+      { name: "NEXT_PUBLIC_SUPABASE_URL", example: "https://YOUR-REF.supabase.co" },
+      {
+        name: "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+        example: "sb_publishable_... (from Supabase → API Keys → Publishable)",
+      },
     ],
+    neverPutInNextPublic: ["sb_secret_...", "service_role", "SUPABASE_SERVICE_ROLE_KEY"],
+    authViaApi: server.ok,
     redeployHint:
-      "NEXT_PUBLIC_* is embedded at build time. After adding variables, you must redeploy.",
+      "After changing any NEXT_PUBLIC_* variable in Vercel, go to Deployments → Redeploy (required).",
   });
 }

@@ -9,8 +9,19 @@ export type SupabaseKeyKind =
   | "placeholder"
   | "legacy_anon_jwt"
   | "publishable"
+  | "secret_key"
   | "service_role_jwt"
   | "unrecognized";
+
+/** Which env var names are non-empty (never includes values). */
+export type SupabaseEnvPresence = {
+  NEXT_PUBLIC_SUPABASE_URL: boolean;
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: boolean;
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: boolean;
+  SUPABASE_URL: boolean;
+  SUPABASE_ANON_KEY: boolean;
+  SUPABASE_PUBLISHABLE_KEY: boolean;
+};
 
 export type SupabaseConfigValidation = {
   ok: boolean;
@@ -23,14 +34,29 @@ export type SupabaseConfigValidation = {
 
 function sanitizeEnv(raw: string | undefined): string {
   if (!raw) return "";
-  let v = raw.trim();
+  let v = raw.trim().replace(/\s+/g, "");
   if (
     (v.startsWith('"') && v.endsWith('"')) ||
     (v.startsWith("'") && v.endsWith("'"))
   ) {
-    v = v.slice(1, -1).trim();
+    v = v.slice(1, -1).trim().replace(/\s+/g, "");
   }
   return v;
+}
+
+export function getSupabaseEnvPresence(): SupabaseEnvPresence {
+  const check = (key: string) => {
+    const v = process.env[key];
+    return typeof v === "string" && sanitizeEnv(v).length > 0;
+  };
+  return {
+    NEXT_PUBLIC_SUPABASE_URL: check("NEXT_PUBLIC_SUPABASE_URL"),
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: check("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: check("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"),
+    SUPABASE_URL: check("SUPABASE_URL"),
+    SUPABASE_ANON_KEY: check("SUPABASE_ANON_KEY"),
+    SUPABASE_PUBLISHABLE_KEY: check("SUPABASE_PUBLISHABLE_KEY"),
+  };
 }
 
 /** Values available in the browser bundle (NEXT_PUBLIC_* only). */
@@ -96,6 +122,7 @@ export function classifySupabaseKey(key: string): SupabaseKeyKind {
     return "placeholder";
   }
 
+  if (key.startsWith("sb_secret_")) return "secret_key";
   if (key.startsWith("sb_publishable_")) return "publishable";
 
   if (key.startsWith("eyJ")) {
@@ -141,6 +168,10 @@ function buildValidation(
     issues.push(
       `${label.key} is the service_role secret. Use the anon or publishable key only.`,
     );
+  } else if (keyKind === "secret_key") {
+    issues.push(
+      `${label.key} is a secret key (sb_secret_...). Remove it from all NEXT_PUBLIC_* variables. Use NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY with the publishable value only.`,
+    );
   } else if (keyKind === "unrecognized" && key.length < 40) {
     issues.push("Supabase key looks too short. Copy the full key from the dashboard.");
   }
@@ -161,6 +192,7 @@ function buildValidation(
     Boolean(key) &&
     keyKind !== "placeholder" &&
     keyKind !== "service_role_jwt" &&
+    keyKind !== "secret_key" &&
     keyKind !== "missing";
 
   return { ok, url, key, keyKind, projectRef, issues };
@@ -169,7 +201,7 @@ function buildValidation(
 export function validateSupabaseBrowserConfig(): SupabaseConfigValidation {
   return buildValidation(getSupabaseUrlForBrowser(), getSupabaseAnonKeyForBrowser(), {
     url: "NEXT_PUBLIC_SUPABASE_URL",
-    key: "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    key: "NEXT_PUBLIC_SUPABASE_ANON_KEY or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
   });
 }
 
@@ -178,27 +210,44 @@ export function validateSupabaseServerConfig(): SupabaseConfigValidation {
   const key = getSupabaseAnonKeyForServer();
   const browserUrl = getSupabaseUrlForBrowser();
   const browserKey = getSupabaseAnonKeyForBrowser();
+  const presence = getSupabaseEnvPresence();
 
   const validation = buildValidation(url, key, {
-    url: browserUrl ? "NEXT_PUBLIC_SUPABASE_URL" : "NEXT_PUBLIC_SUPABASE_URL or SUPABASE_URL",
-    key: browserKey
-      ? "NEXT_PUBLIC_SUPABASE_ANON_KEY"
-      : "NEXT_PUBLIC_SUPABASE_ANON_KEY or SUPABASE_ANON_KEY",
+    url: "NEXT_PUBLIC_SUPABASE_URL",
+    key: "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (or NEXT_PUBLIC_SUPABASE_ANON_KEY)",
   });
+
+  if (!presence.NEXT_PUBLIC_SUPABASE_URL && !presence.SUPABASE_URL) {
+    validation.issues.push(
+      "In Vercel, add NEXT_PUBLIC_SUPABASE_URL (example: https://giwnjysprfizhspzfakz.supabase.co) — one line, no quotes.",
+    );
+  }
+
+  if (
+    !presence.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY &&
+    !presence.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
+    !presence.SUPABASE_PUBLISHABLE_KEY &&
+    !presence.SUPABASE_ANON_KEY
+  ) {
+    validation.issues.push(
+      "In Vercel, add NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = your sb_publishable_... key (not sb_secret_...).",
+    );
+  }
+
+  if (presence.NEXT_PUBLIC_SUPABASE_ANON_KEY && classifySupabaseKey(sanitizeEnv(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)) === "secret_key") {
+    validation.ok = false;
+    validation.issues.push("NEXT_PUBLIC_SUPABASE_ANON_KEY contains a secret key — use the publishable key in NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY instead.");
+  }
 
   if (!browserUrl && url) {
     validation.issues.push(
-      "Tip: also add NEXT_PUBLIC_SUPABASE_URL (same value) and redeploy so the browser bundle is correct.",
+      "Redeploy: NEXT_PUBLIC_SUPABASE_URL must exist before build so the client bundle can use it.",
     );
   }
   if (!browserKey && key) {
     validation.issues.push(
-      "Tip: also add NEXT_PUBLIC_SUPABASE_ANON_KEY (same anon key) and redeploy.",
+      "Redeploy: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY must exist before build so the client bundle can use it.",
     );
-  }
-
-  if ((!browserUrl || !browserKey) && url && key) {
-    validation.ok = true;
   }
 
   return validation;
