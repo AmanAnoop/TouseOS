@@ -1,13 +1,13 @@
 "use client";
 
-import { Download, Eye, File, FileText, Image, Trash2 } from "lucide-react";
+import { Download, Eye, File, FileText, Image as ImageIcon, Trash2 } from "lucide-react";
 import { Badge, Card } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
 import type { Document } from "@/types";
 
 const MIME_ICON: Record<string, React.ReactNode> = {
   "application/pdf": <FileText size={18} className="text-red-500" />,
-  "image/": <Image size={18} className="text-blue-500" />,
+  "image/": <ImageIcon size={18} className="text-blue-500" aria-hidden />,
   "application/vnd": <FileText size={18} className="text-green-600" />,
   default: <File size={18} className="text-muted-foreground" />,
 };

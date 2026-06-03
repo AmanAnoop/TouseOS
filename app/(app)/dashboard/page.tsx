@@ -18,7 +18,7 @@ import { EngagementTrendChart } from "@/components/dashboard/engagement-trend-ch
 import { UpcomingDeadlines, type DeadlineItem } from "@/components/dashboard/upcoming-deadlines";
 import {
   AlertTriangle, Calendar, CheckCircle2, DollarSign, FileText,
-  Heart, Image, Shield, TrendingUp, Trophy, Users, Zap,
+  Heart, Image as ImageIcon, Shield, TrendingUp, Trophy, Users, Zap,
 } from "lucide-react";
 import type { Event, MemberProfile, Payment, Announcement, Task } from "@/types";
 
@@ -455,9 +455,9 @@ export default async function DashboardPage() {
 
         {/* Recent media */}
         <Card className="lg:col-span-2">
-          <CardHeader title="Recent photo activity" icon={<Image size={16} />} action={<Link href="/social" className="text-xs text-greek-600 hover:underline">Social hub</Link>} />
+          <CardHeader title="Recent photo activity" icon={<ImageIcon size={16} aria-hidden />} action={<Link href="/social" className="text-xs text-greek-600 hover:underline">Social hub</Link>} />
           {photos.length === 0 ? (
-            <EmptyState icon={<Image size={20} />} title="No recent photos" description="Upload event photos from the Social page." />
+            <EmptyState icon={<ImageIcon size={20} aria-hidden />} title="No recent photos" description="Upload event photos from the Social page." />
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {photos.map((p) => (

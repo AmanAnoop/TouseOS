@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { CheckCircle, Download, Flag, Image, Plus, Star, Upload, X } from "lucide-react";
+import NextImage from "next/image";
+import { CheckCircle, Download, Flag, Image as ImageIcon, Plus, Star, Upload, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -233,7 +234,7 @@ function SocialPageContent() {
               <Button variant="secondary" size="sm" className="officer-touch" icon={<Upload size={14} />} onClick={() => fileRef.current?.click()}>
                 Upload photos
               </Button>
-              <Button size="sm" className="officer-touch" icon={<Image size={14} />} onClick={() => setContentPackOpen(true)}>
+              <Button size="sm" className="officer-touch" icon={<ImageIcon size={14} aria-hidden />} onClick={() => setContentPackOpen(true)}>
                 Content pack
               </Button>
             </div>
@@ -300,7 +301,7 @@ function SocialPageContent() {
               ))}
             </div>
           ) : mainTab === "albums" && albums.length === 0 ? (
-            <EmptyState icon={<Image size={24} />} title="No photo albums" description="Create an album for your next event." />
+            <EmptyState icon={<ImageIcon size={24} aria-hidden />} title="No photo albums" description="Create an album for your next event." />
           ) : mainTab === "albums" ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {albums.map((album) => (
@@ -310,11 +311,17 @@ function SocialPageContent() {
                   className="aspect-video relative rounded-xl overflow-hidden bg-greek-100 dark:bg-greek-950/30 hover:scale-105 transition-transform text-left"
                 >
                   {album.cover_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={album.cover_url} alt={album.title} className="absolute inset-0 w-full h-full object-cover" />
+                    <NextImage
+                      src={album.cover_url}
+                      alt={album.title}
+                      fill
+                      unoptimized
+                      className="object-cover"
+                      sizes="(max-width: 640px) 50vw, 25vw"
+                    />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center text-greek-400">
-                      <Image size={24} />
+                      <ImageIcon size={24} aria-hidden />
                     </div>
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
@@ -348,7 +355,7 @@ function SocialPageContent() {
 
           {(tab === "photos" ? photos : tab === "pending" ? pendingPhotos : approvedPhotos).length === 0 ? (
             <EmptyState
-              icon={<Image size={24} />}
+              icon={<ImageIcon size={24} aria-hidden />}
               title={tab === "pending" ? "No photos pending review" : tab === "instagram" ? "No Instagram-ready photos yet" : "No photos yet"}
               description="Upload photos to get started."
               action={<Button size="sm" icon={<Upload size={14} />} onClick={() => fileRef.current?.click()}>Upload photos</Button>}
@@ -359,11 +366,14 @@ function SocialPageContent() {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {(tab === "photos" ? photos : approvedPhotos).map((photo) => (
                 <div key={photo.id} className="relative group">
-                  <div className="aspect-square rounded-lg overflow-hidden bg-surface-2">
-                    <img
+                  <div className="relative aspect-square overflow-hidden rounded-lg bg-surface-2">
+                    <NextImage
                       src={photo.url}
-                      alt={photo.caption ?? ""}
-                      className="w-full h-full object-cover"
+                      alt={photo.caption?.trim() || "Chapter photo"}
+                      fill
+                      unoptimized
+                      className="object-cover"
+                      sizes="(max-width: 640px) 50vw, 25vw"
                     />
                   </div>
 
@@ -443,7 +453,14 @@ function SocialPageContent() {
                 )}
                 className={`aspect-square rounded-lg overflow-hidden relative ${selectedPhotos.includes(photo.id) ? "ring-2 ring-greek-500" : ""}`}
               >
-                <img src={photo.url} alt={photo.caption ?? ""} className="w-full h-full object-cover" />
+                <NextImage
+                  src={photo.url}
+                  alt={photo.caption?.trim() || "Chapter photo"}
+                  fill
+                  unoptimized
+                  className="object-cover"
+                  sizes="120px"
+                />
                 {selectedPhotos.includes(photo.id) && (
                   <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-greek-500 flex items-center justify-center text-white text-xs font-bold">
                     {selectedPhotos.indexOf(photo.id) + 1}
