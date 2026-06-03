@@ -11,6 +11,7 @@ Run these SQL files **in order** in the Supabase SQL Editor (or `psql` against y
 | 023 | `023_club_org.sql` | Yes if using ClubOS |
 | 024 | `024_club_elections_goals.sql` | Yes for elections/service goals |
 | 025 | `025_feature_fixes.sql` | Yes — budget lines, payment items, tasks RLS, housing contacts, waiver sign |
+| 026 | `026_task_assignees_health.sql` | Yes — multi-assignee tasks, task assignee RLS |
 | 005 | `005_seed.sql` | Optional demo chapter |
 
 After apply:

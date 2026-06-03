@@ -70,7 +70,7 @@ export default async function DashboardPage() {
       ? supabase.from("sports_travel_trips").select("id, title, status").eq("org_id", orgId).limit(3)
       : Promise.resolve({ data: [] }),
     isSportsOrg(orgType)
-      ? supabase.from("sports_waivers").select("status").eq("org_id", orgId)
+      ? supabase.from("sports_waivers").select("status, waiver_type, member_id").eq("org_id", orgId)
       : Promise.resolve({ data: [] }),
     isSportsOrg(orgType)
       ? supabase.from("sports_tryouts").select("id, status").eq("org_id", orgId)
@@ -254,7 +254,7 @@ export default async function DashboardPage() {
     ? Math.round(members.reduce((s, m) => s + m.attendance_rate, 0) / members.length)
     : 0;
 
-  const { breakdown, composite } = computeHealthScore({
+  const { breakdown, composite, metricsUsed } = computeHealthScore({
     members: members.map((m) => ({
       membership_status: m.membership_status,
       payment_status: m.payment_status,
@@ -289,7 +289,7 @@ export default async function DashboardPage() {
             {productLabel(product)} workspace
           </p>
         </div>
-        <HealthScoreBadge composite={composite} />
+        <HealthScoreBadge composite={composite} metricsUsed={metricsUsed} />
       </div>
 
       <OfficerQuickActions role={myRole} orgType={orgType} />
@@ -328,16 +328,19 @@ export default async function DashboardPage() {
           <CardHeader title="Organization health" icon={<Heart size={16} />} action={<Link href="/health" className="text-xs text-greek-600 hover:underline">Details</Link>} />
           <div className="space-y-3">
             {Object.entries(breakdown).map(([key, val]) => (
-              val !== undefined && (
+              typeof val === "number" && (
                 <ProgressBar
                   key={key}
-                  value={val as number}
+                  value={val}
                   label={key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())}
-                  color={(val as number) >= 80 ? "green" : (val as number) >= 60 ? "yellow" : "red"}
+                  color={val >= 80 ? "green" : val >= 60 ? "yellow" : "red"}
                   size="sm"
                 />
               )
             ))}
+            {composite === null && (
+              <p className="text-xs text-muted-foreground">Add dues, events, or a budget to calculate health score.</p>
+            )}
           </div>
         </Card>
 

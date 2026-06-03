@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Package, Plus, RotateCcw } from "lucide-react";
+import { Package, Plus, RotateCcw, Users } from "lucide-react";
 import toast from "react-hot-toast";
 import {
   Badge, Button, Card, CardHeader, EmptyState, Input, Modal,
@@ -20,7 +20,9 @@ interface EquipmentItem {
 
 interface Assignment {
   id: string;
+  equipment_id: string;
   condition: string;
+  member_id: string;
   member_profiles: { full_name: string } | null;
   sports_equipment: { item_name: string } | null;
 }
@@ -32,29 +34,23 @@ export function EquipmentClient() {
   const [members, setMembers] = useState<Array<{ id: string; full_name: string }>>([]);
   const [addOpen, setAddOpen] = useState(false);
   const [issueOpen, setIssueOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [itemForm, setItemForm] = useState({ itemName: "", category: "equipment", quantityTotal: "1", storageLocation: "" });
   const [issueForm, setIssueForm] = useState({ equipmentId: "", memberId: "" });
+  const [bulkForm, setBulkForm] = useState({ equipmentId: "", jerseyNumber: "", uniformSize: "" });
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
+  const [issuing, setIssuing] = useState(false);
 
   const load = useCallback(async (oid: string) => {
-    const { createClient } = await import("@/lib/supabase/client");
-    const supabase = createClient();
-    const { data: items } = await supabase.from("sports_equipment").select("*").eq("org_id", oid).order("item_name");
-    setEquipment((items ?? []) as EquipmentItem[]);
-
-    const ids = (items ?? []).map((i: EquipmentItem) => i.id);
-    if (ids.length > 0) {
-      const { data: assigns } = await supabase
-        .from("sports_equipment_assignments")
-        .select("*, member_profiles(full_name), sports_equipment(item_name)")
-        .in("equipment_id", ids)
-        .is("returned_at", null);
-      setAssignments((assigns ?? []) as Assignment[]);
-    } else {
-      setAssignments([]);
+    const res = await fetch(`/api/equipment?org_id=${encodeURIComponent(oid)}`);
+    if (!res.ok) {
+      toast.error("Failed to load equipment");
+      return;
     }
-
-    const { data: mems } = await supabase.from("member_profiles").select("id, full_name").eq("org_id", oid).eq("membership_status", "active");
-    setMembers((mems ?? []) as Array<{ id: string; full_name: string }>);
+    const data = await res.json();
+    setEquipment((data.equipment ?? []) as EquipmentItem[]);
+    setAssignments((data.assignments ?? []) as Assignment[]);
+    setMembers((data.members ?? []) as Array<{ id: string; full_name: string }>);
   }, []);
 
   useEffect(() => {
@@ -92,6 +88,34 @@ export function EquipmentClient() {
     }
   }
 
+  async function issueBulk() {
+    if (!orgId || !bulkForm.equipmentId || selectedMemberIds.length === 0) return;
+    setIssuing(true);
+    const res = await fetch("/api/equipment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        action: "issue_bulk",
+        equipmentId: bulkForm.equipmentId,
+        memberIds: selectedMemberIds,
+        jerseyNumber: bulkForm.jerseyNumber || undefined,
+        uniformSize: bulkForm.uniformSize || undefined,
+      }),
+    });
+    setIssuing(false);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast.error(data.error ?? "Bulk issue failed");
+      return;
+    }
+    toast.success(`Issued ${data.issued} to ${data.itemName ?? "team"}${data.skipped ? ` (${data.skipped} not enough stock)` : ""}`);
+    if (data.errors?.length) toast.error(data.errors.join("; "));
+    setBulkOpen(false);
+    setSelectedMemberIds([]);
+    load(orgId);
+  }
+
   async function returnItem(assignmentId: string) {
     if (!orgId) return;
     const res = await fetch("/api/equipment", {
@@ -105,16 +129,51 @@ export function EquipmentClient() {
     }
   }
 
+  async function returnAllForItem(equipmentId: string) {
+    if (!orgId) return;
+    const ids = assignments.filter((a) => a.equipment_id === equipmentId).map((a) => a.id);
+    if (!ids.length) return;
+    const res = await fetch("/api/equipment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId, action: "return_bulk", assignmentIds: ids }),
+    });
+    if (res.ok) {
+      toast.success(`Returned ${(await res.json()).returned} items`);
+      load(orgId);
+    }
+  }
+
+  function toggleMember(id: string) {
+    setSelectedMemberIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  }
+
+  const selectedEquip = equipment.find((e) => e.id === bulkForm.equipmentId);
+  const maxBulk = selectedEquip ? Math.min(selectedMemberIds.length, selectedEquip.quantity_available) : 0;
+
   const totalItems = equipment.reduce((s, e) => s + Number(e.quantity_total), 0);
   const available = equipment.reduce((s, e) => s + Number(e.quantity_available), 0);
+
+  const membersWithoutItem = (equipId: string) => {
+    const issuedIds = new Set(
+      assignments.filter((a) => a.equipment_id === equipId).map((a) => a.member_id),
+    );
+    return members.filter((m) => !issuedIds.has(m.id));
+  };
 
   return (
     <div className="space-y-5">
       <PageHeader
         title="Equipment & Uniforms"
+        description="Issue gear to one player or bulk-issue to the whole roster"
         action={
-          <div className="flex gap-2">
-            <Button size="sm" variant="secondary" onClick={() => setIssueOpen(true)}>Issue item</Button>
+          <div className="flex gap-2 flex-wrap">
+            <Button size="sm" variant="secondary" onClick={() => { setBulkOpen(true); setSelectedMemberIds([]); }} icon={<Users size={14} />}>
+              Issue to team
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => setIssueOpen(true)}>Issue one</Button>
             <Button size="sm" icon={<Plus size={14} />} onClick={() => setAddOpen(true)}>Add item</Button>
           </div>
         }
@@ -132,15 +191,35 @@ export function EquipmentClient() {
         <Card>
           <CardHeader title="Inventory" />
           <div className="space-y-2">
-            {equipment.map((item) => (
-              <div key={item.id} className="flex items-center justify-between p-3 rounded-lg border border-border">
+            {equipment.map((item) => {
+              const issuedCount = Number(item.quantity_total) - Number(item.quantity_available);
+              return (
+              <div key={item.id} className="flex items-center justify-between p-3 rounded-lg border border-border flex-wrap gap-2">
                 <div>
                   <p className="font-medium text-sm">{item.item_name}</p>
                   <p className="text-xs text-muted-foreground">{item.category}</p>
                 </div>
-                <Badge label={`${item.quantity_available}/${item.quantity_total}`} color={item.quantity_available === 0 ? "red" : "green"} />
+                <div className="flex items-center gap-2">
+                  <Badge label={`${item.quantity_available}/${item.quantity_total} free`} color={item.quantity_available === 0 ? "red" : "green"} />
+                  {issuedCount > 0 && (
+                    <Button size="sm" variant="secondary" onClick={() => returnAllForItem(item.id)}>Return all</Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={item.quantity_available === 0}
+                    onClick={() => {
+                      setBulkForm({ equipmentId: item.id, jerseyNumber: "", uniformSize: "" });
+                      setSelectedMemberIds(membersWithoutItem(item.id).map((m) => m.id));
+                      setBulkOpen(true);
+                    }}
+                  >
+                    Quick issue
+                  </Button>
+                </div>
               </div>
-            ))}
+            );
+            })}
           </div>
         </Card>
       )}
@@ -171,10 +250,56 @@ export function EquipmentClient() {
         </div>
       </Modal>
 
-      <Modal open={issueOpen} onClose={() => setIssueOpen(false)} title="Issue equipment" footer={<><Button variant="secondary" onClick={() => setIssueOpen(false)}>Cancel</Button><Button onClick={issueItem}>Issue</Button></>}>
+      <Modal open={issueOpen} onClose={() => setIssueOpen(false)} title="Issue to one member" footer={<><Button variant="secondary" onClick={() => setIssueOpen(false)}>Cancel</Button><Button onClick={issueItem}>Issue</Button></>}>
         <div className="space-y-3">
           <Select label="Item" value={issueForm.equipmentId} onChange={(e) => setIssueForm({ ...issueForm, equipmentId: e.target.value })} options={[{ value: "", label: "Select" }, ...equipment.filter((e) => e.quantity_available > 0).map((e) => ({ value: e.id, label: e.item_name }))]} />
           <Select label="Member" value={issueForm.memberId} onChange={(e) => setIssueForm({ ...issueForm, memberId: e.target.value })} options={[{ value: "", label: "Select" }, ...members.map((m) => ({ value: m.id, label: m.full_name }))]} />
+        </div>
+      </Modal>
+
+      <Modal open={bulkOpen} onClose={() => setBulkOpen(false)} title="Issue to multiple members" footer={
+        <>
+          <Button variant="secondary" onClick={() => setBulkOpen(false)}>Cancel</Button>
+          <Button onClick={issueBulk} loading={issuing} disabled={!bulkForm.equipmentId || selectedMemberIds.length === 0}>
+            Issue {maxBulk || selectedMemberIds.length}
+          </Button>
+        </>
+      }>
+        <div className="space-y-3">
+          <Select
+            label="Item"
+            value={bulkForm.equipmentId}
+            onChange={(e) => {
+              setBulkForm({ ...bulkForm, equipmentId: e.target.value });
+              setSelectedMemberIds(membersWithoutItem(e.target.value).map((m) => m.id));
+            }}
+            options={[{ value: "", label: "Select" }, ...equipment.filter((e) => e.quantity_available > 0).map((e) => ({
+              value: e.id,
+              label: `${e.item_name} (${e.quantity_available} available)`,
+            }))]}
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Jersey # (optional)" value={bulkForm.jerseyNumber} onChange={(e) => setBulkForm({ ...bulkForm, jerseyNumber: e.target.value })} />
+            <Input label="Size (optional)" value={bulkForm.uniformSize} onChange={(e) => setBulkForm({ ...bulkForm, uniformSize: e.target.value })} placeholder="M, L, XL" />
+          </div>
+          {selectedEquip && (
+            <p className="text-xs text-muted-foreground">
+              Will issue to up to {Math.min(selectedMemberIds.length, selectedEquip.quantity_available)} of {selectedMemberIds.length} selected ({selectedEquip.quantity_available} in stock)
+            </p>
+          )}
+          <div className="flex gap-2">
+            <button type="button" className="text-xs text-greek-600" onClick={() => setSelectedMemberIds(members.map((m) => m.id))}>Select all roster</button>
+            <button type="button" className="text-xs text-muted-foreground" onClick={() => bulkForm.equipmentId && setSelectedMemberIds(membersWithoutItem(bulkForm.equipmentId).map((m) => m.id))}>Only without item</button>
+            <button type="button" className="text-xs text-muted-foreground" onClick={() => setSelectedMemberIds([])}>Clear</button>
+          </div>
+          <div className="max-h-48 overflow-y-auto rounded-lg border border-border divide-y divide-border">
+            {members.map((m) => (
+              <label key={m.id} className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-surface-1">
+                <input type="checkbox" checked={selectedMemberIds.includes(m.id)} onChange={() => toggleMember(m.id)} />
+                {m.full_name}
+              </label>
+            ))}
+          </div>
         </div>
       </Modal>
     </div>

@@ -4,35 +4,33 @@ import { useState, useEffect } from "react";
 import { Heart, RefreshCw, TrendingUp } from "lucide-react";
 import { useOrg } from "@/hooks/use-org";
 import {
-  Badge, Button, Card, CardHeader, PageHeader, ProgressBar, StatCard,
+  Alert, Badge, Button, Card, CardHeader, PageHeader, ProgressBar, StatCard,
 } from "@/components/ui";
-import { healthScoreLabel } from "@/lib/health-score";
+import { healthScoreLabel, type HealthMetricKey } from "@/lib/health-score";
 
-interface Breakdown {
-  duesCollection: number;
-  recruitmentConversion: number;
-  eventAttendance: number;
-  memberRetention: number;
-  officerTaskCompletion: number;
-  budgetHealth: number;
-  complianceForms: number;
-  reimbursementHealth: number;
-  waiverCompletion?: number;
+interface MetricMeta {
+  score: number;
+  hasData: boolean;
+  detail?: string;
 }
 
 export default function HealthPage() {
   const { orgId } = useOrg();
   const [loading, setLoading] = useState(true);
-  const [composite, setComposite] = useState(0);
-  const [breakdown, setBreakdown] = useState<Breakdown | null>(null);
+  const [composite, setComposite] = useState<number | null>(null);
+  const [metricsUsed, setMetricsUsed] = useState(0);
+  const [metricsTotal, setMetricsTotal] = useState(0);
+  const [meta, setMeta] = useState<Partial<Record<HealthMetricKey, MetricMeta>> | null>(null);
 
   async function load(oid: string) {
     setLoading(true);
     const res = await fetch(`/api/health?orgId=${oid}`);
     if (res.ok) {
       const data = await res.json();
-      setComposite(data.composite);
-      setBreakdown(data.breakdown);
+      setComposite(data.composite ?? null);
+      setMeta(data.meta ?? null);
+      setMetricsUsed(data.metricsUsed ?? 0);
+      setMetricsTotal(data.metricsTotal ?? 0);
     }
     setLoading(false);
   }
@@ -41,9 +39,9 @@ export default function HealthPage() {
     if (orgId) load(orgId);
   }, [orgId]);
 
-  const meta = healthScoreLabel(composite);
+  const healthMeta = healthScoreLabel(composite);
 
-  const labels: Record<keyof Breakdown, string> = {
+  const labels: Record<HealthMetricKey, string> = {
     duesCollection: "Dues collection",
     recruitmentConversion: "Recruitment / tryout conversion",
     eventAttendance: "Event attendance",
@@ -55,11 +53,15 @@ export default function HealthPage() {
     waiverCompletion: "Waiver completion (sports)",
   };
 
+  const scoredValues = meta
+    ? Object.values(meta).filter((m) => m?.hasData).map((m) => m!.score)
+    : [];
+
   return (
     <div className="space-y-5">
       <PageHeader
         title="Organization Health Score"
-        description="Composite score from dues, attendance, compliance, budget, and engagement metrics"
+        description="Weighted score from live dues, attendance, compliance, budget, and engagement — empty areas are excluded, not counted as 100%"
         action={
           orgId ? (
             <Button size="sm" variant="secondary" icon={<RefreshCw size={14} />} onClick={() => load(orgId)} loading={loading}>
@@ -69,29 +71,65 @@ export default function HealthPage() {
         }
       />
 
+      {composite === null && !loading && (
+        <Alert
+          type="info"
+          title="Not enough data yet"
+          description="Add members, dues charges, events, or a budget to generate a meaningful health score. Metrics without data show as “No data” below."
+        />
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-        <StatCard title="Composite score" value={loading ? "—" : composite} delta={meta.label} deltaType={meta.color === "green" ? "up" : meta.color === "yellow" ? "neutral" : "down"} icon={<Heart size={18} />} />
-        <StatCard title="Strongest area" value={breakdown ? Math.max(...Object.values(breakdown).filter((v): v is number => typeof v === "number")) : "—"} icon={<TrendingUp size={18} />} />
-        <StatCard title="Needs work" value={breakdown ? Math.min(...Object.values(breakdown).filter((v): v is number => typeof v === "number")) : "—"} deltaType="down" icon={<TrendingUp size={18} />} />
+        <StatCard
+          title="Composite score"
+          value={loading ? "—" : composite ?? "—"}
+          delta={healthMeta.label}
+          deltaType={healthMeta.color === "green" ? "up" : healthMeta.color === "yellow" ? "neutral" : healthMeta.color === "gray" ? "neutral" : "down"}
+          icon={<Heart size={18} />}
+        />
+        <StatCard
+          title="Metrics with data"
+          value={loading ? "—" : `${metricsUsed}/${metricsTotal}`}
+          icon={<TrendingUp size={18} />}
+        />
+        <StatCard
+          title={scoredValues.length ? "Needs work" : "Range"}
+          value={scoredValues.length ? Math.min(...scoredValues) : "—"}
+          deltaType="down"
+          icon={<TrendingUp size={18} />}
+        />
       </div>
 
       <Card>
-        <CardHeader title="Score breakdown" description="Each component is scored 0–100 based on live org data" icon={<Heart size={16} />} />
+        <CardHeader title="Score breakdown" description="Only measured areas count toward the composite" icon={<Heart size={16} />} />
         {loading ? (
           <p className="text-sm text-muted-foreground">Computing health score...</p>
-        ) : breakdown ? (
+        ) : meta ? (
           <div className="space-y-4">
-            {Object.entries(breakdown).map(([key, val]) => (
-              val !== undefined ? (
+            {(Object.keys(labels) as HealthMetricKey[]).map((key) => {
+              const m = meta[key];
+              if (!m) return null;
+              return (
                 <div key={key}>
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm font-medium">{labels[key as keyof Breakdown] ?? key}</p>
-                    <Badge label={`${val}/100`} color={val >= 80 ? "green" : val >= 60 ? "yellow" : "red"} />
+                  <div className="flex items-center justify-between mb-1 gap-2 flex-wrap">
+                    <p className="text-sm font-medium">{labels[key]}</p>
+                    {m.hasData ? (
+                      <Badge label={`${m.score}/100`} color={m.score >= 80 ? "green" : m.score >= 60 ? "yellow" : "red"} />
+                    ) : (
+                      <Badge label="No data" color="gray" />
+                    )}
                   </div>
-                  <ProgressBar value={val} color={val >= 80 ? "green" : val >= 60 ? "yellow" : "red"} size="md" />
+                  {m.hasData ? (
+                    <ProgressBar value={m.score} color={m.score >= 80 ? "green" : m.score >= 60 ? "yellow" : "red"} size="md" />
+                  ) : (
+                    <p className="text-xs text-muted-foreground">{m.detail ?? "Add chapter activity to measure this"}</p>
+                  )}
+                  {m.hasData && m.detail && (
+                    <p className="text-xs text-muted-foreground mt-1">{m.detail}</p>
+                  )}
                 </div>
-              ) : null
-            ))}
+              );
+            })}
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">Unable to load health score.</p>
