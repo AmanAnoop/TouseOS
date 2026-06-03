@@ -1,18 +1,29 @@
 # Backlog implementation status
 
 Tracked against `docs/feature-backlog.md` (67 numbered modules, 0–66).  
-**Last updated:** Wave 13 on branch `cursor/sportsos-clubos-separation-4a50`.
+**Last updated:** Wave 14 (finance interconnect) on branch `cursor/sportsos-clubos-separation-4a50`.  
+**Timeline / milestones:** `docs/product-status.md`
 
 ## Completion percentages
 
 | Metric | ~% | What it means |
 |--------|-----|----------------|
-| **Full final build** | **~85%** | Weighted depth across all 67 modules |
+| **Full final build** | **~86%** | Weighted depth across all 67 modules |
 | Modules at production depth (✅) | **~42%** | 28 modules with end-to-end flows |
 | Modules with a route or API | **~99%** | 66/67 |
 | Day-to-day chapter ops | **~94%** | Core officer + member workflows |
 
-## Wave 13 (latest)
+## Wave 14 (latest)
+
+| Module | Status | Notes |
+|--------|--------|-------|
+| Budget ↔ Payments | ✅ | All payment categories map to income lines; `lib/budget-sync.ts` |
+| Budget ↔ Reimbursements | ✅ | Paid + approved-unpaid expense lines |
+| Live finance ledger | ✅ | `/api/budget/ledger` + Budget UI panel |
+| Auto-sync | ✅ | Payments, Stripe webhook, reimbursements, new budgets |
+| Housing rent → Budget | ✅ | `/api/housing/rent-charges` → `housing` category |
+
+## Wave 13 (prior)
 
 | Module | Status | Notes |
 |--------|--------|-------|

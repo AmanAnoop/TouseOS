@@ -17,8 +17,14 @@ import { BudgetOverview } from "@/components/budget/budget-overview";
 import { CashFlowForecastPanel } from "@/components/budget/cash-flow-forecast";
 import { computeCashFlowForecast } from "@/lib/cash-flow-forecast";
 import { DuesForecastPanel } from "@/components/budget/dues-forecast-panel";
-import { computeDuesForecast, computeDuesSyncActual, type PaymentSummary } from "@/lib/dues-forecast";
+import { computeDuesForecast, type PaymentSummary } from "@/lib/dues-forecast";
 import { BudgetLineTable } from "@/components/budget/budget-line-table";
+import { FinanceLedgerPanel } from "@/components/budget/finance-ledger-panel";
+import {
+  DEFAULT_EXPENSE_LINES,
+  DEFAULT_INCOME_LINES,
+  type FinanceLedger,
+} from "@/lib/budget-sync";
 import { EventPnlPanel } from "@/components/budget/event-pnl-panel";
 import { PerMemberCostPanel } from "@/components/budget/per-member-cost-panel";
 import { computeEventPnl } from "@/lib/event-pnl";
@@ -50,8 +56,8 @@ interface Budget {
   budget_lines: BudgetLine[];
 }
 
-const INCOME_CATEGORIES = ["Dues income","Event income","Donations","Merchandise income","Sponsorship income","Other income"];
-const EXPENSE_CATEGORIES = ["National dues","Venue expense","Food & catering","Transportation","Security","Hotel","Equipment","Philanthropy","Social events","Recruitment","Technology","Printing","Miscellaneous"];
+const INCOME_CATEGORIES = DEFAULT_INCOME_LINES;
+const EXPENSE_CATEGORIES = DEFAULT_EXPENSE_LINES;
 
 export default function BudgetPage() {
   const supabase = createClient();
@@ -66,6 +72,8 @@ export default function BudgetPage() {
   const [eventPayments, setEventPayments] = useState<Array<{ amount: number; paid_amount: number; status: string; payment_items: { event_id: string | null } | null }>>([]);
   const [payments, setPayments] = useState<PaymentSummary[]>([]);
   const [syncing, setSyncing] = useState(false);
+  const [ledger, setLedger] = useState<FinanceLedger | null>(null);
+  const [ledgerLoading, setLedgerLoading] = useState(false);
   const [tab, setTab] = useState("overview");
   const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
   const [createBudgetOpen, setCreateBudgetOpen] = useState(false);
@@ -84,7 +92,7 @@ export default function BudgetPage() {
     setLoading(true);
     const [budgetRes, paymentsRes, reimbRes, eventsRes, membersRes, eventPayRes] = await Promise.all([
       fetch(`/api/budget?org_id=${oid}`),
-      supabase.from("payments").select("id, amount, paid_amount, status, due_date, category, member_id").eq("org_id", oid),
+      supabase.from("payments").select("id, amount, paid_amount, status, due_date, member_id, payment_items(category)").eq("org_id", oid),
       supabase.from("reimbursements").select("id, amount, status, created_at, submitted_by_name, category, event_id, submitted_by").eq("org_id", oid),
       supabase.from("events").select("id, title, starts_at").eq("org_id", oid).order("starts_at", { ascending: false }).limit(50),
       supabase.from("member_profiles").select("*").eq("org_id", oid),
@@ -95,13 +103,73 @@ export default function BudgetPage() {
       setBudgets(data);
       if (data.length > 0) setSelectedBudget(data[0]);
     }
-    setPayments((paymentsRes.data ?? []) as PaymentSummary[]);
+    const rawPayments = (paymentsRes.data ?? []) as unknown as Array<{
+      id: string;
+      amount: number;
+      paid_amount: number;
+      status: string;
+      due_date: string | null;
+      member_id: string | null;
+      payment_items?: { category?: string } | { category?: string }[] | null;
+    }>;
+    setPayments(rawPayments.map((p): PaymentSummary => {
+      const item = Array.isArray(p.payment_items) ? p.payment_items[0] : p.payment_items;
+      return {
+        id: p.id,
+        amount: p.amount,
+        paid_amount: p.paid_amount,
+        status: p.status,
+        due_date: p.due_date,
+        category: item?.category ?? null,
+      };
+    }));
     setReimbs((reimbRes.data ?? []) as typeof reimbs);
     setEvents((eventsRes.data ?? []) as typeof events);
     setMembers((membersRes.data ?? []) as MemberProfile[]);
     setEventPayments((eventPayRes.data ?? []) as unknown as typeof eventPayments);
+    setLedgerLoading(true);
+    const ledgerRes = await fetch(`/api/budget/ledger?org_id=${oid}`);
+    if (ledgerRes.ok) {
+      const body = await ledgerRes.json();
+      setLedger(body.ledger ?? null);
+    }
+    setLedgerLoading(false);
     setLoading(false);
   }, [supabase]);
+
+  const syncFullBudget = useCallback(async (opts?: { silent?: boolean }) => {
+    const budgetId = selectedBudget?.id;
+    if (!budgetId || !orgId) return;
+    setSyncing(true);
+    const res = await fetch("/api/budget/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId, budgetId }),
+    });
+    setSyncing(false);
+    const data = await res.json();
+    if (!res.ok) {
+      if (!opts?.silent) toast.error(data.error ?? "Sync failed");
+      return;
+    }
+    if (data.budget) {
+      setSelectedBudget(data.budget);
+      setBudgets((prev) => prev.map((b) => (b.id === data.budget.id ? data.budget : b)));
+    }
+    if (data.ledger) setLedger(data.ledger);
+    const s = data.summary;
+    if (!opts?.silent) {
+      toast.success(
+        `Synced ${formatCurrency(s?.totalCollected ?? 0)} collected · ${formatCurrency(s?.reimbursementsPaid ?? 0)} reimbursements paid`,
+      );
+    }
+  }, [orgId, selectedBudget?.id]);
+
+  useEffect(() => {
+    if (!orgId || !selectedBudget?.id || !can(myRole, "manage_budget") || loading) return;
+    void syncFullBudget({ silent: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync when budget/org loads only
+  }, [orgId, selectedBudget?.id, myRole, loading]);
 
   useEffect(() => {
     async function init() {
@@ -157,7 +225,7 @@ export default function BudgetPage() {
     setBudgets((prev) => prev.map((b) => b.id === selectedBudget.id ? { ...b, budget_lines: [...b.budget_lines, newLine] } : b));
     toast.success("Line added");
     setAddLineOpen(false);
-    setLineForm({ category: "Dues income", type: "income", description: "", budgeted: "", actual: "0" });
+    setLineForm({ category: "Chapter dues", type: "income", description: "", budgeted: "", actual: "0" });
   }
 
   async function updateActual(lineId: string, actual: number) {
@@ -181,65 +249,6 @@ export default function BudgetPage() {
     setSelectedBudget((prev) => prev ? { ...prev, budget_lines: prev.budget_lines.filter((l) => l.id !== lineId) } : prev);
   }
 
-
-  async function syncFullBudget() {
-    if (!selectedBudget || !orgId) return;
-    setSyncing(true);
-    const res = await fetch("/api/budget/sync", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orgId, budgetId: selectedBudget.id }),
-    });
-    setSyncing(false);
-    const data = await res.json();
-    if (!res.ok) {
-      toast.error(data.error ?? "Sync failed");
-      return;
-    }
-    if (data.budget) {
-      setSelectedBudget(data.budget);
-      setBudgets((prev) => prev.map((b) => (b.id === data.budget.id ? data.budget : b)));
-    }
-    const s = data.summary;
-    toast.success(
-      `Synced: dues $${s?.duesCollected?.toFixed(0) ?? 0}, philanthropy $${s?.philanthropyRaised?.toFixed(0) ?? 0}`,
-    );
-  }
-
-  async function syncDuesToBudget() {
-    if (!selectedBudget || !orgId) return;
-    setSyncing(true);
-    const collected = computeDuesSyncActual(payments);
-    let duesLine = selectedBudget.budget_lines.find((l) => l.type === "income" && l.category === "Dues income");
-
-    if (!duesLine) {
-      const { data, error } = await supabase.from("budget_lines").insert({
-        budget_id: selectedBudget.id,
-        category: "Dues income",
-        type: "income",
-        description: "Synced from Payments",
-        budgeted: collected,
-        actual: collected,
-      }).select().single();
-      if (error) { toast.error(error.message); setSyncing(false); return; }
-      duesLine = data as BudgetLine;
-      setSelectedBudget((prev) => prev ? { ...prev, budget_lines: [...prev.budget_lines, duesLine!] } : prev);
-    } else {
-      await supabase.from("budget_lines").update({ actual: collected }).eq("id", duesLine.id);
-      setSelectedBudget((prev) => prev ? {
-        ...prev,
-        budget_lines: prev.budget_lines.map((l) => l.id === duesLine!.id ? { ...l, actual: collected } : l),
-      } : prev);
-    }
-    setBudgets((prev) => prev.map((b) => b.id === selectedBudget.id ? {
-      ...b,
-      budget_lines: b.budget_lines.some((l) => l.id === duesLine!.id)
-        ? b.budget_lines.map((l) => l.id === duesLine!.id ? { ...l, actual: collected } : l)
-        : [...b.budget_lines, duesLine!],
-    } : b));
-    setSyncing(false);
-    toast.success(`Synced $${collected.toFixed(2)} collected dues to budget`);
-  }
 
   function exportBudget() {
     if (!selectedBudget) return;
@@ -321,7 +330,7 @@ export default function BudgetPage() {
                     className="officer-touch"
                     icon={<RefreshCw size={14} />}
                     loading={syncing}
-                    onClick={syncFullBudget}
+                    onClick={() => syncFullBudget()}
                   >
                     Sync all
                   </Button>
@@ -364,6 +373,7 @@ export default function BudgetPage() {
       ) : (
         <>
           <BudgetAlerts alerts={alerts} />
+          <FinanceLedgerPanel ledger={ledger} loading={ledgerLoading} />
           <BudgetOverview
             totalActualIncome={totalActualIncome}
             totalBudgetedIncome={totalBudgetedIncome}
@@ -376,6 +386,7 @@ export default function BudgetPage() {
           <Tabs
             tabs={[
               { id: "overview", label: "Overview" },
+              { id: "ledger", label: "Finance ledger" },
               { id: "forecast", label: "Cash flow" },
               { id: "dues", label: "Dues forecast" },
               { id: "events", label: "Event P&L" },
@@ -387,10 +398,12 @@ export default function BudgetPage() {
             onChange={setTab}
           />
 
-          {tab === "forecast" ? (
+          {tab === "ledger" ? (
+            <FinanceLedgerPanel ledger={ledger} loading={ledgerLoading} />
+          ) : tab === "forecast" ? (
             <CashFlowForecastPanel forecast={cashFlowForecast} />
           ) : tab === "dues" ? (
-            <DuesForecastPanel forecast={duesForecast} onSyncToBudget={syncDuesToBudget} syncing={syncing} />
+            <DuesForecastPanel forecast={duesForecast} onSyncToBudget={() => syncFullBudget()} syncing={syncing} />
           ) : tab === "events" ? (
             <EventPnlPanel rows={eventPnl} />
           ) : tab === "members" ? (
@@ -450,7 +463,7 @@ export default function BudgetPage() {
         <div className="space-y-4">
           <div className="flex gap-2">
             {(["income","expense"] as const).map((t) => (
-              <button key={t} onClick={() => { setLineForm({ ...lineForm, type: t, category: t === "income" ? "Dues income" : "Venue expense" }); }}
+              <button key={t} onClick={() => { setLineForm({ ...lineForm, type: t, category: t === "income" ? "Chapter dues" : "Reimbursements (paid)" }); }}
                 className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${lineForm.type === t ? (t === "income" ? "bg-green-600 text-white border-green-600" : "bg-red-600 text-white border-red-600") : "border-border text-muted-foreground"}`}
               >
                 {t.charAt(0).toUpperCase() + t.slice(1)}

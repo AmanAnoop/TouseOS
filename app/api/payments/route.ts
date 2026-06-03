@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { triggerBudgetSyncForOrg } from "@/lib/budget-auto-sync";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -52,6 +53,8 @@ export async function POST(request: Request) {
     resource_id: item.id,
     metadata: { title, amount, category, members_charged: members?.length ?? 0 },
   });
+
+  void triggerBudgetSyncForOrg(orgId, user.id);
 
   return NextResponse.json({ success: true, item, membersCharged: members?.length ?? 0 }, { status: 201 });
 }

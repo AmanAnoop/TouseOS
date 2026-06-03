@@ -65,7 +65,7 @@ export function DuesForecastPanel({ forecast, onSyncToBudget, syncing }: DuesFor
             <div className="flex gap-2">
               {onSyncToBudget && (
                 <Button size="sm" variant="secondary" onClick={onSyncToBudget} loading={syncing}>
-                  Sync to budget
+                  Sync all to budget
                 </Button>
               )}
               <Link href="/payments">

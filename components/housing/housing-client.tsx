@@ -51,6 +51,7 @@ export function HousingClient() {
   const [roomForm, setRoomForm] = useState({ roomNumber: "", capacity: "1", floor: "1", monthlyRent: "" });
   const [assignMemberId, setAssignMemberId] = useState("");
   const [maintForm, setMaintForm] = useState({ description: "", priority: "medium" });
+  const [chargingRent, setChargingRent] = useState(false);
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
@@ -158,15 +159,40 @@ export function HousingClient() {
   const totalRent = rooms.reduce((s, r) => s + (r.monthly_rent ? Number(r.monthly_rent) : 0), 0);
   const openMaintenance = maintenance.filter((m) => m.status === "open").length;
 
+  async function createRentCharges() {
+    if (!orgId) return;
+    setChargingRent(true);
+    const res = await fetch("/api/housing/rent-charges", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId }),
+    });
+    setChargingRent(false);
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.error ?? "Failed to create rent charges");
+      return;
+    }
+    toast.success(data.message ?? `Created ${data.created} rent charge(s)`);
+    load(orgId);
+  }
+
   return (
     <div className="space-y-5">
       <PageHeader
         title="Housing"
         description="Room assignments, maintenance requests, and house management"
         action={
-          <Button size="sm" icon={<Plus size={14} />} onClick={() => setRoomOpen(true)}>
-            Add room
-          </Button>
+          <div className="flex gap-2">
+            {assignments.length > 0 && totalRent > 0 && (
+              <Button size="sm" variant="secondary" loading={chargingRent} onClick={createRentCharges}>
+                Post monthly rent
+              </Button>
+            )}
+            <Button size="sm" icon={<Plus size={14} />} onClick={() => setRoomOpen(true)}>
+              Add room
+            </Button>
+          </div>
         }
       />
 
