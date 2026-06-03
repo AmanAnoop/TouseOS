@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { useOrg } from "@/hooks/use-org";
 import { PageHeader } from "@/components/ui";
 import { EngagementDashboard, type EngagementMember, type EngagementEvent } from "@/components/engagement/engagement-dashboard";
@@ -11,7 +10,6 @@ const BONDING_TYPES = ["brotherhood", "sisterhood"];
 const SEMESTER_GOAL = 4;
 
 export default function EngagementPage() {
-  const supabase = createClient();
   const { orgId, orgType } = useOrg();
   const [members, setMembers] = useState<EngagementMember[]>([]);
   const [events, setEvents] = useState<EngagementEvent[]>([]);
@@ -41,12 +39,13 @@ export default function EngagementPage() {
 
     let rsvps: Array<{ member_id: string | null; event_id: string; checked_in: boolean }> = [];
     if (eventIds.length > 0) {
-      const { data } = await supabase
-        .from("event_rsvps")
-        .select("member_id, event_id, checked_in")
-        .in("event_id", eventIds)
-        .eq("checked_in", true);
-      rsvps = (data ?? []) as typeof rsvps;
+      const rsvpRes = await fetch(
+        `/api/events/rsvps?org_id=${encodeURIComponent(oid)}&event_ids=${eventIds.join(",")}&checked_in=true`,
+      );
+      if (rsvpRes.ok) {
+        const payload = await rsvpRes.json();
+        rsvps = (payload.rsvps ?? []) as typeof rsvps;
+      }
     }
 
     const pastEvents = eventList.filter((e) => new Date(e.starts_at) < new Date());
@@ -63,27 +62,28 @@ export default function EngagementPage() {
       };
     });
 
-    const engagementEvents: EngagementEvent[] = await Promise.all(
-      eventList.map(async (e) => {
-        const { count } = await supabase
-          .from("event_rsvps")
-          .select("id", { count: "exact", head: true })
-          .eq("event_id", e.id)
-          .eq("status", "going");
-        return {
-          id: e.id,
-          title: e.title,
-          type: e.type,
-          starts_at: e.starts_at,
-          attendeeCount: count ?? 0,
-        };
-      }),
-    );
+    let counts: Record<string, { going: number }> = {};
+    if (eventIds.length > 0) {
+      const countRes = await fetch(
+        `/api/events/rsvps?org_id=${encodeURIComponent(oid)}&event_ids=${eventIds.join(",")}`,
+      );
+      if (countRes.ok) {
+        const payload = await countRes.json();
+        counts = payload.counts ?? {};
+      }
+    }
+    const engagementEvents: EngagementEvent[] = eventList.map((e) => ({
+      id: e.id,
+      title: e.title,
+      type: e.type,
+      starts_at: e.starts_at,
+      attendeeCount: counts[e.id]?.going ?? 0,
+    }));
 
     setMembers(engagementMembers);
     setEvents(engagementEvents);
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
     if (!orgId) return;
