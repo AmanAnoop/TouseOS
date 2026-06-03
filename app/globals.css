@@ -67,11 +67,7 @@
   }
 
   .theme-regal body {
-    background-image:
-      radial-gradient(ellipse 120% 80% at 100% 0%, hsl(var(--regal-green) / 0.06), transparent 50%),
-      radial-gradient(ellipse 80% 60% at 0% 100%, hsl(var(--regal-navy) / 0.08), transparent 45%),
-      linear-gradient(180deg, hsl(var(--background)), hsl(var(--surface-1)));
-    background-attachment: fixed;
+    background-color: hsl(var(--background));
   }
 
   * {
@@ -86,7 +82,13 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  h1, h2, h3, .font-serif {
+  h1, h2, h3 {
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+
+  .font-serif {
     font-family: var(--font-serif), "Cormorant Garamond", Georgia, serif;
     font-weight: 600;
     letter-spacing: -0.02em;
@@ -99,20 +101,12 @@
 
 @layer components {
   .regal-card {
-    @apply rounded-xl border border-border bg-card shadow-card;
-    box-shadow:
-      0 1px 2px hsl(var(--regal-navy) / 0.04),
-      0 4px 12px hsl(var(--regal-navy) / 0.06);
+    @apply rounded-xl border border-border bg-card;
+    box-shadow: 0 1px 2px hsl(var(--foreground) / 0.04);
   }
 
   .regal-divider {
     @apply border-t border-border;
-    border-image: linear-gradient(
-      90deg,
-      transparent,
-      hsl(var(--regal-gold) / 0.35),
-      transparent
-    ) 1;
   }
 
   .text-link {

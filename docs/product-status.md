@@ -1,6 +1,6 @@
 # TouseOS product status (realistic)
 
-Last updated: Launch final build on `cursor/launch-final-build-4a50`.
+Last updated: Sidebar & UI polish on `cursor/sidebar-ui-launch-4a50`.
 
 ## How to read these numbers
 
@@ -11,21 +11,21 @@ We separate **“exists in the repo”** from **“works end-to-end without dead
 | **Backlog modules with a route or API** | **~89%** | Page or endpoint exists (66/67 modules; module 66 = launch QA) |
 | **Connected user journeys** | **~87%** | Budget, account, social calendar, forms fill on APIs |
 | **Production-ready depth** | **~58%** | CI, smoke scripts, public `/api/ready`, migration guide |
-| **Launch-ready** | **~68%** | Ops tooling complete; production env + pilot smoke remain |
+| **Launch-ready** | **~70%** | Ops tooling + polished app shell; production env + pilot smoke remain |
 
 ### Overall product complete (recommended single number)
 
-**~76%** — weighted blend:
+**~77%** — weighted blend:
 
 | Component | Weight | Score | Contribution |
 |-----------|--------|-------|--------------|
 | Connected journeys | 40% | 87% | 34.8 |
 | Routes / APIs exist | 20% | 90% | 18.0 |
 | Production depth | 25% | 58% | 14.5 |
-| Launch readiness | 15% | 68% | 10.2 |
-| **Total** | 100% | — | **~77.5% → ~76%** |
+| Launch readiness | 15% | 70% | 10.5 |
+| **Total** | 100% | — | **~77.3% → ~77%** |
 
-Round to **~76%** overall. **Launch-ready ~68%** — apply migrations, set production env, run pilot checklist for **~80%+** launch score. Do not quote **~89%** as “the product is done” — that is surface area only.
+Round to **~77%** overall. **Launch-ready ~70%** — apply migrations, set production env, run pilot checklist for **~80%+** launch score. Do not quote **~89%** as “the product is done” — that is surface area only.
 
 ## By product area
 
@@ -40,7 +40,14 @@ Round to **~76%** overall. **Launch-ready ~68%** — apply migrations, set produ
 | Reports & exports | **~75%** | CSV exports via APIs (no client Supabase on reports page) |
 | Admin / platform | **~50%** | Platform admin behind email allowlist |
 
-## Launch final build (latest)
+## Sidebar & UI polish (latest)
+
+- Sectioned sidebar (`lib/sidebar-navigation.ts`): Overview, People & finance, product-specific groups, account, tools, admin
+- Removed emoji / “AI sparkle” nav labels; GreekMatch and Interchapter use plain labels
+- Cleaner nav links (accent bar, icon tiles), mobile bottom nav aligned to product home paths
+- Softer global background (no heavy gradients), sans-serif page titles, lighter cards
+
+## Launch final build
 
 - `/api/account`, `/api/social-calendar`, `/api/forms/[formId]`, `/api/feed/summary`
 - Budget, account, social calendar, PNM invite, form fill on REST APIs

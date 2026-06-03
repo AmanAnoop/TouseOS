@@ -1,0 +1,56 @@
+import {
+  BarChart3,
+  Bell,
+  BookOpen,
+  Building2,
+  Calendar,
+  ClipboardList,
+  DollarSign,
+  FileText,
+  GraduationCap,
+  Grid3x3,
+  HandHeart,
+  Heart,
+  Home,
+  Image,
+  Layers,
+  MessageSquare,
+  Settings,
+  Shield,
+  Sparkles,
+  Trophy,
+  Users,
+  Warehouse,
+  Zap,
+} from "lucide-react";
+import type { SidebarIconKey } from "@/lib/sidebar-navigation";
+
+const MAP: Record<SidebarIconKey, React.ReactNode> = {
+  home: <Home size={18} strokeWidth={1.75} />,
+  heart: <Heart size={18} strokeWidth={1.75} />,
+  users: <Users size={18} strokeWidth={1.75} />,
+  calendar: <Calendar size={18} strokeWidth={1.75} />,
+  dollar: <DollarSign size={18} strokeWidth={1.75} />,
+  book: <BookOpen size={18} strokeWidth={1.75} />,
+  clipboard: <ClipboardList size={18} strokeWidth={1.75} />,
+  file: <FileText size={18} strokeWidth={1.75} />,
+  message: <MessageSquare size={18} strokeWidth={1.75} />,
+  zap: <Zap size={18} strokeWidth={1.75} />,
+  image: <Image size={18} strokeWidth={1.75} />,
+  shield: <Shield size={18} strokeWidth={1.75} />,
+  warehouse: <Warehouse size={18} strokeWidth={1.75} />,
+  building: <Building2 size={18} strokeWidth={1.75} />,
+  trophy: <Trophy size={18} strokeWidth={1.75} />,
+  grid: <Grid3x3 size={18} strokeWidth={1.75} />,
+  "hand-heart": <HandHeart size={18} strokeWidth={1.75} />,
+  settings: <Settings size={18} strokeWidth={1.75} />,
+  bell: <Bell size={18} strokeWidth={1.75} />,
+  graduation: <GraduationCap size={18} strokeWidth={1.75} />,
+  sparkles: <Sparkles size={18} strokeWidth={1.75} />,
+  "bar-chart": <BarChart3 size={18} strokeWidth={1.75} />,
+  layers: <Layers size={18} strokeWidth={1.75} />,
+};
+
+export function sidebarIcon(key: SidebarIconKey): React.ReactNode {
+  return MAP[key] ?? MAP.layers;
+}
