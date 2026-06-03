@@ -15,6 +15,7 @@ import type { Document } from "@/types";
 import { DocumentCard, formatBytes } from "@/components/documents/document-card";
 import { DocumentVersionHistory } from "@/components/documents/document-version-history";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useOrg } from "@/hooks/use-org";
 
 const CATEGORIES = [
   "General", "Bylaws & governance", "Risk & compliance",
@@ -24,11 +25,10 @@ const CATEGORIES = [
 
 export default function DocumentsPage() {
   const supabase = createClient();
+  const { orgId, userId } = useOrg();
   const { can, loading: permLoading } = usePermissions();
   const [docs, setDocs] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
   const [tab, setTab] = useState("all");
   const [query, setQuery] = useState("");
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -45,26 +45,21 @@ export default function DocumentsPage() {
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
-    const { data } = await supabase
-      .from("documents")
-      .select("*")
-      .eq("org_id", oid)
-      .order("category")
-      .order("created_at", { ascending: false });
+    const res = await fetch(`/api/documents?org_id=${encodeURIComponent(oid)}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error(err.error ?? "Failed to load documents");
+      setLoading(false);
+      return;
+    }
+    const data = await res.json();
     setDocs((data ?? []) as Document[]);
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      setUserId(user.id);
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) { setOrgId(m.org_id); load(m.org_id); }
-    }
-    init();
-  }, [supabase, load]);
+    if (orgId) load(orgId);
+  }, [orgId, load]);
 
   const categories = [...new Set(docs.map((d) => d.category))];
 
@@ -92,20 +87,24 @@ export default function DocumentsPage() {
 
     const { data: urlData } = supabase.storage.from("documents").getPublicUrl(stored.path);
 
-    const { error: dbError } = await supabase.from("documents").insert({
-      org_id: orgId,
-      uploaded_by: userId,
-      title: uploadForm.title,
-      category: uploadForm.category,
-      storage_path: stored.path,
-      url: urlData.publicUrl,
-      file_size_bytes: selectedFile.size,
-      mime_type: selectedFile.type,
-      is_private: uploadForm.isPrivate,
+    const res = await fetch("/api/documents", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        title: uploadForm.title,
+        category: uploadForm.category,
+        storagePath: stored.path,
+        url: urlData.publicUrl,
+        fileSizeBytes: selectedFile.size,
+        mimeType: selectedFile.type,
+        isPrivate: uploadForm.isPrivate,
+      }),
     });
 
     setUploading(false);
-    if (dbError) { toast.error(dbError.message); return; }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { toast.error(data.error ?? "Failed to save document"); return; }
     toast.success("Document uploaded");
     setUploadOpen(false);
     setSelectedFile(null);
@@ -115,8 +114,13 @@ export default function DocumentsPage() {
 
   async function deleteDocument(id: string, storagePath: string) {
     if (!confirm("Delete this document?")) return;
-    await supabase.storage.from("documents").remove([storagePath]);
-    await supabase.from("documents").delete().eq("id", id);
+    const params = new URLSearchParams({ id, storage_path: storagePath });
+    const res = await fetch(`/api/documents?${params}`, { method: "DELETE" });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error(err.error ?? "Delete failed");
+      return;
+    }
     setDocs((prev) => prev.filter((d) => d.id !== id));
     toast.success("Document deleted");
   }

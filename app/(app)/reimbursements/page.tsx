@@ -15,12 +15,12 @@ import {
 import { downloadCsv, formatCurrency, formatDate } from "@/lib/utils";
 import type { Reimbursement } from "@/types";
 import { ReimbursementList } from "@/components/reimbursements/reimbursement-list";
-import { resolveActiveOrgId } from "@/lib/active-org-client";
+import { useOrg } from "@/hooks/use-org";
 import {
   DEFAULT_REIMBURSEMENT_THRESHOLD,
   needsPresidentApproval,
 } from "@/lib/reimbursement-approval";
-import { can, type RoleName } from "@/lib/permissions";
+import { can } from "@/lib/permissions";
 
 const STATUS_COLOR: Record<string, string> = {
   submitted: "yellow", needs_info: "orange", approved: "blue",
@@ -36,11 +36,10 @@ const CATEGORIES = [
 
 export default function ReimbursementsPage() {
   const supabase = createClient();
+  const { orgId, role: myRole } = useOrg();
   const fileRef = useRef<HTMLInputElement>(null);
   const [reimbs, setReimbs] = useState<Reimbursement[]>([]);
   const [loading, setLoading] = useState(true);
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [myRole, setMyRole] = useState<RoleName>("general_member");
   const [tab, setTab] = useState("pending");
   const [submitOpen, setSubmitOpen] = useState(false);
   const [selected, setSelected] = useState<Reimbursement | null>(null);
@@ -72,34 +71,16 @@ export default function ReimbursementsPage() {
   }, []);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: memberships } = await supabase
-        .from("org_members")
-        .select("org_id, role")
-        .eq("user_id", user.id)
-        .neq("status", "removed");
-
-      const activeId = resolveActiveOrgId(memberships ?? []);
-      const activeMembership = (memberships ?? []).find((m) => m.org_id === activeId);
-      if (!activeId || !activeMembership) return;
-
-      setOrgId(activeId);
-      setMyRole(String(activeMembership.role ?? "general_member") as RoleName);
-
-      const { data: eRes } = await supabase
-        .from("events")
-        .select("id, title")
-        .eq("org_id", activeId)
-        .order("starts_at", { ascending: false })
-        .limit(30);
-      setEvents((eRes ?? []) as Array<{ id: string; title: string }>);
-      load(activeId);
-    }
-    init();
-  }, [supabase, load]);
+    if (!orgId) return;
+    supabase
+      .from("events")
+      .select("id, title")
+      .eq("org_id", orgId)
+      .order("starts_at", { ascending: false })
+      .limit(30)
+      .then(({ data: eRes }) => setEvents((eRes ?? []) as Array<{ id: string; title: string }>));
+    load(orgId);
+  }, [supabase, orgId, load]);
 
   async function submitReimbursement() {
     if (!orgId || !form.amount || !form.description) return;

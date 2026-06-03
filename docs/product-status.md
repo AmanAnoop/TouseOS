@@ -1,6 +1,6 @@
 # TouseOS product status (realistic)
 
-Last updated: Wave 16 reimbursements API on `cursor/wave16-reimbursements-api-4a50`.
+Last updated: Wave 17 API wiring on `cursor/wave17-api-wiring-4a50`.
 
 ## How to read these numbers
 
@@ -9,11 +9,11 @@ We separate **“exists in the repo”** from **“works end-to-end without dead
 | Metric | Realistic % | Meaning |
 |--------|-------------|---------|
 | **Backlog modules with a route or API** | **~88%** | Page or endpoint exists |
-| **Connected user journeys** | **~66%** | Primary flows link correctly; few 404s or wrong redirects |
+| **Connected user journeys** | **~68%** | Primary flows link correctly; few 404s or wrong redirects |
 | **Production-ready depth** | **~50%** | Tested, permissioned, env-configured; legal summaries expanded (counsel review still needed) |
 | **Launch-ready** | **~44%** | Migrations, Stripe, QA, mobile polish, counsel-approved legal |
 
-**Best single number for “how done is the product?” → ~58–63%** (weighted toward connected journeys, not file count).
+**Best single number for “how done is the product?” → ~59–64%** (weighted toward connected journeys, not file count).
 
 ## By area
 
@@ -40,7 +40,14 @@ We separate **“exists in the repo”** from **“works end-to-end without dead
 - Reimbursement approve/paid triggers budget sync-org API
 - Treasurer dashboard links split budget vs reimbursements
 
-## Wave 16 (latest)
+## Wave 17 (latest)
+
+- Tasks, documents, notifications UIs wired to their REST APIs
+- `useOrg` + `loadActiveMembership` respect active org cookie app-wide
+- Budget, payments, reimbursements use active org (not first membership row)
+- Task detail attachments update via tasks API; “My tasks” filter fixed
+
+## Wave 16
 
 - Reimbursements page uses `/api/reimbursements` for list, submit, approve, reject, and mark paid
 - Officer permission checks on PATCH; president approval for amounts over threshold
@@ -59,7 +66,7 @@ We separate **“exists in the repo”** from **“works end-to-end without dead
 
 | Priority | Item |
 |----------|------|
-| P2 | Orphan API routes (tasks, documents, notifications) — UI still uses Supabase directly |
+| P2 | Many pages still load data via Supabase client (events, comms, housing, etc.) |
 | Launch | Counsel review of terms/privacy; run migrations **015–024** |
 
 ## Environment

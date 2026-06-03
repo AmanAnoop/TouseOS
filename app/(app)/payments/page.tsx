@@ -20,16 +20,16 @@ import { TreasurerDashboard } from "@/components/payments/treasurer-dashboard";
 import { HardshipReviewPanel } from "@/components/payments/hardship-review-panel";
 import { StripeDestinationBanner } from "@/components/payments/stripe-destination-banner";
 import { StripeReconciliationPanel } from "@/components/payments/stripe-reconciliation-panel";
-import { can, type RoleName } from "@/lib/permissions";
+import { can } from "@/lib/permissions";
+import { useOrg } from "@/hooks/use-org";
 
 export default function PaymentsPage() {
   const supabase = createClient();
+  const { orgId, userId, role: myRole } = useOrg();
   const [payments, setPayments] = useState<PaymentWithMember[]>([]);
   const [members, setMembers] = useState<MemberProfile[]>([]);
   const [planCount, setPlanCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [myRole, setMyRole] = useState<RoleName>("general_member");
   const [myMemberId, setMyMemberId] = useState<string | null>(null);
   const [filter, setFilter] = useState("all");
   const [createOpen, setCreateOpen] = useState(false);
@@ -62,25 +62,18 @@ export default function PaymentsPage() {
   }, [supabase]);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id, role").eq("user_id", user.id).limit(1).single();
-      if (m) {
-        setOrgId(m.org_id);
-        setMyRole(String(m.role ?? "general_member") as RoleName);
-        loadPayments(m.org_id);
-        const { data: profile } = await supabase
-          .from("member_profiles")
-          .select("id")
-          .eq("org_id", m.org_id)
-          .eq("user_id", user.id)
-          .maybeSingle();
+    if (!orgId || !userId) return;
+    loadPayments(orgId);
+    supabase
+      .from("member_profiles")
+      .select("id")
+      .eq("org_id", orgId)
+      .eq("user_id", userId)
+      .maybeSingle()
+      .then(({ data: profile }) => {
         if (profile) setMyMemberId(profile.id);
-      }
-    }
-    init();
-  }, [supabase, loadPayments]);
+      });
+  }, [supabase, orgId, userId, loadPayments]);
 
   const canViewAll = can(myRole, "view_payments") || can(myRole, "manage_payments");
   const canManage = can(myRole, "manage_payments");
