@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, ClipboardList } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
 import { Button, Card, Input, PageHeader } from "@/components/ui";
 
 interface FormField {
@@ -30,7 +29,6 @@ export default function FillFormPage() {
   const params = useParams();
   const router = useRouter();
   const formId = params.id as string;
-  const supabase = createClient();
   const [form, setForm] = useState<FormTemplate | null>(null);
   const [answers, setAnswers] = useState<Record<string, string | boolean>>({});
   const [signature, setSignature] = useState("");
@@ -39,33 +37,20 @@ export default function FillFormPage() {
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
 
   const load = useCallback(async () => {
-    const { data: f } = await supabase.from("forms").select("*").eq("id", formId).single();
+    const res = await fetch(`/api/forms/${formId}`);
+    if (!res.ok) {
+      setLoading(false);
+      return;
+    }
+    const { form: f, alreadySubmitted: submitted } = await res.json();
     if (!f) {
       setLoading(false);
       return;
     }
     setForm(f as FormTemplate);
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user && f) {
-      const { data: mp } = await supabase
-        .from("member_profiles")
-        .select("id")
-        .eq("org_id", (f as FormTemplate).org_id)
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (mp) {
-        const { data: existing } = await supabase
-          .from("form_responses")
-          .select("id")
-          .eq("form_id", formId)
-          .eq("member_id", mp.id)
-          .maybeSingle();
-        setAlreadySubmitted(!!existing);
-      }
-    }
+    setAlreadySubmitted(Boolean(submitted));
     setLoading(false);
-  }, [supabase, formId]);
+  }, [formId]);
 
   useEffect(() => {
     load();

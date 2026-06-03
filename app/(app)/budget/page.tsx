@@ -5,7 +5,6 @@ import {
   BookOpen, DollarSign, Download, Plus, RefreshCw,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
 import {
   Button, Card, EmptyState,
   Input, Modal, PageHeader, Select, Tabs,
@@ -30,12 +29,12 @@ import { PerMemberCostPanel } from "@/components/budget/per-member-cost-panel";
 import { computeEventPnl } from "@/lib/event-pnl";
 import { computePerMemberCost } from "@/lib/per-member-cost";
 import type { MemberProfile } from "@/types";
-import { can, type RoleName } from "@/lib/permissions";
+import { can } from "@/lib/permissions";
 import { getProductId } from "@/lib/org-product";
 import { computeReimbursementAgingAlerts } from "@/lib/reimbursement-aging";
 import { buildBudgetReportHtml, downloadBudgetReportHtml } from "@/lib/budget-export";
 import { Alert } from "@/components/ui";
-import { loadActiveMembership } from "@/lib/active-org-membership";
+import { useOrg } from "@/hooks/use-org";
 
 interface BudgetLine {
   id: string;
@@ -62,13 +61,9 @@ const INCOME_CATEGORIES = DEFAULT_INCOME_LINES;
 const EXPENSE_CATEGORIES = DEFAULT_EXPENSE_LINES;
 
 export default function BudgetPage() {
-  const supabase = createClient();
+  const { orgId, role: myRole, orgName, orgType, loading: orgLoading } = useOrg();
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [myRole, setMyRole] = useState<RoleName>("general_member");
-  const [orgName, setOrgName] = useState("Chapter");
-  const [orgType, setOrgType] = useState("fraternity");
   const [reimbs, setReimbs] = useState<Array<{ id: string; amount: number; status: string; created_at: string; submitted_by_name: string | null; category: string; event_id: string | null; submitted_by: string | null }>>([]);
   const [events, setEvents] = useState<Array<{ id: string; title: string; starts_at: string }>>([]);
   const [members, setMembers] = useState<MemberProfile[]>([]);
@@ -93,28 +88,29 @@ export default function BudgetPage() {
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
-    const [budgetRes, paymentsRes, reimbRes, eventsRes, membersRes, eventPayRes] = await Promise.all([
-      fetch(`/api/budget?org_id=${oid}`),
-      supabase.from("payments").select("id, amount, paid_amount, status, due_date, member_id, payment_items(category)").eq("org_id", oid),
+    const [budgetRes, paymentsRes, reimbRes, eventsRes, membersRes] = await Promise.all([
+      fetch(`/api/budget?org_id=${encodeURIComponent(oid)}`),
+      fetch(`/api/payments?org_id=${encodeURIComponent(oid)}`),
       fetch(`/api/reimbursements?org_id=${encodeURIComponent(oid)}`),
-      supabase.from("events").select("id, title, starts_at").eq("org_id", oid).order("starts_at", { ascending: false }).limit(50),
-      supabase.from("member_profiles").select("*").eq("org_id", oid),
-      supabase.from("payments").select("amount, paid_amount, status, member_id, payment_items(event_id)").eq("org_id", oid),
+      fetch(`/api/events?org_id=${encodeURIComponent(oid)}`),
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}`),
     ]);
     if (budgetRes.ok) {
       const data = await budgetRes.json();
       setBudgets(data);
       if (data.length > 0) setSelectedBudget(data[0]);
     }
-    const rawPayments = (paymentsRes.data ?? []) as unknown as Array<{
+    const rawPayments = paymentsRes.ok
+      ? ((await paymentsRes.json()) as unknown as Array<{
       id: string;
       amount: number;
       paid_amount: number;
       status: string;
       due_date: string | null;
       member_id: string | null;
-      payment_items?: { category?: string } | { category?: string }[] | null;
-    }>;
+      payment_items?: { category?: string; event_id?: string | null } | { category?: string; event_id?: string | null }[] | null;
+    }>)
+      : [];
     setPayments(rawPayments.map((p): PaymentSummary => {
       const item = Array.isArray(p.payment_items) ? p.payment_items[0] : p.payment_items;
       return {
@@ -129,9 +125,23 @@ export default function BudgetPage() {
     if (reimbRes.ok) {
       setReimbs((await reimbRes.json()) as typeof reimbs);
     }
-    setEvents((eventsRes.data ?? []) as typeof events);
-    setMembers((membersRes.data ?? []) as MemberProfile[]);
-    setEventPayments((eventPayRes.data ?? []) as unknown as typeof eventPayments);
+    if (eventsRes.ok) {
+      const allEvents = (await eventsRes.json()) as Array<{ id: string; title: string; starts_at: string }>;
+      setEvents(allEvents.sort((a, b) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime()).slice(0, 50));
+    }
+    if (membersRes.ok) setMembers((await membersRes.json()) as MemberProfile[]);
+    setEventPayments(
+      rawPayments.map((p) => {
+        const item = Array.isArray(p.payment_items) ? p.payment_items[0] : p.payment_items;
+        return {
+          amount: p.amount,
+          paid_amount: p.paid_amount,
+          status: p.status,
+          member_id: p.member_id,
+          payment_items: item ? { event_id: item.event_id ?? null } : null,
+        };
+      }) as typeof eventPayments,
+    );
     setLedgerLoading(true);
     const ledgerRes = await fetch(`/api/budget/ledger?org_id=${oid}`);
     if (ledgerRes.ok) {
@@ -140,7 +150,7 @@ export default function BudgetPage() {
     }
     setLedgerLoading(false);
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   const syncFullBudget = useCallback(async (opts?: { silent?: boolean }) => {
     const budgetId = selectedBudget?.id;
@@ -177,20 +187,9 @@ export default function BudgetPage() {
   }, [orgId, selectedBudget?.id, myRole, loading]);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const membership = await loadActiveMembership(supabase, user.id);
-      if (membership) {
-        setOrgId(membership.orgId);
-        setMyRole(membership.role);
-        setOrgName(membership.orgName);
-        setOrgType(membership.orgType);
-        load(membership.orgId);
-      }
-    }
-    init();
-  }, [supabase, load]);
+    if (orgId) load(orgId);
+    else if (!orgLoading) setLoading(false);
+  }, [orgId, orgLoading, load]);
 
   async function createBudget() {
     if (!orgId || !budgetForm.label) return;
@@ -216,17 +215,25 @@ export default function BudgetPage() {
 
   async function addLine() {
     if (!selectedBudget || !lineForm.category) return;
-    const { data, error } = await supabase.from("budget_lines").insert({
-      budget_id: selectedBudget.id,
-      category: lineForm.category,
-      type: lineForm.type,
-      description: lineForm.description || null,
-      budgeted: parseFloat(lineForm.budgeted || "0"),
-      actual: parseFloat(lineForm.actual || "0"),
-    }).select().single();
-
-    if (error) { toast.error(error.message); return; }
-    const newLine = data as BudgetLine;
+    const res = await fetch("/api/budget", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "add",
+        budgetId: selectedBudget.id,
+        category: lineForm.category,
+        type: lineForm.type,
+        description: lineForm.description,
+        budgeted: parseFloat(lineForm.budgeted || "0"),
+        actual: parseFloat(lineForm.actual || "0"),
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error((err as { error?: string }).error ?? "Failed to add line");
+      return;
+    }
+    const newLine = (await res.json()) as BudgetLine;
     setSelectedBudget((prev) => prev ? { ...prev, budget_lines: [...prev.budget_lines, newLine] } : prev);
     setBudgets((prev) => prev.map((b) => b.id === selectedBudget.id ? { ...b, budget_lines: [...b.budget_lines, newLine] } : b));
     toast.success("Line added");
@@ -235,7 +242,11 @@ export default function BudgetPage() {
   }
 
   async function updateActual(lineId: string, actual: number) {
-    await supabase.from("budget_lines").update({ actual }).eq("id", lineId);
+    await fetch("/api/budget", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lineId, actual }),
+    });
     setSelectedBudget((prev) => prev ? {
       ...prev,
       budget_lines: prev.budget_lines.map((l) => l.id === lineId ? { ...l, actual } : l),
@@ -243,7 +254,11 @@ export default function BudgetPage() {
   }
 
   async function updateBudgeted(lineId: string, budgeted: number) {
-    await supabase.from("budget_lines").update({ budgeted }).eq("id", lineId);
+    await fetch("/api/budget", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lineId, budgeted }),
+    });
     setSelectedBudget((prev) => prev ? {
       ...prev,
       budget_lines: prev.budget_lines.map((l) => l.id === lineId ? { ...l, budgeted } : l),
@@ -251,7 +266,11 @@ export default function BudgetPage() {
   }
 
   async function deleteLine(lineId: string) {
-    await supabase.from("budget_lines").delete().eq("id", lineId);
+    await fetch("/api/budget", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "delete", lineId }),
+    });
     setSelectedBudget((prev) => prev ? { ...prev, budget_lines: prev.budget_lines.filter((l) => l.id !== lineId) } : prev);
   }
 

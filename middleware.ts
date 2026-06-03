@@ -50,8 +50,12 @@ export async function middleware(request: NextRequest) {
     !pathname.startsWith("/login") &&
     !pathname.startsWith("/signup") &&
     !pathname.startsWith("/forgot-password") &&
+    !pathname.startsWith("/api/ready") &&
+    !pathname.startsWith("/api/cron") &&
     !pathname.startsWith("/api/stripe/webhook") &&
     !pathname.startsWith("/api/twilio") &&
+    !pathname.startsWith("/terms") &&
+    !pathname.startsWith("/privacy") &&
     !pathname.startsWith("/p/") && // public event pages
     !pathname.startsWith("/pay/") && // parent payment portal
     !pathname.startsWith("/join/") && // public PNM interest form

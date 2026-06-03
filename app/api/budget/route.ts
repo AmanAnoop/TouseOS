@@ -90,10 +90,36 @@ export async function PATCH(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { budgetId, lineId, ...updates } = await request.json();
+  const body = await request.json();
+  const {
+    budgetId, lineId, action, category, type, description, budgeted, actual, ...updates
+  } = body;
+
+  if (action === "delete" && lineId) {
+    const { error } = await supabase.from("budget_lines").delete().eq("id", lineId);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ deleted: true });
+  }
+
+  if (action === "add" && budgetId) {
+    const { data, error } = await supabase.from("budget_lines").insert({
+      budget_id: budgetId,
+      category,
+      type: type ?? "expense",
+      description: description || null,
+      budgeted: parseFloat(String(budgeted ?? "0")),
+      actual: parseFloat(String(actual ?? "0")),
+    }).select().single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(data);
+  }
 
   if (lineId) {
-    const { data, error } = await supabase.from("budget_lines").update(updates).eq("id", lineId).select().single();
+    const lineUpdates: Record<string, unknown> = {};
+    if (actual !== undefined) lineUpdates.actual = actual;
+    if (budgeted !== undefined) lineUpdates.budgeted = budgeted;
+    Object.assign(lineUpdates, updates);
+    const { data, error } = await supabase.from("budget_lines").update(lineUpdates).eq("id", lineId).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json(data);
   }

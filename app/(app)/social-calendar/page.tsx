@@ -9,7 +9,6 @@ import {
 ,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
 import {
   Badge, Button, Card
 , EmptyState, Input,
@@ -47,7 +46,6 @@ const CAPTION_TEMPLATES = [
 ];
 
 export default function SocialCalendarPage() {
-  const supabase = createClient();
   const { orgId } = useOrg();
   const searchParams = useSearchParams();
   const [posts, setPosts] = useState<CalendarPost[]>([]);
@@ -61,14 +59,10 @@ export default function SocialCalendarPage() {
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
-    const { data } = await supabase
-      .from("social_calendar")
-      .select("*")
-      .eq("org_id", oid)
-      .order("scheduled_date", { ascending: true, nullsFirst: false });
-    setPosts((data ?? []) as CalendarPost[]);
+    const res = await fetch(`/api/social-calendar?org_id=${encodeURIComponent(oid)}`);
+    setPosts(res.ok ? ((await res.json()) as CalendarPost[]) : []);
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
     if (orgId) load(orgId);
@@ -90,16 +84,23 @@ export default function SocialCalendarPage() {
 
   async function createPost() {
     if (!orgId || !form.title) return;
-    const { error } = await supabase.from("social_calendar").insert({
-      org_id: orgId,
-      title: form.title,
-      caption: form.caption || null,
-      scheduled_date: form.scheduledDate || null,
-      post_type: form.postType,
-      status: form.status,
-      platform: ["instagram"],
+    const res = await fetch("/api/social-calendar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        title: form.title,
+        caption: form.caption,
+        scheduledDate: form.scheduledDate,
+        postType: form.postType,
+        status: form.status,
+      }),
     });
-    if (error) { toast.error(error.message); return; }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error((err as { error?: string }).error ?? "Failed to create post");
+      return;
+    }
     toast.success("Post scheduled!");
     setCreateOpen(false);
     setForm({ title: "", caption: "", scheduledDate: "", postType: "feed", status: "draft" });
@@ -107,8 +108,17 @@ export default function SocialCalendarPage() {
   }
 
   async function updateStatus(id: string, status: string) {
-    await supabase.from("social_calendar").update({ status }).eq("id", id);
-    setPosts((prev) => prev.map((p) => p.id === id ? { ...p, status } : p));
+    if (!orgId) return;
+    const res = await fetch("/api/social-calendar", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, orgId, status }),
+    });
+    if (!res.ok) {
+      toast.error("Failed to update");
+      return;
+    }
+    setPosts((prev) => prev.map((p) => (p.id === id ? { ...p, status } : p)));
     toast.success(`Post ${status}`);
   }
 

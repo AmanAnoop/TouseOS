@@ -137,7 +137,7 @@ export function CardHeader({ title, description, action, icon, className }: Card
     <div className={cn("flex items-start justify-between gap-4 mb-4", className)}>
       <div className="flex items-start gap-3">
         {icon && (
-          <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-greek-50 dark:bg-greek-950 flex items-center justify-center text-greek-600">
+          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-surface-1 text-foreground">
             {icon}
           </div>
         )}
@@ -658,16 +658,14 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, description, action, breadcrumb, className }: PageHeaderProps) {
   return (
-    <div className={cn("flex items-start justify-between gap-4 pb-4 border-b border-campus-600/25 mb-1", className)}>
+    <div className={cn("mb-6 flex items-start justify-between gap-4", className)}>
       <div>
         {breadcrumb && (
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
-            {breadcrumb}
-          </p>
+          <p className="mb-1 text-xs font-medium text-muted-foreground">{breadcrumb}</p>
         )}
-        <h1 className="font-serif text-2xl font-semibold text-foreground tracking-tight">{title}</h1>
+        <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">{title}</h1>
         {description && (
-          <p className="text-sm text-muted-foreground mt-0.5">{description}</p>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{description}</p>
         )}
       </div>
       {action && <div className="flex-shrink-0">{action}</div>}

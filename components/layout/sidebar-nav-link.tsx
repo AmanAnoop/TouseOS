@@ -3,25 +3,8 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { ProductAccent } from "@/lib/org-product";
-
-const ACTIVE: Record<ProductAccent, string> = {
-  greek: "bg-primary/10 text-primary font-medium border border-primary/15",
-  sports: "bg-primary/10 text-primary font-medium border border-primary/15",
-  club: "bg-primary/10 text-primary font-medium border border-primary/15",
-};
-
-const BADGE: Record<ProductAccent, string> = {
-  greek: "bg-primary",
-  sports: "bg-primary",
-  club: "bg-primary",
-};
-
-export interface SidebarNavItem {
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  badge?: number;
-}
+import type { SidebarNavItemDef } from "@/lib/sidebar-navigation";
+import { sidebarIcon } from "@/components/layout/sidebar-icons";
 
 export function SidebarNavLink({
   item,
@@ -29,27 +12,47 @@ export function SidebarNavLink({
   collapsed,
   accent,
 }: {
-  item: SidebarNavItem;
+  item: SidebarNavItemDef;
   active: boolean;
   collapsed: boolean;
   accent: ProductAccent;
 }) {
+  const accentBar =
+    accent === "sports"
+      ? "bg-sports-600"
+      : accent === "club"
+        ? "bg-club-600"
+        : "bg-primary";
+
   return (
     <Link
       href={item.href}
+      title={collapsed ? item.label : undefined}
       className={cn(
-        "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
-        active ? ACTIVE[accent] : "text-muted-foreground hover:bg-surface-1 hover:text-foreground",
-        collapsed && "justify-center px-2",
+        "group relative flex items-center gap-2.5 rounded-lg text-[13px] transition-colors",
+        collapsed ? "justify-center px-2 py-2.5" : "px-2.5 py-2",
+        active
+          ? "bg-surface-1 text-foreground font-medium"
+          : "text-muted-foreground hover:bg-surface-1/80 hover:text-foreground",
       )}
     >
-      <span className="w-5 h-5 flex-shrink-0">{item.icon}</span>
+      {active && !collapsed && (
+        <span className={cn("absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-full", accentBar)} />
+      )}
+      <span
+        className={cn(
+          "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md transition-colors",
+          active ? "bg-background text-foreground shadow-sm" : "text-muted-foreground group-hover:text-foreground",
+        )}
+      >
+        {sidebarIcon(item.icon)}
+      </span>
       {!collapsed && (
         <>
-          <span className="flex-1 truncate">{item.label}</span>
+          <span className="flex-1 truncate leading-tight">{item.label}</span>
           {item.badge !== undefined && item.badge > 0 && (
-            <span className={cn("text-xs text-white rounded-full px-1.5 py-0.5 leading-none", BADGE[accent])}>
-              {item.badge}
+            <span className="min-w-[1.25rem] rounded-md bg-primary px-1.5 py-0.5 text-center text-[10px] font-semibold leading-none text-primary-foreground">
+              {item.badge > 99 ? "99+" : item.badge}
             </span>
           )}
         </>

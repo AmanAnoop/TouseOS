@@ -27,6 +27,10 @@ Use this before inviting a live chapter or university pilot.
 - [x] Events list/create via `/api/events`; RSVP via `/api/events/rsvp`
 - [ ] Create event → RSVP → QR check-in (live test)
 - [x] Photo albums/photos APIs; social upload uses storage + API
+- [x] Social calendar via `/api/social-calendar`
+- [x] Budget page loads via payments/events/members APIs
+- [x] Account profile & notifications via `/api/account`
+- [x] Form fill via `/api/forms/[id]` + responses API
 - [ ] Upload album photos → officer approval → feed post (live test)
 - [x] Payments list, plans, hardship, reimbursements, budget sync APIs
 - [ ] Create dues charge → Stripe Checkout (Connect destination if configured)
@@ -58,6 +62,10 @@ Use this before inviting a live chapter or university pilot.
 - [x] `npm run build` + `typecheck` + `lint` in GitHub Actions (`.github/workflows/ci.yml`)
 - [x] Launch runbook + rollback notes (`docs/launch-runbook.md`)
 - [ ] No P0 open issues on payments, auth, or tenant isolation
-- [ ] Support contact documented for treasurer-facing bugs
+- [x] Support & rollback documented (`docs/launch-runbook.md`)
+- [x] Post-deploy smoke: `npm run smoke:pilot` (with `BASE_URL`)
+- [x] Migration guide: `supabase/APPLY_MIGRATIONS.md`
+- [x] `/api/ready` reachable without login (middleware fix)
+- [ ] Support email configured in production org settings
 
 **Sign-off:** _______________  **Date:** _______________
