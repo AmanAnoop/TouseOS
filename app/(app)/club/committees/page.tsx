@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Users } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
 import { isClubOrg } from "@/lib/utils";
 
@@ -25,41 +25,30 @@ interface MemberRow {
 }
 
 export default function ClubCommitteesPage() {
-  const supabase = createClient();
-  const [orgType, setOrgType] = useState("");
+  const { orgId, orgType } = useOrg();
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
-    const { data } = await supabase
-      .from("member_profiles")
-      .select("id, full_name, role, committees")
-      .eq("org_id", oid)
-      .order("full_name");
-    setMembers((data ?? []) as MemberRow[]);
+    const res = await fetch(`/api/members?org_id=${encodeURIComponent(oid)}`);
+    if (res.ok) {
+      const data = (await res.json()) as MemberRow[];
+      setMembers(data.map((m) => ({
+        id: m.id,
+        full_name: m.full_name,
+        role: m.role,
+        committees: m.committees,
+      })));
+    }
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase
-        .from("org_members")
-        .select("org_id, organizations(type)")
-        .eq("user_id", user.id)
-        .limit(1)
-        .single();
-      if (m) {
-        const type = String(((m.organizations as unknown) as Record<string, unknown>)?.type ?? "");
-        setOrgType(type);
-        if (isClubOrg(type)) load(m.org_id);
-        else setLoading(false);
-      }
-    }
-    init();
-  }, [supabase, load]);
+    if (!orgId) return;
+    if (isClubOrg(orgType)) load(orgId);
+    else setLoading(false);
+  }, [orgId, orgType, load]);
 
   const committeeMap = new Map<string, MemberRow[]>();
   for (const m of members) {

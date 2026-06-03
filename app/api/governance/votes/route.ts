@@ -1,12 +1,53 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
+export async function GET(request: Request) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { searchParams } = new URL(request.url);
+  const orgId = searchParams.get("org_id");
+  if (!orgId) return NextResponse.json({ error: "org_id required" }, { status: 400 });
+
+  const { data, error } = await supabase
+    .from("governance_votes")
+    .select("*")
+    .eq("org_id", orgId)
+    .order("created_at", { ascending: false });
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data ?? []);
+}
+
 export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { voteId, option, action } = await request.json();
+  const body = await request.json();
+  const { voteId, option, action, orgId, title, description, options: optionsInput } = body;
+
+  if (!voteId && orgId && title) {
+    const opts = Array.isArray(optionsInput)
+      ? optionsInput
+      : String(optionsInput ?? "Yes, No, Abstain").split(",").map((s: string) => s.trim()).filter(Boolean);
+    const { data, error } = await supabase
+      .from("governance_votes")
+      .insert({
+        org_id: orgId,
+        title,
+        description: description || null,
+        status: "open",
+        options: opts.length ? opts : ["Yes", "No", "Abstain"],
+        votes: {},
+      })
+      .select()
+      .single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(data, { status: 201 });
+  }
+
   if (!voteId) return NextResponse.json({ error: "voteId required" }, { status: 400 });
 
   const { data: vote } = await supabase.from("governance_votes").select("*").eq("id", voteId).single();
@@ -26,8 +67,8 @@ export async function POST(request: Request) {
   if (!option) return NextResponse.json({ error: "option required" }, { status: 400 });
   if (vote.status !== "open") return NextResponse.json({ error: "Vote is closed" }, { status: 400 });
 
-  const options = (vote.options as string[]) ?? ["Yes", "No", "Abstain"];
-  if (!options.includes(option)) {
+  const voteOptions = (vote.options as string[]) ?? ["Yes", "No", "Abstain"];
+  if (!voteOptions.includes(option)) {
     return NextResponse.json({ error: "Invalid option" }, { status: 400 });
   }
 

@@ -3,11 +3,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { Plus, UserPlus } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import {
   Badge, Button, Card, EmptyState, Input, Modal, PageHeader, Select, Textarea,
 } from "@/components/ui";
-import { can, type RoleName } from "@/lib/permissions";
+import { can } from "@/lib/permissions";
 import { isClubOrg } from "@/lib/utils";
 
 interface Application {
@@ -22,10 +22,7 @@ interface Application {
 }
 
 export default function ClubMembershipPage() {
-  const supabase = createClient();
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [orgType, setOrgType] = useState("");
-  const [role, setRole] = useState<RoleName>("general_member");
+  const { orgId, orgType, role } = useOrg();
   const [apps, setApps] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -40,26 +37,10 @@ export default function ClubMembershipPage() {
   }, []);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase
-        .from("org_members")
-        .select("org_id, role, organizations(type)")
-        .eq("user_id", user.id)
-        .limit(1)
-        .single();
-      if (m) {
-        const type = String(((m.organizations as unknown) as Record<string, unknown>)?.type ?? "");
-        setOrgId(m.org_id);
-        setOrgType(type);
-        setRole(String(m.role) as RoleName);
-        if (isClubOrg(type)) load(m.org_id);
-        else setLoading(false);
-      }
-    }
-    init();
-  }, [supabase, load]);
+    if (!orgId) return;
+    if (isClubOrg(orgType)) load(orgId);
+    else setLoading(false);
+  }, [orgId, orgType, load]);
 
   const canManage = can(role, "edit_roster");
 

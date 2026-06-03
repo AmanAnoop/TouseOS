@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import { PageHeader } from "@/components/ui";
 import { EngagementDashboard, type EngagementMember, type EngagementEvent } from "@/components/engagement/engagement-dashboard";
 import { isGreekOrg } from "@/lib/utils";
@@ -11,7 +12,7 @@ const SEMESTER_GOAL = 4;
 
 export default function EngagementPage() {
   const supabase = createClient();
-  const [orgType, setOrgType] = useState("");
+  const { orgId, orgType } = useOrg();
   const [members, setMembers] = useState<EngagementMember[]>([]);
   const [events, setEvents] = useState<EngagementEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,24 +80,10 @@ export default function EngagementPage() {
   }, [supabase]);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase
-        .from("org_members")
-        .select("org_id, organizations(type)")
-        .eq("user_id", user.id)
-        .limit(1)
-        .single();
-      if (m) {
-const type = String(((m.organizations as unknown) as Record<string, unknown>)?.type ?? "");
-        setOrgType(type);
-        if (isGreekOrg(type)) load(m.org_id);
-        else setLoading(false);
-      }
-    }
-    init();
-  }, [supabase, load]);
+    if (!orgId) return;
+    if (isGreekOrg(orgType)) load(orgId);
+    else setLoading(false);
+  }, [orgId, orgType, load]);
 
   if (!loading && orgType && !isGreekOrg(orgType)) {
     return (

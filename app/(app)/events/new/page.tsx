@@ -1,19 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, ChevronLeft, DollarSign, Image, MapPin, Users } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import { Button, Input, PageHeader, Select, Textarea, Alert } from "@/components/ui";
 
 import { eventTypesForOrgType } from "@/lib/org-product";
 
 export default function NewEventPage() {
-  const supabase = createClient();
   const router = useRouter();
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [orgType, setOrgType] = useState("general_org");
+  const { orgId, orgType } = useOrg();
   const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
@@ -37,25 +35,7 @@ export default function NewEventPage() {
     isPrivate: false,
   });
 
-  useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase
-        .from("org_members")
-        .select("org_id, organizations(type)")
-        .eq("user_id", user.id)
-        .limit(1)
-        .single();
-      if (m) {
-        setOrgId(m.org_id);
-        setOrgType(String(((m.organizations as unknown) as Record<string, unknown>)?.type ?? "general_org"));
-      }
-    }
-    init();
-  }, [supabase]);
-
-  const eventTypes = eventTypesForOrgType(orgType);
+  const eventTypes = eventTypesForOrgType(orgType || "general_org");
 
   async function createEvent() {
     if (!orgId || !form.title || !form.startsAt) return;
