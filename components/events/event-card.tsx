@@ -78,5 +78,3 @@ export function EventCard({ event }: EventCardProps) {
     </Link>
   );
 }
-
-export { TYPE_COLORS };

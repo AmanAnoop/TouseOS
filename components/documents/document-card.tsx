@@ -83,4 +83,4 @@ export function DocumentCard({ doc, onDelete, onViewVersions }: DocumentCardProp
   );
 }
 
-export { fileIcon, formatBytes };
+export { formatBytes };

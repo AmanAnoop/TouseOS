@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { BarChart2, Plus, Target, Trophy, Users } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
 import { useOrg } from "@/hooks/use-org";
 import {
   Button, Card, CardHeader, EmptyState, Modal,
@@ -20,7 +19,6 @@ interface Player {
 }
 
 export default function CoachesPage() {
-  const supabase = createClient();
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [practiceOpen, setPracticeOpen] = useState(false);
@@ -36,16 +34,23 @@ export default function CoachesPage() {
   const load = useCallback(async (oid: string) => {
     setLoading(true);
     const [playersRes, notesRes] = await Promise.all([
-      supabase
-        .from("member_profiles")
-        .select("id, full_name, position, attendance_rate, jersey_number, is_injured")
-        .eq("org_id", oid)
-        .eq("membership_status", "active")
-        .order("position")
-        .order("full_name"),
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}`),
       fetch(`/api/coaching?org_id=${oid}`).then((r) => (r.ok ? r.json() : [])),
     ]);
-    setPlayers((playersRes.data ?? []) as Player[]);
+    if (playersRes.ok) {
+      const all = (await playersRes.json()) as Array<Player & { membership_status: string }>;
+      setPlayers(
+        all
+          .filter((m) => m.membership_status === "active")
+          .sort((a, b) => {
+            const pa = a.position ?? "";
+            const pb = b.position ?? "";
+            return pa.localeCompare(pb) || a.full_name.localeCompare(b.full_name);
+          }),
+      );
+    } else {
+      setPlayers([]);
+    }
     const notes = notesRes as Array<{ id: string; note_type: string; content: string }>;
     setGoals(notes.filter((n) => n.note_type === "goal").map((n) => ({ id: n.id, content: n.content })));
     const practice = notes.find((n) => n.note_type === "practice");
@@ -53,7 +58,7 @@ export default function CoachesPage() {
     if (practice) setPracticeNotes(practice.content);
     if (game) setGameNotes(game.content);
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
     if (orgId) load(orgId);

@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { AlertTriangle, Plus, Scale } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
 import {
   Badge, Button, Card, EmptyState, Input,
   Modal, PageHeader, Select, StatCard, Tabs, Textarea,
@@ -56,7 +55,6 @@ const SANCTION_OPTIONS = [
 ];
 
 export default function StandardsPage() {
-  const supabase = createClient();
   const [cases, setCases] = useState<StandardsCase[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
@@ -95,7 +93,7 @@ export default function StandardsPage() {
     })));
     setMembers(memberData as Member[]);
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
     if (orgId) load(orgId);

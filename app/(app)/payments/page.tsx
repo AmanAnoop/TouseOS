@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { Download, DollarSign, Plus, Send } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
 import {
   Button, Card, CardHeader, EmptyState,
   Input, Modal, PageHeader, ProgressBar, Select,
@@ -24,7 +23,6 @@ import { can } from "@/lib/permissions";
 import { useOrg } from "@/hooks/use-org";
 
 export default function PaymentsPage() {
-  const supabase = createClient();
   const { orgId, userId, role: myRole } = useOrg();
   const [payments, setPayments] = useState<PaymentWithMember[]>([]);
   const [members, setMembers] = useState<MemberProfile[]>([]);
@@ -62,16 +60,13 @@ export default function PaymentsPage() {
   useEffect(() => {
     if (!orgId || !userId) return;
     loadPayments(orgId);
-    supabase
-      .from("member_profiles")
-      .select("id")
-      .eq("org_id", orgId)
-      .eq("user_id", userId)
-      .maybeSingle()
-      .then(({ data: profile }) => {
-        if (profile) setMyMemberId(profile.id);
-      });
-  }, [supabase, orgId, userId, loadPayments]);
+  }, [orgId, userId, loadPayments]);
+
+  useEffect(() => {
+    if (!userId) return;
+    const me = members.find((m) => m.user_id === userId);
+    setMyMemberId(me?.id ?? null);
+  }, [userId, members]);
 
   const canViewAll = can(myRole, "view_payments") || can(myRole, "manage_payments");
   const canManage = can(myRole, "manage_payments");

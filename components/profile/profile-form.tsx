@@ -3,7 +3,7 @@
 import { ExternalLink, Lock, Save } from "lucide-react";
 import { Button, Card, CardHeader, Input, Textarea } from "@/components/ui";
 
-export const PROFILE_INTERESTS = [
+const PROFILE_INTERESTS = [
   "Sports", "Music", "Art", "Photography", "Travel", "Cooking", "Gaming", "Reading",
   "Fitness", "Outdoors", "Dancing", "Film", "Fashion", "Tech", "Business", "Politics",
   "Volunteering", "Comedy", "Podcasts", "Greek Life",

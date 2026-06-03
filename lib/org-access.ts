@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { loadActiveMembershipServer } from "@/lib/active-org-membership-server";
-import { getProductId, isRouteAllowed, productHomePath } from "@/lib/org-product";
+import { getProductId, productHomePath } from "@/lib/org-product";
 import type { OrgType } from "@/types";
 
 export async function requireOrgProduct(allowed: Array<"greek" | "sports" | "club">) {
@@ -20,25 +20,4 @@ export async function requireOrgProduct(allowed: Array<"greek" | "sports" | "clu
   }
 
   return { orgId: membership.orgId, orgType, product };
-}
-
-export async function getActiveOrgContext() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const membership = await loadActiveMembershipServer(user.id);
-  if (!membership) return null;
-
-  return {
-    orgId: membership.orgId,
-    role: membership.role,
-    orgType: membership.orgType,
-    orgName: membership.orgName,
-    product: getProductId(membership.orgType),
-  };
-}
-
-export function assertRouteForOrg(orgType: string, pathname: string): boolean {
-  return isRouteAllowed(orgType, pathname);
 }
