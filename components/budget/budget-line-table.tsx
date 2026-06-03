@@ -16,6 +16,7 @@ export interface BudgetLineRow {
 interface BudgetLineTableProps {
   lines: BudgetLineRow[];
   showType?: boolean;
+  readOnly?: boolean;
   totals?: {
     budgetedLabel: string;
     actualLabel: string;
@@ -29,6 +30,7 @@ interface BudgetLineTableProps {
 export function BudgetLineTable({
   lines,
   showType = true,
+  readOnly = false,
   totals,
   onUpdateBudgeted,
   onUpdateActual,
@@ -59,30 +61,40 @@ export function BudgetLineTable({
                   )}
                   <td className="py-3 px-4 text-muted-foreground max-w-[200px] truncate">{line.description ?? "—"}</td>
                   <td className="py-3 px-4">
-                    <input
-                      type="number"
-                      className="w-24 h-7 border border-border rounded-md bg-background px-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                      value={line.budgeted}
-                      onChange={(e) => onUpdateBudgeted(line.id, parseFloat(e.target.value) || 0)}
-                      onBlur={(e) => onUpdateBudgeted(line.id, parseFloat(e.target.value) || 0)}
-                    />
+                    {readOnly ? (
+                      <span>{formatCurrency(Number(line.budgeted))}</span>
+                    ) : (
+                      <input
+                        type="number"
+                        className="w-24 h-7 border border-border rounded-md bg-background px-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                        value={line.budgeted}
+                        onChange={(e) => onUpdateBudgeted(line.id, parseFloat(e.target.value) || 0)}
+                        onBlur={(e) => onUpdateBudgeted(line.id, parseFloat(e.target.value) || 0)}
+                      />
+                    )}
                   </td>
                   <td className="py-3 px-4">
-                    <input
-                      type="number"
-                      className="w-24 h-7 border border-border rounded-md bg-background px-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                      value={line.actual}
-                      onChange={(e) => onUpdateActual(line.id, parseFloat(e.target.value) || 0)}
-                      onBlur={(e) => onUpdateActual(line.id, parseFloat(e.target.value) || 0)}
-                    />
+                    {readOnly ? (
+                      <span>{formatCurrency(Number(line.actual))}</span>
+                    ) : (
+                      <input
+                        type="number"
+                        className="w-24 h-7 border border-border rounded-md bg-background px-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                        value={line.actual}
+                        onChange={(e) => onUpdateActual(line.id, parseFloat(e.target.value) || 0)}
+                        onBlur={(e) => onUpdateActual(line.id, parseFloat(e.target.value) || 0)}
+                      />
+                    )}
                   </td>
                   <td className={`py-3 px-4 font-medium ${isOver ? "text-red-500" : "text-green-600"}`}>
                     {variance >= 0 ? "+" : ""}{formatCurrency(variance)}
                   </td>
                   <td className="py-3 px-4">
-                    <button onClick={() => onDelete(line.id)} className="text-muted-foreground hover:text-red-500">
-                      <Trash2 size={14} />
-                    </button>
+                    {!readOnly && (
+                      <button onClick={() => onDelete(line.id)} className="text-muted-foreground hover:text-red-500">
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                   </td>
                 </tr>
               );

@@ -67,19 +67,14 @@ export default function ProfilePage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       setUserId(user.id);
+      if (!orgId) return;
 
-      const profileQuery = orgId
-        ? supabase.from("member_profiles").select("*").eq("user_id", user.id).eq("org_id", orgId).maybeSingle()
-        : supabase.from("member_profiles").select("*").eq("user_id", user.id).limit(1).maybeSingle();
+      const res = await fetch(`/api/profile?org_id=${encodeURIComponent(orgId)}`);
+      if (!res.ok) return;
+      const data = await res.json();
 
-      const [mpRes, rolesRes, gmRes] = await Promise.all([
-        profileQuery,
-        supabase.from("org_members").select("org_id, role, organizations(name, type)").eq("user_id", user.id).neq("status", "removed"),
-        supabase.from("greekmatch_profiles").select("*").eq("user_id", user.id).maybeSingle(),
-      ]);
-
-      if (mpRes.data) {
-        const mp = mpRes.data as MemberProfile & { bio?: string; pronouns?: string; interests?: string[]; instagram_url?: string; linkedin_url?: string; twitter_url?: string; profile_visibility?: string };
+      if (data.memberProfile) {
+        const mp = data.memberProfile as MemberProfile & { bio?: string; pronouns?: string; interests?: string[]; instagram_url?: string; linkedin_url?: string; twitter_url?: string; profile_visibility?: string };
         setMemberProfile(mp);
         setForm({
           preferredName: mp.preferred_name ?? "",
@@ -101,33 +96,30 @@ export default function ProfilePage() {
         });
       }
 
-      if (rolesRes.data) {
-        setOrgRoles(rolesRes.data.map((r: Record<string, unknown>) => ({
-          org_id: String(r.org_id),
-          role: String(r.role),
-          org_name: String((r.organizations as Record<string, unknown>)?.name ?? ""),
-          org_type: String((r.organizations as Record<string, unknown>)?.type ?? ""),
-        })));
+      if (data.memberships) {
+        setOrgRoles(data.memberships as OrgRole[]);
       }
 
-      if (gmRes.data) {
+      if (data.greekMatchProfile) {
+        const gm = data.greekMatchProfile as Record<string, unknown>;
         setGmSection({
-          optedIn: true,
-          displayName: String(gmRes.data.display_name ?? ""),
-          age: String(gmRes.data.age ?? ""),
-          gender: String(gmRes.data.gender ?? ""),
-          interestedIn: (gmRes.data.interested_in as string[]) ?? [],
-          showOrgName: Boolean(gmRes.data.show_org_name ?? true),
-          showFullName: Boolean(gmRes.data.show_full_name ?? false),
-          sameOrgOk: Boolean(gmRes.data.same_org_ok ?? false),
+          optedIn: Boolean(gm.is_active),
+          displayName: String(gm.display_name ?? ""),
+          age: String(gm.age ?? ""),
+          gender: String(gm.gender ?? ""),
+          interestedIn: (gm.interested_in as string[]) ?? [],
+          showOrgName: Boolean(gm.show_org_name ?? true),
+          showFullName: Boolean(gm.show_full_name ?? false),
+          sameOrgOk: Boolean(gm.same_org_ok ?? false),
           geoRadius: "25",
-          minAge: String(gmRes.data.min_age ?? "18"),
-          maxAge: String(gmRes.data.max_age ?? "30"),
+          minAge: String(gm.min_age ?? "18"),
+          maxAge: String(gm.max_age ?? "30"),
         });
-      } else {
+      } else if (data.memberProfile) {
+        const mp = data.memberProfile as MemberProfile;
         setGmSection((prev) => ({
           ...prev,
-          displayName: (mpRes.data as MemberProfile)?.preferred_name ?? (mpRes.data as MemberProfile)?.full_name?.split(" ")[0] ?? "",
+          displayName: mp.preferred_name ?? mp.full_name?.split(" ")[0] ?? "",
         }));
       }
     }
@@ -135,32 +127,37 @@ export default function ProfilePage() {
   }, [supabase, orgId]);
 
   async function saveProfile() {
-    if (!userId || !memberProfile) return;
+    if (!userId || !memberProfile || !orgId) return;
     setSaving(true);
-    const { error } = await supabase
-      .from("member_profiles")
-      .update({
-        preferred_name: form.preferredName || null,
-        phone: form.phone || null,
-        class_year: form.classYear || null,
-        graduation_year: form.graduationYear ? parseInt(form.graduationYear) : null,
-        major: form.major || null,
-        hometown: form.hometown || null,
-        bio: form.bio || null,
-        pronouns: form.pronouns || null,
-        emergency_contact_name: form.emergencyContactName || null,
-        emergency_contact_phone: form.emergencyContactPhone || null,
-        instagram_url: form.instagramUrl || null,
-        linkedin_url: form.linkedinUrl || null,
-        twitter_url: form.twitterUrl || null,
-        profile_visibility: form.profileVisibility,
+    const res = await fetch("/api/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        preferredName: form.preferredName,
+        phone: form.phone,
+        classYear: form.classYear,
+        graduationYear: form.graduationYear,
+        major: form.major,
+        hometown: form.hometown,
+        bio: form.bio,
+        pronouns: form.pronouns,
+        emergencyContactName: form.emergencyContactName,
+        emergencyContactPhone: form.emergencyContactPhone,
+        instagramUrl: form.instagramUrl,
+        linkedinUrl: form.linkedinUrl,
+        twitterUrl: form.twitterUrl,
+        profileVisibility: form.profileVisibility,
         interests: form.interests,
-        profile_photo_url: form.profilePhotoUrl || null,
-      })
-      .eq("user_id", userId);
-
+        profilePhotoUrl: form.profilePhotoUrl,
+      }),
+    });
     setSaving(false);
-    if (error) { toast.error(error.message); return; }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error((err as { error?: string }).error ?? "Failed to save");
+      return;
+    }
     toast.success("Profile saved");
   }
 
@@ -179,41 +176,61 @@ export default function ProfilePage() {
   async function saveGreekMatch() {
     if (!userId) return;
     setSaving(true);
-    const currentOrg = orgRoles.find((r) => r.org_type === "fraternity" || r.org_type === "sorority");
-    if (!currentOrg) { toast.error("GreekMatch is for Greek organizations only."); setSaving(false); return; }
+    const isGreek = orgRoles.some((r) => r.org_type === "fraternity" || r.org_type === "sorority");
+    if (!isGreek) {
+      toast.error("GreekMatch is for Greek organizations only.");
+      setSaving(false);
+      return;
+    }
 
-    const payload = {
-      user_id: userId,
-      org_id: currentOrg.org_id,
-      display_name: gmSection.displayName,
-      age: gmSection.age ? parseInt(gmSection.age) : null,
-      gender: gmSection.gender || null,
-      interested_in: gmSection.interestedIn,
-      show_org_name: gmSection.showOrgName,
-      show_full_name: gmSection.showFullName,
-      same_org_ok: gmSection.sameOrgOk,
-      min_age: parseInt(gmSection.minAge),
-      max_age: parseInt(gmSection.maxAge),
-      is_active: true,
-      paused: false,
-    };
-
-    const { error } = await supabase.from("greekmatch_profiles").upsert(payload, { onConflict: "user_id" });
+    const res = await fetch("/api/greekmatch/profiles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        displayName: gmSection.displayName,
+        age: gmSection.age,
+        gender: gmSection.gender,
+        interestedIn: gmSection.interestedIn,
+        showOrgName: gmSection.showOrgName,
+        showFullName: gmSection.showFullName,
+        sameOrgOk: gmSection.sameOrgOk,
+        minAge: gmSection.minAge,
+        maxAge: gmSection.maxAge,
+      }),
+    });
     setSaving(false);
-    if (error) { toast.error(error.message); return; }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error((err as { error?: string }).error ?? "Failed to save");
+      return;
+    }
     setGmSection((prev) => ({ ...prev, optedIn: true }));
     toast.success("GreekMatch profile saved! You can now discover matches.");
   }
 
   async function pauseGreekMatch() {
-    if (!userId) return;
-    await supabase.from("greekmatch_profiles").update({ paused: true }).eq("user_id", userId);
+    const res = await fetch("/api/greekmatch/profiles", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paused: true }),
+    });
+    if (!res.ok) {
+      toast.error("Could not pause GreekMatch");
+      return;
+    }
     toast.success("GreekMatch paused. You won't appear in discovery.");
   }
 
   async function optOutGreekMatch() {
-    if (!userId) return;
-    await supabase.from("greekmatch_profiles").update({ is_active: false }).eq("user_id", userId);
+    const res = await fetch("/api/greekmatch/profiles", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isActive: false }),
+    });
+    if (!res.ok) {
+      toast.error("Could not opt out");
+      return;
+    }
     setGmSection((prev) => ({ ...prev, optedIn: false }));
     toast.success("You've been removed from GreekMatch.");
   }

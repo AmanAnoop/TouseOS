@@ -43,43 +43,13 @@ export default function GreekMatchMatchesPage() {
       if (!user) return;
       setUserId(user.id);
 
-      const { data: matchRows } = await supabase
-        .from("greekmatch_matches")
-        .select("*")
-        .or(`user_a_id.eq.${user.id},user_b_id.eq.${user.id}`)
-        .eq("user_a_unmatched", false)
-        .eq("user_b_unmatched", false)
-        .order("matched_at", { ascending: false });
-
-      if (!matchRows?.length) { setLoading(false); return; }
-
-      const otherIds = matchRows.map((m: Record<string, unknown>) =>
-        m.user_a_id === user.id ? String(m.user_b_id) : String(m.user_a_id),
-      );
-
-      const { data: profiles } = await supabase
-        .from("greekmatch_profiles")
-        .select("user_id, display_name, photos, organizations(name)")
-        .in("user_id", otherIds);
-
-      const profileMap = new Map((profiles ?? []).map((p: Record<string, unknown>) => [String(p.user_id), p]));
-
-      const enriched = matchRows.map((m: Record<string, unknown>) => {
-        const otherId = m.user_a_id === user.id ? String(m.user_b_id) : String(m.user_a_id);
-        const profile = profileMap.get(otherId);
-        return {
-          id: String(m.id),
-          other_user_id: otherId,
-          display_name: String(profile?.display_name ?? "Match"),
-          photos: (profile?.photos as string[]) ?? [],
-          org_name: String((profile?.organizations as Record<string, unknown>)?.name ?? ""),
-          last_message: null,
-          last_message_at: String(m.matched_at),
-          unread: false,
-        };
-      });
-
-      setMatches(enriched as Match[]);
+      const res = await fetch("/api/greekmatch/matches");
+      if (!res.ok) {
+        setLoading(false);
+        return;
+      }
+      const enriched = await res.json();
+      setMatches((enriched ?? []) as Match[]);
       setLoading(false);
     }
     init();
@@ -88,11 +58,9 @@ export default function GreekMatchMatchesPage() {
   useEffect(() => {
     if (!selectedMatch?.id) return;
     async function loadMessages() {
-      const { data } = await supabase
-        .from("greekmatch_messages")
-        .select("*")
-        .eq("match_id", selectedMatch!.id)
-        .order("sent_at");
+      const res = await fetch(`/api/greekmatch/messages?match_id=${encodeURIComponent(selectedMatch!.id)}`);
+      if (!res.ok) return;
+      const data = await res.json();
       setMessages((data ?? []) as Message[]);
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
     }
@@ -118,23 +86,22 @@ export default function GreekMatchMatchesPage() {
   async function sendMessage() {
     if (!newMsg.trim() || !selectedMatch || !userId) return;
     setSending(true);
-    const { error } = await supabase.from("greekmatch_messages").insert({
-      match_id: selectedMatch.id,
-      sender_id: userId,
-      body: newMsg.trim(),
+    const res = await fetch("/api/greekmatch/matches", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ matchId: selectedMatch.id, body: newMsg.trim() }),
     });
-    if (!error) setNewMsg("");
+    if (res.ok) setNewMsg("");
     setSending(false);
   }
 
   async function unmatch(matchId: string) {
-    if (!userId) return;
-    const { data: m } = await supabase.from("greekmatch_matches").select("user_a_id, user_b_id").eq("id", matchId).single();
-    if (!m) return;
-    const isA = (m as Record<string, unknown>).user_a_id === userId;
-    await supabase.from("greekmatch_matches").update(
-      isA ? { user_a_unmatched: true } : { user_b_unmatched: true },
-    ).eq("id", matchId);
+    const res = await fetch("/api/greekmatch/matches", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ matchId, unmatched: true }),
+    });
+    if (!res.ok) return;
     setMatches((prev) => prev.filter((m) => m.id !== matchId));
     setSelectedMatch(null);
   }

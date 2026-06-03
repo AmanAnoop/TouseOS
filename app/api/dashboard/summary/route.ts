@@ -21,6 +21,9 @@ export async function GET(request: Request) {
     announcementsRes,
     tasksRes,
     pnmRes,
+    eventsRes,
+    reimbsRes,
+    budgetsRes,
   ] = await Promise.all([
     supabase
       .from("member_profiles")
@@ -45,6 +48,20 @@ export async function GET(request: Request) {
     isGreekOrg(orgType)
       ? supabase.from("pnm_leads").select("status").eq("org_id", orgId)
       : Promise.resolve({ data: [] }),
+    supabase
+      .from("events")
+      .select("id, title, type, starts_at, location, status")
+      .eq("org_id", orgId)
+      .gte("starts_at", new Date().toISOString())
+      .order("starts_at")
+      .limit(5),
+    supabase.from("reimbursements").select("id, amount, status, created_at").eq("org_id", orgId),
+    supabase
+      .from("budgets")
+      .select("*, budget_lines(*)")
+      .eq("org_id", orgId)
+      .order("created_at", { ascending: false })
+      .limit(1),
   ]);
 
   if (membersRes.error) return NextResponse.json({ error: membersRes.error.message }, { status: 500 });
@@ -55,6 +72,9 @@ export async function GET(request: Request) {
     announcements: announcementsRes.data ?? [],
     tasks: tasksRes.data ?? [],
     pnmLeads: pnmRes.data ?? [],
+    upcomingEvents: eventsRes.data ?? [],
+    reimbursements: reimbsRes.data ?? [],
+    latestBudget: budgetsRes.data?.[0] ?? null,
     orgType,
     isSports: isSportsOrg(orgType),
     isClub: isClubOrg(orgType),

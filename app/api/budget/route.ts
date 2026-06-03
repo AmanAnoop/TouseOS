@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_EXPENSE_LINES, DEFAULT_INCOME_LINES } from "@/lib/budget-sync";
 import { triggerBudgetSyncForOrg } from "@/lib/budget-auto-sync";
+import { forbidUnless, getMemberRole } from "@/lib/api-org-role";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -11,6 +12,14 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const orgId = searchParams.get("org_id");
   if (!orgId) return NextResponse.json({ error: "org_id required" }, { status: 400 });
+
+  const role = await getMemberRole(supabase, user.id, orgId);
+  const canView = forbidUnless(role, "view_payments") === null
+    || forbidUnless(role, "manage_budget") === null
+    || forbidUnless(role, "manage_payments") === null;
+  if (!canView) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const { data, error } = await supabase
     .from("budgets")
@@ -29,6 +38,11 @@ export async function POST(request: Request) {
 
   const body = await request.json();
   const { orgId, label, period, fiscalYear, semester, totalBudget, notes, lines } = body;
+  if (!orgId) return NextResponse.json({ error: "orgId required" }, { status: 400 });
+
+  const role = await getMemberRole(supabase, user.id, String(orgId));
+  const denied = forbidUnless(role, "manage_budget");
+  if (denied) return denied;
 
   const { data: budget, error } = await supabase.from("budgets").insert({
     org_id: orgId,
@@ -92,8 +106,40 @@ export async function PATCH(request: Request) {
 
   const body = await request.json();
   const {
-    budgetId, lineId, action, category, type, description, budgeted, actual, ...updates
+    orgId,
+    budgetId,
+    lineId,
+    action,
+    category,
+    type,
+    description,
+    budgeted,
+    actual,
+    ...updates
   } = body;
+
+  let resolvedOrgId = orgId ? String(orgId) : null;
+  if (!resolvedOrgId && budgetId) {
+    const { data: budgetRow } = await supabase.from("budgets").select("org_id").eq("id", budgetId).single();
+    resolvedOrgId = budgetRow?.org_id ?? null;
+  }
+  if (!resolvedOrgId && lineId) {
+    const { data: lineRow } = await supabase
+      .from("budget_lines")
+      .select("budget_id, budgets(org_id)")
+      .eq("id", lineId)
+      .single();
+    const nested = lineRow?.budgets as { org_id?: string } | { org_id?: string }[] | null;
+    const b = Array.isArray(nested) ? nested[0] : nested;
+    resolvedOrgId = b?.org_id ?? null;
+  }
+  if (!resolvedOrgId) {
+    return NextResponse.json({ error: "orgId or budgetId required" }, { status: 400 });
+  }
+
+  const role = await getMemberRole(supabase, user.id, resolvedOrgId);
+  const denied = forbidUnless(role, "manage_budget");
+  if (denied) return denied;
 
   if (action === "delete" && lineId) {
     const { error } = await supabase.from("budget_lines").delete().eq("id", lineId);
