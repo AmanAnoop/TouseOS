@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { MessageSquare, Plus, User } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
 import { useOrg } from "@/hooks/use-org";
 import {
   Avatar, Badge, Button, Card, EmptyState, Modal,
@@ -30,7 +29,6 @@ const STATUS_COLOR: Record<PnmStatus, string> = {
 };
 
 export default function PnmPage() {
-  const supabase = createClient();
   const { orgId, orgName } = useOrg();
   const [leads, setLeads] = useState<PnmLead[]>([]);
   const [query, setQuery] = useState("");
@@ -60,8 +58,11 @@ export default function PnmPage() {
     if (!orgId) return;
     loadLeads(orgId);
     (async () => {
-      const { data: org } = await supabase.from("organizations").select("invite_code").eq("id", orgId).single();
-      setInviteCode(org?.invite_code ? String(org.invite_code) : null);
+      const orgRes = await fetch(`/api/org/settings?org_id=${encodeURIComponent(orgId)}`);
+      if (orgRes.ok) {
+        const { org } = await orgRes.json();
+        setInviteCode(org?.invite_code ? String(org.invite_code) : null);
+      }
       const memRes = await fetch(`/api/members?org_id=${encodeURIComponent(orgId)}`);
       if (memRes.ok) {
         const mems = (await memRes.json()) as Array<{ id: string; full_name: string; membership_status: string }>;
@@ -70,7 +71,7 @@ export default function PnmPage() {
         );
       }
     })();
-  }, [orgId, supabase, loadLeads]);
+  }, [orgId, loadLeads]);
 
   const filtered = leads.filter((l) => {
     const q = query.toLowerCase();

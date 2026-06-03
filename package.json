@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "launch:check": "node scripts/verify-launch.mjs"
+    "launch:check": "node scripts/verify-launch.mjs",
+    "smoke:pilot": "node scripts/smoke-pilot.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

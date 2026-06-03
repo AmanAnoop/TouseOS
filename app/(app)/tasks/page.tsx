@@ -6,7 +6,6 @@ import {
   MoreHorizontal, Plus, User,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
 import { useOrg } from "@/hooks/use-org";
 import { Button, Card, EmptyState, Input, Modal,
   PageHeader, Select, StatCard, Tabs, Textarea,
@@ -17,7 +16,6 @@ import { TaskCard, STATUS_ICON, PRIORITY_DOT } from "@/components/tasks/task-car
 import { TaskDetailPanel } from "@/components/tasks/task-detail-panel";
 
 export default function TasksPage() {
-  const supabase = createClient();
   const { orgId, userId, loading: orgLoading } = useOrg();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,13 +47,16 @@ export default function TasksPage() {
 
   useEffect(() => {
     if (!userId) return;
-    supabase.from("profiles").select("full_name").eq("id", userId).single().then(({ data: pRes }) => {
-      if (pRes) {
-        setUserName(String(pRes.full_name));
-        setForm((f) => ({ ...f, assigneeName: String(pRes.full_name) }));
-      }
-    });
-  }, [supabase, userId]);
+    fetch(`/api/account?org_id=${encodeURIComponent(orgId ?? "")}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const name = data?.profile?.fullName;
+        if (name) {
+          setUserName(String(name));
+          setForm((f) => ({ ...f, assigneeName: String(name) }));
+        }
+      });
+  }, [userId, orgId]);
 
   useEffect(() => {
     if (orgId) load(orgId);
