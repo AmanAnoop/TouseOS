@@ -118,8 +118,25 @@ export default function AccountPage() {
     if (!emailForm.email || emailForm.email === currentUserEmail) return;
     setSaving(true);
     const { error } = await supabase.auth.updateUser({ email: emailForm.email });
+    if (error) {
+      setSaving(false);
+      toast.error(error.message);
+      return;
+    }
+    const syncRes = await fetch("/api/account", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ memberEmail: emailForm.email }),
+    });
     setSaving(false);
-    if (error) { toast.error(error.message); return; }
+    if (!syncRes.ok) {
+      const err = await syncRes.json().catch(() => ({}));
+      toast.error(
+        (err as { error?: string }).error
+          ?? "Email updated in sign-in, but chapter roster email could not be synced.",
+      );
+      return;
+    }
     toast.success("Check your new email address to confirm the change.");
     setCurrentUserEmail(emailForm.email);
   }

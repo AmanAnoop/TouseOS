@@ -63,6 +63,7 @@ export async function PATCH(request: Request) {
     fullName,
     preferredName,
     phone,
+    memberEmail,
     notificationEmail,
     notificationSms,
     notificationPush,
@@ -86,6 +87,19 @@ export async function PATCH(request: Request) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ left: true });
+  }
+
+  if (memberEmail !== undefined) {
+    const email = String(memberEmail).trim();
+    if (!email) {
+      return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    }
+    const { error: mpError } = await supabase
+      .from("member_profiles")
+      .update({ email })
+      .eq("user_id", user.id);
+    if (mpError) return NextResponse.json({ error: mpError.message }, { status: 500 });
+    return NextResponse.json({ memberEmailSynced: true, email });
   }
 
   const updates: Record<string, unknown> = {};

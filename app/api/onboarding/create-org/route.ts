@@ -17,14 +17,14 @@ async function ensureUserProfile(
   service: Awaited<ReturnType<typeof createServiceClient>>,
   user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> },
 ) {
-  const { data: existing } = await service.from("profiles").select("id, full_name, email").eq("id", user.id).maybeSingle();
+  const { data: existing } = await service.from("profiles").select("id, full_name").eq("id", user.id).maybeSingle();
   if (existing) return existing;
 
   const fullName = String(user.user_metadata?.full_name ?? user.email?.split("@")[0] ?? "Member");
   const { data: created, error } = await service.from("profiles").insert({
     id: user.id,
     full_name: fullName,
-  }).select("id, full_name, email").single();
+  }).select("id, full_name").single();
 
   if (error) throw new Error(`Could not create profile: ${error.message}`);
   return created;
@@ -86,7 +86,7 @@ async function createOrgDirect(
       org_id: org.id,
       user_id: user.id,
       full_name: profile.full_name || input.name,
-      email: profile.email ?? user.email ?? "member@local",
+      email: user.email ?? "member@local",
       role: "owner",
       membership_status: "active",
     });
