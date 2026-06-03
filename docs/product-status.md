@@ -1,6 +1,6 @@
 # TouseOS product status (realistic)
 
-Last updated: Wave 19 on `cursor/wave19-roster-forms-feed-4a50`.
+Last updated: Wave 20 on `cursor/wave20-active-org-sweep-4a50`.
 
 ## How to read these numbers
 
@@ -9,11 +9,11 @@ We separate **“exists in the repo”** from **“works end-to-end without dead
 | Metric | Realistic % | Meaning |
 |--------|-------------|---------|
 | **Backlog modules with a route or API** | **~88%** | Page or endpoint exists |
-| **Connected user journeys** | **~72%** | Primary flows link correctly; few 404s or wrong redirects |
+| **Connected user journeys** | **~74%** | Primary flows link correctly; multi-org users see active chapter everywhere |
 | **Production-ready depth** | **~50%** | Tested, permissioned, env-configured; legal summaries expanded (counsel review still needed) |
 | **Launch-ready** | **~44%** | Migrations, Stripe, QA, mobile polish, counsel-approved legal |
 
-**Best single number for “how done is the product?” → ~61–66%** (weighted toward connected journeys, not file count).
+**Best single number for “how done is the product?” → ~62–67%** (weighted toward connected journeys, not file count).
 
 ## By area
 
@@ -40,7 +40,12 @@ We separate **“exists in the repo”** from **“works end-to-end without dead
 - Reimbursement approve/paid triggers budget sync-org API
 - Treasurer dashboard links split budget vs reimbursements
 
-## Wave 19 (latest)
+## Wave 20 (latest)
+
+- Remaining chapter/sports pages use `useOrg()` (transition, PNM, reports, interchapter, alumni, big-little, coaches, standings, tryouts, payment plans/hardship, social collab, tournaments tools)
+- Server pages: yearbook, NME, tournaments use `loadActiveMembershipServer`
+
+## Wave 19
 
 - Roster via `GET /api/members`; forms via forms API; philanthropy via `/api/philanthropy`
 - Feed server page uses active org cookie (`loadActiveMembershipServer`)

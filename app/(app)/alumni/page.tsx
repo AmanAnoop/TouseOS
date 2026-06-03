@@ -6,6 +6,7 @@ import {
   GraduationCap, Heart, Users,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import {
   Avatar, Badge, Button, Card, CardHeader, EmptyState,
   Modal, Input, PageHeader, SearchInput, StatCard, Tabs,
@@ -17,9 +18,9 @@ import { AlumniCampaignsPanel } from "@/components/alumni/alumni-campaigns-panel
 
 export default function AlumniPage() {
   const supabase = createClient();
+  const { orgId } = useOrg();
   const [alumni, setAlumni] = useState<AlumniProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [orgId, setOrgId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState("directory");
   const [addOpen, setAddOpen] = useState(false);
@@ -39,14 +40,8 @@ export default function AlumniPage() {
   }, [supabase]);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) { setOrgId(m.org_id); load(m.org_id); }
-    }
-    init();
-  }, [supabase, load]);
+    if (orgId) load(orgId);
+  }, [orgId, load]);
 
   async function addAlumni() {
     if (!orgId || !form.fullName) return;

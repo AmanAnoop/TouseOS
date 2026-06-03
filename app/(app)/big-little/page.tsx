@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Heart, Plus, RefreshCw, Star, Users } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import {
   Avatar,
   Badge,
@@ -31,10 +32,10 @@ interface Match {
 
 export default function BigLittlePage() {
   const supabase = createClient();
+  const { orgId } = useOrg();
   const [members, setMembers] = useState<MemberProfile[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
-  const [orgId, setOrgId] = useState<string | null>(null);
   const [matchOpen, setMatchOpen] = useState(false);
   const [selectedBig, setSelectedBig] = useState<string>("");
   const [selectedLittle, setSelectedLittle] = useState<string>("");
@@ -53,14 +54,8 @@ export default function BigLittlePage() {
   }, [supabase]);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) { setOrgId(m.org_id); load(m.org_id); }
-    }
-    init();
-  }, [supabase, load]);
+    if (orgId) load(orgId);
+  }, [orgId, load]);
 
   function computeMatchScore(big: MemberProfile, little: MemberProfile): number {
     let score = 0;

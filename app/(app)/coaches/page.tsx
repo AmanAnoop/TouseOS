@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { BarChart2, Plus, Target, Trophy, Users } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import {
   Button, Card, CardHeader, EmptyState, Modal,
   PageHeader, StatCard, Textarea,
@@ -27,7 +28,7 @@ export default function CoachesPage() {
   const [practiceNotes, setPracticeNotes] = useState("");
   const [gameNotes, setGameNotes] = useState("");
 
-  const [orgId, setOrgId] = useState<string | null>(null);
+  const { orgId } = useOrg();
   const [goals, setGoals] = useState<Array<{ id: string; content: string }>>([]);
   const [goalInput, setGoalInput] = useState("");
   const [saving, setSaving] = useState(false);
@@ -55,14 +56,8 @@ export default function CoachesPage() {
   }, [supabase]);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) { setOrgId(m.org_id); load(m.org_id); }
-    }
-    init();
-  }, [supabase, load]);
+    if (orgId) load(orgId);
+  }, [orgId, load]);
 
   async function saveNote(noteType: "practice" | "game" | "goal", content: string, title?: string) {
     if (!orgId || !content.trim()) return;

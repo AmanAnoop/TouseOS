@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { MessageSquare, Plus, User } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import {
   Avatar, Badge, Button, Card, EmptyState, Modal,
   CardHeader, Input, PageHeader, SearchInput, Tabs,
@@ -30,8 +31,8 @@ const STATUS_COLOR: Record<PnmStatus, string> = {
 
 export default function PnmPage() {
   const supabase = createClient();
+  const { orgId, orgName } = useOrg();
   const [leads, setLeads] = useState<PnmLead[]>([]);
-  const [orgId, setOrgId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [tab, setTab] = useState("pipeline");
@@ -42,7 +43,6 @@ export default function PnmPage() {
   const [matcherPnmId, setMatcherPnmId] = useState<string | null>(null);
   const [enrichKey, setEnrichKey] = useState(0);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
-  const [orgName, setOrgName] = useState("");
   const [chapterMembers, setChapterMembers] = useState<Array<{ id: string; full_name: string }>>([]);
 
   const [newLead, setNewLead] = useState({
@@ -57,24 +57,15 @@ export default function PnmPage() {
   }, [supabase]);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) {
-        setOrgId(m.org_id);
-        loadLeads(m.org_id);
-        const { data: org } = await supabase.from("organizations").select("name, invite_code").eq("id", m.org_id).single();
-        if (org) {
-          setOrgName(String(org.name ?? ""));
-          setInviteCode(org.invite_code ? String(org.invite_code) : null);
-        }
-        const { data: mems } = await supabase.from("member_profiles").select("id, full_name").eq("org_id", m.org_id).eq("membership_status", "active").order("full_name");
-        setChapterMembers((mems ?? []) as Array<{ id: string; full_name: string }>);
-      }
-    }
-    init();
-  }, [supabase, loadLeads]);
+    if (!orgId) return;
+    loadLeads(orgId);
+    (async () => {
+      const { data: org } = await supabase.from("organizations").select("invite_code").eq("id", orgId).single();
+      setInviteCode(org?.invite_code ? String(org.invite_code) : null);
+      const { data: mems } = await supabase.from("member_profiles").select("id, full_name").eq("org_id", orgId).eq("membership_status", "active").order("full_name");
+      setChapterMembers((mems ?? []) as Array<{ id: string; full_name: string }>);
+    })();
+  }, [orgId, supabase, loadLeads]);
 
   const filtered = leads.filter((l) => {
     const q = query.toLowerCase();

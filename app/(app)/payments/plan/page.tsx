@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ChevronLeft, Calendar, CreditCard } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import {
   Alert, Badge, Button, Card, EmptyState,
   Modal, PageHeader, Select,
@@ -26,7 +27,7 @@ interface PaymentPlanRow {
 
 export default function PaymentPlansPage() {
   const supabase = createClient();
-  const [orgId, setOrgId] = useState<string | null>(null);
+  const { orgId } = useOrg();
   const [plans, setPlans] = useState<PaymentPlanRow[]>([]);
   const [eligible, setEligible] = useState<PaymentWithMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,14 +50,8 @@ export default function PaymentPlansPage() {
   }, [supabase]);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) { setOrgId(m.org_id); load(m.org_id); }
-    }
-    init();
-  }, [supabase, load]);
+    if (orgId) load(orgId);
+  }, [orgId, load]);
 
   async function createPlan() {
     if (!selectedPaymentId || !orgId) return;

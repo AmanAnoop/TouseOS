@@ -3,14 +3,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { Plus } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import { Button, Input, Modal, PageHeader } from "@/components/ui";
 import { LeagueStandings } from "@/components/sports/league-standings";
 import { computeStandings, type StandingsSummary } from "@/lib/sports-standings";
 
 export default function StandingsPage() {
-  const supabase = createClient();
-  const [orgId, setOrgId] = useState<string | null>(null);
+  const { orgId } = useOrg();
   const [standings, setStandings] = useState<StandingsSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
@@ -27,14 +26,8 @@ export default function StandingsPage() {
   }, []);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) { setOrgId(m.org_id); load(m.org_id); }
-    }
-    init();
-  }, [supabase, load]);
+    if (orgId) load(orgId);
+  }, [orgId, load]);
 
   async function addGame() {
     if (!orgId || !form.opponent) return;

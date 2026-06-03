@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Plus, Trophy, UserCheck, UserX, Users } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import {
   Badge, Button, Card, EmptyState, Modal,
   PageHeader, ProgressBar, StatCard, Tabs,
@@ -21,9 +22,9 @@ const EVAL_FIELDS = [
 
 export default function TryoutsPage() {
   const supabase = createClient();
+  const { orgId } = useOrg();
   const [tryouts, setTryouts] = useState<SportsTryout[]>([]);
   const [loading, setLoading] = useState(true);
-  const [orgId, setOrgId] = useState<string | null>(null);
   const [tab, setTab] = useState("candidates");
   const [addOpen, setAddOpen] = useState(false);
   const [evalOpen, setEvalOpen] = useState<SportsTryout | null>(null);
@@ -48,14 +49,8 @@ export default function TryoutsPage() {
   }, [supabase]);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) { setOrgId(m.org_id); load(m.org_id); }
-    }
-    init();
-  }, [supabase, load]);
+    if (orgId) load(orgId);
+  }, [orgId, load]);
 
   async function addCandidate() {
     if (!orgId || !newCandidate.name) return;
