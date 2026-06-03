@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Calendar, CheckCircle, Clock
 ,
@@ -46,6 +47,7 @@ const CAPTION_TEMPLATES = [
 
 export default function SocialCalendarPage() {
   const supabase = createClient();
+  const searchParams = useSearchParams();
   const [posts, setPosts] = useState<CalendarPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [orgId, setOrgId] = useState<string | null>(null);
@@ -76,6 +78,20 @@ export default function SocialCalendarPage() {
     }
     init();
   }, [supabase, load]);
+
+  useEffect(() => {
+    const title = searchParams.get("title");
+    const caption = searchParams.get("caption");
+    if (!title && !caption) return;
+
+    setForm((f) => ({
+      ...f,
+      title: title ?? f.title,
+      caption: caption ?? f.caption,
+    }));
+    setCreateOpen(true);
+    setTab("drafts");
+  }, [searchParams]);
 
   async function createPost() {
     if (!orgId || !form.title) return;

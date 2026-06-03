@@ -5,8 +5,9 @@ import { Badge, Card, ProgressBar,
 } from "@/components/ui";
 import {
   Calendar, ChevronLeft, Clock, ExternalLink,
-  MapPin, Music, QrCode, Share2, Users,
+  MapPin, Music, Users,
 } from "lucide-react";
+import { EventHeroActions } from "@/components/events/event-hero-actions";
 import { formatDateTime } from "@/lib/utils";
 import EventRsvpButton from "./rsvp-button";
 import { EventDetailActions } from "@/components/events/event-detail-actions";
@@ -69,18 +70,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
             {Boolean(event.alcohol)&& <Badge label="21+" color="orange" />}
           </div>
 
-          {/* Share button */}
-          <div className="absolute top-4 right-4 flex gap-2">
-            <a href={`/events/${id}/checkin`} className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30" title="Check-in">
-                <QrCode size={15} />
-              </a>
-              <button className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30">
-              <Share2 size={15} />
-            </button>
-            <button className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30">
-              <QrCode size={15} />
-            </button>
-          </div>
+          <EventHeroActions eventId={id} eventTitle={String(event.title)} />
 
           {/* Event title */}
           <div className="absolute bottom-0 left-0 right-0 p-5">

@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { ServiceWorkerRegister } from "@/components/layout/service-worker-register";
 import { ImpersonationBanner } from "@/components/layout/impersonation-banner";
 import { ProductRouteGuard } from "@/components/layout/product-route-guard";
+import { userHasGreekOrg } from "@/lib/org-product";
 import { ChapterThemeProvider } from "@/components/theme/chapter-theme-provider";
 import type { Organization, Profile } from "@/types";
 
@@ -28,6 +29,7 @@ export function AppShell({
   children,
 }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const hasGreekMembership = userHasGreekOrg(orgs);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -74,7 +76,10 @@ export function AppShell({
           {impersonating && impersonateOrgName && (
             <ImpersonationBanner orgName={impersonateOrgName} />
           )}
-          <ProductRouteGuard orgType={org?.type ?? "general_org"}>
+          <ProductRouteGuard
+            orgType={org?.type ?? "general_org"}
+            hasGreekMembership={hasGreekMembership}
+          >
             {children}
           </ProductRouteGuard>
         </div>

@@ -174,7 +174,11 @@ export function HousingClient() {
       toast.error(data.error ?? "Failed to create rent charges");
       return;
     }
-    toast.success(data.message ?? `Created ${data.created} rent charge(s)`);
+    if (data.created === 0 && data.skipped > 0) {
+      toast(data.message ?? "Rent already posted for this month", { icon: "ℹ️" });
+    } else {
+      toast.success(data.message ?? `Created ${data.created} rent charge(s)`);
+    }
     load(orgId);
   }
 

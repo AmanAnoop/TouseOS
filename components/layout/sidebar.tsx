@@ -135,7 +135,9 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
 
   const product = getProductId(orgType);
   const accent = productAccent(product);
-  const isGreek = product === "greek";
+  const hasGreekMembership = orgs.some(
+    (o) => o.type === "fraternity" || o.type === "sorority",
+  );
   const { core, feature, featureSectionTitle } = navForProduct(product);
 
   const coreNav = useMemo(
@@ -184,7 +186,7 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
     { href: "/profile", label: "My Profile", icon: ICONS["/profile"] },
     { href: "/account", label: "Account & Security", icon: ICONS["/account"] },
     { href: "/notifications", label: "Notifications", icon: ICONS["/notifications"], badge: unreadCount },
-    ...(isGreek && org ? [{ href: "/greekmatch", label: "💚 GreekMatch", icon: ICONS["/greekmatch"] }] : []),
+    ...(hasGreekMembership ? [{ href: "/greekmatch", label: "💚 GreekMatch", icon: ICONS["/greekmatch"] }] : []),
   ];
 
   const bottomNav = [
