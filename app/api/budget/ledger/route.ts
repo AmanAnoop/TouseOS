@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { buildFinanceLedger, normalizePaymentsForLedger } from "@/lib/budget-sync";
+import { getMemberRole } from "@/lib/api-org-role";
+import { can, type RoleName } from "@/lib/permissions";
+import { buildFinanceLedger, normalizePaymentsForLedger, PAYMENT_SELECT } from "@/lib/budget-sync";
+
+function canViewBudget(role: RoleName | null): boolean {
+  if (!role) return false;
+  return can(role, "manage_budget") || can(role, "view_payments") || can(role, "manage_payments");
+}
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -10,11 +17,20 @@ export async function GET(request: Request) {
   const orgId = new URL(request.url).searchParams.get("org_id");
   if (!orgId) return NextResponse.json({ error: "org_id required" }, { status: 400 });
 
+  const role = await getMemberRole(supabase, user.id, orgId);
+  if (!role || !canViewBudget(role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const [paymentsRes, campaignsRes, reimbsRes] = await Promise.all([
-    supabase.from("payments").select("id, amount, paid_amount, status, payment_items(category, title)").eq("org_id", orgId),
+    supabase.from("payments").select(PAYMENT_SELECT).eq("org_id", orgId),
     supabase.from("philanthropy_campaigns").select("raised_amount").eq("org_id", orgId),
     supabase.from("reimbursements").select("id, amount, status, category").eq("org_id", orgId),
   ]);
+
+  if (paymentsRes.error) {
+    return NextResponse.json({ error: paymentsRes.error.message }, { status: 500 });
+  }
 
   const philanthropyRaised = (campaignsRes.data ?? []).reduce(
     (s, c) => s + Number(c.raised_amount ?? 0),

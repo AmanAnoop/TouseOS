@@ -1,6 +1,6 @@
 # TouseOS product status (realistic)
 
-Last updated: Completion push on `cursor/completion-push-4a50` (photo signed URLs, location presets, sports/club role dashboards).
+Last updated: Budget sync fix on `cursor/budget-fix-4a50` (reimbursement double-count, API normalization).
 
 ## How to read these numbers
 
@@ -23,7 +23,7 @@ Do not treat route count as “done.” Live Stripe, SMS, counsel sign-off, and 
 |------|-----------|--------|
 | Auth & onboarding | **~90%** | Email + Google/Apple OAuth, profile on callback |
 | Greek chapter ops | **~88%** | Dashboard setup checklist, member vs officer views |
-| Finance | **~84%** | Budget lines RLS, payments with titles |
+| Finance | **~88%** | Budget sync without double-count; normalized budget API + ledger |
 | SportsOS | **~86%** | Officer vs player dashboards, travel locations, waiver self-view |
 | ClubOS | **~82%** | Officer vs member dashboards, service hours self-view |
 | Documents | **~85%** | Signed URLs for private/storage-backed files |

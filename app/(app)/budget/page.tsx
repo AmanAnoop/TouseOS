@@ -33,29 +33,13 @@ import { can } from "@/lib/permissions";
 import { getProductId } from "@/lib/org-product";
 import { computeReimbursementAgingAlerts } from "@/lib/reimbursement-aging";
 import { buildBudgetReportHtml, downloadBudgetReportHtml } from "@/lib/budget-export";
+import { normalizeBudgetList, normalizeBudgetRecord, type BudgetRecord } from "@/lib/budget-api";
+import type { PaymentForCost, ReimbForCost } from "@/lib/per-member-cost";
 import { Alert } from "@/components/ui";
 import { useOrg } from "@/hooks/use-org";
 
-interface BudgetLine {
-  id: string;
-  budget_id: string;
-  category: string;
-  type: "income" | "expense";
-  description: string | null;
-  budgeted: number;
-  actual: number;
-}
-
-interface Budget {
-  id: string;
-  label: string;
-  period: string;
-  fiscal_year: number | null;
-  semester: string | null;
-  total_budget: number;
-  notes: string | null;
-  budget_lines: BudgetLine[];
-}
+type Budget = BudgetRecord;
+type BudgetLine = BudgetRecord["budget_lines"][number];
 
 const INCOME_CATEGORIES = DEFAULT_INCOME_LINES;
 const EXPENSE_CATEGORIES = DEFAULT_EXPENSE_LINES;
@@ -69,6 +53,7 @@ export default function BudgetPage() {
   const [members, setMembers] = useState<MemberProfile[]>([]);
   const [eventPayments, setEventPayments] = useState<Array<{ amount: number; paid_amount: number; status: string; payment_items: { event_id: string | null } | null }>>([]);
   const [payments, setPayments] = useState<PaymentSummary[]>([]);
+  const [paymentsForMembers, setPaymentsForMembers] = useState<PaymentForCost[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [ledger, setLedger] = useState<FinanceLedger | null>(null);
   const [ledgerLoading, setLedgerLoading] = useState(false);
@@ -96,9 +81,14 @@ export default function BudgetPage() {
       fetch(`/api/members?org_id=${encodeURIComponent(oid)}`),
     ]);
     if (budgetRes.ok) {
-      const data = await budgetRes.json();
+      const data = normalizeBudgetList(await budgetRes.json());
       setBudgets(data);
       if (data.length > 0) setSelectedBudget(data[0]);
+    } else {
+      const err = await budgetRes.json().catch(() => ({}));
+      toast.error((err as { error?: string }).error ?? "Could not load budgets");
+      setBudgets([]);
+      setSelectedBudget(null);
     }
     const rawPayments = paymentsRes.ok
       ? ((await paymentsRes.json()) as unknown as Array<{
@@ -122,6 +112,14 @@ export default function BudgetPage() {
         category: item?.category ?? null,
       };
     }));
+    setPaymentsForMembers(
+      rawPayments.map((p) => ({
+        member_id: p.member_id,
+        amount: Number(p.amount),
+        paid_amount: Number(p.paid_amount),
+        status: p.status,
+      })),
+    );
     if (reimbRes.ok) {
       setReimbs((await reimbRes.json()) as typeof reimbs);
     }
@@ -147,6 +145,8 @@ export default function BudgetPage() {
     if (ledgerRes.ok) {
       const body = await ledgerRes.json();
       setLedger(body.ledger ?? null);
+    } else {
+      setLedger(null);
     }
     setLedgerLoading(false);
     setLoading(false);
@@ -168,8 +168,9 @@ export default function BudgetPage() {
       return;
     }
     if (data.budget) {
-      setSelectedBudget(data.budget);
-      setBudgets((prev) => prev.map((b) => (b.id === data.budget.id ? data.budget : b)));
+      const normalized = normalizeBudgetRecord(data.budget as Record<string, unknown>);
+      setSelectedBudget(normalized);
+      setBudgets((prev) => prev.map((b) => (b.id === normalized.id ? normalized : b)));
     }
     if (data.ledger) setLedger(data.ledger);
     const s = data.summary;
@@ -206,11 +207,17 @@ export default function BudgetPage() {
       }),
     });
     if (res.ok) {
+      const created = normalizeBudgetRecord((await res.json()) as Record<string, unknown>);
       toast.success("Budget created");
       setCreateBudgetOpen(false);
       setBudgetForm({ label: "", period: "semester", fiscalYear: String(new Date().getFullYear()), semester: "fall", totalBudget: "" });
-      load(orgId);
-    } else toast.error("Failed to create budget");
+      setBudgets((prev) => [created, ...prev.filter((b) => b.id !== created.id)]);
+      setSelectedBudget(created);
+      void load(orgId);
+    } else {
+      const err = await res.json().catch(() => ({}));
+      toast.error((err as { error?: string }).error ?? "Failed to create budget");
+    }
   }
 
   async function addLine() {
@@ -328,7 +335,12 @@ export default function BudgetPage() {
   const cashFlowForecast = computeCashFlowForecast(lines);
   const duesForecast = computeDuesForecast(payments);
   const eventPnl = computeEventPnl(events, eventPayments, reimbs);
-  const perMemberRows = computePerMemberCost(members, payments as unknown as import("@/lib/per-member-cost").PaymentForCost[], reimbs, totalActualExpense);
+  const perMemberRows = computePerMemberCost(
+    members,
+    paymentsForMembers,
+    reimbs as ReimbForCost[],
+    totalActualExpense,
+  );
 
   if (!loading && !canViewBudget) {
     return (
@@ -436,11 +448,13 @@ export default function BudgetPage() {
             <PerMemberCostPanel rows={perMemberRows} totalChapterSpend={totalActualExpense} />
           ) : (
           <>
-          <div className="flex justify-end">
-            <Button size="sm" icon={<Plus size={14} />} onClick={() => { setLineForm({ ...lineForm, type: tab === "income" ? "income" : "expense" }); setAddLineOpen(true); }}>
-              Add line item
-            </Button>
-          </div>
+          {canEditBudget && (
+            <div className="flex justify-end">
+              <Button size="sm" icon={<Plus size={14} />} onClick={() => { setLineForm({ ...lineForm, type: tab === "income" ? "income" : "expense" }); setAddLineOpen(true); }}>
+                Add line item
+              </Button>
+            </div>
+          )}
 
           {(tab === "overview" ? lines : tab === "income" ? incomeLines : expenseLines).length === 0 ? (
             <EmptyState icon={<DollarSign size={20} />} title="No line items" action={<Button size="sm" icon={<Plus size={14} />} onClick={() => setAddLineOpen(true)}>Add first line</Button>} />
@@ -448,6 +462,7 @@ export default function BudgetPage() {
             <BudgetLineTable
               lines={tab === "overview" ? lines : tab === "income" ? incomeLines : expenseLines}
               showType={tab === "overview"}
+              readOnly={!canEditBudget}
               onUpdateBudgeted={updateBudgeted}
               onUpdateActual={updateActual}
               onDelete={deleteLine}
