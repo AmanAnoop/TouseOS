@@ -3,12 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, Heart } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import toast from "react-hot-toast";
 import { useOrg } from "@/hooks/use-org";
 import { Alert, Button, Card, Input, PageHeader, Select, Textarea } from "@/components/ui";
 
 export default function HardshipRequestPage() {
-  const supabase = createClient();
   const router = useRouter();
   const { orgId, userId } = useOrg();
   const [submitting, setSubmitting] = useState(false);
@@ -26,45 +25,25 @@ export default function HardshipRequestPage() {
     setSubmitting(true);
     if (!orgId || !userId) { setSubmitting(false); return; }
 
-    const { data: profile } = await supabase
-      .from("member_profiles")
-      .select("id")
-      .eq("org_id", orgId)
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    await supabase.from("hardship_requests").insert({
-      org_id: orgId,
-      member_id: profile?.id ?? null,
-      user_id: userId,
-      requested_amount: form.requestedAmount ? parseFloat(form.requestedAmount) : null,
-      arrangement: form.requestedArrangement,
-      reason: form.reason,
-      additional_context: form.additionalContext || null,
-      plan_installments: parseInt(form.planInstallments, 10) || null,
-      status: "pending",
-    });
-
-    await supabase.from("tasks").insert({
-      org_id: orgId,
-      created_by: userId,
-      title: `Hardship request — ${form.requestedArrangement}`,
-      description: `Requested arrangement: ${form.requestedArrangement}\nAmount: $${form.requestedAmount}\nReason: ${form.reason}\n\n${form.additionalContext}`,
-      priority: "high",
-      status: "todo",
-      tags: ["hardship", "dues", "treasurer"],
-    });
-
-    await supabase.from("audit_logs").insert({
-      org_id: orgId,
-      actor_id: userId,
-      action: "hardship_request_submitted",
-      resource_type: "tasks",
-      metadata: { arrangement: form.requestedArrangement, reason: form.reason.slice(0, 100) },
+    const res = await fetch("/api/hardship", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        requestedAmount: form.requestedAmount ? parseFloat(form.requestedAmount) : null,
+        arrangement: form.requestedArrangement,
+        reason: form.reason,
+        additionalContext: form.additionalContext || null,
+        planInstallments: parseInt(form.planInstallments, 10) || null,
+      }),
     });
 
     setSubmitting(false);
-    setSubmitted(true);
+    if (res.ok) {
+      setSubmitted(true);
+    } else {
+      toast.error((await res.json().catch(() => ({}))).error ?? "Failed to submit request");
+    }
   }
 
   if (submitted) {

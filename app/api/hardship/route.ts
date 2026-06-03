@@ -21,6 +21,72 @@ export async function GET(request: Request) {
   return NextResponse.json(data ?? []);
 }
 
+export async function POST(request: Request) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const body = await request.json();
+  const {
+    orgId,
+    requestedAmount,
+    arrangement,
+    reason,
+    additionalContext,
+    planInstallments,
+  } = body;
+
+  if (!orgId || !reason) {
+    return NextResponse.json({ error: "orgId and reason required" }, { status: 400 });
+  }
+
+  const { data: profile } = await supabase
+    .from("member_profiles")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const { data: requestRow, error } = await supabase
+    .from("hardship_requests")
+    .insert({
+      org_id: orgId,
+      member_id: profile?.id ?? null,
+      user_id: user.id,
+      requested_amount: requestedAmount != null ? Number(requestedAmount) : null,
+      arrangement: arrangement ?? "waiver",
+      reason,
+      additional_context: additionalContext || null,
+      plan_installments: planInstallments != null ? Number(planInstallments) : null,
+      status: "pending",
+    })
+    .select()
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await supabase.from("tasks").insert({
+    org_id: orgId,
+    created_by: user.id,
+    title: `Hardship request — ${arrangement ?? "waiver"}`,
+    description: `Requested arrangement: ${arrangement}\nAmount: $${requestedAmount ?? "—"}\nReason: ${reason}\n\n${additionalContext ?? ""}`,
+    priority: "high",
+    status: "todo",
+    tags: ["hardship", "dues", "treasurer"],
+  });
+
+  await supabase.from("audit_logs").insert({
+    org_id: orgId,
+    actor_id: user.id,
+    action: "hardship_request_submitted",
+    resource_type: "hardship_requests",
+    resource_id: requestRow.id,
+    metadata: { arrangement, reason: String(reason).slice(0, 100) },
+  });
+
+  return NextResponse.json(requestRow, { status: 201 });
+}
+
 export async function PATCH(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

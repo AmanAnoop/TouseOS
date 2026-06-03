@@ -1,6 +1,6 @@
 # TouseOS product status (realistic)
 
-Last updated: Wave 20 on `cursor/wave20-active-org-sweep-4a50`.
+Last updated: Wave 21 on `cursor/wave21-api-wiring-4a50`.
 
 ## How to read these numbers
 
@@ -9,7 +9,7 @@ We separate **“exists in the repo”** from **“works end-to-end without dead
 | Metric | Realistic % | Meaning |
 |--------|-------------|---------|
 | **Backlog modules with a route or API** | **~88%** | Page or endpoint exists |
-| **Connected user journeys** | **~74%** | Primary flows link correctly; multi-org users see active chapter everywhere |
+| **Connected user journeys** | **~75%** | PNM, governance, hardship, reports wired through APIs; active org on club/social pages |
 | **Production-ready depth** | **~50%** | Tested, permissioned, env-configured; legal summaries expanded (counsel review still needed) |
 | **Launch-ready** | **~44%** | Migrations, Stripe, QA, mobile polish, counsel-approved legal |
 
@@ -40,7 +40,13 @@ We separate **“exists in the repo”** from **“works end-to-end without dead
 - Reimbursement approve/paid triggers budget sync-org API
 - Treasurer dashboard links split budget vs reimbursements
 
-## Wave 20 (latest)
+## Wave 21 (latest)
+
+- PNM pipeline uses `/api/pnm`; roster export and club committees use `/api/members`
+- Governance meetings + votes via `/api/governance/*`; hardship submit via `POST /api/hardship`
+- Active org on event memories, social assets, engagement, events/new, club modules, roster detail guard
+
+## Wave 20
 
 - Remaining chapter/sports pages use `useOrg()` (transition, PNM, reports, interchapter, alumni, big-little, coaches, standings, tryouts, payment plans/hardship, social collab, tournaments tools)
 - Server pages: yearbook, NME, tournaments use `loadActiveMembershipServer`

@@ -29,8 +29,9 @@ export default function ReportsPage() {
     try {
       switch (reportType) {
         case "roster": {
-          const { data } = await supabase.from("member_profiles").select("*").eq("org_id", orgId).order("full_name");
-          downloadCsv(`${orgName}-roster.csv`, (data ?? []).map((m: Record<string, unknown>) => ({
+          const rosterRes = await fetch(`/api/members?org_id=${encodeURIComponent(orgId)}`);
+          const data = rosterRes.ok ? await rosterRes.json() : [];
+          downloadCsv(`${orgName}-roster.csv`, (data as Record<string, unknown>[]).map((m) => ({
             "Full Name": m.full_name,
             "Preferred Name": m.preferred_name ?? "",
             Email: m.email,

@@ -5,7 +5,6 @@ import { Gavel, Plus, Users } from "lucide-react";
 import toast from "react-hot-toast";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useOrg } from "@/hooks/use-org";
-import { createClient } from "@/lib/supabase/client";
 import {
   Badge, Button, Card, EmptyState, Input, Modal,
   PageHeader, Tabs, Textarea,
@@ -35,7 +34,6 @@ interface Vote {
 }
 
 export default function GovernancePage() {
-  const supabase = createClient();
   const { orgId, userId } = useOrg();
   const { can, loading: permLoading } = usePermissions();
   const [tab, setTab] = useState("meetings");
@@ -47,12 +45,12 @@ export default function GovernancePage() {
   const [voteForm, setVoteForm] = useState({ title: "", description: "", options: "Yes, No, Abstain" });
   const load = useCallback(async (oid: string) => {
     const [mRes, vRes] = await Promise.all([
-      supabase.from("governance_meetings").select("*").eq("org_id", oid).order("scheduled_at", { ascending: false }),
-      supabase.from("governance_votes").select("*").eq("org_id", oid).order("created_at", { ascending: false }),
+      fetch(`/api/governance/meetings?org_id=${encodeURIComponent(oid)}`),
+      fetch(`/api/governance/votes?org_id=${encodeURIComponent(oid)}`),
     ]);
-    setMeetings((mRes.data ?? []) as Meeting[]);
-    setVotes((vRes.data ?? []) as Vote[]);
-  }, [supabase]);
+    if (mRes.ok) setMeetings((await mRes.json()) as Meeting[]);
+    if (vRes.ok) setVotes((await vRes.json()) as Vote[]);
+  }, []);
 
   useEffect(() => {
     if (orgId) load(orgId);
@@ -60,16 +58,22 @@ export default function GovernancePage() {
 
   async function createMeeting() {
     if (!orgId || !form.title) return;
-    const { error } = await supabase.from("governance_meetings").insert({
-      org_id: orgId,
-      title: form.title,
-      scheduled_at: form.scheduledAt || null,
-      location: form.location || null,
-      agenda: form.agenda || null,
-      quorum_required: parseInt(form.quorumRequired, 10) || 0,
-      status: "scheduled",
+    const res = await fetch("/api/governance/meetings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        title: form.title,
+        scheduledAt: form.scheduledAt || null,
+        location: form.location || null,
+        agenda: form.agenda || null,
+        quorumRequired: form.quorumRequired,
+      }),
     });
-    if (error) { toast.error(error.message); return; }
+    if (!res.ok) {
+      toast.error((await res.json()).error ?? "Failed to schedule meeting");
+      return;
+    }
     toast.success("Meeting scheduled");
     setMeetingOpen(false);
     setForm({ title: "", scheduledAt: "", location: "", agenda: "", quorumRequired: "0" });
@@ -78,16 +82,20 @@ export default function GovernancePage() {
 
   async function createVote() {
     if (!orgId || !voteForm.title) return;
-    const options = voteForm.options.split(",").map((s) => s.trim()).filter(Boolean);
-    const { error } = await supabase.from("governance_votes").insert({
-      org_id: orgId,
-      title: voteForm.title,
-      description: voteForm.description || null,
-      status: "open",
-      options: options.length ? options : ["Yes", "No", "Abstain"],
-      votes: {},
+    const res = await fetch("/api/governance/votes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        title: voteForm.title,
+        description: voteForm.description || null,
+        options: voteForm.options,
+      }),
     });
-    if (error) { toast.error(error.message); return; }
+    if (!res.ok) {
+      toast.error((await res.json()).error ?? "Failed to create vote");
+      return;
+    }
     toast.success("Vote created");
     setVoteOpen(false);
     setVoteForm({ title: "", description: "", options: "Yes, No, Abstain" });
@@ -129,7 +137,11 @@ export default function GovernancePage() {
 
   async function updateQuorum(id: string, present: number) {
     if (!orgId) return;
-    await supabase.from("governance_meetings").update({ quorum_present: present }).eq("id", id);
+    await fetch("/api/governance/meetings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, orgId, quorumPresent: present }),
+    });
     load(orgId);
   }
 

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { loadActiveMembershipServer } from "@/lib/active-org-membership-server";
 import { PageHeader } from "@/components/ui";
 import { SocialAssetsClient } from "@/components/social/social-assets-client";
 
@@ -11,15 +12,14 @@ export default async function SocialAssetsPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: m } = await supabase
-    .from("org_members")
-    .select("org_id, organizations(name, primary_color, secondary_color, logo_url)")
-    .eq("user_id", user.id)
-    .limit(1)
-    .single();
-  if (!m) redirect("/onboarding");
+  const membership = await loadActiveMembershipServer(user.id);
+  if (!membership) redirect("/onboarding");
 
-  const org = m.organizations as unknown as Record<string, unknown>;
+  const { data: orgRow } = await supabase
+    .from("organizations")
+    .select("name, primary_color, secondary_color, logo_url")
+    .eq("id", membership.orgId)
+    .single();
 
   return (
     <div className="space-y-6">
@@ -28,12 +28,12 @@ export default async function SocialAssetsPage() {
         description="Brand assets, saved captions, and templates — use copies to your social calendar"
       />
       <SocialAssetsClient
-        orgId={m.org_id}
+        orgId={membership.orgId}
         org={{
-          name: String(org.name ?? "Chapter"),
-          primary_color: org.primary_color as string | null,
-          secondary_color: org.secondary_color as string | null,
-          logo_url: org.logo_url as string | null,
+          name: String(orgRow?.name ?? membership.orgName ?? "Chapter"),
+          primary_color: orgRow?.primary_color as string | null,
+          secondary_color: orgRow?.secondary_color as string | null,
+          logo_url: orgRow?.logo_url as string | null,
         }}
       />
     </div>

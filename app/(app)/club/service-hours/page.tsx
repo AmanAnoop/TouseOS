@@ -4,10 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import { HandHeart, Plus } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import {
   Badge, Button, Card, EmptyState, Input, Modal, PageHeader, ProgressBar, Select, Textarea,
 } from "@/components/ui";
-import { can, type RoleName } from "@/lib/permissions";
+import { can } from "@/lib/permissions";
 import { isClubOrg } from "@/lib/utils";
 import type { MemberProfile } from "@/types";
 
@@ -23,9 +24,7 @@ interface HourEntry {
 
 export default function ClubServiceHoursPage() {
   const supabase = createClient();
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [orgType, setOrgType] = useState("");
-  const [role, setRole] = useState<RoleName>("general_member");
+  const { orgId, orgType, role } = useOrg();
   const [entries, setEntries] = useState<HourEntry[]>([]);
   const [members, setMembers] = useState<MemberProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,26 +49,10 @@ export default function ClubServiceHoursPage() {
   }, [supabase]);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase
-        .from("org_members")
-        .select("org_id, role, organizations(type)")
-        .eq("user_id", user.id)
-        .limit(1)
-        .single();
-      if (m) {
-        const type = String(((m.organizations as unknown) as Record<string, unknown>)?.type ?? "");
-        setOrgId(m.org_id);
-        setOrgType(type);
-        setRole(String(m.role) as RoleName);
-        if (isClubOrg(type)) load(m.org_id);
-        else setLoading(false);
-      }
-    }
-    init();
-  }, [supabase, load]);
+    if (!orgId) return;
+    if (isClubOrg(orgType)) load(orgId);
+    else setLoading(false);
+  }, [orgId, orgType, load]);
 
   const canVerify = can(role, "edit_roster");
   const total = entries.reduce((s, e) => s + Number(e.hours), 0);

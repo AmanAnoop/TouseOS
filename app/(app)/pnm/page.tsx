@@ -52,9 +52,9 @@ export default function PnmPage() {
   });
 
   const loadLeads = useCallback(async (oid: string) => {
-    const { data } = await supabase.from("pnm_leads").select("*").eq("org_id", oid).order("created_at", { ascending: false });
-    setLeads((data ?? []) as PnmLead[]);
-  }, [supabase]);
+    const res = await fetch(`/api/pnm?org_id=${encodeURIComponent(oid)}`);
+    if (res.ok) setLeads((await res.json()) as PnmLead[]);
+  }, []);
 
   useEffect(() => {
     if (!orgId) return;
@@ -62,8 +62,13 @@ export default function PnmPage() {
     (async () => {
       const { data: org } = await supabase.from("organizations").select("invite_code").eq("id", orgId).single();
       setInviteCode(org?.invite_code ? String(org.invite_code) : null);
-      const { data: mems } = await supabase.from("member_profiles").select("id, full_name").eq("org_id", orgId).eq("membership_status", "active").order("full_name");
-      setChapterMembers((mems ?? []) as Array<{ id: string; full_name: string }>);
+      const memRes = await fetch(`/api/members?org_id=${encodeURIComponent(orgId)}`);
+      if (memRes.ok) {
+        const mems = (await memRes.json()) as Array<{ id: string; full_name: string; membership_status: string }>;
+        setChapterMembers(
+          mems.filter((m) => m.membership_status === "active").map((m) => ({ id: m.id, full_name: m.full_name })),
+        );
+      }
     })();
   }, [orgId, supabase, loadLeads]);
 
@@ -81,22 +86,28 @@ export default function PnmPage() {
 
   async function addLead() {
     if (!orgId || !newLead.fullName) return;
-    const { error } = await supabase.from("pnm_leads").insert({
-      org_id: orgId,
-      full_name: newLead.fullName,
-      email: newLead.email || null,
-      phone: newLead.phone || null,
-      instagram_handle: newLead.instagramHandle || null,
-      class_year: newLead.classYear || null,
-      major: newLead.major || null,
-      hometown: newLead.hometown || null,
-      referral_source: newLead.referralSource || null,
-      active_member_connection: newLead.activeMemberConnection || null,
-      communication_consent: newLead.communicationConsent,
-      consent_timestamp: newLead.communicationConsent ? new Date().toISOString() : null,
-      consent_source: newLead.communicationConsent ? "manual_entry" : null,
+    const res = await fetch("/api/pnm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        fullName: newLead.fullName,
+        email: newLead.email,
+        phone: newLead.phone,
+        instagramHandle: newLead.instagramHandle,
+        classYear: newLead.classYear,
+        major: newLead.major,
+        hometown: newLead.hometown,
+        referralSource: newLead.referralSource,
+        activeMemberConnection: newLead.activeMemberConnection,
+        communicationConsent: newLead.communicationConsent,
+        consentSource: newLead.communicationConsent ? "manual_entry" : null,
+      }),
     });
-    if (error) { toast.error(error.message); return; }
+    if (!res.ok) {
+      toast.error((await res.json()).error ?? "Failed to add PNM");
+      return;
+    }
     toast.success("PNM added");
     setAddOpen(false);
     setNewLead({ fullName: "", email: "", phone: "", instagramHandle: "", classYear: "", major: "", hometown: "", referralSource: "", activeMemberConnection: "", communicationConsent: false });
@@ -104,8 +115,16 @@ export default function PnmPage() {
   }
 
   async function updateStatus(id: string, status: PnmStatus) {
-    await supabase.from("pnm_leads").update({ status }).eq("id", id);
-    setLeads((prev) => prev.map((l) => l.id === id ? { ...l, status } : l));
+    const res = await fetch("/api/pnm", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, status }),
+    });
+    if (res.ok) {
+      setLeads((prev) => prev.map((l) => l.id === id ? { ...l, status } : l));
+    } else {
+      toast.error((await res.json()).error ?? "Update failed");
+    }
   }
 
   async function sendMassText() {
