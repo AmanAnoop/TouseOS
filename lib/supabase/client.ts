@@ -1,9 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createBrowserClient } from "@supabase/ssr";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
+
+export { isSupabaseConfigured } from "@/lib/supabase/env";
 
 export function createClient() {
-  return createBrowserClient<any>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://placeholder.supabase.co",
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "placeholder-anon-key",
-  );
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+
+  if (!isSupabaseConfigured() || !url || !key) {
+    return createBrowserClient<any>("https://invalid.supabase.co", "invalid-anon-key");
+  }
+
+  return createBrowserClient<any>(url, key);
 }

@@ -25,7 +25,15 @@ In the Vercel project → **Settings → Environment Variables**, set at minimum
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
-Apply to **Production**, **Preview**, and **Development**. Redeploy after saving. If either is missing, Supabase client creation in middleware used to throw and Vercel returned `500 MIDDLEWARE_INVOCATION_FAILED`.
+Apply to **Production**, **Preview**, and **Development**. Redeploy after saving. If either is missing, sign-up and sign-in will not work.
+
+In **Supabase → Authentication → URL configuration**, add redirect URLs (replace with your domain):
+
+- `https://your-domain.com/auth/callback`
+- `https://your-domain.com/auth/callback?next=/onboarding`
+- `https://your-domain.com/auth/callback?next=/reset-password`
+
+Set **Site URL** to `https://your-domain.com` (or your Vercel URL). For local dev, add `http://localhost:3000/auth/callback` as well.
 
 After deploy:
 

@@ -1,7 +1,7 @@
 "use client";
 
 export const dynamic = "force-dynamic";
-import React from "react";
+import React, { useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -9,8 +9,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import { friendlyAuthError } from "@/lib/auth-errors";
 import { AuthShell } from "@/components/auth/auth-shell";
+import { SupabaseConfigAlert } from "@/components/auth/supabase-config-alert";
 import { Button, Input } from "@/components/ui";
 
 const schema = z.object({
@@ -23,7 +25,6 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") ?? "/home";
-  const supabase = createClient();
   const [loading, setLoading] = useState(false);
 
   const {
@@ -32,32 +33,52 @@ function LoginForm() {
     formState: { errors },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
 
-  async function onSubmit(data: FormData) {
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword(data);
-    setLoading(false);
+  useEffect(() => {
+    const err = searchParams.get("error");
+    if (err === "auth_callback") {
+      toast.error("Sign-in link expired or invalid. Request a new confirmation email or try signing in.");
+    } else if (err === "supabase_not_configured") {
+      toast.error("Authentication is not configured on this deployment.");
+    }
+  }, [searchParams]);
 
-    if (error) {
-      toast.error(error.message);
-    } else {
-      router.push(next);
+  async function onSubmit(data: FormData) {
+    if (!isSupabaseConfigured()) {
+      toast.error("Sign-in is not configured on this server. Contact your administrator.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithPassword(data);
+      if (error) {
+        toast.error(friendlyAuthError(error.message));
+        return;
+      }
+      router.push(next.startsWith("/") ? next : "/home");
       router.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not sign in");
+    } finally {
+      setLoading(false);
     }
   }
 
   return (
     <AuthShell
       title="Sign in"
-      subtitle="Enter your chapter or team workspace."
+      subtitle="Access your chapter or team workspace."
       footer={
         <p className="text-center text-sm text-muted-foreground">
           New here?{" "}
-          <Link href="/signup" className="text-primary font-medium hover:underline">
+          <Link href="/signup" className="font-medium text-primary hover:underline">
             Create an account
           </Link>
         </p>
       }
     >
+      <SupabaseConfigAlert />
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
         <Input
           label="Email"
@@ -75,14 +96,14 @@ function LoginForm() {
           error={errors.password?.message}
           {...register("password")}
           trailing={
-            <Link href="/forgot-password" className="text-xs text-campus-600 hover:underline font-medium">
+            <Link href="/forgot-password" className="text-xs font-medium text-primary hover:underline">
               Forgot?
             </Link>
           }
         />
 
-        <Button type="submit" loading={loading} className="w-full mt-2">
-          Sign in to command center
+        <Button type="submit" loading={loading} className="mt-2 w-full" disabled={!isSupabaseConfigured()}>
+          Sign in
         </Button>
       </form>
     </AuthShell>
@@ -93,7 +114,7 @@ export default function LoginPage() {
   return (
     <React.Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center text-muted-foreground font-serif">
+        <div className="flex min-h-screen items-center justify-center text-muted-foreground">
           Loading…
         </div>
       }

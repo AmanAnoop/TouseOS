@@ -8,8 +8,11 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import { getPublicAppOrigin } from "@/lib/supabase/env";
+import { friendlyAuthError } from "@/lib/auth-errors";
 import { AuthShell } from "@/components/auth/auth-shell";
+import { SupabaseConfigAlert } from "@/components/auth/supabase-config-alert";
 import { Button, Input } from "@/components/ui";
 
 const schema = z.object({
@@ -25,7 +28,6 @@ type FormData = z.infer<typeof schema>;
 
 export default function SignupPage() {
   const router = useRouter();
-  const supabase = createClient();
   const [loading, setLoading] = useState(false);
 
   const {
@@ -35,43 +37,68 @@ export default function SignupPage() {
   } = useForm<FormData>({ resolver: zodResolver(schema) });
 
   async function onSubmit(data: FormData) {
+    if (!isSupabaseConfigured()) {
+      toast.error("Sign-up is not configured on this server. Contact your administrator.");
+      return;
+    }
+
     setLoading(true);
-    const { data: signUpData, error } = await supabase.auth.signUp({
-      email: data.email,
-      password: data.password,
-      options: { data: { full_name: data.fullName } },
-    });
-    setLoading(false);
+    try {
+      const supabase = createClient();
+      const origin = getPublicAppOrigin(window.location.origin) || window.location.origin;
+      const emailRedirectTo = `${origin}/auth/callback?next=${encodeURIComponent("/onboarding")}`;
 
-    if (error) {
-      toast.error(error.message);
-      return;
+      const { data: signUpData, error } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
+        options: {
+          data: { full_name: data.fullName },
+          emailRedirectTo,
+        },
+      });
+
+      if (error) {
+        toast.error(friendlyAuthError(error.message));
+        return;
+      }
+
+      if (signUpData.session) {
+        toast.success("Account created — set up your organization");
+        router.push("/onboarding");
+        router.refresh();
+        return;
+      }
+
+      if (signUpData.user && !signUpData.user.identities?.length) {
+        toast.error("An account with this email already exists. Sign in instead.");
+        return;
+      }
+
+      toast.success(
+        "Check your email for a confirmation link. After confirming, you will be signed in to set up your organization.",
+      );
+      router.push("/login?next=/onboarding");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not create account");
+    } finally {
+      setLoading(false);
     }
-
-    if (signUpData.session) {
-      toast.success("Account created — set up your organization");
-      router.push("/onboarding");
-      router.refresh();
-      return;
-    }
-
-    toast.success("Check your email to confirm your account, then sign in to create your organization.");
-    router.push("/login?next=/onboarding");
   }
 
   return (
     <AuthShell
       title="Create account"
-      subtitle="Officers and members start here — you'll pick your campus and chapter colors next."
+      subtitle="Start with your name and email — then create or join an organization."
       footer={
         <p className="text-center text-sm text-muted-foreground">
-          Already registered?{" "}
-          <Link href="/login" className="text-primary font-medium hover:underline">
+          Already have an account?{" "}
+          <Link href="/login" className="font-medium text-primary hover:underline">
             Sign in
           </Link>
         </p>
       }
     >
+      <SupabaseConfigAlert />
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
         <Input
           label="Full name"
@@ -106,15 +133,21 @@ export default function SignupPage() {
           {...register("confirmPassword")}
         />
 
-        <Button type="submit" loading={loading} className="w-full mt-2">
-          Continue to setup
+        <Button type="submit" loading={loading} className="mt-2 w-full" disabled={!isSupabaseConfigured()}>
+          Create account
         </Button>
       </form>
 
-      <p className="text-center text-xs text-muted-foreground mt-4 pt-2 border-t border-border">
+      <p className="mt-4 border-t border-border pt-2 text-center text-xs text-muted-foreground">
         By signing up you agree to our{" "}
-        <Link href="/terms" className="underline text-campus-600">Terms</Link> and{" "}
-        <Link href="/privacy" className="underline text-campus-600">Privacy Policy</Link>.
+        <Link href="/terms" className="text-primary underline">
+          Terms
+        </Link>{" "}
+        and{" "}
+        <Link href="/privacy" className="text-primary underline">
+          Privacy Policy
+        </Link>
+        .
       </p>
     </AuthShell>
   );
