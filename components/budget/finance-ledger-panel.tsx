@@ -9,9 +9,11 @@ import type { FinanceLedger } from "@/lib/budget-sync";
 interface FinanceLedgerPanelProps {
   ledger: FinanceLedger | null;
   loading?: boolean;
+  /** Greek chapters only — housing is not available for sports/club */
+  showHousing?: boolean;
 }
 
-export function FinanceLedgerPanel({ ledger, loading }: FinanceLedgerPanelProps) {
+export function FinanceLedgerPanel({ ledger, loading, showHousing = true }: FinanceLedgerPanelProps) {
   if (loading) {
     return <Card className="h-40 animate-pulse bg-surface-2 border-0">&nbsp;</Card>;
   }
@@ -31,8 +33,13 @@ export function FinanceLedgerPanel({ ledger, loading }: FinanceLedgerPanelProps)
             <Link href="/reimbursements" className="text-greek-600 hover:underline flex items-center gap-1">
               <Link2 size={12} /> Reimbursements
             </Link>
-            <Link href="/housing" className="text-greek-600 hover:underline flex items-center gap-1">
-              <Link2 size={12} /> Housing
+            {showHousing && (
+              <Link href="/housing" className="text-greek-600 hover:underline flex items-center gap-1">
+                <Link2 size={12} /> Housing
+              </Link>
+            )}
+            <Link href="/philanthropy" className="text-greek-600 hover:underline flex items-center gap-1">
+              <Link2 size={12} /> Philanthropy
             </Link>
           </div>
         }

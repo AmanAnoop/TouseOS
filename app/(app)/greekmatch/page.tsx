@@ -446,7 +446,8 @@ export default function GreekMatchPage() {
               </div>
             )}
             <button
-              onClick={() => { setDetailModal(false); toast.success("Report submitted. We'll review it within 24 hours."); }}
+              type="button"
+              onClick={() => { setDetailModal(false); moderate("report"); }}
               className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-red-500 pt-2"
             >
               <Flag size={12} />

@@ -1,79 +1,79 @@
-# TouseOS product status
+# TouseOS product status (realistic)
 
-Where the build stands today — by **milestone**, not calendar dates. Use this to decide when to polish vs ship.
+Last updated: connection-fix pass on `cursor/connection-fixes-4a50`.
 
-**Branch:** `cursor/sportsos-clubos-separation-4a50` · **Backlog detail:** `docs/backlog-status.md`
+## How to read these numbers
 
-## Overall
+We separate **“exists in the repo”** from **“works end-to-end without dead ends.”** Earlier ~86% figures counted routes/APIs; that overstates what a treasurer or member can actually complete in the app.
 
-| Area | Status | Notes |
-|------|--------|-------|
-| **Platform completeness** | ~**86%** | 67 backlog modules; most have routes/APIs |
-| **Day-to-day chapter ops** | ~**94%** | Members, events, payments, comms, officers |
-| **Finance interconnect** | ~**75%** | Wave 14: unified ledger + auto-sync (this PR) |
-| **Launch readiness** | ~**70%** | Needs env keys, migrations, QA pass |
+| Metric | Realistic % | Meaning |
+|--------|-------------|---------|
+| **Backlog modules with a route or API** | **~88%** | Page or endpoint exists |
+| **Connected user journeys** | **~62%** | Primary flows link correctly; few 404s or wrong redirects |
+| **Production-ready depth** | **~48%** | Tested, permissioned, env-configured, counsel-ready legal copy |
+| **Launch-ready** | **~42%** | Migrations, Stripe, QA, mobile polish, legal |
 
-## Milestone map
+**Best single number for “how done is the product?” → ~55–60%** (weighted toward connected journeys, not file count).
 
-### Done (production-depth)
+## By area
 
-- **Core GreekOS:** dashboard, members, events, attendance, tasks, documents, messaging
-- **Payments:** Stripe checkout, manual pay, plans, parent pay, hardship, reconciliation
-- **Reimbursements:** submit → approve → paid workflow
-- **Budget:** lines, alerts, cash flow, event P&L, per-member cost, HTML/CSV export
-- **Philanthropy, forms, alumni, parent portal, notifications**
-- **SportsOS:** roster, travel trip workspace, eligibility, readiness
-- **ClubOS:** membership, committees, service hours, elections, goals
-- **Product skins:** TouseGreek / SportsOS / ClubOS nav + route guards
-- **Onboarding:** create-org page + API + cookie active org
+| Area | Connected | Notes |
+|------|-----------|--------|
+| Auth & onboarding | **~70%** | Signup, create-org, join; `/home` routes sports/club correctly; demo needs seed |
+| Greek chapter ops | **~75%** | Members, events, attendance, tasks, comms |
+| Finance (payments ↔ budget ↔ reimbursements) | **~68%** | Ledger + sync; cross-links added; reimbursements still update via Supabase + sync-org hook |
+| SportsOS | **~65%** | Home, travel detail links; shared finance modules work |
+| ClubOS | **~60%** | Club home, elections, service hours; thinner than Greek/Sports |
+| GreekMatch / social | **~55%** | Profile tab deep links fixed; some actions still toast-only |
+| Admin / platform | **~50%** | Platform admin behind email allowlist |
 
-### In progress (this wave — finance glue)
+## Fixed in this pass (dead ends)
 
-| Item | Status |
-|------|--------|
-| Live finance ledger on Budget (payments + reimbursements + philanthropy) | ✅ |
-| Auto-sync budget when payments/reimbursements/philanthropy change | ✅ (needs `SUPABASE_SERVICE_ROLE_KEY`) |
-| All payment categories → budget income lines (dues, housing, travel, etc.) | ✅ |
-| Housing “Post monthly rent” → `housing` payments → Budget “Housing & rent” | ✅ |
-| Default budget line templates on new budget | ✅ |
+- `/terms`, `/privacy` pages (signup links)
+- `/home` → correct product home (Greek dashboard vs `/sports` vs `/club`)
+- Sports/club users no longer stuck on Greek `/dashboard` after login or onboarding
+- Org switcher sets active org cookie and navigates to the right home
+- GreekMatch “Edit profile” → `/profile?tab=greekmatch`
+- Budget housing link hidden for sports/club (was guard-blocked)
+- Sports upcoming trips → `/travel/[id]`
+- Finance cross-links: budget ↔ payments ↔ reimbursements ↔ housing ↔ philanthropy
+- Reimbursement approve/paid triggers budget sync-org API
+- Treasurer dashboard links split budget vs reimbursements
 
-### Next (finish product, then cleanup)
+## Still open (honest backlog)
 
-1. **QA finance flows** — create charge → pay (Stripe/cash) → confirm budget line updates; reimbursement paid → expense line
-2. **Housing polish** — avoid duplicate rent charges same month; optional reminder notifications
-3. **Permissions audit** — treasurer vs member on budget sync API
-4. **Mobile pass** — budget ledger tab on small screens
-5. **Launch** — run migrations **015–024**, Stripe webhook URL, `docs/launch-checklist.md`
-
-### Backlog (not blocking “finish product”)
-
-- Deeper SportsOS (NCAA forms, equipment inventory)
-- ClubOS CRM / sponsor pipeline
-- Native apps, advanced analytics warehouse
+| Priority | Item |
+|----------|------|
+| P1 | Reimbursements + some modules still use Supabase client instead of APIs (sync hooks added where critical) |
+| P1 | Multi-org GreekMatch: profile tab visible if any Greek org, guard uses primary org type |
+| P1 | Duplicate monthly rent charges (no month dedupe) |
+| P2 | Event share / duplicate QR buttons on event detail |
+| P2 | Social calendar query params from asset composer |
+| P2 | Orphan API routes (tasks, documents, notifications) — UI uses Supabase directly |
+| Launch | Replace placeholder terms/privacy; run migrations **015–024** |
 
 ## Environment
 
 | Variable | Why |
 |----------|-----|
-| `SUPABASE_SERVICE_ROLE_KEY` | Org create fallback, budget auto-sync after webhooks |
-| Stripe keys + webhook | Card payments → budget |
-| Migrations **015 → 024** | Onboarding RPC, ClubOS, elections, sports travel RLS |
+| `SUPABASE_SERVICE_ROLE_KEY` | Org create, budget auto-sync on webhooks |
+| Stripe + webhook | Card payments → budget |
+| `005_seed.sql` | Demo chapter for onboarding |
 
-## How finance works now
+## Finance flow (target state)
 
 ```mermaid
 flowchart LR
-  Payments[Payments module] --> Ledger[Live ledger API]
-  Reimb[Reimbursements] --> Ledger
-  Phil[Philanthropy campaigns] --> Ledger
-  Housing[Housing rent charges] --> Payments
-  Ledger --> Sync[Budget sync]
-  Sync --> Lines[Budget line actuals]
+  Payments --> Ledger[Live ledger]
+  Reimb --> Ledger
+  Phil --> Ledger
+  Housing --> Payments
+  Ledger --> Budget[Budget lines]
 ```
 
-Officers open **Budget & Finance** → see the live ledger → lines auto-update from Payments, Reimbursements, and philanthropy. Use **Sync all** to force a refresh.
+Officers should be able to: charge → collect → see budget update → approve reimbursement → see expense line — without manual “sync only dues” dead ends.
 
-## Related PRs
+## Related docs
 
-- [#27](https://github.com/AmanAnoop/TouseOS/pull/27) — Waves 6–12 backlog continuation  
-- [#28](https://github.com/AmanAnoop/TouseOS/pull/28) — SportsOS/ClubOS separation, org create fix, Wave 13 + finance interconnect
+- Module checklist: `docs/backlog-status.md`
+- Launch: `docs/launch-checklist.md`

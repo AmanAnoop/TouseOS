@@ -8,7 +8,8 @@ Tracked against `docs/feature-backlog.md` (67 numbered modules, 0–66).
 
 | Metric | ~% | What it means |
 |--------|-----|----------------|
-| **Full final build** | **~86%** | Weighted depth across all 67 modules |
+| **Full final build (routes exist)** | **~88%** | Weighted depth across all 67 modules |
+| **Connected journeys (realistic)** | **~62%** | See `docs/product-status.md` (~55–60% overall) |
 | Modules at production depth (✅) | **~42%** | 28 modules with end-to-end flows |
 | Modules with a route or API | **~99%** | 66/67 |
 | Day-to-day chapter ops | **~94%** | Core officer + member workflows |

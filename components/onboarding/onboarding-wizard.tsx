@@ -83,7 +83,10 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
       return;
     }
     toast.success(`Joined ${data.org?.name ?? "organization"}!`);
-    router.push("/dashboard");
+    if (data.org?.id) {
+      document.cookie = `touse_active_org_id=${data.org.id}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
+    }
+    router.push(data.redirectTo ?? "/home");
     router.refresh();
   }
 
@@ -97,15 +100,18 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
       return;
     }
     toast.success(`Welcome to ${data.org?.name}!`);
-    router.push("/dashboard");
+    if (data.org?.id) {
+      document.cookie = `touse_active_org_id=${data.org.id}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
+    }
+    router.push(data.redirectTo ?? "/home");
     router.refresh();
   }
 
   return (
     <div className="w-full max-w-lg">
       {allowBackToDashboard && (
-        <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground mb-4 inline-block">
-          ← Back to dashboard
+        <Link href="/home" className="text-sm text-muted-foreground hover:text-foreground mb-4 inline-block">
+          ← Back to home
         </Link>
       )}
 

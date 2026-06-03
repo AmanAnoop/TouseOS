@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { Building, Hammer, Home, Plus, Users } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
@@ -183,7 +184,9 @@ export function HousingClient() {
         title="Housing"
         description="Room assignments, maintenance requests, and house management"
         action={
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Link href="/payments"><Button size="sm" variant="secondary">Payments</Button></Link>
+            <Link href="/budget"><Button size="sm" variant="secondary">Budget</Button></Link>
             {assignments.length > 0 && totalRent > 0 && (
               <Button size="sm" variant="secondary" loading={chargingRent} onClick={createRentCharges}>
                 Post monthly rent

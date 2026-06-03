@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
+import { homePathForOrgType } from "@/lib/resolve-home";
 
 export const metadata = { title: "Onboarding" };
 export const dynamic = "force-dynamic";
@@ -20,13 +21,17 @@ export default async function OnboardingRoute({
   if (!forceCreate) {
     const { data: m } = await supabase
       .from("org_members")
-      .select("org_id")
+      .select("org_id, organizations(type)")
       .eq("user_id", user.id)
       .neq("status", "removed")
       .limit(1)
       .maybeSingle();
 
-    if (m) redirect("/dashboard");
+    if (m) {
+      const org = m.organizations as { type?: string } | { type?: string }[] | null;
+      const orgType = Array.isArray(org) ? org[0]?.type : org?.type;
+      redirect(homePathForOrgType(orgType));
+    }
   }
 
   return (

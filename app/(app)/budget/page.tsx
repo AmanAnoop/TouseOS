@@ -31,6 +31,7 @@ import { computeEventPnl } from "@/lib/event-pnl";
 import { computePerMemberCost } from "@/lib/per-member-cost";
 import type { MemberProfile } from "@/types";
 import { can, type RoleName } from "@/lib/permissions";
+import { getProductId } from "@/lib/org-product";
 import { computeReimbursementAgingAlerts } from "@/lib/reimbursement-aging";
 import { buildBudgetReportHtml, downloadBudgetReportHtml } from "@/lib/budget-export";
 import { Alert } from "@/components/ui";
@@ -66,6 +67,7 @@ export default function BudgetPage() {
   const [orgId, setOrgId] = useState<string | null>(null);
   const [myRole, setMyRole] = useState<RoleName>("general_member");
   const [orgName, setOrgName] = useState("Chapter");
+  const [orgType, setOrgType] = useState("fraternity");
   const [reimbs, setReimbs] = useState<Array<{ id: string; amount: number; status: string; created_at: string; submitted_by_name: string | null; category: string; event_id: string | null; submitted_by: string | null }>>([]);
   const [events, setEvents] = useState<Array<{ id: string; title: string; starts_at: string }>>([]);
   const [members, setMembers] = useState<MemberProfile[]>([]);
@@ -175,11 +177,13 @@ export default function BudgetPage() {
     async function init() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id, role, organizations(name)").eq("user_id", user.id).limit(1).single();
+      const { data: m } = await supabase.from("org_members").select("org_id, role, organizations(name, type)").eq("user_id", user.id).limit(1).single();
       if (m) {
         setOrgId(m.org_id);
         setMyRole(String(m.role ?? "general_member") as RoleName);
-        setOrgName(String(((m.organizations as unknown) as Record<string, unknown>)?.name ?? "Chapter"));
+        const orgRow = (m.organizations as unknown) as Record<string, unknown>;
+        setOrgName(String(orgRow?.name ?? "Chapter"));
+        setOrgType(String(orgRow?.type ?? "fraternity"));
         load(m.org_id);
       }
     }
@@ -290,6 +294,7 @@ export default function BudgetPage() {
   const totalActualExpense = expenseLines.reduce((s, l) => s + Number(l.actual), 0);
   const netActual = totalActualIncome - totalActualExpense;
   const budgetUsedPct = totalBudgetedExpense > 0 ? Math.round((totalActualExpense / totalBudgetedExpense) * 100) : 0;
+  const showHousingLink = getProductId(orgType) === "greek";
   const canViewBudget = can(myRole, "manage_budget") || can(myRole, "view_payments") || can(myRole, "manage_payments");
   const canEditBudget = can(myRole, "manage_budget");
   const reimbAgingAlerts = computeReimbursementAgingAlerts(reimbs);
@@ -373,7 +378,7 @@ export default function BudgetPage() {
       ) : (
         <>
           <BudgetAlerts alerts={alerts} />
-          <FinanceLedgerPanel ledger={ledger} loading={ledgerLoading} />
+          <FinanceLedgerPanel ledger={ledger} loading={ledgerLoading} showHousing={showHousingLink} />
           <BudgetOverview
             totalActualIncome={totalActualIncome}
             totalBudgetedIncome={totalBudgetedIncome}
@@ -399,7 +404,7 @@ export default function BudgetPage() {
           />
 
           {tab === "ledger" ? (
-            <FinanceLedgerPanel ledger={ledger} loading={ledgerLoading} />
+            <FinanceLedgerPanel ledger={ledger} loading={ledgerLoading} showHousing={showHousingLink} />
           ) : tab === "forecast" ? (
             <CashFlowForecastPanel forecast={cashFlowForecast} />
           ) : tab === "dues" ? (

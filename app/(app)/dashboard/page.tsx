@@ -43,6 +43,9 @@ export default async function DashboardPage() {
   const orgId = membership.org_id;
   const org = membership.organizations as unknown as Record<string, unknown>;
   const orgType = String(org.type ?? "general_org");
+  const product = getProductId(orgType);
+  if (product === "sports") redirect("/sports");
+  if (product === "club") redirect("/club");
   const myRole = String(membership.role ?? "general_member");
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
 
@@ -98,7 +101,6 @@ export default async function DashboardPage() {
   const clubApplications = (clubMembershipRes.data ?? []) as Array<{ id: string; status: string }>;
   const clubHours = (clubServiceRes.data ?? []) as Array<{ hours: number; verified: boolean }>;
   const waivers = (waiversRes.data ?? []) as Array<{ status: string }>;
-  const product = getProductId(orgType);
   const totalClubHours = clubHours.reduce((s, h) => s + Number(h.hours), 0);
   const allEventIds = ((allEventsRes.data ?? []) as Array<{ id: string }>).map((e) => e.id);
   const pastEvents = (pastEventsRes.data ?? []) as Array<{ id: string; title: string; starts_at: string }>;

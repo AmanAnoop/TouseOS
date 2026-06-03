@@ -94,7 +94,7 @@ export default async function SportsPage() {
           ) : (
             <div className="space-y-3">
               {trips.map((trip: Record<string, unknown>) => (
-                <Link key={String(trip.id)} href="/travel" className="flex items-center gap-3 hover:bg-surface-1 p-2 rounded-lg -mx-2 transition-colors">
+                <Link key={String(trip.id)} href={`/travel/${trip.id}`} className="flex items-center gap-3 hover:bg-surface-1 p-2 rounded-lg -mx-2 transition-colors">
                   <div className="w-9 h-9 rounded-lg bg-sports-50 dark:bg-sports-950/30 flex items-center justify-center text-sports-600 flex-shrink-0">
                     <Calendar size={16} />
                   </div>

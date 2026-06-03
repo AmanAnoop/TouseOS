@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { activeOrgCookieHeader } from "@/lib/active-org-cookie";
+import { homePathForOrgType } from "@/lib/resolve-home";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -22,7 +24,7 @@ export async function POST(request: Request) {
   if (error) {
     const { data: org } = await service
       .from("organizations")
-      .select("id, name, invite_code")
+      .select("id, name, type, invite_code")
       .eq("invite_code", code)
       .maybeSingle();
     if (!org) return NextResponse.json({ error: "Invalid invite code" }, { status: 404 });
@@ -51,8 +53,21 @@ export async function POST(request: Request) {
         membership_status: "active",
       });
     }
-    return NextResponse.json({ org });
+    const redirectTo = homePathForOrgType(org.type);
+    const res = NextResponse.json({ org, redirectTo });
+    res.headers.set("Set-Cookie", activeOrgCookieHeader(org.id));
+    return res;
   }
 
-  return NextResponse.json({ org: data });
+  const joined = data as { id?: string; type?: string; org_id?: string } | null;
+  const orgId = joined?.id ?? joined?.org_id;
+  let orgType = joined?.type;
+  if (orgId && !orgType) {
+    const { data: orgRow } = await service.from("organizations").select("type").eq("id", orgId).single();
+    orgType = orgRow?.type;
+  }
+  const redirectTo = homePathForOrgType(orgType);
+  const res = NextResponse.json({ org: data, redirectTo });
+  if (orgId) res.headers.set("Set-Cookie", activeOrgCookieHeader(orgId));
+  return res;
 }
