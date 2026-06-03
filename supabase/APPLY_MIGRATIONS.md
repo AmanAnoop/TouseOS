@@ -10,6 +10,7 @@ Run these SQL files **in order** in the Supabase SQL Editor (or `psql` against y
 | 016–022 | `016` … `022` | Yes |
 | 023 | `023_club_org.sql` | Yes if using ClubOS |
 | 024 | `024_club_elections_goals.sql` | Yes for elections/service goals |
+| 025 | `025_completion_rls.sql` | Yes — budget line RLS + private documents |
 | 005 | `005_seed.sql` | Optional demo chapter |
 
 After apply:

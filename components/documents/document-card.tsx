@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { Download, Eye, File, FileText, Image as ImageIcon, Trash2 } from "lucide-react";
+import toast from "react-hot-toast";
 import { Badge, Card } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
 import type { Document } from "@/types";
@@ -27,6 +29,17 @@ function formatBytes(bytes: number | null): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+async function resolveSignedUrl(docId: string): Promise<string | null> {
+  const res = await fetch(`/api/documents/signed-url?id=${encodeURIComponent(docId)}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    toast.error((err as { error?: string }).error ?? "Could not open file");
+    return null;
+  }
+  const data = await res.json();
+  return String(data.url ?? "");
+}
+
 interface DocumentCardProps {
   doc: Document & { version?: number };
   onDelete?: (id: string, storagePath: string) => void;
@@ -35,6 +48,27 @@ interface DocumentCardProps {
 
 export function DocumentCard({ doc, onDelete, onViewVersions }: DocumentCardProps) {
   const showDelete = Boolean(onDelete);
+  const [opening, setOpening] = useState(false);
+
+  async function openView() {
+    setOpening(true);
+    const url = await resolveSignedUrl(doc.id);
+    setOpening(false);
+    if (url) window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  async function openDownload() {
+    setOpening(true);
+    const url = await resolveSignedUrl(doc.id);
+    setOpening(false);
+    if (!url) return;
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = doc.title;
+    a.rel = "noopener";
+    a.click();
+  }
+
   return (
     <Card padding="sm" className="group hover:border-greek-300 transition-colors">
       <div className="flex items-start gap-3">
@@ -63,14 +97,22 @@ export function DocumentCard({ doc, onDelete, onViewVersions }: DocumentCardProp
               History
             </button>
           )}
-          <a href={doc.url} target="_blank" rel="noopener noreferrer"
-            className="p-1.5 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-foreground">
+          <button
+            type="button"
+            disabled={opening}
+            onClick={openView}
+            className="p-1.5 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-foreground disabled:opacity-50"
+          >
             <Eye size={14} />
-          </a>
-          <a href={doc.url} download={doc.title}
-            className="p-1.5 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-foreground">
+          </button>
+          <button
+            type="button"
+            disabled={opening}
+            onClick={openDownload}
+            className="p-1.5 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-foreground disabled:opacity-50"
+          >
             <Download size={14} />
-          </a>
+          </button>
           {showDelete && (
             <button onClick={() => onDelete!(doc.id, doc.storage_path)}
               className="p-1.5 rounded-md hover:bg-red-50 text-muted-foreground hover:text-red-500">

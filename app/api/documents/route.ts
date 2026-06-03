@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { forbidUnless, getMemberRole } from "@/lib/api-org-role";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -10,6 +11,9 @@ export async function GET(request: Request) {
   const orgId = searchParams.get("org_id");
   if (!orgId) return NextResponse.json({ error: "org_id required" }, { status: 400 });
 
+  const role = await getMemberRole(supabase, user.id, orgId);
+  if (!role) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
   const { data, error } = await supabase
     .from("documents")
     .select("*")
@@ -18,7 +22,10 @@ export async function GET(request: Request) {
     .order("created_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+
+  const canSeePrivate = forbidUnless(role, "manage_documents") === null;
+  const visible = (data ?? []).filter((d) => !d.is_private || canSeePrivate);
+  return NextResponse.json(visible);
 }
 
 export async function POST(request: Request) {
@@ -28,6 +35,11 @@ export async function POST(request: Request) {
 
   const body = await request.json();
   const { orgId, title, category, storagePath, url, fileSizeBytes, mimeType, isPrivate } = body;
+  if (!orgId) return NextResponse.json({ error: "orgId required" }, { status: 400 });
+
+  const role = await getMemberRole(supabase, user.id, String(orgId));
+  const denied = forbidUnless(role, "manage_documents");
+  if (denied) return denied;
 
   const { data, error } = await supabase.from("documents").insert({
     org_id: orgId,

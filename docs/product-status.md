@@ -1,6 +1,6 @@
 # TouseOS product status (realistic)
 
-Last updated: Sidebar & UI polish on `cursor/sidebar-ui-launch-4a50`.
+Last updated: Launch completion sweep on `cursor/launch-completion-4a50`.
 
 ## How to read these numbers
 
@@ -8,80 +8,56 @@ We separate **“exists in the repo”** from **“works end-to-end without dead
 
 | Metric | Realistic % | Meaning |
 |--------|-------------|---------|
-| **Backlog modules with a route or API** | **~89%** | Page or endpoint exists (66/67 modules; module 66 = launch QA) |
-| **Connected user journeys** | **~87%** | Budget, account, social calendar, forms fill on APIs |
-| **Production-ready depth** | **~58%** | CI, smoke scripts, public `/api/ready`, migration guide |
-| **Launch-ready** | **~70%** | Ops tooling + polished app shell; production env + pilot smoke remain |
+| **Backlog modules with a route or API** | **~90%** | Page or endpoint exists (66/67 modules; module 66 = launch QA) |
+| **Connected user journeys** | **~91%** | Profile, GreekMatch, documents, budget on APIs + RLS fixes |
+| **Production-ready depth** | **~62%** | CI, smoke scripts, `/api/ready`, migration 025 |
+| **Launch-ready** | **~78%** | Ops tooling + polished shell; prod env + pilot smoke remain |
 
 ### Overall product complete (recommended single number)
 
-**~77%** — weighted blend:
+**~82%** — weighted blend:
 
 | Component | Weight | Score | Contribution |
 |-----------|--------|-------|--------------|
-| Connected journeys | 40% | 87% | 34.8 |
+| Connected journeys | 40% | 91% | 36.4 |
 | Routes / APIs exist | 20% | 90% | 18.0 |
-| Production depth | 25% | 58% | 14.5 |
-| Launch readiness | 15% | 70% | 10.5 |
-| **Total** | 100% | — | **~77.3% → ~77%** |
+| Production depth | 25% | 62% | 15.5 |
+| Launch readiness | 15% | 78% | 11.7 |
+| **Total** | 100% | — | **~81.6% → ~82%** |
 
-Round to **~77%** overall. **Launch-ready ~70%** — apply migrations, set production env, run pilot checklist for **~80%+** launch score. Do not quote **~89%** as “the product is done” — that is surface area only.
+Do not quote route coverage alone as “done” — live Stripe, SMS, and counsel sign-off still gate a full launch.
 
 ## By product area
 
 | Area | Connected | Notes |
 |------|-----------|--------|
-| Auth & onboarding | **~72%** | Signup, create-org, join; product home routing; demo needs seed |
-| Greek chapter ops | **~78%** | Roster, events, tasks, comms, standards, engagement, transition |
-| Finance (payments ↔ budget ↔ reimbursements) | **~78%** | APIs + budget sync; treasurer reconciliation |
-| SportsOS | **~68%** | Tryouts API, travel, waivers export, coaches via members API |
-| ClubOS | **~63%** | Elections, service hours, membership; thinner than Greek/Sports |
-| GreekMatch / social | **~60%** | Photo APIs; storage upload on social; calendar prefill |
-| Reports & exports | **~75%** | CSV exports via APIs (no client Supabase on reports page) |
-| Admin / platform | **~50%** | Platform admin behind email allowlist |
+| Auth & onboarding | **~85%** | Signup APIs, org create/join; apply migration 025 |
+| Greek chapter ops | **~82%** | Roster, events, tasks, comms, standards, transition |
+| Finance (payments ↔ budget ↔ reimbursements) | **~84%** | Budget line RLS; role-gated edits |
+| SportsOS | **~70%** | Tryouts, travel, waivers |
+| ClubOS | **~66%** | Elections, service hours |
+| GreekMatch / social | **~78%** | Candidates API, interactions/messages via REST |
+| Reports & exports | **~76%** | CSV via APIs |
+| Admin / platform | **~52%** | Platform admin behind allowlist |
 
-## Sidebar & UI polish (latest)
+## Launch completion sweep (latest)
 
-- Sectioned sidebar (`lib/sidebar-navigation.ts`): Overview, People & finance, product-specific groups, account, tools, admin
-- Removed emoji / “AI sparkle” nav labels; GreekMatch and Interchapter use plain labels
-- Cleaner nav links (accent bar, icon tiles), mobile bottom nav aligned to product home paths
-- Softer global background (no heavy gradients), sans-serif page titles, lighter cards
-
-## Launch final build
-
-- `/api/account`, `/api/social-calendar`, `/api/forms/[formId]`, `/api/feed/summary`
-- Budget, account, social calendar, PNM invite, form fill on REST APIs
-- `lib/feed-timeline` shared loader; middleware allows `/api/ready`, `/api/cron`, terms/privacy
-- `supabase/APPLY_MIGRATIONS.md`, `npm run smoke:pilot`
-
-## Launch readiness sweep
-
-- `GET /api/ready` — public deploy health (env checks, webhooks, cron docs)
-- `npm run launch:check` — local required-env validator
-- `docs/launch-runbook.md`, updated `docs/launch-checklist.md` (code-complete items marked)
-- GitHub Actions: `typecheck`, `lint`, `build` on PR/push to `main`
-- APIs: `/api/org/settings`, `/api/org/memberships`, `/api/risk/checklists`, `/api/big-little/matches`, `POST /api/alumni`
-- Pages wired: settings (org + members), risk checklists, alumni, big-little
-
-## Wave 25
-
-- APIs: tryouts, transition, event RSVPs bulk, member-points, alumni GET, waivers GET
-- Pages: tryouts, transition, engagement, reports, attendance-points
-
-## Wave 24
-
-- `requireOrgProduct` uses active org cookie
-- Yearbook export, GreekMatch profile save, event detail org guard
-- Standards, travel, big-little, attendance, engagement, risk APIs
+- Migration `025_completion_rls.sql` — `budget_lines` policies; private `documents` hidden from non-officers
+- `/api/profile` — chapter profile scoped by `org_id` (fixes multi-org overwrite)
+- `/api/documents/signed-url` — downloads from private storage bucket
+- `/api/greekmatch/candidates` — discovery with age/gender/org filters + ranking
+- GreekMatch pages use interactions/matches/messages APIs (no client DB for swipes)
+- Budget API role checks; line table read-only for non-treasurers
+- Dashboard summary API expanded (events, reimbursements, budget)
 
 ## Still open (honest backlog)
 
 | Priority | Item |
 |----------|------|
-| P1 | Merge wave branches to `main`; run migrations **001–024**; set production env; `curl /api/ready` |
-| P2 | Client Supabase remains on: profile, budget, GreekMatch, feed, documents (storage), server pages |
-| P2 | Dashboard still server-side Supabase (summary API ready for refactor) |
-| Launch | Counsel review of terms/privacy; Stripe + `SUPABASE_SERVICE_ROLE_KEY` in prod |
+| P1 | Apply migrations **001–025** in production; set Vercel env; `curl /api/ready` |
+| P2 | Dashboard page still uses server Supabase (summary API ready for refactor) |
+| P2 | Feed/documents version uploads still use client storage |
+| Launch | Live Stripe checkout, SMS opt-out, terms/privacy counsel review |
 
 ## Environment
 
@@ -90,17 +66,6 @@ Round to **~77%** overall. **Launch-ready ~70%** — apply migrations, set produ
 | `SUPABASE_SERVICE_ROLE_KEY` | Org create, budget auto-sync on webhooks |
 | Stripe + webhook | Card payments → budget |
 | `005_seed.sql` | Demo chapter for onboarding |
-
-## Finance flow (target state)
-
-```mermaid
-flowchart LR
-  Payments --> Ledger[Live ledger]
-  Reimb --> Ledger
-  Phil --> Ledger
-  Housing --> Payments
-  Ledger --> Budget[Budget lines]
-```
 
 ## Related docs
 

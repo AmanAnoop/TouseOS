@@ -8,7 +8,6 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { Badge, Button, EmptyState, Modal, Spinner } from "@/components/ui";
 import toast from "react-hot-toast";
-import { rankGreekMatchCandidates } from "@/lib/greekmatch-scorer";
 
 interface GmProfile {
   id: string;
@@ -48,52 +47,28 @@ export default function GreekMatchPage() {
       if (!user) return;
       setUserId(user.id);
 
-      const { data: mine } = await supabase
-        .from("greekmatch_profiles")
-        .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      const res = await fetch("/api/greekmatch/candidates");
+      if (!res.ok) {
+        setLoading(false);
+        return;
+      }
+      const data = await res.json();
 
-      if (!mine) { setLoading(false); return; }
-
-      if (mine.paused || !mine.is_active) {
-        setProfileSuspended(true);
-        setMyProfile(mine as GmProfile);
+      if (!data.myProfile) {
         setLoading(false);
         return;
       }
 
-      setMyProfile(mine as GmProfile);
+      if (data.suspended) {
+        setProfileSuspended(true);
+        setMyProfile(data.myProfile as GmProfile);
+        setLoading(false);
+        return;
+      }
 
-      // Load seen list
-      const { data: seen } = await supabase
-        .from("greekmatch_interactions")
-        .select("target_id")
-        .eq("actor_id", user.id);
-
-      const seenIds = new Set((seen ?? []).map((s: Record<string, unknown>) => String(s.target_id)));
-
-      // Load candidates from OTHER Greek orgs
-      const { data: profiles } = await supabase
-        .from("greekmatch_profiles")
-        .select("*, organizations(name)")
-        .eq("is_active", true)
-        .eq("paused", false)
-        .neq("user_id", user.id)
-        .limit(30);
-
-      const filtered = ((profiles ?? []) as Array<Record<string, unknown>>)
-        .filter((p) => !seenIds.has(String(p.user_id)))
-        .map((p) => ({
-          ...p,
-          org_name: (p.organizations as Record<string, unknown>)?.name as string | undefined,
-        })) as unknown as GmProfile[];
-
-      const viewerProfile = mine as GmProfile;
-      const ranked = rankGreekMatchCandidates(viewerProfile, filtered);
-
-      setCandidates(ranked);
-      setSeenCount(seenIds.size);
+      setMyProfile(data.myProfile as GmProfile);
+      setCandidates((data.candidates ?? []) as GmProfile[]);
+      setSeenCount(data.seenCount ?? 0);
       setLoading(false);
     }
     init();
@@ -129,35 +104,23 @@ export default function GreekMatchPage() {
     setAnimating(null);
     setDrag({ x: 0, rotation: 0 });
 
-    await supabase.from("greekmatch_interactions").upsert({
-      actor_id: userId,
-      target_id: currentProfile.user_id,
-      action,
-    }, { onConflict: "actor_id,target_id" });
-
-    if (action !== "pass") {
-      // Check if other user already liked us
-      const { data: reciprocal } = await supabase
-        .from("greekmatch_interactions")
-        .select("id")
-        .eq("actor_id", currentProfile.user_id)
-        .eq("target_id", userId)
-        .in("action", ["like", "super_like"])
-        .maybeSingle();
-
-      if (reciprocal) {
-        // It's a match!
-        const [a, b] = [userId, currentProfile.user_id].sort();
-        await supabase.from("greekmatch_matches").upsert(
-          { user_a_id: a, user_b_id: b },
-          { onConflict: "user_a_id,user_b_id" },
-        );
-        setMatchModal(currentProfile);
-      }
+    const res = await fetch("/api/greekmatch/interactions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ targetUserId: currentProfile.user_id, action }),
+    });
+    if (!res.ok) {
+      toast.error("Could not save swipe");
+      return;
+    }
+    const payload = await res.json();
+    if (payload.isMatch) {
+      setMatchModal(currentProfile);
     }
 
     setCurrent((prev) => prev + 1);
-  }, [userId, currentProfile, supabase]);
+    setSeenCount((s) => s + 1);
+  }, [userId, currentProfile]);
 
   // Drag / swipe handling
   function onPointerDown(e: React.PointerEvent) {

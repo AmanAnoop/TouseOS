@@ -219,6 +219,7 @@ export default function BudgetPage() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        orgId,
         action: "add",
         budgetId: selectedBudget.id,
         category: lineForm.category,
@@ -242,11 +243,16 @@ export default function BudgetPage() {
   }
 
   async function updateActual(lineId: string, actual: number) {
-    await fetch("/api/budget", {
+    if (!orgId || !canEditBudget) return;
+    const res = await fetch("/api/budget", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lineId, actual }),
+      body: JSON.stringify({ orgId, lineId, actual }),
     });
+    if (!res.ok) {
+      toast.error("Could not update line");
+      return;
+    }
     setSelectedBudget((prev) => prev ? {
       ...prev,
       budget_lines: prev.budget_lines.map((l) => l.id === lineId ? { ...l, actual } : l),
@@ -254,11 +260,16 @@ export default function BudgetPage() {
   }
 
   async function updateBudgeted(lineId: string, budgeted: number) {
-    await fetch("/api/budget", {
+    if (!orgId || !canEditBudget) return;
+    const res = await fetch("/api/budget", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lineId, budgeted }),
+      body: JSON.stringify({ orgId, lineId, budgeted }),
     });
+    if (!res.ok) {
+      toast.error("Could not update line");
+      return;
+    }
     setSelectedBudget((prev) => prev ? {
       ...prev,
       budget_lines: prev.budget_lines.map((l) => l.id === lineId ? { ...l, budgeted } : l),
@@ -266,11 +277,16 @@ export default function BudgetPage() {
   }
 
   async function deleteLine(lineId: string) {
-    await fetch("/api/budget", {
+    if (!orgId || !canEditBudget) return;
+    const res = await fetch("/api/budget", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "delete", lineId }),
+      body: JSON.stringify({ orgId, action: "delete", lineId }),
     });
+    if (!res.ok) {
+      toast.error("Could not delete line");
+      return;
+    }
     setSelectedBudget((prev) => prev ? { ...prev, budget_lines: prev.budget_lines.filter((l) => l.id !== lineId) } : prev);
   }
 
@@ -448,6 +464,7 @@ export default function BudgetPage() {
             <BudgetLineTable
               lines={tab === "overview" ? lines : tab === "income" ? incomeLines : expenseLines}
               showType={tab === "overview"}
+              readOnly={!canEditBudget}
               onUpdateBudgeted={updateBudgeted}
               onUpdateActual={updateActual}
               onDelete={deleteLine}
