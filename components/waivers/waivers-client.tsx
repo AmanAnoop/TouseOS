@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { CheckCircle2, Shield, AlertTriangle } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import {
   Badge, Button, Card, CardHeader, EmptyState, PageHeader, ProgressBar, StatCard,
 } from "@/components/ui";
@@ -22,7 +23,7 @@ const WAIVER_TYPES = [
 
 export function WaiversClient() {
   const supabase = createClient();
-  const [orgId, setOrgId] = useState<string | null>(null);
+  const { orgId, userId } = useOrg();
   const [myMemberId, setMyMemberId] = useState<string | null>(null);
   const [members, setMembers] = useState<Array<Record<string, unknown>>>([]);
   const [waivers, setWaivers] = useState<Array<Record<string, unknown>>>([]);
@@ -43,17 +44,8 @@ export function WaiversClient() {
   }, [supabase]);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) {
-        setOrgId(m.org_id);
-        load(m.org_id, user.id);
-      }
-    }
-    init();
-  }, [supabase, load]);
+    if (orgId && userId) load(orgId, userId);
+  }, [orgId, userId, load]);
 
   async function signWaiver(waiverType: string, memberId?: string) {
     if (!orgId) return;

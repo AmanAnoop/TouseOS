@@ -13,6 +13,7 @@ import {
   Modal, PageHeader, StatCard, Tabs,
 } from "@/components/ui";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { useOrg } from "@/hooks/use-org";
 import type { SportsTravelTrip } from "@/types";
 
 const COST_CATEGORIES = [
@@ -32,9 +33,9 @@ const COST_CATEGORIES = [
 export default function TravelPage() {
   const searchParams = useSearchParams();
   const supabase = createClient();
+  const { orgId } = useOrg();
   const [trips, setTrips] = useState<SportsTravelTrip[]>([]);
   const [loading, setLoading] = useState(true);
-  const [orgId, setOrgId] = useState<string | null>(null);
   const [tab, setTab] = useState("trips");
   const [createOpen, setCreateOpen] = useState(false);
   const [calcOpen, setCalcOpen] = useState(false);
@@ -55,14 +56,8 @@ export default function TravelPage() {
   }, [supabase]);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) { setOrgId(m.org_id); load(m.org_id); }
-    }
-    init();
-  }, [supabase, load]);
+    if (orgId) load(orgId);
+  }, [orgId, load]);
 
   useEffect(() => {
     if (searchParams.get("create") === "1") {

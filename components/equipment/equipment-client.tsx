@@ -7,6 +7,7 @@ import {
   Badge, Button, Card, CardHeader, EmptyState, Input, Modal,
   PageHeader, Select, StatCard,
 } from "@/components/ui";
+import { useOrg } from "@/hooks/use-org";
 
 interface EquipmentItem {
   id: string;
@@ -25,7 +26,7 @@ interface Assignment {
 }
 
 export function EquipmentClient() {
-  const [orgId, setOrgId] = useState<string | null>(null);
+  const { orgId } = useOrg();
   const [equipment, setEquipment] = useState<EquipmentItem[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [members, setMembers] = useState<Array<{ id: string; full_name: string }>>([]);
@@ -57,16 +58,8 @@ export function EquipmentClient() {
   }, []);
 
   useEffect(() => {
-    async function init() {
-      const { createClient } = await import("@/lib/supabase/client");
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) { setOrgId(m.org_id); load(m.org_id); }
-    }
-    init();
-  }, [load]);
+    if (orgId) load(orgId);
+  }, [orgId, load]);
 
   async function addItem() {
     if (!orgId || !itemForm.itemName) return;

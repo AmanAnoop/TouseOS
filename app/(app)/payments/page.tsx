@@ -40,20 +40,21 @@ export default function PaymentsPage() {
 
   const loadPayments = useCallback(async (oid: string) => {
     setLoading(true);
-    const { data } = await supabase
-      .from("payments")
-      .select("*, member_profiles(*)")
-      .eq("org_id", oid)
-      .order("due_date", { ascending: true });
-    const [memberRes, plansRes] = await Promise.all([
+    const [paymentsRes, memberRes, plansRes] = await Promise.all([
+      fetch(`/api/payments?org_id=${encodeURIComponent(oid)}`),
       supabase
         .from("member_profiles")
         .select("id, full_name, membership_status, payment_status, attendance_rate, email, role, org_id, user_id, forms_completed, forms_required, class_year, graduation_year, committees, created_at, updated_at")
         .eq("org_id", oid),
-      fetch(`/api/payments/plans?org_id=${oid}`),
+      fetch(`/api/payments/plans?org_id=${encodeURIComponent(oid)}`),
     ]);
+    if (paymentsRes.ok) {
+      setPayments((await paymentsRes.json()) as PaymentWithMember[]);
+    } else {
+      const err = await paymentsRes.json().catch(() => ({}));
+      toast.error(err.error ?? "Failed to load payments");
+    }
     setMembers((memberRes.data ?? []) as MemberProfile[]);
-    setPayments((data ?? []) as PaymentWithMember[]);
     if (plansRes.ok) {
       const plans = await plansRes.json();
       setPlanCount(Array.isArray(plans) ? plans.length : 0);

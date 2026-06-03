@@ -3,14 +3,14 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Calendar, Plus } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import {
-  Button, Card, EmptyState, PageHeader,
+  Button, EmptyState, PageHeader,
   SearchInput, Skeleton, Tabs,
 } from "@/components/ui";
 import type { Event } from "@/types";
 import { EventCard } from "@/components/events/event-card";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useOrg } from "@/hooks/use-org";
 
 const TABS = [
   { id: "upcoming", label: "Upcoming" },
@@ -19,7 +19,7 @@ const TABS = [
 ];
 
 export default function EventsPage() {
-  const supabase = createClient();
+  const { orgId, loading: orgLoading } = useOrg();
   const { can, loading: permLoading } = usePermissions();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,25 +27,35 @@ export default function EventsPage() {
   const [query, setQuery] = useState("");
 
   const loadEvents = useCallback(async () => {
+    if (!orgId) return;
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-    if (!m) return;
-
+    const res = await fetch(`/api/events?org_id=${encodeURIComponent(orgId)}`);
+    if (!res.ok) {
+      setLoading(false);
+      return;
+    }
+    const all = (await res.json()) as Event[];
     const now = new Date().toISOString();
-    let q = supabase.from("events").select("*").eq("org_id", m.org_id);
 
-    if (tab === "upcoming") q = q.gte("starts_at", now).eq("status", "upcoming").order("starts_at");
-    else if (tab === "past") q = q.lt("starts_at", now).order("starts_at", { ascending: false });
-    else q = q.eq("status", "draft").order("created_at", { ascending: false });
+    const filteredByTab = all.filter((e) => {
+      if (tab === "draft") return e.status === "draft";
+      if (tab === "past") return new Date(e.starts_at) < new Date(now);
+      return e.status !== "draft" && new Date(e.starts_at) >= new Date(now);
+    });
 
-    const { data } = await q.limit(50);
-    setEvents((data ?? []) as Event[]);
+    filteredByTab.sort((a, b) => {
+      const ta = new Date(a.starts_at).getTime();
+      const tb = new Date(b.starts_at).getTime();
+      return tab === "past" ? tb - ta : ta - tb;
+    });
+
+    setEvents(filteredByTab.slice(0, 50));
     setLoading(false);
-  }, [supabase, tab]);
+  }, [orgId, tab]);
 
-  useEffect(() => { loadEvents(); }, [loadEvents]);
+  useEffect(() => {
+    loadEvents();
+  }, [loadEvents]);
 
   const filtered = events.filter((e) =>
     !query ||
@@ -75,33 +85,27 @@ export default function EventsPage() {
         placeholder="Search events..."
       />
 
-      {loading ? (
+      {(loading || orgLoading) ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Card key={i} padding="sm">
-              <Skeleton className="h-32 w-full rounded-lg mb-3" />
-              <Skeleton className="h-4 w-3/4 mb-2" />
-              <Skeleton className="h-3 w-1/2" />
-            </Card>
+            <Skeleton key={i} className="h-40 rounded-xl" />
           ))}
         </div>
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={<Calendar size={24} />}
-          title={tab === "upcoming" ? "No upcoming events" : "No events found"}
-          description={tab === "upcoming" ? "Create your first event." : undefined}
+          title={tab === "upcoming" ? "No upcoming events" : tab === "past" ? "No past events" : "No drafts"}
+          description="Create an event to get started."
           action={
-            tab === "upcoming" ? (
-              <Link href="/events/new">
-                <Button size="sm" icon={<Plus size={14} />}>Create event</Button>
-              </Link>
+            !permLoading && can("manage_events") ? (
+              <Link href="/events/new"><Button size="sm" icon={<Plus size={14} />}>New event</Button></Link>
             ) : undefined
           }
         />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((e) => (
-            <EventCard key={e.id} event={e} />
+          {filtered.map((event) => (
+            <EventCard key={event.id} event={event} />
           ))}
         </div>
       )}
