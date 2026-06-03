@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { loadActiveMembershipServer } from "@/lib/active-org-membership-server";
 import { YearbookPrintClient } from "@/components/yearbook/yearbook-print-client";
+import { attachPhotoDisplayUrls } from "@/lib/photo-access";
 import type { YearbookExportData } from "@/lib/yearbook-export";
 
 export const dynamic = "force-dynamic";
@@ -23,13 +24,15 @@ export default async function YearbookPrintPage() {
 
   const [eventsRes, photosRes, albumsRes, sectionsRes] = await Promise.all([
     supabase.from("events").select("id, title, type, starts_at").eq("org_id", orgId).gte("starts_at", semesterStart.toISOString()).order("starts_at"),
-    supabase.from("photos").select("id, url, caption, created_at").eq("org_id", orgId).eq("status", "approved").order("created_at", { ascending: false }).limit(48),
+    supabase.from("photos").select("id, url, storage_path, caption, created_at").eq("org_id", orgId).eq("status", "approved").order("created_at", { ascending: false }).limit(48),
     supabase.from("photo_albums").select("id, event_id").eq("org_id", orgId),
     supabase.from("yearbook_sections").select("*").eq("org_id", orgId).order("order_index"),
   ]);
 
   const events = eventsRes.data ?? [];
-  const photos = photosRes.data ?? [];
+  const photosRaw = (photosRes.data ?? []) as Array<{ id: string; url?: string; storage_path?: string; caption?: string | null; created_at: string }>;
+  const photosResolved = await attachPhotoDisplayUrls(supabase, photosRaw);
+  const photos = photosResolved.map((p) => ({ ...p, url: p.display_url ?? p.url }));
   const albums = albumsRes.data ?? [];
   const customSections = sectionsRes.data ?? [];
   const albumByEvent = new Map(albums.filter((a) => a.event_id).map((a) => [String(a.event_id), a]));

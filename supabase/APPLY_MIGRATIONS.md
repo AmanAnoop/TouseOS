@@ -13,6 +13,7 @@ Run these SQL files **in order** in the Supabase SQL Editor (or `psql` against y
 | 025 | `025_feature_fixes.sql` | Yes — budget lines, payment items, tasks RLS, housing contacts, waiver sign |
 | 026 | `026_task_assignees_health.sql` | Yes — multi-assignee tasks, task assignee RLS |
 | 027 | `027_travel_locations.sql` | Yes — SportsOS trip venue, address, departure/meeting points |
+| 028 | `028_org_location_presets.sql` | Yes — saved venue presets for events and travel |
 | 005 | `005_seed.sql` | Optional demo chapter |
 
 After apply:

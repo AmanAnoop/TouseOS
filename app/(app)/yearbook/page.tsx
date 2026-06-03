@@ -8,6 +8,7 @@ import { BookOpen, Camera, Heart } from "lucide-react";
 import { YearbookExportButton } from "@/components/yearbook/yearbook-export-button";
 import { YearbookPrintTrigger } from "@/components/yearbook/yearbook-print-trigger";
 import { YearbookPageExtras } from "@/components/yearbook/yearbook-page-extras";
+import { attachPhotoDisplayUrls } from "@/lib/photo-access";
 import type { YearbookExportData } from "@/lib/yearbook-export";
 
 export const metadata = { title: "Digital Yearbook" };
@@ -29,13 +30,18 @@ export default async function YearbookPage() {
 
   const [eventsRes, photosRes, albumsRes, sectionsRes] = await Promise.all([
     supabase.from("events").select("id, title, type, starts_at").eq("org_id", orgId).gte("starts_at", semesterStart.toISOString()).order("starts_at"),
-    supabase.from("photos").select("id, url, caption, created_at, album_id, status").eq("org_id", orgId).eq("status", "approved").order("created_at", { ascending: false }).limit(48),
+    supabase.from("photos").select("id, url, storage_path, caption, created_at, album_id, status").eq("org_id", orgId).eq("status", "approved").order("created_at", { ascending: false }).limit(48),
     supabase.from("photo_albums").select("id, title, event_id, cover_url").eq("org_id", orgId),
     supabase.from("yearbook_sections").select("*").eq("org_id", orgId).order("order_index"),
   ]);
 
   const events = (eventsRes.data ?? []) as Array<Record<string, unknown>>;
-  const photos = (photosRes.data ?? []) as Array<Record<string, unknown>>;
+  const photosRaw = (photosRes.data ?? []) as Array<{ url?: string; storage_path?: string }>;
+  const photosResolved = await attachPhotoDisplayUrls(supabase, photosRaw);
+  const photos = photosResolved.map((p) => ({
+    ...p,
+    url: p.display_url ?? p.url,
+  })) as Array<Record<string, unknown>>;
   const albums = (albumsRes.data ?? []) as Array<Record<string, unknown>>;
   const customSections = (sectionsRes.data ?? []) as Array<Record<string, unknown>>;
 

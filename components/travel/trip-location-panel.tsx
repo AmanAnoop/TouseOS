@@ -98,7 +98,7 @@ export function TripLocationPanel({
           </>
         }
       >
-        <LocationFields variant="travel" values={values} onChange={(p) => setValues((v) => ({ ...v, ...p }))} />
+        <LocationFields variant="travel" orgId={orgId} values={values} onChange={(p) => setValues((v) => ({ ...v, ...p }))} />
       </Modal>
     </Card>
   );

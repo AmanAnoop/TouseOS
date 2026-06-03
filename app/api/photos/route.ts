@@ -1,5 +1,14 @@
 import { NextResponse } from "next/server";
+import { attachPhotoDisplayUrls } from "@/lib/photo-access";
 import { createClient } from "@/lib/supabase/server";
+
+async function withDisplayUrls<T extends { url?: string | null; storage_path?: string | null }>(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  rows: T[],
+) {
+  const resolved = await attachPhotoDisplayUrls(supabase, rows);
+  return resolved.map((p) => ({ ...p, url: p.display_url ?? p.url }));
+}
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -19,18 +28,18 @@ export async function GET(request: Request) {
       .order("created_at", { ascending: false })
       .limit(limit);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json(data ?? []);
+    return NextResponse.json(await withDisplayUrls(supabase, (data ?? []) as Array<{ url?: string; storage_path?: string }>));
   }
 
   if (orgId) {
     const { data, error } = await supabase
       .from("photos")
-      .select("id, url, caption, uploader_name, created_at, status, album_id")
+      .select("id, url, storage_path, caption, uploader_name, created_at, status, album_id")
       .eq("org_id", orgId)
       .order("created_at", { ascending: false })
       .limit(limit);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json(data ?? []);
+    return NextResponse.json(await withDisplayUrls(supabase, (data ?? []) as Array<{ url?: string; storage_path?: string }>));
   }
 
   return NextResponse.json({ error: "album_id or org_id required" }, { status: 400 });
@@ -43,11 +52,15 @@ export async function POST(request: Request) {
 
   const { orgId, albumId, url, storagePath, caption } = await request.json();
 
+  if (!storagePath) {
+    return NextResponse.json({ error: "storagePath required" }, { status: 400 });
+  }
+
   const { data, error } = await supabase.from("photos").insert({
     org_id: orgId,
     album_id: albumId,
     uploaded_by: user.id,
-    url,
+    url: url ?? null,
     storage_path: storagePath,
     caption: caption ?? null,
     status: "pending",

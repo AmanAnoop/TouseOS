@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
+import { isDashboardOfficer } from "@/lib/dashboard-roles";
 import { createClient } from "@/lib/supabase/server";
-
-const OFFICER_ROLES = [
-  "owner", "president", "vice_president", "treasurer", "secretary",
-  "social_chair", "recruitment_chair", "risk_manager", "advisor", "pr_chair",
-];
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -12,8 +8,8 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { orgId, url, storagePath, caption } = await request.json();
-  if (!orgId || !url) {
-    return NextResponse.json({ error: "orgId and url required" }, { status: 400 });
+  if (!orgId || !storagePath) {
+    return NextResponse.json({ error: "orgId and storagePath required" }, { status: 400 });
   }
 
   const { data: membership } = await supabase
@@ -24,7 +20,8 @@ export async function POST(request: Request) {
     .neq("status", "removed")
     .maybeSingle();
 
-  if (!membership || !OFFICER_ROLES.includes(String(membership.role))) {
+  const role = String(membership?.role ?? "");
+  if (!membership || !isDashboardOfficer(role)) {
     return NextResponse.json({ error: "Officer access required" }, { status: 403 });
   }
 
@@ -35,9 +32,9 @@ export async function POST(request: Request) {
     .insert({
       org_id: orgId,
       uploaded_by: user.id,
-      uploader_name: profile?.full_name ?? "Officer",
-      url,
-      storage_path: storagePath ?? null,
+      uploader_name: profile?.full_name ?? "Member",
+      url: url ?? storagePath,
+      storage_path: storagePath,
       caption: caption ?? null,
       status: "approved",
       approved_by: user.id,

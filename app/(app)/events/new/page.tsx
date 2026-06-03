@@ -135,6 +135,7 @@ export default function NewEventPage() {
         </div>
         <LocationFields
           variant="event"
+          orgId={orgId ?? undefined}
           values={form.locationValues}
           onChange={(patch) => setForm({ ...form, locationValues: { ...form.locationValues, ...patch } })}
         />

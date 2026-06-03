@@ -6,7 +6,7 @@ import { Badge, Card, ProgressBar,
 } from "@/components/ui";
 import {
   Calendar, ChevronLeft, Clock, ExternalLink,
-  MapPin, Music, Users,
+  Music, Users,
 } from "lucide-react";
 import { EventHeroActions } from "@/components/events/event-hero-actions";
 import { EventDetailLocationSection } from "@/components/events/event-detail-location-section";

@@ -89,6 +89,7 @@ export function EventEditPanel({
           </div>
           <LocationFields
             variant="event"
+            orgId={orgId}
             values={locationValues}
             onChange={(patch) => setLocationValues((v) => ({ ...v, ...patch }))}
           />

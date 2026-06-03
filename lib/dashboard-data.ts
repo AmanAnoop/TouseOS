@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { computeHealthScore } from "@/lib/health-score";
 import type { DeadlineItem } from "@/components/dashboard/upcoming-deadlines";
+import { attachPhotoDisplayUrls } from "@/lib/photo-access";
 import { isClubOrg, isGreekOrg, isSportsOrg } from "@/lib/utils";
 import type {
   Announcement,
@@ -319,7 +320,7 @@ export async function loadDashboardData(
       .limit(1),
     supabase
       .from("photos")
-      .select("id, url, caption, uploader_name, created_at, status")
+      .select("id, url, storage_path, caption, uploader_name, created_at, status")
       .eq("org_id", orgId)
       .order("created_at", { ascending: false })
       .limit(4),
@@ -401,7 +402,15 @@ export async function loadDashboardData(
 
   const reimbs = (reimbsRes.data ?? []) as DashboardData["reimbs"];
   const budgets = (budgetsRes.data ?? []) as DashboardData["budgets"];
-  const photos = (photosRes.data ?? []) as Array<Record<string, unknown>>;
+  const photosRaw = (photosRes.data ?? []) as Array<Record<string, unknown>>;
+  const photosResolved = await attachPhotoDisplayUrls(
+    supabase,
+    photosRaw as Array<{ url?: string; storage_path?: string }>,
+  );
+  const photos = photosResolved.map((p) => ({
+    ...p,
+    url: p.display_url ?? p.url,
+  })) as Array<Record<string, unknown>>;
   const pnmLeads = (pnmRes.data ?? []) as Array<{ status: string }>;
   const sportsTrips = (tripsRes.data ?? []) as DashboardData["sportsTrips"];
   const waivers = (waiversRes.data ?? []) as DashboardData["waivers"];

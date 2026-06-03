@@ -188,6 +188,7 @@ export default function TravelPage() {
           <Input label="Trip title *" placeholder="State Championships – Columbus" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
           <LocationFields
             variant="travel"
+            orgId={orgId ?? undefined}
             values={form.location}
             onChange={(patch) => setForm({ ...form, location: { ...form.location, ...patch } })}
           />
