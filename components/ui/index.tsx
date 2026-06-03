@@ -658,7 +658,7 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, description, action, breadcrumb, className }: PageHeaderProps) {
   return (
-    <div className={cn("flex items-start justify-between gap-4 pb-4", className)}>
+    <div className={cn("flex items-start justify-between gap-4 pb-4 border-b border-campus-600/25 mb-1", className)}>
       <div>
         {breadcrumb && (
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">

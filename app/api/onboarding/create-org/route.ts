@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getProductId, productHomePath } from "@/lib/org-product";
-import { resolveChapterColors } from "@/lib/chapter-theme";
+import { colorsForOrgStorage } from "@/lib/chapter-theme";
 import { getGreekOrgById } from "@/lib/greek-letter-orgs";
 import { getUniversityById } from "@/lib/university-colors";
 import { REGAL_PRIMARY, REGAL_SECONDARY } from "@/lib/regal-theme";
@@ -124,12 +124,16 @@ export async function POST(request: Request) {
   const greekAffiliationId = body.greekAffiliationId ? String(body.greekAffiliationId) : "";
   const greekOrg = getGreekOrgById(greekAffiliationId);
   const university = getUniversityById(universityId);
-  const { primary: primaryColor, secondary: secondaryColor } = resolveChapterColors({
+  const product = getProductId(type);
+  const stored = colorsForOrgStorage({
+    product,
     greekOrg: greekOrg?.id === "custom" ? undefined : greekOrg,
     university: university?.id === "custom-campus" ? undefined : university,
     primaryColor: body.primaryColor ? String(body.primaryColor) : REGAL_PRIMARY,
     secondaryColor: body.secondaryColor ? String(body.secondaryColor) : REGAL_SECONDARY,
   });
+  const primaryColor = stored.primary_color;
+  const secondaryColor = stored.secondary_color;
 
   if (!name || !type) {
     return NextResponse.json({ error: "Organization name and type are required" }, { status: 400 });
@@ -211,8 +215,7 @@ export async function POST(request: Request) {
     settings: input.settings,
   }).eq("id", org.id);
 
-  const product = getProductId(org.type ?? type);
-  const redirectTo = productHomePath(product);
+  const redirectTo = productHomePath(getProductId(org.type ?? type));
 
   const response = NextResponse.json({
     org: { id: org.id, name: org.name, type: org.type ?? type, invite_code: org.invite_code },

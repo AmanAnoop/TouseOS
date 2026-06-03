@@ -1,9 +1,13 @@
 import type { Config } from "tailwindcss";
 
-const greekScale = ["50", "100", "200", "300", "400", "500", "600", "700", "800", "900", "950"] as const;
-const greekColors = Object.fromEntries(
-  greekScale.map((s) => [s, `hsl(var(--greek-${s}) / <alpha-value>)`]),
-) as Record<string, string>;
+const scaleKeys = ["50", "100", "200", "300", "400", "500", "600", "700", "800", "900", "950"] as const;
+const cssScale = (prefix: string) =>
+  Object.fromEntries(
+    scaleKeys.map((s) => [s, `hsl(var(--${prefix}-${s}) / <alpha-value>)`]),
+  ) as Record<string, string>;
+const greekColors = cssScale("greek");
+const campusColors = cssScale("campus");
+const sportsColors = cssScale("sports");
 
 const config: Config = {
   darkMode: "class",
@@ -16,6 +20,7 @@ const config: Config = {
     extend: {
       colors: {
         greek: greekColors,
+        campus: campusColors,
         regal: {
           navy: "hsl(var(--regal-navy) / <alpha-value>)",
           green: "hsl(var(--regal-green) / <alpha-value>)",
@@ -34,19 +39,7 @@ const config: Config = {
           900: "#4c1d95",
           950: "#2e1065",
         },
-        sports: {
-          50: "#eff6ff",
-          100: "#dbeafe",
-          200: "#bfdbfe",
-          300: "#93c5fd",
-          400: "#60a5fa",
-          500: "#3b82f6",
-          600: "#1e3a5f",
-          700: "#1d4ed8",
-          800: "#1e40af",
-          900: "#172554",
-          950: "#0f172a",
-        },
+        sports: sportsColors,
         surface: {
           0: "hsl(var(--surface-0))",
           1: "hsl(var(--surface-1))",

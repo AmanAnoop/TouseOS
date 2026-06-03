@@ -1,45 +1,57 @@
-import { blendHex, hexToHslChannels } from "@/lib/color-utils";
+import { hexToHslChannels } from "@/lib/color-utils";
 import { REGAL, REGAL_PRIMARY, REGAL_SECONDARY } from "@/lib/regal-theme";
 import type { GreekLetterOrg } from "@/lib/greek-letter-orgs";
 import type { UniversityPreset } from "@/lib/university-colors";
+import type { ProductId } from "@/lib/org-product";
 
 export interface ChapterThemeInput {
+  product?: ProductId;
   primaryColor?: string | null;
   secondaryColor?: string | null;
   greekOrg?: GreekLetterOrg | null;
   university?: UniversityPreset | null;
 }
 
-/** Build chapter primary/secondary by blending regal base + university + letters. */
-export function resolveChapterColors(input: ChapterThemeInput): { primary: string; secondary: string } {
-  const lettersPrimary = input.greekOrg?.primary ?? input.primaryColor ?? REGAL_PRIMARY;
-  const lettersSecondary = input.greekOrg?.secondary ?? input.secondaryColor ?? REGAL_SECONDARY;
-  const uniPrimary = input.university?.primary;
-  const uniSecondary = input.university?.secondary;
-
-  let primary = lettersPrimary;
-  let secondary = lettersSecondary;
-
-  if (uniPrimary) {
-    primary = blendHex(uniPrimary, lettersPrimary, 0.38);
-    secondary = blendHex(uniSecondary ?? uniPrimary, lettersSecondary, 0.32);
-  }
-
-  primary = blendHex(primary, REGAL.racingGreen, 0.22);
-  secondary = blendHex(secondary, REGAL.navy, 0.28);
-
-  if (input.primaryColor && !input.greekOrg && !input.university) {
-    primary = input.primaryColor;
-    secondary = input.secondaryColor ?? REGAL_SECONDARY;
-  }
-
-  return { primary, secondary };
+export interface ResolvedChapterColors {
+  /** Fraternity/sorority (or regal default) — buttons, nav, primary actions */
+  orgPrimary: string;
+  orgSecondary: string;
+  /** Campus — headers, accents, secondary UI (Greek dual-tone) */
+  campusPrimary: string;
+  campusSecondary: string;
 }
 
-/** Lightness steps for greek scale (50 = lightest). */
+export function resolveChapterColors(input: ChapterThemeInput): ResolvedChapterColors {
+  const product = input.product ?? "greek";
+  const uni = input.university?.id === "custom-campus" ? undefined : input.university;
+  const greek = input.greekOrg?.id === "custom" ? undefined : input.greekOrg;
+
+  const campusPrimary = uni?.primary ?? REGAL.navy;
+  const campusSecondary = uni?.secondary ?? REGAL.racingGreen;
+
+  if (product === "sports" || product === "club") {
+    return {
+      orgPrimary: campusPrimary,
+      orgSecondary: campusSecondary,
+      campusPrimary,
+      campusSecondary,
+    };
+  }
+
+  const orgPrimary = greek?.primary ?? input.primaryColor ?? REGAL_PRIMARY;
+  const orgSecondary = greek?.secondary ?? input.secondaryColor ?? REGAL_SECONDARY;
+
+  return {
+    orgPrimary,
+    orgSecondary,
+    campusPrimary,
+    campusSecondary,
+  };
+}
+
 const SCALE_LIGHTNESS = [97, 94, 88, 78, 62, 48, 38, 30, 22, 16, 10];
 
-function scaleFromPrimary(primaryHex: string, secondaryHex: string): Record<string, string> {
+function scaleFromHex(primaryHex: string, secondaryHex: string, prefix: string): Record<string, string> {
   const p = hexToHslChannels(primaryHex);
   const s = hexToHslChannels(secondaryHex);
   const [ph] = p.split(" ");
@@ -50,34 +62,59 @@ function scaleFromPrimary(primaryHex: string, secondaryHex: string): Record<stri
     const key = i === 0 ? "50" : i === 1 ? "100" : i === 2 ? "200" : i === 3 ? "300" : i === 4 ? "400"
       : i === 5 ? "500" : i === 6 ? "600" : i === 7 ? "700" : i === 8 ? "800" : i === 9 ? "900" : "950";
     const sat = i < 5 ? "18%" : i < 8 ? "42%" : "55%";
-    vars[`--greek-${key}`] = `${ph} ${sat} ${light}%`;
+    vars[`${prefix}-${key}`] = `${ph} ${sat} ${light}%`;
   });
-  vars["--greek-600"] = p;
-  vars["--greek-700"] = `${ph} 48% 32%`;
-  vars["--greek-800"] = s;
-  vars["--greek-900"] = `${sh} 55% 14%`;
-  vars["--greek-950"] = REGAL.navyDeep.replace("#", "") ? hexToHslChannels(REGAL.navyDeep) : `${sh} 60% 8%`;
+  vars[`${prefix}-600`] = p;
+  vars[`${prefix}-700`] = `${ph} 48% 32%`;
+  vars[`${prefix}-800`] = s;
+  vars[`${prefix}-900`] = `${sh} 55% 14%`;
+  vars[`${prefix}-950`] = hexToHslChannels(REGAL.navyDeep);
   return vars;
 }
 
 export function buildChapterThemeCss(input: ChapterThemeInput): string {
-  const { primary, secondary } = resolveChapterColors(input);
-  const greek = scaleFromPrimary(primary, secondary);
-  const primaryHsl = hexToHslChannels(primary);
+  const product = input.product ?? "greek";
+  const colors = resolveChapterColors(input);
+  const orgScale = scaleFromHex(colors.orgPrimary, colors.orgSecondary, "--greek");
+  const campusScale = scaleFromHex(colors.campusPrimary, colors.campusSecondary, "--campus");
+  const sportsScale = scaleFromHex(colors.orgPrimary, colors.orgSecondary, "--sports");
+
+  const orgHsl = hexToHslChannels(colors.orgPrimary);
+  const campusHsl = hexToHslChannels(colors.campusPrimary);
   const navyHsl = hexToHslChannels(REGAL.navy);
 
   const lines = [
-    ...Object.entries(greek).map(([k, v]) => `  ${k}: ${v};`),
-    `  --primary: ${primaryHsl};`,
+    ...Object.entries(orgScale).map(([k, v]) => `  ${k}: ${v};`),
+    ...Object.entries(campusScale).map(([k, v]) => `  ${k}: ${v};`),
+    ...(product === "sports" || product === "club"
+      ? Object.entries(sportsScale).map(([k, v]) => `  ${k}: ${v};`)
+      : []),
+    `  --primary: ${orgHsl};`,
     `  --primary-foreground: 45 30% 98%;`,
-    `  --ring: ${primaryHsl};`,
-    `  --accent: ${hexToHslChannels(REGAL.gold)};`,
-    `  --accent-foreground: ${navyHsl};`,
-    `  --chapter-primary: ${primary};`,
-    `  --chapter-secondary: ${secondary};`,
+    `  --ring: ${orgHsl};`,
+    `  --accent: ${campusHsl};`,
+    `  --accent-foreground: 45 30% 98%;`,
+    `  --chapter-org-primary: ${colors.orgPrimary};`,
+    `  --chapter-org-secondary: ${colors.orgSecondary};`,
+    `  --chapter-campus-primary: ${colors.campusPrimary};`,
+    `  --chapter-campus-secondary: ${colors.campusSecondary};`,
+    `  --regal-navy: ${navyHsl};`,
+    `  --regal-green: ${hexToHslChannels(REGAL.racingGreen)};`,
+    `  --regal-gold: ${hexToHslChannels(REGAL.gold)};`,
   ];
 
   return `:root {\n${lines.join("\n")}\n}`;
+}
+
+/** Colors to persist on organizations row */
+export function colorsForOrgStorage(
+  input: ChapterThemeInput,
+): { primary_color: string; secondary_color: string } {
+  const c = resolveChapterColors(input);
+  if (input.product === "sports" || input.product === "club") {
+    return { primary_color: c.campusPrimary, secondary_color: c.campusSecondary };
+  }
+  return { primary_color: c.orgPrimary, secondary_color: c.orgSecondary };
 }
 
 export function applyChapterTheme(input: ChapterThemeInput) {
@@ -90,10 +127,4 @@ export function applyChapterTheme(input: ChapterThemeInput) {
     document.head.appendChild(el);
   }
   el.textContent = css;
-}
-
-export function applyRegalDarkSurfaces() {
-  if (typeof document === "undefined") return;
-  const root = document.documentElement;
-  root.classList.add("theme-regal");
 }

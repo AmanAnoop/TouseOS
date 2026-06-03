@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { applyChapterTheme } from "@/lib/chapter-theme";
 import { getGreekOrgById } from "@/lib/greek-letter-orgs";
+import { getProductId } from "@/lib/org-product";
 import { getUniversityById } from "@/lib/university-colors";
 import type { Organization } from "@/types";
 
@@ -21,7 +22,9 @@ function readSettings(org: Organization | null): {
 export function ChapterThemeProvider({ org }: { org: Organization | null }) {
   const themeInput = useMemo(() => {
     const { greekAffiliationId, universityId } = readSettings(org);
+    const product = getProductId(org?.type ?? "general_org");
     return {
+      product,
       primaryColor: org?.primary_color,
       secondaryColor: org?.secondary_color,
       greekOrg: getGreekOrgById(greekAffiliationId),

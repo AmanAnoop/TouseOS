@@ -3,8 +3,9 @@
 import { useMemo } from "react";
 import { Select } from "@/components/ui";
 import { applyChapterTheme, resolveChapterColors } from "@/lib/chapter-theme";
-import { GREEK_LETTER_ORGS, getGreekOrgById, greekOrgsForKind } from "@/lib/greek-letter-orgs";
-import { UNIVERSITY_PRESETS, getUniversityById } from "@/lib/university-colors";
+import { getGreekOrgById, greekOrgsForKind } from "@/lib/greek-letter-orgs";
+import { getProductId } from "@/lib/org-product";
+import { universitiesForSelect } from "@/lib/university-colors";
 
 export interface ChapterIdentityValue {
   universityId: string;
@@ -26,47 +27,47 @@ export function ChapterIdentityPicker({
   disabled,
   onChange,
 }: ChapterIdentityPickerProps) {
+  const product = getProductId(orgType);
   const isGreek = orgType === "fraternity" || orgType === "sorority";
+  const isSports = product === "sports";
+  const isClub = product === "club";
+  const campusOnly = isSports || isClub;
   const greekOptions = useMemo(() => greekOrgsForKind(orgType as "fraternity" | "sorority"), [orgType]);
+  const uniOptions = useMemo(() => universitiesForSelect(), []);
 
   const preview = useMemo(() => {
     const greekOrg = getGreekOrgById(value.greekAffiliationId);
-    const university = getUniversityById(value.universityId);
+    const university = uniOptions.find((u) => u.id === value.universityId);
     return resolveChapterColors({
+      product,
       greekOrg: greekOrg?.id === "custom" ? undefined : greekOrg,
       university: university?.id === "custom-campus" ? undefined : university,
       primaryColor: value.primaryColor,
       secondaryColor: value.secondaryColor,
     });
-  }, [value]);
+  }, [value, product, uniOptions]);
 
   function emit(next: Partial<ChapterIdentityValue>) {
     const merged = { ...value, ...next };
     const greekOrg = getGreekOrgById(merged.greekAffiliationId);
-    const university = getUniversityById(merged.universityId);
-
-    let primaryColor = merged.primaryColor;
-    let secondaryColor = merged.secondaryColor;
-
-    if (greekOrg && greekOrg.id !== "custom") {
-      primaryColor = greekOrg.primary;
-      secondaryColor = greekOrg.secondary;
-    }
+    const university = uniOptions.find((u) => u.id === merged.universityId);
 
     const resolved = resolveChapterColors({
+      product,
       greekOrg: greekOrg?.id === "custom" ? undefined : greekOrg,
       university: university?.id === "custom-campus" ? undefined : university,
-      primaryColor,
-      secondaryColor,
+      primaryColor: merged.primaryColor,
+      secondaryColor: merged.secondaryColor,
     });
 
     const out: ChapterIdentityValue = {
       ...merged,
-      primaryColor: resolved.primary,
-      secondaryColor: resolved.secondary,
+      primaryColor: resolved.orgPrimary,
+      secondaryColor: campusOnly ? resolved.campusSecondary : resolved.orgSecondary,
     };
 
     applyChapterTheme({
+      product,
       greekOrg: greekOrg?.id === "custom" ? undefined : greekOrg,
       university: university?.id === "custom-campus" ? undefined : university,
       primaryColor: out.primaryColor,
@@ -81,7 +82,9 @@ export function ChapterIdentityPicker({
       <div>
         <h3 className="font-serif text-base font-semibold text-foreground">Chapter identity & colors</h3>
         <p className="text-xs text-muted-foreground mt-1">
-          Regal navy & racing green base, blended with your university and {isGreek ? "national organization" : "campus"} colors.
+          {campusOnly
+            ? "SportsOS & ClubOS use your university colors across the app."
+            : "Organization colors on buttons & nav · university colors on headers, accents & cards."}
         </p>
       </div>
 
@@ -92,7 +95,7 @@ export function ChapterIdentityPicker({
         onChange={(e) => emit({ universityId: e.target.value })}
         options={[
           { value: "", label: "Select university…" },
-          ...UNIVERSITY_PRESETS.map((u) => ({ value: u.id, label: u.name })),
+          ...uniOptions.map((u) => ({ value: u.id, label: u.name })),
         ]}
       />
 
@@ -112,27 +115,37 @@ export function ChapterIdentityPicker({
         />
       )}
 
-      <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card">
-        <div
-          className="h-12 w-12 rounded-lg border border-border shadow-card"
-          style={{ background: `linear-gradient(135deg, ${preview.primary} 0%, ${preview.secondary} 100%)` }}
-        />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium">Live theme preview</p>
-          <p className="text-xs font-mono text-muted-foreground truncate">
-            {preview.primary} · {preview.secondary}
+      <div className="grid sm:grid-cols-2 gap-3">
+        {!campusOnly && (
+          <div className="p-3 rounded-lg border border-border bg-card">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Organization</p>
+            <div className="flex gap-2">
+              <span className="h-8 flex-1 rounded-md border border-border" style={{ background: preview.orgPrimary }} />
+              <span className="h-8 flex-1 rounded-md border border-border" style={{ background: preview.orgSecondary }} />
+            </div>
+            <p className="text-[10px] font-mono text-muted-foreground mt-2 truncate">
+              {preview.orgPrimary}
+            </p>
+          </div>
+        )}
+        <div className={`p-3 rounded-lg border border-border bg-card ${campusOnly ? "sm:col-span-2" : ""}`}>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
+            {campusOnly ? "Team / club colors" : "Campus"}
           </p>
-        </div>
-        <div className="flex gap-1">
-          <span className="w-4 h-4 rounded-full border border-border" style={{ background: preview.primary }} title="Primary" />
-          <span className="w-4 h-4 rounded-full border border-border" style={{ background: preview.secondary }} title="Secondary" />
+          <div className="flex gap-2">
+            <span className="h-8 flex-1 rounded-md border border-border" style={{ background: preview.campusPrimary }} />
+            <span className="h-8 flex-1 rounded-md border border-border" style={{ background: preview.campusSecondary }} />
+          </div>
+          <p className="text-[10px] font-mono text-muted-foreground mt-2 truncate">
+            {preview.campusPrimary}
+          </p>
         </div>
       </div>
 
-      {value.greekAffiliationId === "custom" && (
+      {value.greekAffiliationId === "custom" && isGreek && (
         <div className="grid sm:grid-cols-2 gap-3">
           <label className="text-sm font-medium">
-            Custom primary
+            Custom org primary
             <input
               type="color"
               className="mt-1 h-10 w-full rounded-lg border border-border cursor-pointer"
@@ -142,7 +155,7 @@ export function ChapterIdentityPicker({
             />
           </label>
           <label className="text-sm font-medium">
-            Custom secondary
+            Custom org secondary
             <input
               type="color"
               className="mt-1 h-10 w-full rounded-lg border border-border cursor-pointer"
@@ -154,14 +167,9 @@ export function ChapterIdentityPicker({
         </div>
       )}
 
-      <details className="text-xs text-muted-foreground">
-        <summary className="cursor-pointer hover:text-foreground">
-          View all {GREEK_LETTER_ORGS.length} fraternity & sorority presets
-        </summary>
-        <p className="mt-2">
-          Full reference list: <code className="text-foreground">docs/greek-letter-org-colors.md</code>
-        </p>
-      </details>
+      <p className="text-xs text-muted-foreground">
+        {uniOptions.length - 1} campuses in directory · see <code className="text-foreground">docs/greek-letter-org-colors.md</code>
+      </p>
     </div>
   );
 }

@@ -215,16 +215,9 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
           <Input label="Campus" value={form.campus} onChange={(e) => setForm({ ...form, campus: e.target.value })} />
           <Input label="Council / league" value={form.councilOrLeague} onChange={(e) => setForm({ ...form, councilOrLeague: e.target.value })} />
           <Input label="Contact email" type="email" value={form.contactEmail} onChange={(e) => setForm({ ...form, contactEmail: e.target.value })} />
-          {(orgType === "fraternity" || orgType === "sorority") && (
+          {orgType && (
             <ChapterIdentityPicker
               orgType={orgType}
-              value={identity}
-              onChange={setIdentity}
-            />
-          )}
-          {orgType !== "fraternity" && orgType !== "sorority" && (
-            <ChapterIdentityPicker
-              orgType="general_org"
               value={identity}
               onChange={setIdentity}
             />

@@ -142,6 +142,27 @@
   .theme-regal .dark\:bg-greek-950\/30 {
     background-color: hsl(var(--primary) / 0.12);
   }
+
+  .theme-regal .text-campus-600,
+  .theme-regal .text-campus-700 {
+    color: hsl(var(--campus-600));
+  }
+  .theme-regal .bg-campus-600 {
+    background-color: hsl(var(--campus-600));
+  }
+  .theme-regal .border-t-campus-600 {
+    border-top-color: hsl(var(--campus-600));
+  }
+  .theme-regal .border-campus-600\/25 {
+    border-color: hsl(var(--campus-600) / 0.25);
+  }
+  .theme-regal .text-sports-600 {
+    color: hsl(var(--primary));
+  }
+  .theme-regal .bg-sports-600,
+  .theme-regal .bg-sports-50 {
+    background-color: hsl(var(--primary) / 0.12);
+  }
 }
 
 @layer utilities {

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireOrgProduct } from "@/lib/org-access";
 import { createClient } from "@/lib/supabase/server";
+import { getUniversityById } from "@/lib/university-colors";
 import {
   Alert, Badge, Button, Card, CardHeader, EmptyState, ProgressBar, StatCard,
 } from "@/components/ui";
@@ -17,6 +18,11 @@ export const metadata = { title: "SportsOS Dashboard" };
 export default async function SportsPage() {
   const { orgId } = await requireOrgProduct(["sports"]);
   const supabase = await createClient();
+  const { data: orgRow } = await supabase.from("organizations").select("settings, campus").eq("id", orgId).single();
+  const settings = (orgRow?.settings ?? {}) as Record<string, unknown>;
+  const university = getUniversityById(
+    typeof settings.university_id === "string" ? settings.university_id : undefined,
+  );
 
   const [membersRes, paymentsRes, waiversRes, tripsRes, injuriesRes, tryoutsRes, equipmentRes] = await Promise.all([
     supabase.from("member_profiles").select("id, full_name, membership_status, is_injured, payment_status").eq("org_id", orgId),
@@ -50,15 +56,30 @@ export default async function SportsPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <div className="w-7 h-7 rounded-lg bg-sports-600 flex items-center justify-center">
-              <Trophy size={14} className="text-white" />
+            <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
+              <Trophy size={14} className="text-primary-foreground" />
             </div>
-            <span className="text-sm font-semibold text-sports-600 uppercase tracking-wide">SportsOS</span>
+            <span className="text-sm font-semibold text-primary uppercase tracking-wide">SportsOS</span>
           </div>
-          <h1 className="text-2xl font-bold text-foreground">Team Dashboard</h1>
+          <h1 className="font-serif text-2xl font-semibold text-foreground">Team Dashboard</h1>
+          {university && (
+            <p className="text-sm text-muted-foreground mt-1">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-campus-600" />
+                {university.name} colors active
+              </span>
+              {" · "}
+              <Link href="/settings" className="text-campus-600 hover:underline">Change campus</Link>
+            </p>
+          )}
+          {!university && (
+            <p className="text-sm text-muted-foreground mt-1">
+              <Link href="/settings" className="text-campus-600 hover:underline">Set your university</Link> for team colors
+            </p>
+          )}
         </div>
         <Link href="/events/new">
-          <Button size="sm" className="bg-sports-600 hover:bg-sports-700">
+          <Button size="sm">
             <Calendar size={14} />
             Add event
           </Button>

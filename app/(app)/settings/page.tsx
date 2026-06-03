@@ -10,6 +10,10 @@ import {
   PageHeader, Tabs,
 } from "@/components/ui";
 import { OrgProfileForm, type OrgProfileFormData } from "@/components/settings/org-profile-form";
+import { colorsForOrgStorage } from "@/lib/chapter-theme";
+import { getGreekOrgById } from "@/lib/greek-letter-orgs";
+import { getProductId } from "@/lib/org-product";
+import { getUniversityById } from "@/lib/university-colors";
 import { InviteCodeCard } from "@/components/settings/invite-code-card";
 import { MemberRolesPanel, type OrgMemberWithProfile } from "@/components/settings/member-roles-panel";
 import { StripeConnectPanel } from "@/components/settings/stripe-connect-panel";
@@ -76,14 +80,22 @@ export default function SettingsPage() {
     if (!orgId) return;
     setSaving(true);
     const prevSettings = (org?.settings ?? {}) as Record<string, unknown>;
+    const orgType = String(org?.type ?? "fraternity");
+    const stored = colorsForOrgStorage({
+      product: getProductId(orgType),
+      greekOrg: getGreekOrgById(orgForm.greekAffiliationId),
+      university: getUniversityById(orgForm.universityId),
+      primaryColor: orgForm.primaryColor,
+      secondaryColor: orgForm.secondaryColor,
+    });
     const { error } = await supabase.from("organizations").update({
       name: orgForm.name,
       campus: orgForm.campus || null,
       council_or_league: orgForm.councilOrLeague || null,
       contact_email: orgForm.contactEmail || null,
       privacy: orgForm.privacy,
-      primary_color: orgForm.primaryColor,
-      secondary_color: orgForm.secondaryColor,
+      primary_color: stored.primary_color,
+      secondary_color: stored.secondary_color,
       settings: {
         ...prevSettings,
         university_id: orgForm.universityId || null,
