@@ -7,17 +7,17 @@ import {
   Download, Mail, Upload, UserPlus,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
 import {
   Avatar, Badge, Button, Card, EmptyState, Input, Modal,
   PageHeader, SearchInput, Select, Skeleton,
 } from "@/components/ui";
 import { downloadCsv, getStatusColor } from "@/lib/utils";
-import { ROLE_LABELS, can, type RoleName } from "@/lib/permissions";
+import { ROLE_LABELS, can } from "@/lib/permissions";
 import type { MemberProfile } from "@/types";
 import { MemberTable } from "@/components/roster/member-table";
 import { SportsEligibilitySummary } from "@/components/roster/sports-eligibility-summary";
 import { isSportsOrg } from "@/lib/utils";
+import { useOrg } from "@/hooks/use-org";
 
 const STATUS_OPTIONS = [
   { value: "", label: "All statuses" },
@@ -37,13 +37,10 @@ const PAYMENT_OPTIONS = [
 ];
 
 export default function RosterPage() {
-  const supabase = createClient();
   const router = useRouter();
+  const { orgId, orgType, role: myRole } = useOrg();
   const [members, setMembers] = useState<MemberProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [orgType, setOrgType] = useState("");
-  const [myRole, setMyRole] = useState<RoleName>("general_member");
 
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -56,35 +53,18 @@ export default function RosterPage() {
 
   const loadMembers = useCallback(async (oid: string) => {
     setLoading(true);
-    const { data } = await supabase
-      .from("member_profiles")
-      .select("*")
-      .eq("org_id", oid)
-      .order("full_name");
-    setMembers((data ?? []) as MemberProfile[]);
+    const res = await fetch(`/api/members?org_id=${encodeURIComponent(oid)}`);
+    if (res.ok) {
+      setMembers((await res.json()) as MemberProfile[]);
+    } else {
+      toast.error("Failed to load roster");
+    }
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase
-        .from("org_members")
-        .select("org_id, role, organizations(type)")
-        .eq("user_id", user.id)
-        .neq("status", "removed")
-        .limit(1)
-        .single();
-      if (m) {
-        setOrgId(m.org_id);
-        setOrgType(String(((m.organizations as unknown) as Record<string, unknown>)?.type ?? ""));
-        setMyRole((String(m.role ?? "general_member") as RoleName));
-        loadMembers(m.org_id);
-      }
-    }
-    init();
-  }, [supabase, loadMembers]);
+    if (orgId) loadMembers(orgId);
+  }, [orgId, loadMembers]);
 
   const showPayment = can(myRole, "view_payments") || can(myRole, "manage_payments");
 

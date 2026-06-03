@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { ClipboardList, Eye, FileEdit, Plus, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import {
   Badge, Button, Card
 , EmptyState, Input,
@@ -94,10 +94,9 @@ const TEMPLATE_FORMS: Array<{ title: string; type: string; fields: FormField[] }
 ];
 
 export default function FormsPage() {
-  const supabase = createClient();
+  const { orgId } = useOrg();
   const [forms, setForms] = useState<FormTemplate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [orgId, setOrgId] = useState<string | null>(null);
   const [tab, setTab] = useState("forms");
   const [createOpen, setCreateOpen] = useState(false);
   const [previewForm, setPreviewForm] = useState<FormTemplate | null>(null);
@@ -111,25 +110,21 @@ export default function FormsPage() {
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
-    const { data } = await supabase.from("forms").select("*").eq("org_id", oid).order("created_at", { ascending: false });
-    setForms((data ?? []) as FormTemplate[]);
-    const res = await fetch(`/api/forms/responses?org_id=${oid}`);
+    const res = await fetch(`/api/forms?org_id=${encodeURIComponent(oid)}`);
     if (res.ok) {
-      const json = await res.json();
+      setForms((await res.json()) as FormTemplate[]);
+    }
+    const respRes = await fetch(`/api/forms/responses?org_id=${encodeURIComponent(oid)}`);
+    if (respRes.ok) {
+      const json = await respRes.json();
       setResponseTotal(json.total ?? 0);
     }
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) { setOrgId(m.org_id); load(m.org_id); }
-    }
-    init();
-  }, [supabase, load]);
+    if (orgId) load(orgId);
+  }, [orgId, load]);
 
   function addField() {
     setFields((prev) => [...prev, {
@@ -150,16 +145,21 @@ export default function FormsPage() {
 
   async function saveForm() {
     if (!orgId || !newForm.title || fields.length === 0) return;
-    const { error } = await supabase.from("forms").insert({
-      org_id: orgId,
-      title: newForm.title,
-      type: newForm.type,
-      description: newForm.description || null,
-      fields: fields,
-      is_required: newForm.isRequired,
-      due_date: newForm.dueDate || null,
+    const res = await fetch("/api/forms", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        title: newForm.title,
+        type: newForm.type,
+        description: newForm.description,
+        fields,
+        isRequired: newForm.isRequired,
+        dueDate: newForm.dueDate,
+      }),
     });
-    if (error) { toast.error(error.message); return; }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { toast.error(data.error ?? "Failed to create form"); return; }
     toast.success("Form created");
     setCreateOpen(false);
     setNewForm({ title: "", type: "general", description: "", isRequired: false, dueDate: "" });
@@ -169,21 +169,31 @@ export default function FormsPage() {
 
   async function createFromTemplate(template: typeof TEMPLATE_FORMS[0]) {
     if (!orgId) return;
-    const { error } = await supabase.from("forms").insert({
-      org_id: orgId,
-      title: template.title,
-      type: template.type,
-      fields: template.fields,
-      is_required: true,
+    const res = await fetch("/api/forms", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        title: template.title,
+        type: template.type,
+        fields: template.fields,
+        isRequired: true,
+      }),
     });
-    if (error) { toast.error(error.message); return; }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { toast.error(data.error ?? "Failed"); return; }
     toast.success(`"${template.title}" created from template`);
     load(orgId);
   }
 
   async function deleteForm(id: string) {
     if (!confirm("Delete this form?")) return;
-    await supabase.from("forms").delete().eq("id", id);
+    const res = await fetch(`/api/forms?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast.error(data.error ?? "Delete failed");
+      return;
+    }
     setForms((prev) => prev.filter((f) => f.id !== id));
   }
 

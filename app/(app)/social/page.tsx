@@ -15,6 +15,7 @@ import { PhotoRequestsPanel } from "@/components/social/photo-requests-panel";
 import { PrComplianceChecklist } from "@/components/social/pr-compliance-checklist";
 import { ActivePhotoPrompts } from "@/components/social/active-photo-prompts";
 import { PrComplianceHistory } from "@/components/social/pr-compliance-history";
+import { useOrg } from "@/hooks/use-org";
 
 const APPROVAL_COLOR = {
   pending: "yellow",
@@ -35,7 +36,7 @@ function SocialPageContent() {
   const [tab, setTab] = useState("albums");
   const [mainTab, setMainTab] = useState<"albums" | "requests" | "compliance">("albums");
   const [deepLinkReady, setDeepLinkReady] = useState(false);
-  const [orgId, setOrgId] = useState<string | null>(null);
+  const { orgId } = useOrg();
   const [contentPackOpen, setContentPackOpen] = useState(false);
   const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
   const [generatedCaption, setGeneratedCaption] = useState("");
@@ -64,14 +65,8 @@ function SocialPageContent() {
   }, [supabase]);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) { setOrgId(m.org_id); loadAlbums(m.org_id); }
-    }
-    init();
-  }, [supabase, loadAlbums]);
+    if (orgId) loadAlbums(orgId);
+  }, [orgId, loadAlbums]);
 
   useEffect(() => {
     if (selectedAlbum) loadPhotos(selectedAlbum.id);

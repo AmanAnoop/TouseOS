@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Heart, RefreshCw, TrendingUp } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import {
   Badge, Button, Card, CardHeader, PageHeader, ProgressBar, StatCard,
 } from "@/components/ui";
@@ -21,8 +21,7 @@ interface Breakdown {
 }
 
 export default function HealthPage() {
-  const supabase = createClient();
-  const [orgId, setOrgId] = useState<string | null>(null);
+  const { orgId } = useOrg();
   const [loading, setLoading] = useState(true);
   const [composite, setComposite] = useState(0);
   const [breakdown, setBreakdown] = useState<Breakdown | null>(null);
@@ -39,14 +38,8 @@ export default function HealthPage() {
   }
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) { setOrgId(m.org_id); load(m.org_id); }
-    }
-    init();
-  }, [supabase]);
+    if (orgId) load(orgId);
+  }, [orgId]);
 
   const meta = healthScoreLabel(composite);
 

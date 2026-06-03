@@ -13,6 +13,7 @@ export interface ActiveMembership {
 export async function loadActiveMembership(
   supabase: SupabaseClient,
   userId: string,
+  preferredOrgId?: string | null,
 ): Promise<ActiveMembership | null> {
   const { data: memberships } = await supabase
     .from("org_members")
@@ -22,7 +23,7 @@ export async function loadActiveMembership(
 
   if (!memberships?.length) return null;
 
-  const activeId = resolveActiveOrgId(memberships);
+  const activeId = resolveActiveOrgId(memberships, preferredOrgId);
   const row = memberships.find((m) => m.org_id === activeId);
   if (!row) return null;
 

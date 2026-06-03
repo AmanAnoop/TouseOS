@@ -9,9 +9,10 @@ export function readActiveOrgIdFromCookie(): string | null {
 
 export function resolveActiveOrgId(
   memberships: Array<{ org_id: string }>,
+  preferredOrgId?: string | null,
 ): string | null {
   if (!memberships.length) return null;
-  const cookieId = readActiveOrgIdFromCookie();
+  const cookieId = preferredOrgId ?? readActiveOrgIdFromCookie();
   if (cookieId && memberships.some((m) => m.org_id === cookieId)) return cookieId;
   return memberships[0].org_id;
 }

@@ -10,6 +10,7 @@ import {
 } from "@/components/ui";
 import type { MemberProfile } from "@/types";
 import { DEFAULT_POINT_RULES, getPointRules } from "@/lib/attendance-points";
+import { useOrg } from "@/hooks/use-org";
 
 interface PointEntry {
   id: string;
@@ -22,7 +23,7 @@ interface PointEntry {
 
 export default function AttendancePointsPage() {
   const supabase = createClient();
-  const [orgId, setOrgId] = useState<string | null>(null);
+  const { orgId } = useOrg();
   const [members, setMembers] = useState<MemberProfile[]>([]);
   const [entries, setEntries] = useState<PointEntry[]>([]);
   const [awardOpen, setAwardOpen] = useState(false);
@@ -41,14 +42,8 @@ export default function AttendancePointsPage() {
   }, [supabase]);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) { setOrgId(m.org_id); load(m.org_id); }
-    }
-    init();
-  }, [supabase, load]);
+    if (orgId) load(orgId);
+  }, [orgId, load]);
 
   function memberPoints(memberId: string) {
     return entries.filter((e) => e.member_id === memberId).reduce((s, e) => s + (e.entry_type === "deduction" ? -e.points : e.points), 0);
