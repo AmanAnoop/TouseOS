@@ -25,12 +25,18 @@ export default function EngagementPage() {
     semesterStart.setMonth(semesterStart.getMonth() - 4);
 
     const [membersRes, eventsRes] = await Promise.all([
-      supabase.from("member_profiles").select("id, full_name").eq("org_id", oid).eq("membership_status", "active").order("full_name"),
-      supabase.from("events").select("id, title, type, starts_at").eq("org_id", oid).in("type", BONDING_TYPES).gte("starts_at", semesterStart.toISOString()).order("starts_at"),
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}`),
+      fetch(`/api/events?org_id=${encodeURIComponent(oid)}`),
     ]);
 
-    const memberList = (membersRes.data ?? []) as Array<{ id: string; full_name: string }>;
-    const eventList = (eventsRes.data ?? []) as Array<{ id: string; title: string; type: string; starts_at: string }>;
+    const allMembers = membersRes.ok ? ((await membersRes.json()) as Array<{ id: string; full_name: string; membership_status: string }>) : [];
+    const memberList = allMembers
+      .filter((m) => m.membership_status === "active")
+      .map((m) => ({ id: m.id, full_name: m.full_name }));
+    const allEvents = eventsRes.ok ? ((await eventsRes.json()) as Array<{ id: string; title: string; type: string; starts_at: string }>) : [];
+    const eventList = allEvents
+      .filter((e) => BONDING_TYPES.includes(e.type) && new Date(e.starts_at) >= semesterStart)
+      .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
     const eventIds = eventList.map((e) => e.id);
 
     let rsvps: Array<{ member_id: string | null; event_id: string; checked_in: boolean }> = [];

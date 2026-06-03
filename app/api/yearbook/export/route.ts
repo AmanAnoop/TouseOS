@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { loadActiveMembershipServer } from "@/lib/active-org-membership-server";
 import { buildYearbookHtml } from "@/lib/yearbook-export";
 import { loadYearbookExportData } from "@/lib/yearbook-data";
 
@@ -9,19 +10,11 @@ export async function GET(request: Request) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const orgIdParam = new URL(request.url).searchParams.get("org_id");
+  const membership = await loadActiveMembershipServer(user.id);
+  if (!membership) return NextResponse.json({ error: "No organization" }, { status: 403 });
 
-  const { data: m } = await supabase
-    .from("org_members")
-    .select("org_id, organizations(name)")
-    .eq("user_id", user.id)
-    .neq("status", "removed")
-    .limit(1)
-    .single();
-
-  if (!m) return NextResponse.json({ error: "No organization" }, { status: 403 });
-
-  const orgId = orgIdParam && orgIdParam === m.org_id ? orgIdParam : m.org_id;
-  const orgName = String(((m.organizations as unknown) as Record<string, unknown>)?.name ?? "Chapter");
+  const orgId = orgIdParam && orgIdParam === membership.orgId ? orgIdParam : membership.orgId;
+  const orgName = membership.orgName || "Chapter";
 
   const exportData = await loadYearbookExportData(supabase, orgId, orgName);
   const html = buildYearbookHtml(exportData);

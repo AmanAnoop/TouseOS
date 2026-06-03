@@ -52,8 +52,9 @@ export default function ReportsPage() {
           break;
         }
         case "dues": {
-          const { data } = await supabase.from("payments").select("*, member_profiles(full_name, email)").eq("org_id", orgId).order("due_date");
-          downloadCsv(`${orgName}-dues.csv`, (data ?? []).map((p: Record<string, unknown>) => ({
+          const duesRes = await fetch(`/api/payments?org_id=${encodeURIComponent(orgId)}`);
+          const data = duesRes.ok ? await duesRes.json() : [];
+          downloadCsv(`${orgName}-dues.csv`, (data as Record<string, unknown>[]).map((p) => ({
             Member: (p.member_profiles as Record<string, unknown>)?.full_name ?? "—",
             Email: (p.member_profiles as Record<string, unknown>)?.email ?? "—",
             Amount: p.amount,
@@ -66,8 +67,9 @@ export default function ReportsPage() {
           break;
         }
         case "attendance": {
-          const { data: orgEvents } = await supabase.from("events").select("id").eq("org_id", orgId);
-          const eventIds = (orgEvents ?? []).map((e) => e.id);
+          const evRes = await fetch(`/api/events?org_id=${encodeURIComponent(orgId)}`);
+          const orgEvents = evRes.ok ? await evRes.json() : [];
+          const eventIds = (orgEvents as Array<{ id: string }>).map((e) => e.id);
           if (eventIds.length === 0) {
             downloadCsv(`${orgName}-attendance.csv`, []);
             break;

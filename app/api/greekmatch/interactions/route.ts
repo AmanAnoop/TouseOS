@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { loadActiveMembershipServer } from "@/lib/active-org-membership-server";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -52,17 +53,11 @@ export async function POST(request: Request) {
   }
 
   if (action === "report") {
-    const { data: membership } = await supabase
-      .from("org_members")
-      .select("org_id")
-      .eq("user_id", user.id)
-      .neq("status", "removed")
-      .limit(1)
-      .maybeSingle();
+    const membership = await loadActiveMembershipServer(user.id);
 
-    if (membership?.org_id) {
+    if (membership?.orgId) {
       await supabase.from("audit_logs").insert({
-        org_id: membership.org_id,
+        org_id: membership.orgId,
         actor_id: user.id,
         action: "greekmatch_report",
         resource_type: "greekmatch_profiles",

@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { loadActiveMembershipServer } from "@/lib/active-org-membership-server";
 import { Badge, Card, ProgressBar,
 } from "@/components/ui";
 import {
@@ -27,7 +28,11 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
 
   if (eventRes.error || !eventRes.data) notFound();
 
+  const membership = await loadActiveMembershipServer(user.id);
+  if (!membership) redirect("/onboarding");
+
   const event = eventRes.data as Record<string, unknown>;
+  if (String(event.org_id) !== membership.orgId) notFound();
   const rsvps = rsvpRes.data ?? [];
 
   const goingCount = rsvps.filter((r: Record<string, unknown>) => r.status === "going").length;

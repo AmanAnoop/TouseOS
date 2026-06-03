@@ -45,10 +45,10 @@ export default function BigLittlePage() {
   const load = useCallback(async (oid: string) => {
     setLoading(true);
     const [membersRes, matchesRes] = await Promise.all([
-      supabase.from("member_profiles").select("*").eq("org_id", oid).order("full_name"),
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}`),
       supabase.from("big_little_matches").select("*, big:big_id(full_name, profile_photo_url, major, interests), little:little_id(full_name, profile_photo_url, major, interests)").eq("org_id", oid).order("created_at", { ascending: false }),
     ]);
-    setMembers((membersRes.data ?? []) as MemberProfile[]);
+    if (membersRes.ok) setMembers((await membersRes.json()) as MemberProfile[]);
     setMatches((matchesRes.data ?? []) as unknown as Match[]);
     setLoading(false);
   }, [supabase]);

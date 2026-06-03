@@ -1,6 +1,6 @@
 # TouseOS product status (realistic)
 
-Last updated: Wave 23 on `cursor/wave23-social-profile-apis-4a50`.
+Last updated: Wave 24 on `cursor/wave24-org-access-feed-4a50`.
 
 ## How to read these numbers
 
@@ -9,7 +9,7 @@ We separate **“exists in the repo”** from **“works end-to-end without dead
 | Metric | Realistic % | Meaning |
 |--------|-------------|---------|
 | **Backlog modules with a route or API** | **~88%** | Page or endpoint exists |
-| **Connected user journeys** | **~77%** | Social albums/photos APIs; profile and account scoped to active org |
+| **Connected user journeys** | **~78%** | Org-access + SportsOS/ClubOS guards use active org; more modules on REST APIs |
 | **Production-ready depth** | **~50%** | Tested, permissioned, env-configured; legal summaries expanded (counsel review still needed) |
 | **Launch-ready** | **~44%** | Migrations, Stripe, QA, mobile polish, counsel-approved legal |
 
@@ -40,7 +40,13 @@ We separate **“exists in the repo”** from **“works end-to-end without dead
 - Reimbursement approve/paid triggers budget sync-org API
 - Treasurer dashboard links split budget vs reimbursements
 
-## Wave 23 (latest)
+## Wave 24 (latest)
+
+- `requireOrgProduct` / `getActiveOrgContext` use active org cookie (fixes SportsOS/ClubOS + route guards)
+- Yearbook export, GreekMatch profile save, event detail scoped to active org
+- API wiring: standards cases, sports travel, reports dues/events, big-little, attendance points, engagement, risk events
+
+## Wave 23
 
 - Social page: albums and photos via `/api/photo-albums` and `/api/photos` (upload still uses storage + POST)
 - Profile and account member data scoped to active org (`useOrg`)

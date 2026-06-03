@@ -32,10 +32,10 @@ export default function AttendancePointsPage() {
 
   const load = useCallback(async (oid: string) => {
     const [mRes, eRes] = await Promise.all([
-      supabase.from("member_profiles").select("*").eq("org_id", oid).order("full_name"),
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}`),
       supabase.from("member_point_entries").select("*").eq("org_id", oid).order("created_at", { ascending: false }).limit(50),
     ]);
-    setMembers((mRes.data ?? []) as MemberProfile[]);
+    if (mRes.ok) setMembers((await mRes.json()) as MemberProfile[]);
     setEntries((eRes.data ?? []) as PointEntry[]);
     const loadedRules = await getPointRules(supabase, oid);
     setRules(loadedRules);
