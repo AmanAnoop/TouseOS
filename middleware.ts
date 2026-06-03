@@ -1,74 +1,54 @@
-import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import {
+  updateSupabaseSession,
+  withSessionCookies,
+} from "@/lib/supabase/middleware";
+
+function isPublicPath(pathname: string): boolean {
+  return (
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/signup") ||
+    pathname.startsWith("/forgot-password") ||
+    pathname.startsWith("/api/ready") ||
+    pathname.startsWith("/api/cron") ||
+    pathname.startsWith("/api/stripe/webhook") ||
+    pathname.startsWith("/api/twilio") ||
+    pathname.startsWith("/terms") ||
+    pathname.startsWith("/privacy") ||
+    pathname.startsWith("/p/") ||
+    pathname.startsWith("/pay/") ||
+    pathname.startsWith("/join/") ||
+    pathname.startsWith("/donate/") ||
+    pathname.startsWith("/onboarding") ||
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/favicon") ||
+    pathname.startsWith("/manifest")
+  );
+}
 
 export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request });
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setAll(cookiesToSet: any[]) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          cookiesToSet.forEach(({ name, value }: any) =>
-            request.cookies.set(name, value),
-          );
-          supabaseResponse = NextResponse.next({ request });
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          cookiesToSet.forEach(({ name, value, options }: any) =>
-            supabaseResponse.cookies.set(name, value, options),
-          );
-        },
-      },
-    },
-  );
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
   const { pathname } = request.nextUrl;
 
-  // Auth routes: redirect logged-in users to dashboard
-  const isAuthRoute = pathname.startsWith("/login") ||
+  const { response: supabaseResponse, latestCookies, user } =
+    await updateSupabaseSession(request);
+
+  const isAuthRoute =
+    pathname.startsWith("/login") ||
     pathname.startsWith("/signup") ||
     pathname.startsWith("/forgot-password");
 
   if (isAuthRoute && user) {
     const next = request.nextUrl.searchParams.get("next");
     const dest = next && next.startsWith("/") ? next : "/home";
-    return NextResponse.redirect(new URL(dest, request.url));
+    const redirect = NextResponse.redirect(new URL(dest, request.url));
+    return withSessionCookies(redirect, latestCookies);
   }
 
-  // Protected routes: redirect unauthenticated users to login
-  const isProtectedRoute =
-    !pathname.startsWith("/login") &&
-    !pathname.startsWith("/signup") &&
-    !pathname.startsWith("/forgot-password") &&
-    !pathname.startsWith("/api/ready") &&
-    !pathname.startsWith("/api/cron") &&
-    !pathname.startsWith("/api/stripe/webhook") &&
-    !pathname.startsWith("/api/twilio") &&
-    !pathname.startsWith("/terms") &&
-    !pathname.startsWith("/privacy") &&
-    !pathname.startsWith("/p/") && // public event pages
-    !pathname.startsWith("/pay/") && // parent payment portal
-    !pathname.startsWith("/join/") && // public PNM interest form
-    !pathname.startsWith("/donate/") && // public philanthropy pages
-    !pathname.startsWith("/onboarding") &&
-    !pathname.startsWith("/_next") &&
-    !pathname.startsWith("/favicon") &&
-    !pathname.startsWith("/manifest");
-
-  if (isProtectedRoute && !user) {
+  if (!isPublicPath(pathname) && !user) {
     const redirectUrl = new URL("/login", request.url);
     redirectUrl.searchParams.set("next", pathname);
-    return NextResponse.redirect(redirectUrl);
+    const redirect = NextResponse.redirect(redirectUrl);
+    return withSessionCookies(redirect, latestCookies);
   }
 
   return supabaseResponse;

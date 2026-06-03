@@ -16,7 +16,18 @@ cp .env.example .env.local
 npm run launch:check   # fails until required vars are set
 ```
 
-Deploy with the same variables in Vercel/hosting. After deploy:
+Deploy with the same variables in Vercel/hosting.
+
+### Vercel (fixes `MIDDLEWARE_INVOCATION_FAILED`)
+
+In the Vercel project → **Settings → Environment Variables**, set at minimum:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+Apply to **Production**, **Preview**, and **Development**. Redeploy after saving. If either is missing, Supabase client creation in middleware used to throw and Vercel returned `500 MIDDLEWARE_INVOCATION_FAILED`.
+
+After deploy:
 
 ```bash
 curl -s https://your-domain.com/api/ready | jq
