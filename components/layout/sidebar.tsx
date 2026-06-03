@@ -148,7 +148,7 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
   );
 
   const logoBg =
-    accent === "sports" ? "bg-sports-600" : accent === "club" ? "bg-club-600" : "bg-greek-600";
+    accent === "sports" ? "bg-sports-600" : accent === "club" ? "bg-club-600" : "bg-primary";
 
   useEffect(() => {
     const pref = localStorage.getItem("theme");

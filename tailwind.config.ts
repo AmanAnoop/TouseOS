@@ -1,5 +1,10 @@
 import type { Config } from "tailwindcss";
 
+const greekScale = ["50", "100", "200", "300", "400", "500", "600", "700", "800", "900", "950"] as const;
+const greekColors = Object.fromEntries(
+  greekScale.map((s) => [s, `hsl(var(--greek-${s}) / <alpha-value>)`]),
+) as Record<string, string>;
+
 const config: Config = {
   darkMode: "class",
   content: [
@@ -10,21 +15,12 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        /* TouseGreek brand – emerald */
-        greek: {
-          50: "#ecfdf5",
-          100: "#d1fae5",
-          200: "#a7f3d0",
-          300: "#6ee7b7",
-          400: "#34d399",
-          500: "#10b981",
-          600: "#059669",
-          700: "#047857",
-          800: "#065f46",
-          900: "#064e3b",
-          950: "#022c22",
+        greek: greekColors,
+        regal: {
+          navy: "hsl(var(--regal-navy) / <alpha-value>)",
+          green: "hsl(var(--regal-green) / <alpha-value>)",
+          gold: "hsl(var(--regal-gold) / <alpha-value>)",
         },
-        /* ClubOS brand – violet */
         club: {
           50: "#f5f3ff",
           100: "#ede9fe",
@@ -32,13 +28,12 @@ const config: Config = {
           300: "#c4b5fd",
           400: "#a78bfa",
           500: "#8b5cf6",
-          600: "#7c3aed",
-          700: "#6d28d9",
-          800: "#5b21b6",
+          600: "#6d28d9",
+          700: "#5b21b6",
+          800: "#4c1d95",
           900: "#4c1d95",
           950: "#2e1065",
         },
-        /* SportsOS brand – blue */
         sports: {
           50: "#eff6ff",
           100: "#dbeafe",
@@ -46,11 +41,11 @@ const config: Config = {
           300: "#93c5fd",
           400: "#60a5fa",
           500: "#3b82f6",
-          600: "#2563eb",
+          600: "#1e3a5f",
           700: "#1d4ed8",
           800: "#1e40af",
-          900: "#1e3a8a",
-          950: "#172554",
+          900: "#172554",
+          950: "#0f172a",
         },
         surface: {
           0: "hsl(var(--surface-0))",
@@ -90,20 +85,15 @@ const config: Config = {
         "4xl": "2rem",
       },
       fontFamily: {
-        sans: [
-          "Inter",
-          "ui-sans-serif",
-          "system-ui",
-          "-apple-system",
-          "sans-serif",
-        ],
+        sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
+        serif: ["var(--font-serif)", "Cormorant Garamond", "Georgia", "serif"],
       },
       boxShadow: {
-        card: "0 1px 3px 0 rgb(0 0 0 / .08), 0 1px 2px -1px rgb(0 0 0 / .06)",
+        card: "0 1px 3px 0 hsl(220 55% 14% / 0.06), 0 1px 2px -1px hsl(220 55% 14% / 0.04)",
         "card-md":
-          "0 4px 6px -1px rgb(0 0 0 / .08), 0 2px 4px -2px rgb(0 0 0 / .06)",
+          "0 4px 14px -2px hsl(220 55% 14% / 0.08), 0 2px 6px -2px hsl(152 100% 13% / 0.04)",
         "card-lg":
-          "0 10px 15px -3px rgb(0 0 0 / .08), 0 4px 6px -4px rgb(0 0 0 / .06)",
+          "0 12px 28px -6px hsl(220 55% 14% / 0.12), 0 4px 10px -4px hsl(152 100% 13% / 0.06)",
       },
       animation: {
         "fade-in": "fade-in 0.2s ease-out",

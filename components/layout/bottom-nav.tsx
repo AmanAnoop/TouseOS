@@ -35,13 +35,13 @@ const CLUB_EXTRAS = [
 ];
 
 const ACTIVE_CLASS: Record<string, string> = {
-  greek: "text-greek-600",
+  greek: "text-primary",
   sports: "text-sports-600",
   club: "text-club-600",
 };
 
 const BADGE_CLASS: Record<string, string> = {
-  greek: "bg-greek-600",
+  greek: "bg-primary",
   sports: "bg-sports-600",
   club: "bg-club-600",
 };

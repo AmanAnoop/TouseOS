@@ -4,49 +4,74 @@
 
 @layer base {
   :root {
-    --surface-0: 0 0% 100%;
-    --surface-1: 220 14% 96%;
-    --surface-2: 220 13% 91%;
-    --background: 0 0% 100%;
-    --foreground: 222 47% 11%;
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 160 84% 39%;
-    --primary: 160 84% 39%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 222 47% 11%;
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
-    --accent: 220 14% 96%;
-    --accent-foreground: 222 47% 11%;
-    --destructive: 0 84% 60%;
+    /* Regal surfaces — navy command center */
+    --surface-0: 42 33% 97%;
+    --surface-1: 220 28% 94%;
+    --surface-2: 220 22% 88%;
+    --background: 220 45% 97%;
+    --foreground: 220 45% 12%;
+    --card: 42 40% 99%;
+    --card-foreground: 220 45% 12%;
+    --border: 220 20% 85%;
+    --input: 220 20% 88%;
+    --muted: 220 18% 92%;
+    --muted-foreground: 220 12% 42%;
+    --secondary: 220 28% 92%;
+    --secondary-foreground: 220 45% 14%;
+    --destructive: 0 65% 48%;
     --destructive-foreground: 0 0% 100%;
+
+    /* British Racing Green default (overridden by chapter theme) */
+    --primary: 152 100% 13%;
+    --primary-foreground: 42 33% 98%;
+    --ring: 152 80% 22%;
+    --accent: 43 65% 47%;
+    --accent-foreground: 220 45% 12%;
+
+    --greek-50: 152 25% 97%;
+    --greek-100: 152 22% 92%;
+    --greek-200: 152 20% 82%;
+    --greek-300: 152 25% 68%;
+    --greek-400: 152 35% 48%;
+    --greek-500: 152 55% 32%;
+    --greek-600: 152 100% 13%;
+    --greek-700: 152 90% 11%;
+    --greek-800: 220 55% 18%;
+    --greek-900: 220 60% 12%;
+    --greek-950: 220 65% 8%;
+
+    --regal-navy: 220 55% 14%;
+    --regal-green: 152 100% 13%;
+    --regal-gold: 43 65% 47%;
   }
 
   .dark {
-    --surface-0: 222 47% 7%;
-    --surface-1: 222 47% 11%;
-    --surface-2: 222 47% 15%;
-    --background: 222 47% 7%;
-    --foreground: 210 40% 96%;
-    --card: 222 47% 9%;
-    --card-foreground: 210 40% 96%;
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 160 84% 39%;
-    --primary: 160 84% 39%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 96%;
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 217 33% 17%;
-    --accent-foreground: 210 40% 96%;
-    --destructive: 0 63% 55%;
-    --destructive-foreground: 0 0% 100%;
+    --surface-0: 220 55% 6%;
+    --surface-1: 220 48% 10%;
+    --surface-2: 220 42% 14%;
+    --background: 220 55% 5%;
+    --foreground: 42 25% 94%;
+    --card: 220 50% 8%;
+    --card-foreground: 42 25% 94%;
+    --border: 220 35% 18%;
+    --input: 220 35% 16%;
+    --muted: 220 40% 12%;
+    --muted-foreground: 220 15% 62%;
+    --secondary: 220 40% 14%;
+    --secondary-foreground: 42 25% 94%;
+    --ring: 152 60% 35%;
+    --primary: 152 55% 28%;
+    --primary-foreground: 42 33% 98%;
+    --accent: 43 50% 42%;
+    --accent-foreground: 42 33% 98%;
+  }
+
+  .theme-regal body {
+    background-image:
+      radial-gradient(ellipse 120% 80% at 100% 0%, hsl(var(--regal-green) / 0.06), transparent 50%),
+      radial-gradient(ellipse 80% 60% at 0% 100%, hsl(var(--regal-navy) / 0.08), transparent 45%),
+      linear-gradient(180deg, hsl(var(--background)), hsl(var(--surface-1)));
+    background-attachment: fixed;
   }
 
   * {
@@ -56,13 +81,66 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
-    font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
+  h1, h2, h3, .font-serif {
+    font-family: var(--font-serif), "Cormorant Garamond", Georgia, serif;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+
   html {
     scroll-behavior: smooth;
+  }
+}
+
+@layer components {
+  .regal-card {
+    @apply rounded-xl border border-border bg-card shadow-card;
+    box-shadow:
+      0 1px 2px hsl(var(--regal-navy) / 0.04),
+      0 4px 12px hsl(var(--regal-navy) / 0.06);
+  }
+
+  .regal-divider {
+    @apply border-t border-border;
+    border-image: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--regal-gold) / 0.35),
+      transparent
+    ) 1;
+  }
+
+  .text-link {
+    @apply text-primary hover:underline underline-offset-2;
+  }
+
+  /* Legacy utilities → chapter theme (global regal rework) */
+  .theme-regal .text-greek-600,
+  .theme-regal .text-greek-700 {
+    color: hsl(var(--primary));
+  }
+  .theme-regal .bg-greek-600,
+  .theme-regal .bg-greek-700 {
+    background-color: hsl(var(--primary));
+  }
+  .theme-regal .bg-greek-50,
+  .theme-regal .hover\:bg-greek-50:hover {
+    background-color: hsl(var(--primary) / 0.08);
+  }
+  .theme-regal .border-greek-200,
+  .theme-regal .border-greek-300,
+  .theme-regal .hover\:border-greek-300:hover,
+  .theme-regal .hover\:border-greek-400:hover {
+    border-color: hsl(var(--primary) / 0.35);
+  }
+  .theme-regal .bg-greek-950\/30,
+  .theme-regal .dark\:bg-greek-950\/30 {
+    background-color: hsl(var(--primary) / 0.12);
   }
 }
 
