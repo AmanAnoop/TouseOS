@@ -195,7 +195,6 @@ export const GREEK_FEATURE_NAV: NavItemDef[] = [
 ];
 
 export const SPORTS_FEATURE_NAV: NavItemDef[] = [
-  { href: "/sports", label: "Team Dashboard", products: ["sports"] },
   { href: "/tryouts", label: "Tryouts", products: ["sports"] },
   { href: "/tournaments", label: "Tournaments", products: ["sports"] },
   { href: "/standings", label: "League Standings", products: ["sports"] },

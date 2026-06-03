@@ -5,7 +5,8 @@ import { getUniversityById } from "@/lib/university-colors";
 import {
   Alert, Badge, Button, Card, CardHeader, EmptyState, ProgressBar, StatCard,
 } from "@/components/ui";
-import { formatCurrency } from "@/lib/utils";
+import { ProductHomeShortcuts } from "@/components/dashboard/product-home-shortcuts";
+import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { Calendar, DollarSign, HandHeart, Users, Zap } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -134,7 +135,7 @@ export default async function ClubDashboardPage() {
               {events.map((e) => (
                 <Link key={String(e.id)} href={`/events/${e.id}`} className="block p-2 rounded-lg hover:bg-surface-1">
                   <p className="text-sm font-medium">{String(e.title)}</p>
-                  <p className="text-xs text-muted-foreground capitalize">{String(e.type).replace(/_/g, " ")}</p>
+                  <p className="text-xs text-muted-foreground">{formatDateTime(String(e.starts_at))}</p>
                 </Link>
               ))}
             </div>
@@ -158,26 +159,20 @@ export default async function ClubDashboardPage() {
         </Card>
       </div>
 
-      <Card padding="sm">
-        <p className="text-xs font-semibold text-muted-foreground uppercase mb-3">ClubOS modules</p>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {[
-            { href: "/club/membership", label: "Membership" },
-            { href: "/club/committees", label: "Committees" },
-            { href: "/club/elections", label: "Elections" },
-            { href: "/club/service-hours", label: "Service hours" },
-            { href: "/roster", label: "Roster" },
-            { href: "/budget", label: "Budget" },
-            { href: "/forms", label: "Forms" },
-            { href: "/social", label: "Photos" },
-            { href: "/philanthropy", label: "Fundraising" },
-          ].map((l) => (
-            <Link key={l.href} href={l.href} className="text-sm text-club-600 hover:underline p-2 rounded-lg hover:bg-club-50/50 dark:hover:bg-club-950/20">
-              {l.label} →
-            </Link>
-          ))}
-        </div>
-      </Card>
+      <ProductHomeShortcuts
+        title="ClubOS modules"
+        product="club"
+        links={[
+          { href: "/club/membership", label: "Membership" },
+          { href: "/club/committees", label: "Committees" },
+          { href: "/club/elections", label: "Elections" },
+          { href: "/club/service-hours", label: "Service hours" },
+          { href: "/roster", label: "Roster" },
+          { href: "/budget", label: "Budget" },
+          { href: "/forms", label: "Forms" },
+          { href: "/philanthropy", label: "Fundraising" },
+        ]}
+      />
     </div>
   );
 }

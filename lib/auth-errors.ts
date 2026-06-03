@@ -23,6 +23,12 @@ export function friendlyAuthError(message: string): string {
   if (m.includes("invalid api key") || m.includes("invalid jwt")) {
     return "Supabase API key is invalid for this app. In Vercel, set NEXT_PUBLIC_SUPABASE_ANON_KEY to the anon (public) key from Supabase → Settings → API — not the service_role secret. Redeploy after changing env vars.";
   }
+  if (m.includes("oauth") || m.includes("provider") || m.includes("identity")) {
+    return "Social sign-in failed. Confirm Google or Apple is enabled in Supabase → Authentication → Providers.";
+  }
+  if (m.includes("user cancelled") || m.includes("access_denied")) {
+    return "Sign-in was cancelled. Try again when ready.";
+  }
 
   return message;
 }

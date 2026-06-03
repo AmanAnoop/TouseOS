@@ -18,7 +18,13 @@ export async function GET(request: Request) {
     .order("created_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+
+  const safe = (data ?? []).map((row: Record<string, unknown>) => ({
+    ...row,
+    url: row.is_private || row.storage_path ? null : row.url,
+  }));
+
+  return NextResponse.json(safe);
 }
 
 export async function POST(request: Request) {

@@ -5,6 +5,8 @@ import { getUniversityById } from "@/lib/university-colors";
 import {
   Alert, Badge, Button, Card, CardHeader, EmptyState, ProgressBar, StatCard,
 } from "@/components/ui";
+import { ProductHomeShortcuts } from "@/components/dashboard/product-home-shortcuts";
+import { REQUIRED_SPORTS_WAIVER_KEYS, waiverTypeLabel } from "@/lib/sports-waiver-types";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
   AlertTriangle, Calendar, CheckCircle2, DollarSign,
@@ -135,13 +137,13 @@ export default async function SportsPage() {
           <CardHeader title="Waiver completion" icon={<Shield size={16} />} action={<Link href="/waivers" className="text-xs text-sports-600 hover:underline">Manage</Link>} />
           <div className="space-y-4">
             <ProgressBar value={waiverRate} label={`${completedWaivers}/${waivers.length} completed`} color={waiverRate === 100 ? "green" : waiverRate >= 75 ? "yellow" : "red"} size="md" />
-            {["liability","concussion","emergency_contact","travel_authorization","code_of_conduct"].map((type) => {
+            {REQUIRED_SPORTS_WAIVER_KEYS.map((type) => {
               const completed = waivers.filter((w) => w.waiver_type === type && w.status === "completed").length;
               const total = members.length;
               const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
               return (
                 <div key={type} className="flex items-center gap-3">
-                  <span className="text-xs text-muted-foreground capitalize w-36 flex-shrink-0">{type.replace(/_/g, " ")}</span>
+                  <span className="text-xs text-muted-foreground w-36 flex-shrink-0 truncate">{waiverTypeLabel(type)}</span>
                   <div className="flex-1 h-1.5 rounded-full bg-surface-2">
                     <div className="h-full rounded-full bg-sports-500" style={{ width: `${pct}%` }} />
                   </div>
@@ -227,6 +229,21 @@ export default async function SportsPage() {
           )}
         </Card>
       </div>
+
+      <ProductHomeShortcuts
+        title="Team modules"
+        product="sports"
+        links={[
+          { href: "/roster", label: "Roster" },
+          { href: "/waivers", label: "Waivers" },
+          { href: "/travel", label: "Travel" },
+          { href: "/equipment", label: "Equipment" },
+          { href: "/tryouts", label: "Tryouts" },
+          { href: "/injuries", label: "Injuries" },
+          { href: "/payments", label: "Dues" },
+          { href: "/events", label: "Events" },
+        ]}
+      />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAudienceMembers, sendBulkEmail, textToHtml } from "@/lib/email";
+import { isTwilioConfigured } from "@/lib/integrations";
 import { sendMassSms, isWithinQuietHours } from "@/lib/twilio";
 
 export async function POST(request: Request) {
@@ -14,6 +15,13 @@ export async function POST(request: Request) {
   }
 
   if (channel === "sms") {
+    if (!isTwilioConfigured()) {
+      return NextResponse.json(
+        { error: "Twilio SMS is not configured. Add TWILIO_* keys in your deployment environment." },
+        { status: 503 },
+      );
+    }
+
     if (isWithinQuietHours(new Date())) {
       return NextResponse.json({ error: "Quiet hours (9pm–9am). Try again later." }, { status: 429 });
     }

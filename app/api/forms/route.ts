@@ -42,6 +42,28 @@ export async function POST(request: Request) {
   return NextResponse.json(data, { status: 201 });
 }
 
+export async function PATCH(request: Request) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const body = await request.json();
+  const { id, title, description, type, fields, isRequired, dueDate } = body;
+  if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+
+  const updates: Record<string, unknown> = {};
+  if (title !== undefined) updates.title = title;
+  if (description !== undefined) updates.description = description || null;
+  if (type !== undefined) updates.type = type;
+  if (fields !== undefined) updates.fields = fields;
+  if (isRequired !== undefined) updates.is_required = isRequired;
+  if (dueDate !== undefined) updates.due_date = dueDate || null;
+
+  const { data, error } = await supabase.from("forms").update(updates).eq("id", id).select().single();
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data);
+}
+
 export async function DELETE(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

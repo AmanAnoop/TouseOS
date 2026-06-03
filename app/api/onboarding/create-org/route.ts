@@ -5,6 +5,7 @@ import { colorsForOrgStorage } from "@/lib/chapter-theme";
 import { getGreekOrgById } from "@/lib/greek-letter-orgs";
 import { getUniversityById } from "@/lib/university-colors";
 import { REGAL_PRIMARY, REGAL_SECONDARY } from "@/lib/regal-theme";
+import { ensureUserProfile } from "@/lib/ensure-user-profile";
 
 const VALID_ORG_TYPES = new Set([
   "fraternity",
@@ -12,23 +13,6 @@ const VALID_ORG_TYPES = new Set([
   "club_sports",
   "general_org",
 ]);
-
-async function ensureUserProfile(
-  service: Awaited<ReturnType<typeof createServiceClient>>,
-  user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> },
-) {
-  const { data: existing } = await service.from("profiles").select("id, full_name").eq("id", user.id).maybeSingle();
-  if (existing) return existing;
-
-  const fullName = String(user.user_metadata?.full_name ?? user.email?.split("@")[0] ?? "Member");
-  const { data: created, error } = await service.from("profiles").insert({
-    id: user.id,
-    full_name: fullName,
-  }).select("id, full_name").single();
-
-  if (error) throw new Error(`Could not create profile: ${error.message}`);
-  return created;
-}
 
 async function createOrgDirect(
   service: Awaited<ReturnType<typeof createServiceClient>>,

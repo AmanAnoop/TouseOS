@@ -68,7 +68,7 @@ export default function PaymentsPage() {
     setMyMemberId(me?.id ?? null);
   }, [userId, members]);
 
-  const canViewAll = can(myRole, "view_payments") || can(myRole, "manage_payments");
+  const canViewAll = can(myRole, "view_payments") || can(myRole, "manage_payments") || can(myRole, "manage_budget");
   const canManage = can(myRole, "manage_payments");
 
   const visiblePayments = canViewAll
@@ -88,7 +88,16 @@ export default function PaymentsPage() {
     const res = await fetch("/api/payments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orgId, title: charge.title, amount: charge.amount, category: charge.category, dueDate: charge.dueDate, lateFee: charge.lateFee }),
+      body: JSON.stringify({
+        orgId,
+        title: charge.title,
+        amount: charge.amount,
+        category: charge.category,
+        dueDate: charge.dueDate,
+        lateFee: charge.lateFee,
+        recurring: charge.recurring,
+        recurringInterval: charge.recurringInterval,
+      }),
     });
     if (res.ok) {
       toast.success("Charge created");
@@ -105,6 +114,11 @@ export default function PaymentsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ orgId }),
     });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error((err as { error?: string }).error ?? "Failed to send reminders");
+      return;
+    }
     const data = await res.json();
     toast.success(data.message ?? "Reminders sent");
   }

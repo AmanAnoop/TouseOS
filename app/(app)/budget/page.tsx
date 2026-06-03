@@ -82,7 +82,7 @@ export default function BudgetPage() {
     semester: "fall", totalBudget: "",
   });
   const [lineForm, setLineForm] = useState({
-    category: "Dues income", type: "income" as "income" | "expense",
+    category: "Chapter dues", type: "income" as "income" | "expense",
     description: "", budgeted: "", actual: "0",
   });
 

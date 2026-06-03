@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { loadActiveMembershipServer } from "@/lib/active-org-membership-server";
+import { loadDashboardData } from "@/lib/dashboard-data";
+import { isDashboardOfficer } from "@/lib/dashboard-roles";
 import {
   StatCard, Card, CardHeader, Badge, ProgressBar,
   EmptyState, Alert,
@@ -10,17 +12,18 @@ import {
   formatCurrency, formatDateTime, isGreekOrg, isSportsOrg, isClubOrg,
 } from "@/lib/utils";
 import { getProductId, productLabel } from "@/lib/org-product";
-import { computeHealthScore } from "@/lib/health-score";
 import { HealthScoreBadge } from "@/components/dashboard/health-score-badge";
 import { OfficerQuickActions } from "@/components/dashboard/officer-quick-actions";
 import { AttendanceTrendChart } from "@/components/dashboard/attendance-trend-chart";
 import { EngagementTrendChart } from "@/components/dashboard/engagement-trend-chart";
-import { UpcomingDeadlines, type DeadlineItem } from "@/components/dashboard/upcoming-deadlines";
+import { UpcomingDeadlines } from "@/components/dashboard/upcoming-deadlines";
+import { GettingStarted } from "@/components/dashboard/getting-started";
+import { MemberSnapshot } from "@/components/dashboard/member-snapshot";
 import {
   AlertTriangle, Calendar, CheckCircle2, DollarSign, FileText,
   Heart, Image as ImageIcon, Shield, TrendingUp, Trophy, Users, Zap,
 } from "lucide-react";
-import type { Event, MemberProfile, Payment, Announcement, Task } from "@/types";
+import type { MemberProfile } from "@/types";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Dashboard" };
@@ -45,240 +48,33 @@ export default async function DashboardPage() {
   const product = getProductId(orgType);
   if (product === "sports") redirect("/sports");
   if (product === "club") redirect("/club");
+
   const myRole = String(activeMembership.role ?? "general_member");
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
+  const isOfficer = isDashboardOfficer(myRole);
 
-  const [
-    membersRes, eventsRes, paymentsRes, paymentDeadlinesRes, announcementsRes, tasksRes,
-    reimbsRes, budgetsRes, photosRes, pnmRes,
-    tripsRes, waiversRes, tryoutsRes, clubMembershipRes, clubServiceRes,
-    allEventsRes, pastEventsRes, recentPhotosRes, recentAnnouncementsRes,
-  ] = await Promise.all([
-    supabase.from("member_profiles").select("id, full_name, membership_status, payment_status, attendance_rate, forms_completed, forms_required, created_at, is_injured").eq("org_id", orgId),
-    supabase.from("events").select("id, title, type, starts_at, location, status").eq("org_id", orgId).gte("starts_at", new Date().toISOString()).order("starts_at").limit(5),
-    supabase.from("payments").select("amount, paid_amount, status, due_date").eq("org_id", orgId),
-    supabase.from("payments").select("id, amount, paid_amount, status, due_date, payment_items(title)").eq("org_id", orgId),
-    supabase.from("announcements").select("id, title, body, author_name, created_at, pinned").eq("org_id", orgId).order("pinned", { ascending: false }).order("created_at", { ascending: false }).limit(5),
-    supabase.from("tasks").select("id, title, status, priority, due_date, assignee_name").eq("org_id", orgId).neq("status", "done").neq("status", "cancelled").order("due_date", { ascending: true }).limit(8),
-    supabase.from("reimbursements").select("id, amount, status, created_at").eq("org_id", orgId),
-    supabase.from("budgets").select("*, budget_lines(*)").eq("org_id", orgId).order("created_at", { ascending: false }).limit(1),
-    supabase.from("photos").select("id, url, caption, uploader_name, created_at, status").eq("org_id", orgId).order("created_at", { ascending: false }).limit(4),
-    isGreekOrg(orgType)
-      ? supabase.from("pnm_leads").select("status").eq("org_id", orgId)
-      : Promise.resolve({ data: [] }),
-    isSportsOrg(orgType)
-      ? supabase.from("sports_travel_trips").select("id, title, status").eq("org_id", orgId).limit(3)
-      : Promise.resolve({ data: [] }),
-    isSportsOrg(orgType)
-      ? supabase.from("sports_waivers").select("status").eq("org_id", orgId)
-      : Promise.resolve({ data: [] }),
-    isSportsOrg(orgType)
-      ? supabase.from("sports_tryouts").select("id, status").eq("org_id", orgId)
-      : Promise.resolve({ data: [] }),
-    isClubOrg(orgType)
-      ? supabase.from("club_membership_applications").select("id, status").eq("org_id", orgId)
-      : Promise.resolve({ data: [] }),
-    isClubOrg(orgType)
-      ? supabase.from("club_service_hours").select("hours, verified").eq("org_id", orgId)
-      : Promise.resolve({ data: [] }),
-    supabase.from("events").select("id").eq("org_id", orgId),
-    supabase.from("events").select("id, title, starts_at").eq("org_id", orgId).lt("starts_at", new Date().toISOString()).order("starts_at", { ascending: false }).limit(8),
-    supabase.from("photos").select("created_at").eq("org_id", orgId).gte("created_at", thirtyDaysAgo).order("created_at", { ascending: false }).limit(400),
-    supabase.from("announcements").select("created_at").eq("org_id", orgId).gte("created_at", thirtyDaysAgo).order("created_at", { ascending: false }).limit(200),
-  ]);
-
-  const members = (membersRes.data ?? []) as MemberProfile[];
-  const events = (eventsRes.data ?? []) as Event[];
-  const payments = (paymentsRes.data ?? []) as Payment[];
-  const announcements = (announcementsRes.data ?? []) as Announcement[];
-  const tasks = (tasksRes.data ?? []) as Task[];
-  const reimbs = (reimbsRes.data ?? []) as Array<{ id: string; amount: number; status: string; created_at: string }>;
-  const budgets = (budgetsRes.data ?? []) as Array<{ budget_lines?: Array<{ budgeted: number; actual: number; type: string }> }>;
-  const photos = (photosRes.data ?? []) as Array<Record<string, unknown>>;
-  const pnmLeads = (pnmRes.data ?? []) as Array<{ status: string }>;
-  const sportsTryouts = (tryoutsRes.data ?? []) as Array<{ id: string; status: string }>;
-  const clubApplications = (clubMembershipRes.data ?? []) as Array<{ id: string; status: string }>;
-  const clubHours = (clubServiceRes.data ?? []) as Array<{ hours: number; verified: boolean }>;
-  const waivers = (waiversRes.data ?? []) as Array<{ status: string }>;
-  const totalClubHours = clubHours.reduce((s, h) => s + Number(h.hours), 0);
-  const allEventIds = ((allEventsRes.data ?? []) as Array<{ id: string }>).map((e) => e.id);
-  const pastEvents = (pastEventsRes.data ?? []) as Array<{ id: string; title: string; starts_at: string }>;
-  const recentPhotos = (recentPhotosRes.data ?? []) as Array<{ created_at: string }>;
-  const recentAnnouncements = (recentAnnouncementsRes.data ?? []) as Array<{ created_at: string }>;
-  let rsvps: Array<{ checked_in: boolean; event_id: string }> = [];
-  if (allEventIds.length > 0) {
-    const { data: rsvpData } = await supabase.from("event_rsvps").select("checked_in, event_id").in("event_id", allEventIds);
-    rsvps = (rsvpData ?? []) as typeof rsvps;
-  }
-
-
-
-  const pastEventIds = pastEvents.map((e) => e.id);
-  let pastRsvps: Array<{ checked_in: boolean; event_id: string }> = [];
-  if (pastEventIds.length > 0) {
-    const { data: rsvpData } = await supabase
-      .from("event_rsvps")
-      .select("checked_in, event_id")
-      .in("event_id", pastEventIds);
-    pastRsvps = (rsvpData ?? []) as typeof pastRsvps;
-  }
-
-  const attendanceTrend = pastEvents
-    .slice()
-    .reverse()
-    .map((e) => {
-      const rows = pastRsvps.filter((r) => r.event_id === e.id);
-      const total = rows.length;
-      const checkedIn = rows.filter((r) => r.checked_in).length;
-      const rate = total > 0 ? Math.round((checkedIn / total) * 100) : 0;
-      return {
-        label: new Date(e.starts_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
-        rate,
-        checkedIn,
-        total,
-      };
-    });
-
-  function startOfWeek(d: Date) {
-    const date = new Date(d);
-    const day = date.getDay(); // 0=Sun
-    const diff = (day + 6) % 7; // Monday start
-    date.setDate(date.getDate() - diff);
-    date.setHours(0, 0, 0, 0);
-    return date;
-  }
-
-  const now = new Date();
-  const buckets = Array.from({ length: 5 }, (_, i) => {
-    const start = startOfWeek(new Date(now.getTime() - (4 - i) * 7 * 86400000));
-    const end = new Date(start.getTime() + 7 * 86400000);
-    const label = start.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-
-    const photos = recentPhotos.filter((p) => {
-      const ts = new Date(p.created_at);
-      return ts >= start && ts < end;
-    }).length;
-
-    const announcements = recentAnnouncements.filter((a) => {
-      const ts = new Date(a.created_at);
-      return ts >= start && ts < end;
-    }).length;
-
-    return { label, photos, announcements };
-  });
-
-  const engagementTrend = buckets;
-
-  const nowMs = Date.now();
-  const deadlineItems: DeadlineItem[] = [];
-
-  for (const t of tasks) {
-    if (!t.due_date) continue;
-    deadlineItems.push({
-      id: t.id,
-      kind: "task",
-      title: t.title,
-      dueAt: t.due_date,
-      href: "/tasks",
-      meta: t.assignee_name ?? undefined,
-      overdue: new Date(t.due_date).getTime() < nowMs,
-    });
-  }
-
-  const paymentRows = (paymentDeadlinesRes.data ?? []) as Array<{
-    id: string;
-    amount: number;
-    paid_amount: number;
-    status: string;
-    due_date: string | null;
-    payment_items?: { title: string } | { title: string }[] | null;
-  }>;
-
-  for (const pay of paymentRows) {
-    if (!pay.due_date || pay.status === "paid" || pay.status === "cancelled") continue;
-    const remaining = Number(pay.amount) - Number(pay.paid_amount);
-    if (remaining <= 0) continue;
-    const item = pay.payment_items;
-    const title =
-      (Array.isArray(item) ? item[0]?.title : item?.title) ?? "Payment due";
-    deadlineItems.push({
-      id: pay.id,
-      kind: "payment",
-      title,
-      dueAt: pay.due_date,
-      href: "/payments",
-      meta: `$${remaining.toFixed(0)} remaining`,
-      overdue: pay.status === "overdue" || new Date(pay.due_date).getTime() < nowMs,
-    });
-  }
-
-  for (const m of members) {
-    if (m.forms_required <= 0 || m.forms_completed >= m.forms_required) continue;
-    const dueAt = new Date(nowMs + 14 * 86400000).toISOString();
-    deadlineItems.push({
-      id: m.id,
-      kind: "form",
-      title: `${m.full_name} — forms incomplete`,
-      dueAt,
-      href: `/roster/${m.id}`,
-      meta: `${m.forms_completed}/${m.forms_required} completed`,
-    });
-  }
-  const activeCount = members.filter((m) => m.membership_status === "active").length;
-  const newMembers = members.filter((m) =>
-    m.membership_status === "new_member" ||
-    (m.created_at && new Date(m.created_at) > new Date(thirtyDaysAgo)),
-  ).length;
-  const alumniCount = members.filter((m) => m.membership_status === "alumni").length;
-
-  const totalExpected = payments.reduce((s, p) => s + Number(p.amount), 0);
-  const totalCollected = payments.reduce((s, p) => s + Number(p.paid_amount), 0);
-  const collectionRate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
-  const overdueCount = payments.filter((p) => p.status === "overdue").length;
-  const unpaidMembers = members.filter((m) => m.payment_status !== "current").length;
-
-  const pendingReimbs = reimbs.filter((r) => ["submitted", "needs_info"].includes(r.status));
-  const pendingReimbAmount = pendingReimbs.reduce((s, r) => s + Number(r.amount), 0);
-
-  const budgetLines = budgets[0]?.budget_lines ?? [];
-  const expenseLines = budgetLines.filter((l) => l.type === "expense");
-  const budgetUsed = expenseLines.reduce((s, l) => s + Number(l.actual), 0);
-  const budgetTotal = expenseLines.reduce((s, l) => s + Number(l.budgeted), 0);
-  const budgetPct = budgetTotal > 0 ? Math.round((budgetUsed / budgetTotal) * 100) : 0;
-
-  const formsIncomplete = members.filter(
-    (m) => m.forms_required > 0 && m.forms_completed < m.forms_required,
-  ).length;
-
-  const avgAttendance = members.length > 0
-    ? Math.round(members.reduce((s, m) => s + m.attendance_rate, 0) / members.length)
-    : 0;
-
-  const { breakdown, composite } = computeHealthScore({
-    members: members.map((m) => ({
-      membership_status: m.membership_status,
-      payment_status: m.payment_status,
-      attendance_rate: m.attendance_rate,
-      forms_completed: m.forms_completed,
-      forms_required: m.forms_required,
-    })),
-    payments: payments.map((p) => ({ amount: p.amount, paid_amount: p.paid_amount, status: p.status })),
-    pnmLeads,
-    events: events.map((e) => ({ id: e.id })),
-    rsvps,
-    tasks: tasks.map((t) => ({ status: t.status })),
-    reimbursements: reimbs,
-    budgets,
-    waivers: isSportsOrg(orgType) ? waivers : undefined,
+  const data = await loadDashboardData(supabase, {
+    orgId,
     orgType,
+    userId: user.id,
   });
 
-  const tasksDue = tasks.filter(
-    (t) => t.due_date && new Date(t.due_date) <= new Date(Date.now() + 3 * 86400000),
-  ).length;
+  const {
+    members, events, payments, announcements, tasks, myTasks, myProfile,
+    photos, pnmLeads, sportsTrips, waivers, sportsTryouts,
+    clubApplications, attendanceTrend, engagementTrend, deadlineItems,
+    setupSteps, stats, health,
+  } = data;
 
-  const complianceIssues = formsIncomplete + overdueCount + pendingReimbs.length;
-  const complianceOk = complianceIssues === 0;
+  const { breakdown, composite, metricsUsed } = health;
+  const {
+    activeCount, newMembers, alumniCount, totalCollected, collectionRate,
+    overdueCount, unpaidMembers, pendingReimbs, pendingReimbAmount,
+    budgetUsed, budgetTotal, budgetPct, formsIncomplete, avgAttendance,
+    tasksDue, complianceOk, totalClubHours,
+  } = stats;
+
+  const urgentDeadlines = deadlineItems.filter((d) => d.overdue).length;
+  const showGettingStarted = isOfficer && setupSteps.some((s) => !s.done);
 
   return (
     <div className="space-y-6">
@@ -287,91 +83,125 @@ export default async function DashboardPage() {
           <h1 className="text-2xl font-bold text-foreground">{String(org.name)}</h1>
           <p className="text-muted-foreground text-sm mt-0.5">
             {productLabel(product)} workspace
+            {!isOfficer && " · Member view"}
           </p>
         </div>
-        <HealthScoreBadge composite={composite} />
+        {isOfficer && (
+          <HealthScoreBadge composite={composite} metricsUsed={metricsUsed} />
+        )}
       </div>
 
       <OfficerQuickActions role={myRole} orgType={orgType} />
 
-      {/* Primary stats row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-3">
-        <StatCard title="Members" value={members.length} delta={`${activeCount} active`} icon={<Users size={18} />} />
-        <StatCard title="New members" value={newMembers} icon={<Users size={18} />} />
-        <StatCard title="Alumni" value={alumniCount} icon={<Users size={18} />} />
-        <StatCard title="Dues collected" value={formatCurrency(totalCollected)} delta={`${collectionRate}%`} deltaType={collectionRate >= 75 ? "up" : "down"} icon={<DollarSign size={18} />} />
-        <StatCard title="Upcoming events" value={events.length} icon={<Calendar size={18} />} />
-        <StatCard title="Tasks due soon" value={tasksDue} deltaType={tasksDue > 3 ? "down" : "neutral"} icon={<CheckCircle2 size={18} />} />
-      </div>
+      {!isOfficer && (
+        <MemberSnapshot profile={myProfile} events={events} myTasks={myTasks} />
+      )}
 
-      {/* Secondary stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard title="Pending reimbursements" value={pendingReimbs.length} delta={formatCurrency(pendingReimbAmount)} deltaType={pendingReimbs.length > 0 ? "down" : "neutral"} icon={<DollarSign size={18} />} />
-        <StatCard title="Budget used" value={budgetTotal > 0 ? `${budgetPct}%` : "—"} delta={budgetTotal > 0 ? `${formatCurrency(budgetUsed)} of ${formatCurrency(budgetTotal)}` : "No budget set"} deltaType={budgetPct > 90 ? "down" : "neutral"} icon={<TrendingUp size={18} />} />
-        <StatCard title="Forms incomplete" value={formsIncomplete} deltaType={formsIncomplete > 0 ? "down" : "up"} icon={<FileText size={18} />} />
-        <StatCard title="Avg attendance" value={`${avgAttendance}%`} deltaType={avgAttendance >= 75 ? "up" : "down"} icon={<TrendingUp size={18} />} />
-      </div>
+      {showGettingStarted && <GettingStarted steps={setupSteps} />}
 
-      {/* Alerts */}
-      <div className="space-y-2">
-        {!complianceOk && (
-          <Alert type="warning" title="Compliance attention needed" description={`${formsIncomplete} members with incomplete forms · ${overdueCount} overdue payments · ${pendingReimbs.length} pending reimbursements`} />
-        )}
-        {overdueCount > 0 && (
-          <Alert type="warning" title={`${overdueCount} overdue payment${overdueCount > 1 ? "s" : ""}`} description="Review in Dues & Payments." />
-        )}
-      </div>
+      {isOfficer && urgentDeadlines > 0 && (
+        <Alert
+          type="warning"
+          title={`${urgentDeadlines} overdue deadline${urgentDeadlines > 1 ? "s" : ""}`}
+          description="Review tasks, payments, and forms below."
+        />
+      )}
+
+      {isOfficer && (
+        <UpcomingDeadlines items={deadlineItems} />
+      )}
+
+      {isOfficer ? (
+        <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+          <StatCard title="Members" value={members.length} delta={`${activeCount} active`} icon={<Users size={18} />} />
+          <StatCard title="New members" value={newMembers} icon={<Users size={18} />} />
+          <StatCard title="Dues collected" value={formatCurrency(totalCollected)} delta={`${collectionRate}%`} deltaType={collectionRate >= 75 ? "up" : "down"} icon={<DollarSign size={18} />} />
+          <StatCard title="Upcoming events" value={events.length} icon={<Calendar size={18} />} />
+          <StatCard title="Tasks due soon" value={tasksDue} deltaType={tasksDue > 3 ? "down" : "neutral"} icon={<CheckCircle2 size={18} />} />
+          <StatCard title="Avg attendance" value={`${avgAttendance}%`} deltaType={avgAttendance >= 75 ? "up" : "down"} icon={<TrendingUp size={18} />} />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <StatCard title="Upcoming events" value={events.length} icon={<Calendar size={18} />} />
+          <StatCard title="Your open tasks" value={myTasks.length} icon={<CheckCircle2 size={18} />} />
+          <StatCard title="Chapter members" value={members.length} icon={<Users size={18} />} />
+          <StatCard title="Announcements" value={announcements.length} icon={<Zap size={18} />} />
+        </div>
+      )}
+
+      {isOfficer && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <StatCard title="Alumni" value={alumniCount} icon={<Users size={18} />} />
+          <StatCard title="Pending reimbursements" value={pendingReimbs} delta={formatCurrency(pendingReimbAmount)} deltaType={pendingReimbs > 0 ? "down" : "neutral"} icon={<DollarSign size={18} />} />
+          <StatCard title="Budget used" value={budgetTotal > 0 ? `${budgetPct}%` : "—"} delta={budgetTotal > 0 ? `${formatCurrency(budgetUsed)} of ${formatCurrency(budgetTotal)}` : "No budget set"} deltaType={budgetPct > 90 ? "down" : "neutral"} icon={<TrendingUp size={18} />} />
+          <StatCard title="Forms incomplete" value={formsIncomplete} deltaType={formsIncomplete > 0 ? "down" : "up"} icon={<FileText size={18} />} />
+        </div>
+      )}
+
+      {isOfficer && !complianceOk && (
+        <Alert
+          type="warning"
+          title="Compliance attention needed"
+          description={`${formsIncomplete} members with incomplete forms · ${overdueCount} overdue payments · ${pendingReimbs} pending reimbursements`}
+        />
+      )}
 
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* Health breakdown */}
-        <Card>
-          <CardHeader title="Organization health" icon={<Heart size={16} />} action={<Link href="/health" className="text-xs text-greek-600 hover:underline">Details</Link>} />
-          <div className="space-y-3">
-            {Object.entries(breakdown).map(([key, val]) => (
-              val !== undefined && (
-                <ProgressBar
-                  key={key}
-                  value={val as number}
-                  label={key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())}
-                  color={(val as number) >= 80 ? "green" : (val as number) >= 60 ? "yellow" : "red"}
-                  size="sm"
-                />
-              )
-            ))}
-          </div>
-        </Card>
-
-        {/* Compliance status */}
-        <Card>
-          <CardHeader title="Compliance status" icon={<Shield size={16} />} action={<Link href="/forms" className="text-xs text-greek-600 hover:underline">Forms</Link>} />
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { label: "Forms complete", ok: formsIncomplete === 0, detail: formsIncomplete === 0 ? "All members current" : `${formsIncomplete} incomplete` },
-              { label: "Dues current", ok: overdueCount === 0, detail: overdueCount === 0 ? "No overdue" : `${overdueCount} overdue` },
-              { label: "Reimbursements", ok: pendingReimbs.length === 0, detail: pendingReimbs.length === 0 ? "None pending" : `${pendingReimbs.length} pending` },
-              { label: "Budget", ok: budgetPct <= 90 || budgetTotal === 0, detail: budgetTotal > 0 ? `${budgetPct}% used` : "Not configured" },
-            ].map((item) => (
-              <div key={item.label} className={`p-3 rounded-lg border ${item.ok ? "border-green-200 bg-green-50/50 dark:bg-green-950/10" : "border-yellow-200 bg-yellow-50/50 dark:bg-yellow-950/10"}`}>
-                <div className="flex items-center gap-2 mb-1">
-                  {item.ok ? <CheckCircle2 size={14} className="text-green-600" /> : <AlertTriangle size={14} className="text-yellow-600" />}
-                  <p className="text-sm font-medium">{item.label}</p>
-                </div>
-                <p className="text-xs text-muted-foreground">{item.detail}</p>
+        {isOfficer && (
+          <>
+            <Card>
+              <CardHeader title="Organization health" icon={<Heart size={16} />} action={<Link href="/health" className="text-xs text-greek-600 hover:underline">Details</Link>} />
+              <div className="space-y-3">
+                {Object.entries(breakdown).map(([key, val]) => (
+                  typeof val === "number" && (
+                    <ProgressBar
+                      key={key}
+                      value={val}
+                      label={key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())}
+                      color={val >= 80 ? "green" : val >= 60 ? "yellow" : "red"}
+                      size="sm"
+                    />
+                  )
+                ))}
+                {composite === null && (
+                  <p className="text-xs text-muted-foreground">Add dues, events, or a budget to calculate health score.</p>
+                )}
               </div>
-            ))}
-          </div>
-        </Card>
+            </Card>
 
+            <Card>
+              <CardHeader title="Compliance status" icon={<Shield size={16} />} action={<Link href="/forms" className="text-xs text-greek-600 hover:underline">Forms</Link>} />
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: "Forms complete", ok: formsIncomplete === 0, detail: formsIncomplete === 0 ? "All members current" : `${formsIncomplete} incomplete` },
+                  { label: "Dues current", ok: overdueCount === 0, detail: overdueCount === 0 ? "No overdue" : `${overdueCount} overdue` },
+                  { label: "Reimbursements", ok: pendingReimbs === 0, detail: pendingReimbs === 0 ? "None pending" : `${pendingReimbs} pending` },
+                  { label: "Budget", ok: budgetPct <= 90 || budgetTotal === 0, detail: budgetTotal > 0 ? `${budgetPct}% used` : "Not configured" },
+                ].map((item) => (
+                  <div key={item.label} className={`p-3 rounded-lg border ${item.ok ? "border-green-200 bg-green-50/50 dark:bg-green-950/10" : "border-yellow-200 bg-yellow-50/50 dark:bg-yellow-950/10"}`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      {item.ok ? <CheckCircle2 size={14} className="text-green-600" /> : <AlertTriangle size={14} className="text-yellow-600" />}
+                      <p className="text-sm font-medium">{item.label}</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{item.detail}</p>
+                  </div>
+                ))}
+              </div>
+            </Card>
 
+            <AttendanceTrendChart points={attendanceTrend} />
+            <EngagementTrendChart points={engagementTrend} />
+          </>
+        )}
 
-        <AttendanceTrendChart points={attendanceTrend} />
-        <EngagementTrendChart points={engagementTrend} />
-        <UpcomingDeadlines items={deadlineItems} />
-        {/* Upcoming events */}
         <Card>
           <CardHeader title="Upcoming events" icon={<Calendar size={16} />} action={<Link href="/events" className="text-xs text-greek-600 hover:underline">View all</Link>} />
           {events.length === 0 ? (
-            <EmptyState icon={<Calendar size={20} />} title="No upcoming events" action={<Link href="/events/new" className="text-sm text-greek-600 hover:underline">Create event →</Link>} />
+            <EmptyState
+              icon={<Calendar size={20} />}
+              title="No upcoming events"
+              action={isOfficer ? <Link href="/events/new" className="text-sm text-greek-600 hover:underline">Create event →</Link> : undefined}
+            />
           ) : (
             <div className="space-y-3">
               {events.map((e) => (
@@ -390,7 +220,6 @@ export default async function DashboardPage() {
           )}
         </Card>
 
-        {/* Announcements */}
         <Card>
           <CardHeader title="Recent announcements" icon={<Zap size={16} />} action={<Link href="/comms" className="text-xs text-greek-600 hover:underline">View all</Link>} />
           {announcements.length === 0 ? (
@@ -410,51 +239,58 @@ export default async function DashboardPage() {
           )}
         </Card>
 
-        {/* Dues collection */}
-        <Card>
-          <CardHeader title="Unpaid balances" icon={<DollarSign size={16} />} action={<Link href="/payments" className="text-xs text-greek-600 hover:underline">Manage</Link>} />
-          <ProgressBar value={collectionRate} label={`${formatCurrency(totalCollected)} of ${formatCurrency(totalExpected)}`} color={collectionRate >= 75 ? "green" : collectionRate >= 50 ? "yellow" : "red"} size="md" />
-          <div className="grid grid-cols-3 gap-3 text-center mt-4">
-            {[
-              { label: "Paid", value: payments.filter((p) => p.status === "paid").length, color: "text-green-600" },
-              { label: "Pending", value: payments.filter((p) => p.status === "pending").length, color: "text-yellow-600" },
-              { label: "Overdue", value: overdueCount, color: "text-red-500" },
-            ].map((s) => (
-              <div key={s.label} className="bg-surface-1 rounded-lg py-2">
-                <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
-                <p className="text-xs text-muted-foreground">{s.label}</p>
+        {isOfficer && (
+          <>
+            <Card>
+              <CardHeader title="Unpaid balances" icon={<DollarSign size={16} />} action={<Link href="/payments" className="text-xs text-greek-600 hover:underline">Manage</Link>} />
+              <ProgressBar value={collectionRate} label={`${formatCurrency(totalCollected)} collected`} color={collectionRate >= 75 ? "green" : collectionRate >= 50 ? "yellow" : "red"} size="md" />
+              <div className="grid grid-cols-3 gap-3 text-center mt-4">
+                {[
+                  { label: "Paid", value: payments.filter((p) => p.status === "paid").length, color: "text-green-600" },
+                  { label: "Pending", value: payments.filter((p) => p.status === "pending").length, color: "text-yellow-600" },
+                  { label: "Overdue", value: overdueCount, color: "text-red-500" },
+                ].map((s) => (
+                  <div key={s.label} className="bg-surface-1 rounded-lg py-2">
+                    <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
+                    <p className="text-xs text-muted-foreground">{s.label}</p>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          {unpaidMembers > 0 && <p className="text-xs text-muted-foreground mt-3">{unpaidMembers} member{unpaidMembers > 1 ? "s" : ""} with outstanding balances</p>}
-        </Card>
+              {unpaidMembers > 0 && (
+                <p className="text-xs text-muted-foreground mt-3">
+                  {unpaidMembers} member{unpaidMembers > 1 ? "s" : ""} with outstanding balances
+                </p>
+              )}
+            </Card>
 
-        {/* Tasks + deadlines */}
-        <Card>
-          <CardHeader title="Officer tasks & deadlines" icon={<CheckCircle2 size={16} />} action={<Link href="/tasks" className="text-xs text-greek-600 hover:underline">View all</Link>} />
-          {tasks.length === 0 ? (
-            <EmptyState icon={<CheckCircle2 size={20} />} title="All caught up!" />
-          ) : (
-            <div className="space-y-2">
-              {tasks.map((t) => {
-                const isOverdue = t.due_date && new Date(t.due_date) < new Date();
-                return (
-                  <Link key={t.id} href="/tasks" className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-1 transition-colors">
-                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${t.priority === "urgent" ? "bg-red-500" : t.priority === "high" ? "bg-orange-500" : "bg-yellow-500"}`} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{t.title}</p>
-                      {t.assignee_name && <p className="text-xs text-muted-foreground">{t.assignee_name}</p>}
-                    </div>
-                    {t.due_date && <Badge label={isOverdue ? "Overdue" : formatDateTime(t.due_date)} color={isOverdue ? "red" : "gray"} className="flex-shrink-0" />}
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-        </Card>
+            <Card>
+              <CardHeader title="Officer tasks" icon={<CheckCircle2 size={16} />} action={<Link href="/tasks" className="text-xs text-greek-600 hover:underline">View all</Link>} />
+              {tasks.length === 0 ? (
+                <EmptyState icon={<CheckCircle2 size={20} />} title="All caught up!" />
+              ) : (
+                <div className="space-y-2">
+                  {tasks.map((t) => {
+                    const isOverdue = t.due_date && new Date(t.due_date) < new Date();
+                    return (
+                      <Link key={t.id} href="/tasks" className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-1 transition-colors">
+                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${t.priority === "urgent" ? "bg-red-500" : t.priority === "high" ? "bg-orange-500" : "bg-yellow-500"}`} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{t.title}</p>
+                          {t.assignee_name && <p className="text-xs text-muted-foreground">{t.assignee_name}</p>}
+                        </div>
+                        {t.due_date && (
+                          <Badge label={isOverdue ? "Overdue" : formatDateTime(t.due_date)} color={isOverdue ? "red" : "gray"} className="flex-shrink-0" />
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </Card>
+          </>
+        )}
 
-        {/* Recent media */}
-        <Card className="lg:col-span-2">
+        <Card className={isOfficer ? "lg:col-span-2" : ""}>
           <CardHeader title="Recent photo activity" icon={<ImageIcon size={16} aria-hidden />} action={<Link href="/social" className="text-xs text-greek-600 hover:underline">Social hub</Link>} />
           {photos.length === 0 ? (
             <EmptyState icon={<ImageIcon size={20} aria-hidden />} title="No recent photos" description="Upload event photos from the Social page." />
@@ -474,24 +310,29 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      {/* Org-type dashboard */}
-      {isGreekOrg(orgType) && (
+      {isGreekOrg(orgType) && isOfficer && (
         <Card>
           <CardHeader title="Chapter dashboard" icon={<Zap size={16} />} />
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-            <StatCard title="PNM pipeline" value={pnmLeads.filter((p) => !["accepted","declined","removed"].includes(p.status)).length} icon={<Zap size={16} />} />
+            <StatCard title="PNM pipeline" value={pnmLeads.filter((p) => !["accepted", "declined", "removed"].includes(p.status)).length} icon={<Zap size={16} />} />
             <StatCard title="Bids extended" value={pnmLeads.filter((p) => p.status === "bid_extended").length} icon={<Heart size={16} />} />
-            <StatCard title="Risk events pending" value={0} icon={<Shield size={16} />} />
             <StatCard title="Engagement" value={`${avgAttendance}%`} icon={<TrendingUp size={16} />} />
+            <StatCard title="Members" value={activeCount} icon={<Users size={16} />} />
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { href: "/pnm", label: "PNM Recruitment" }, { href: "/social", label: "Touse Social" },
-              { href: "/risk", label: "Risk" }, { href: "/nme", label: "New Members" },
-              { href: "/standards", label: "Standards" }, { href: "/alumni", label: "Alumni CRM" },
-              { href: "/philanthropy", label: "Philanthropy" }, { href: "/interchapter", label: "ExecLink" },
+              { href: "/pnm", label: "PNM Recruitment" },
+              { href: "/social", label: "Touse Social" },
+              { href: "/risk", label: "Risk" },
+              { href: "/nme", label: "New Members" },
+              { href: "/standards", label: "Standards" },
+              { href: "/alumni", label: "Alumni CRM" },
+              { href: "/philanthropy", label: "Philanthropy" },
+              { href: "/interchapter", label: "ExecLink" },
             ].map((link) => (
-              <Link key={link.href} href={link.href} className="text-sm font-medium text-greek-600 hover:underline p-2 rounded-lg hover:bg-surface-1">{link.label} →</Link>
+              <Link key={link.href} href={link.href} className="text-sm font-medium text-greek-600 hover:underline p-2 rounded-lg hover:bg-surface-1">
+                {link.label} →
+              </Link>
             ))}
           </div>
         </Card>
@@ -499,11 +340,11 @@ export default async function DashboardPage() {
 
       {isSportsOrg(orgType) && (
         <Card>
-          <CardHeader title="Team dashboard" icon={<Trophy size={16} />} action={<Link href="/sports" className="text-xs text-sports-600 hover:underline">Full dashboard</Link>} />
+          <CardHeader title="Team snapshot" icon={<Trophy size={16} />} action={<Link href="/sports" className="text-xs text-sports-600 hover:underline">Team home</Link>} />
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <StatCard title="Injured players" value={members.filter((m) => (m as MemberProfile & { is_injured?: boolean }).is_injured).length} icon={<AlertTriangle size={16} />} />
             <StatCard title="Waivers complete" value={waivers.filter((w) => w.status === "completed").length} delta={`${waivers.length} total`} icon={<Shield size={16} />} />
-            <StatCard title="Travel trips" value={(tripsRes.data ?? []).length} icon={<Calendar size={16} />} />
+            <StatCard title="Travel trips" value={sportsTrips.length} icon={<Calendar size={16} />} />
             <StatCard title="Tryout candidates" value={sportsTryouts.filter((t) => !["accepted", "cut"].includes(t.status)).length} icon={<Trophy size={16} />} />
           </div>
         </Card>
@@ -511,7 +352,7 @@ export default async function DashboardPage() {
 
       {isClubOrg(orgType) && (
         <Card>
-          <CardHeader title="Club dashboard" icon={<Users size={16} />} action={<Link href="/club" className="text-xs text-club-600 hover:underline">Full dashboard</Link>} />
+          <CardHeader title="Club snapshot" icon={<Users size={16} />} action={<Link href="/club" className="text-xs text-club-600 hover:underline">Club home</Link>} />
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
             <StatCard title="Active members" value={members.filter((m) => m.membership_status === "active").length} icon={<Users size={16} />} />
             <StatCard title="Membership apps" value={clubApplications.filter((a) => a.status === "applied").length} icon={<Zap size={16} />} />
@@ -527,7 +368,9 @@ export default async function DashboardPage() {
               { href: "/social", label: "Photos & updates" },
               { href: "/events", label: "Events" },
             ].map((link) => (
-              <Link key={link.href} href={link.href} className="text-sm font-medium text-club-600 hover:underline p-2 rounded-lg hover:bg-surface-1">{link.label} →</Link>
+              <Link key={link.href} href={link.href} className="text-sm font-medium text-club-600 hover:underline p-2 rounded-lg hover:bg-surface-1">
+                {link.label} →
+              </Link>
             ))}
           </div>
         </Card>

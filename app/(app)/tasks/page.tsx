@@ -25,11 +25,13 @@ export default function TasksPage() {
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [detailTask, setDetailTask] = useState<Task | null>(null);
   const [userName, setUserName] = useState("");
+  const [memberOptions, setMemberOptions] = useState<Array<{ id: string; name: string }>>([]);
 
   const [form, setForm] = useState({
     title: "", description: "", priority: "medium" as TaskPriority, isRecurring: false,
     dueDate: "", assigneeName: "", tags: "",
   });
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
@@ -59,12 +61,27 @@ export default function TasksPage() {
   }, [userId, orgId]);
 
   useEffect(() => {
-    if (orgId) load(orgId);
+    if (!orgId) return;
+    load(orgId);
+    fetch(`/api/members?org_id=${encodeURIComponent(orgId)}`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => {
+        const opts = (data as Array<{ id: string; full_name: string; preferred_name?: string | null }>).map((m) => ({
+          id: m.id,
+          name: m.preferred_name ? `${m.preferred_name} (${m.full_name})` : m.full_name,
+        }));
+        setMemberOptions(opts);
+      });
   }, [orgId, load]);
 
   const filtered = tasks.filter((t) => {
     if (filter === "all") return true;
-    return t.assigned_to === userId || t.created_by === userId;
+    const assignees = (t as Task & { assignees?: Array<{ user_id: string }> }).assignees ?? [];
+    return (
+      t.assigned_to === userId
+      || t.created_by === userId
+      || assignees.some((a) => a.user_id === userId)
+    );
   });
 
   const byStatus = {
@@ -89,7 +106,7 @@ export default function TasksPage() {
           description: form.description || null,
           priority: form.priority,
           due_date: form.dueDate || null,
-          assignee_name: form.assigneeName || null,
+          assigneeMemberIds: selectedMemberIds,
           status: editTask.status,
           tags,
           is_recurring: form.isRecurring,
@@ -108,7 +125,7 @@ export default function TasksPage() {
           description: form.description,
           priority: form.priority,
           dueDate: form.dueDate,
-          assigneeName: form.assigneeName,
+          assigneeMemberIds: selectedMemberIds,
           tags,
           isRecurring: form.isRecurring,
         }),
@@ -121,6 +138,7 @@ export default function TasksPage() {
     setCreateOpen(false);
     setEditTask(null);
     setForm({ title: "", description: "", priority: "medium", isRecurring: false, dueDate: "", assigneeName: "", tags: "" });
+    setSelectedMemberIds([]);
     load(orgId);
   }
 
@@ -138,6 +156,7 @@ export default function TasksPage() {
 
   function openEdit(task: Task) {
     setEditTask(task);
+    const assignees = (task as Task & { assignees?: Array<{ member_id: string | null }> }).assignees ?? [];
     setForm({
       title: task.title,
       description: task.description ?? "",
@@ -147,7 +166,20 @@ export default function TasksPage() {
       assigneeName: task.assignee_name ?? "",
       tags: task.tags?.join(", ") ?? "",
     });
+    setSelectedMemberIds(
+      assignees.map((a) => a.member_id).filter((id): id is string => Boolean(id)),
+    );
     setCreateOpen(true);
+  }
+
+  function toggleMember(memberId: string) {
+    setSelectedMemberIds((prev) =>
+      prev.includes(memberId) ? prev.filter((id) => id !== memberId) : [...prev, memberId],
+    );
+  }
+
+  function selectAllMembers() {
+    setSelectedMemberIds(memberOptions.map((m) => m.id));
   }
 
   const columns = [
@@ -316,7 +348,32 @@ export default function TasksPage() {
             <Input label="Due date" type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} />
           </div>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.isRecurring} onChange={(e) => setForm({ ...form, isRecurring: e.target.checked })} /> Recurring task</label>
-          <Input label="Assignee" placeholder="Who's responsible?" value={form.assigneeName} onChange={(e) => setForm({ ...form, assigneeName: e.target.value })} />
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-medium text-foreground">Assign to members</p>
+              <div className="flex gap-2">
+                <button type="button" className="text-xs text-greek-600 hover:underline" onClick={selectAllMembers}>Select all</button>
+                <button type="button" className="text-xs text-muted-foreground hover:underline" onClick={() => setSelectedMemberIds([])}>Clear</button>
+              </div>
+            </div>
+            <div className="max-h-40 overflow-y-auto rounded-lg border border-border divide-y divide-border">
+              {memberOptions.length === 0 ? (
+                <p className="text-xs text-muted-foreground p-3">Load roster members first</p>
+              ) : memberOptions.map((m) => (
+                <label key={m.id} className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-surface-1">
+                  <input
+                    type="checkbox"
+                    checked={selectedMemberIds.includes(m.id)}
+                    onChange={() => toggleMember(m.id)}
+                  />
+                  {m.name}
+                </label>
+              ))}
+            </div>
+            {selectedMemberIds.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-1">{selectedMemberIds.length} selected</p>
+            )}
+          </div>
           <Input label="Tags (comma-separated)" placeholder="recruitment, social, important" value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} />
           {editTask && (
             <Select

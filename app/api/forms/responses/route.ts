@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isSportsWaiverType } from "@/lib/sports-waiver-types";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -52,7 +53,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "formId and responses required" }, { status: 400 });
   }
 
-  const { data: form } = await supabase.from("forms").select("id, org_id, is_required").eq("id", formId).single();
+  const { data: form } = await supabase.from("forms").select("id, org_id, is_required, type, title").eq("id", formId).single();
   if (!form) return NextResponse.json({ error: "Form not found" }, { status: 404 });
 
   const { data: member, error: memberErr } = await supabase
@@ -95,6 +96,20 @@ export async function POST(request: Request) {
     .from("member_profiles")
     .update({ forms_completed: completed })
     .eq("id", member.id);
+
+  if (form.type && isSportsWaiverType(form.type)) {
+    await supabase.from("sports_waivers").upsert(
+      {
+        org_id: form.org_id,
+        member_id: member.id,
+        waiver_type: form.type,
+        status: "completed",
+        signed_at: new Date().toISOString(),
+        document_url: `/forms/${formId}/fill`,
+      },
+      { onConflict: "org_id,member_id,waiver_type" },
+    );
+  }
 
   return NextResponse.json(row, { status: 201 });
 }

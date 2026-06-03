@@ -51,12 +51,24 @@ export async function POST(request: Request) {
         /* non-fatal */
       }
 
+      const { data: existingPayment } = await supabase
+        .from("payments")
+        .select("amount, paid_amount")
+        .eq("id", paymentId)
+        .single();
+
+      const sessionPaid = (session.amount_total ?? 0) / 100;
+      const priorPaid = Number(existingPayment?.paid_amount ?? 0);
+      const totalDue = Number(existingPayment?.amount ?? sessionPaid);
+      const newPaid = priorPaid + sessionPaid;
+      const fullyPaid = newPaid >= totalDue;
+
       const { data: updatedPayment } = await supabase
         .from("payments")
         .update({
-          status: "paid",
-          paid_amount: (session.amount_total ?? 0) / 100,
-          paid_at: new Date().toISOString(),
+          status: fullyPaid ? "paid" : "partial",
+          paid_amount: Math.min(newPaid, totalDue),
+          paid_at: fullyPaid ? new Date().toISOString() : undefined,
           stripe_payment_intent_id: session.payment_intent as string,
           receipt_url: receiptUrl,
         })

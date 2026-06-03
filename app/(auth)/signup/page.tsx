@@ -8,7 +8,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import toast from "react-hot-toast";
+import React from "react";
 import { AuthShell } from "@/components/auth/auth-shell";
+import { OAuthButtons } from "@/components/auth/oauth-buttons";
 import { SupabaseConfigAlert } from "@/components/auth/supabase-config-alert";
 import { Button, Input } from "@/components/ui";
 
@@ -95,6 +97,9 @@ export default function SignupPage() {
       }
     >
       <SupabaseConfigAlert />
+      <React.Suspense fallback={null}>
+        <OAuthButtons disabled={!canSignUp} mode="signup" />
+      </React.Suspense>
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
         <Input
           label="Full name"

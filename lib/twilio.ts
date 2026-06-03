@@ -1,13 +1,25 @@
 import twilio from "twilio";
+import { isTwilioConfigured } from "@/lib/integrations";
 
-const client = twilio(
-  process.env.TWILIO_ACCOUNT_SID,
-  process.env.TWILIO_AUTH_TOKEN,
-);
+let twilioClient: ReturnType<typeof twilio> | null = null;
 
-const FROM = process.env.TWILIO_MESSAGING_SERVICE_SID
-  ? { messagingServiceSid: process.env.TWILIO_MESSAGING_SERVICE_SID }
-  : { from: process.env.TWILIO_PHONE_NUMBER! };
+function getTwilioClient(): ReturnType<typeof twilio> | null {
+  if (!isTwilioConfigured()) return null;
+  if (!twilioClient) {
+    twilioClient = twilio(
+      process.env.TWILIO_ACCOUNT_SID!,
+      process.env.TWILIO_AUTH_TOKEN!,
+    );
+  }
+  return twilioClient;
+}
+
+function messageFrom(): { messagingServiceSid: string } | { from: string } {
+  if (process.env.TWILIO_MESSAGING_SERVICE_SID) {
+    return { messagingServiceSid: process.env.TWILIO_MESSAGING_SERVICE_SID };
+  }
+  return { from: process.env.TWILIO_PHONE_NUMBER! };
+}
 
 export interface SendSmsResult {
   sid: string;
@@ -19,8 +31,17 @@ export async function sendSms(
   to: string,
   body: string,
 ): Promise<SendSmsResult> {
+  const client = getTwilioClient();
+  if (!client) {
+    return {
+      sid: "",
+      status: "failed",
+      error: "Twilio is not configured. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_MESSAGING_SERVICE_SID (or TWILIO_PHONE_NUMBER).",
+    };
+  }
+
   try {
-    const msg = await client.messages.create({ ...FROM, to, body });
+    const msg = await client.messages.create({ ...messageFrom(), to, body });
     return { sid: msg.sid, status: msg.status };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
@@ -33,6 +54,14 @@ export async function sendMassSms(
   body: string,
   templateVars?: Record<string, string>,
 ): Promise<SendSmsResult[]> {
+  if (!isTwilioConfigured()) {
+    return recipients.map(() => ({
+      sid: "",
+      status: "failed",
+      error: "Twilio is not configured",
+    }));
+  }
+
   const results: SendSmsResult[] = [];
 
   for (const recipient of recipients) {
@@ -50,7 +79,6 @@ export async function sendMassSms(
     const result = await sendSms(recipient.phone, personalizedBody);
     results.push(result);
 
-    // Rate limiting – 1 msg/10ms (Twilio allows ~100/s on production)
     await new Promise((r) => setTimeout(r, 10));
   }
 

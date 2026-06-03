@@ -26,6 +26,11 @@ export async function GET(request: Request) {
     supabase.from("budgets").select("*, budget_lines(*)").eq("org_id", orgId),
   ]);
 
+  const members = membersRes.data ?? [];
+  const activeMemberCount = members.filter((m) =>
+    ["active", "new_member"].includes(String(m.membership_status)),
+  ).length;
+
   const eventIds = (eventsRes.data ?? []).map((e: { id: string }) => e.id);
   let rsvps: Array<{ checked_in: boolean; event_id: string }> = [];
   if (eventIds.length > 0) {
@@ -33,14 +38,17 @@ export async function GET(request: Request) {
     rsvps = (data ?? []) as typeof rsvps;
   }
 
-  let waivers: Array<{ status: string }> | undefined;
+  let waivers: Array<{ status: string; waiver_type: string; member_id: string }> | undefined;
   if (org.type === "club_sports") {
-    const { data } = await supabase.from("sports_waivers").select("status").eq("org_id", orgId);
-    waivers = (data ?? []) as Array<{ status: string }>;
+    const { data } = await supabase
+      .from("sports_waivers")
+      .select("status, waiver_type, member_id")
+      .eq("org_id", orgId);
+    waivers = (data ?? []) as typeof waivers;
   }
 
-  const { breakdown, composite } = computeHealthScore({
-    members: (membersRes.data ?? []) as Parameters<typeof computeHealthScore>[0]["members"],
+  const { breakdown, meta, composite, metricsUsed, metricsTotal } = computeHealthScore({
+    members: members as Parameters<typeof computeHealthScore>[0]["members"],
     payments: (paymentsRes.data ?? []) as Parameters<typeof computeHealthScore>[0]["payments"],
     pnmLeads: (pnmRes.data ?? []) as Parameters<typeof computeHealthScore>[0]["pnmLeads"],
     events: (eventsRes.data ?? []) as Parameters<typeof computeHealthScore>[0]["events"],
@@ -50,17 +58,26 @@ export async function GET(request: Request) {
     budgets: (budgetsRes.data ?? []) as Parameters<typeof computeHealthScore>[0]["budgets"],
     waivers,
     orgType: String(org.type),
+    activeMemberCount,
   });
 
-  // Persist snapshot
-  await supabase.from("org_health_scores").upsert({
-    org_id: orgId,
-    period: "current",
-    computed_scores: breakdown,
-    composite_score: composite,
-    computed_at: new Date().toISOString(),
-    updated_by: user.id,
-  }, { onConflict: "org_id,period" });
+  if (composite !== null) {
+    await supabase.from("org_health_scores").upsert({
+      org_id: orgId,
+      period: "current",
+      computed_scores: breakdown,
+      composite_score: composite,
+      computed_at: new Date().toISOString(),
+      updated_by: user.id,
+    }, { onConflict: "org_id,period" });
+  }
 
-  return NextResponse.json({ breakdown, composite });
+  return NextResponse.json({
+    breakdown,
+    meta,
+    composite,
+    metricsUsed,
+    metricsTotal,
+    activeMemberCount,
+  });
 }

@@ -1,11 +1,13 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
+import { ensureUserProfile } from "@/lib/ensure-user-profile";
 import {
   getSupabaseAnonKey,
   getSupabaseUrl,
   isSupabaseConfigured,
 } from "@/lib/supabase/public-config";
+import { createServiceClient } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
@@ -46,11 +48,20 @@ export async function GET(request: NextRequest) {
     },
   );
 
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
+  const { data: sessionData, error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
     console.error("[auth/callback]", error.message);
     return NextResponse.redirect(new URL("/login?error=auth_callback", origin));
+  }
+
+  if (sessionData.user) {
+    try {
+      const service = await createServiceClient();
+      await ensureUserProfile(service, sessionData.user);
+    } catch (profileErr) {
+      console.error("[auth/callback] profile", profileErr);
+    }
   }
 
   const forwardedHost = request.headers.get("x-forwarded-host");

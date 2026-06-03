@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { triggerBudgetSyncForOrg } from "@/lib/budget-auto-sync";
+import { forbidUnless, getMemberRole } from "@/lib/api-org-role";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -21,6 +22,10 @@ export async function POST(request: Request) {
 
   if (!payment) return NextResponse.json({ error: "Payment not found" }, { status: 404 });
 
+  const role = await getMemberRole(supabase, user.id, String(orgId));
+  const denied = forbidUnless(role, "manage_payments");
+  if (denied) return denied;
+
   const paidAmount = Number(payment.paid_amount) + Number(amount);
   const totalAmount = Number(payment.amount);
   const status = paidAmount >= totalAmount ? "paid" : "partial";
@@ -28,7 +33,7 @@ export async function POST(request: Request) {
   const { error } = await supabase.from("payments").update({
     paid_amount: paidAmount,
     status,
-    method: method || "cash_check",
+    method: method || "cash",
     paid_at: status === "paid" ? new Date().toISOString() : payment.paid_at,
     notes: notes || payment.notes,
   }).eq("id", paymentId);

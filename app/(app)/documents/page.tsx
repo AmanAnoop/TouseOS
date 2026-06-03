@@ -85,8 +85,6 @@ export default function DocumentsPage() {
       return;
     }
 
-    const { data: urlData } = supabase.storage.from("documents").getPublicUrl(stored.path);
-
     const res = await fetch("/api/documents", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -95,7 +93,7 @@ export default function DocumentsPage() {
         title: uploadForm.title,
         category: uploadForm.category,
         storagePath: stored.path,
-        url: urlData.publicUrl,
+        url: null,
         fileSizeBytes: selectedFile.size,
         mimeType: selectedFile.type,
         isPrivate: uploadForm.isPrivate,
@@ -178,6 +176,7 @@ export default function DocumentsPage() {
             <DocumentCard
               key={doc.id}
               doc={doc}
+              orgId={orgId!}
               onDelete={canManageDocs ? deleteDocument : undefined}
               onViewVersions={setVersionDoc}
             />

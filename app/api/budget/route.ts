@@ -71,7 +71,8 @@ export async function POST(request: Request) {
       ];
 
   if (lineRows.length) {
-    await supabase.from("budget_lines").insert(lineRows);
+    const { error: linesError } = await supabase.from("budget_lines").insert(lineRows);
+    if (linesError) return NextResponse.json({ error: linesError.message }, { status: 500 });
   }
 
   void triggerBudgetSyncForOrg(orgId, user.id);

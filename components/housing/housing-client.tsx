@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Building, Hammer, Home, Plus, Users } from "lucide-react";
 import toast from "react-hot-toast";
 import { useOrg } from "@/hooks/use-org";
+import { usePermissions } from "@/hooks/use-permissions";
 import {
   Badge, Button, Card, CardHeader, EmptyState, Input, Modal, PageHeader, Select, StatCard, Textarea,
 } from "@/components/ui";
@@ -27,9 +28,20 @@ interface Assignment {
 
 interface Maintenance {
   id: string;
+  room_id: string | null;
   description: string;
   priority: string;
   status: string;
+}
+
+interface HousingContact {
+  id: string;
+  name: string;
+  role_label: string | null;
+  category: string;
+  phone: string | null;
+  email: string | null;
+  notes: string | null;
 }
 
 interface Member {
@@ -39,18 +51,26 @@ interface Member {
 
 export function HousingClient() {
   const { orgId } = useOrg();
+  const { can } = usePermissions();
+  const canManageHousing = can("manage_housing");
   const [rooms, setRooms] = useState<Room[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [maintenance, setMaintenance] = useState<Maintenance[]>([]);
+  const [contacts, setContacts] = useState<HousingContact[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [roomOpen, setRoomOpen] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
   const [maintOpen, setMaintOpen] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
+  const [editContact, setEditContact] = useState<HousingContact | null>(null);
   const [selectedRoomId, setSelectedRoomId] = useState("");
   const [roomForm, setRoomForm] = useState({ roomNumber: "", capacity: "1", floor: "1", monthlyRent: "" });
   const [assignMemberId, setAssignMemberId] = useState("");
-  const [maintForm, setMaintForm] = useState({ description: "", priority: "medium" });
+  const [maintForm, setMaintForm] = useState({ description: "", priority: "medium", roomId: "" });
+  const [contactForm, setContactForm] = useState({
+    name: "", roleLabel: "", category: "general", phone: "", email: "", notes: "",
+  });
   const [chargingRent, setChargingRent] = useState(false);
 
   const load = useCallback(async (oid: string) => {
@@ -64,6 +84,9 @@ export function HousingClient() {
       setRooms((data.rooms ?? []) as Room[]);
       setAssignments((data.assignments ?? []) as Assignment[]);
       setMaintenance((data.maintenance ?? []) as Maintenance[]);
+      setContacts((data.contacts ?? []) as HousingContact[]);
+    } else {
+      toast.error("Failed to load housing data");
     }
     if (membersRes.ok) {
       const mems = (await membersRes.json()) as Array<{ id: string; full_name: string; membership_status: string }>;
@@ -131,6 +154,7 @@ export function HousingClient() {
         orgId,
         description: maintForm.description,
         priority: maintForm.priority,
+        roomId: maintForm.roomId || null,
       }),
     });
     if (!res.ok) {
@@ -139,8 +163,79 @@ export function HousingClient() {
     }
     toast.success("Maintenance request submitted");
     setMaintOpen(false);
-    setMaintForm({ description: "", priority: "medium" });
+    setMaintForm({ description: "", priority: "medium", roomId: "" });
     load(orgId);
+  }
+
+  async function updateMaintenanceStatus(id: string, status: string) {
+    if (!orgId) return;
+    const res = await fetch("/api/housing/maintenance", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, orgId, status }),
+    });
+    if (!res.ok) {
+      toast.error("Could not update request");
+      return;
+    }
+    toast.success("Request updated");
+    load(orgId);
+  }
+
+  async function saveContact() {
+    if (!orgId || !contactForm.name.trim()) return;
+    const payload = {
+      orgId,
+      name: contactForm.name,
+      roleLabel: contactForm.roleLabel,
+      category: contactForm.category,
+      phone: contactForm.phone,
+      email: contactForm.email,
+      notes: contactForm.notes,
+    };
+    const res = editContact
+      ? await fetch("/api/housing/contacts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: editContact.id, ...payload }),
+      })
+      : await fetch("/api/housing/contacts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    if (!res.ok) {
+      toast.error((await res.json().catch(() => ({}))).error ?? "Failed to save contact");
+      return;
+    }
+    toast.success(editContact ? "Contact updated" : "Contact added");
+    setContactOpen(false);
+    setEditContact(null);
+    setContactForm({ name: "", roleLabel: "", category: "general", phone: "", email: "", notes: "" });
+    load(orgId);
+  }
+
+  async function deleteContact(id: string) {
+    if (!orgId || !confirm("Remove this contact?")) return;
+    const res = await fetch(`/api/housing/contacts?id=${id}&org_id=${encodeURIComponent(orgId)}`, { method: "DELETE" });
+    if (!res.ok) {
+      toast.error("Could not delete contact");
+      return;
+    }
+    load(orgId);
+  }
+
+  function openEditContact(c: HousingContact) {
+    setEditContact(c);
+    setContactForm({
+      name: c.name,
+      roleLabel: c.role_label ?? "",
+      category: c.category,
+      phone: c.phone ?? "",
+      email: c.email ?? "",
+      notes: c.notes ?? "",
+    });
+    setContactOpen(true);
   }
 
   const totalCapacity = rooms.reduce((s, r) => s + (r.capacity ?? 1), 0);
@@ -183,8 +278,13 @@ export function HousingClient() {
                 Post monthly rent
               </Button>
             )}
-            <Button size="sm" icon={<Plus size={14} />} onClick={() => setRoomOpen(true)}>
-              Add room
+            {canManageHousing && (
+              <Button size="sm" icon={<Plus size={14} />} onClick={() => setRoomOpen(true)}>
+                Add room
+              </Button>
+            )}
+            <Button size="sm" variant="secondary" onClick={() => { setEditContact(null); setContactForm({ name: "", roleLabel: "", category: "general", phone: "", email: "", notes: "" }); setContactOpen(true); }}>
+              Add contact
             </Button>
           </div>
         }
@@ -230,7 +330,7 @@ export function HousingClient() {
                     {occ.map((a) => (
                       <p key={a.id} className="text-xs truncate mt-1">{a.member_profiles?.full_name}</p>
                     ))}
-                    {!full && (
+                    {!full && canManageHousing && (
                       <Button
                         size="sm"
                         variant="secondary"
@@ -256,15 +356,29 @@ export function HousingClient() {
             <EmptyState icon={<Hammer size={20} />} title="No maintenance requests" />
           ) : (
             <div className="space-y-2">
-              {maintenance.map((req) => (
-                <div key={req.id} className="flex items-start gap-3 p-2 rounded-lg border border-border">
+              {maintenance.map((req) => {
+                const room = rooms.find((r) => r.id === req.room_id);
+                return (
+                <div key={req.id} className="flex items-start gap-3 p-2 rounded-lg border border-border flex-wrap">
                   <Badge
                     label={req.status.replace("_", " ")}
                     color={req.status === "open" ? "red" : req.status === "in_progress" ? "yellow" : "green"}
                   />
-                  <p className="text-sm flex-1">{req.description}</p>
+                  <div className="flex-1 min-w-[200px]">
+                    <p className="text-sm">{req.description}</p>
+                    {room && <p className="text-xs text-muted-foreground">Room #{room.room_number}</p>}
+                  </div>
+                  {canManageHousing && req.status !== "resolved" && req.status !== "closed" && (
+                    <div className="flex gap-1">
+                      {req.status === "open" && (
+                        <Button size="sm" variant="secondary" onClick={() => updateMaintenanceStatus(req.id, "in_progress")}>Start</Button>
+                      )}
+                      <Button size="sm" onClick={() => updateMaintenanceStatus(req.id, "resolved")}>Resolve</Button>
+                    </div>
+                  )}
                 </div>
-              ))}
+              );
+              })}
             </div>
           )}
           <Button variant="secondary" size="sm" className="w-full mt-3" onClick={() => setMaintOpen(true)}>
@@ -272,6 +386,38 @@ export function HousingClient() {
           </Button>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader title="Local contacts" description="House manager, plumber, landlord, campus facilities" />
+        {contacts.length === 0 ? (
+          <EmptyState title="No contacts yet" description="Add contacts your chapter uses for housing emergencies and repairs." />
+        ) : (
+          <div className="space-y-2">
+            {contacts.map((c) => (
+              <div key={c.id} className="flex items-start justify-between gap-3 p-3 rounded-lg border border-border">
+                <div>
+                  <p className="font-medium text-sm">{c.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {[c.role_label, c.category].filter(Boolean).join(" · ")}
+                  </p>
+                  {(c.phone || c.email) && (
+                    <p className="text-xs mt-1">
+                      {c.phone}{c.phone && c.email ? " · " : ""}{c.email}
+                    </p>
+                  )}
+                  {c.notes && <p className="text-xs text-muted-foreground mt-1">{c.notes}</p>}
+                </div>
+                {canManageHousing && (
+                  <div className="flex gap-1 flex-shrink-0">
+                    <Button size="sm" variant="secondary" onClick={() => openEditContact(c)}>Edit</Button>
+                    <Button size="sm" variant="secondary" onClick={() => deleteContact(c.id)}>Remove</Button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
 
       <Modal open={roomOpen} onClose={() => setRoomOpen(false)} title="Add room" footer={
         <>
@@ -311,6 +457,13 @@ export function HousingClient() {
         </>
       }>
         <div className="space-y-3">
+          <Select
+            label="Room (optional)"
+            value={maintForm.roomId}
+            onChange={(e) => setMaintForm({ ...maintForm, roomId: e.target.value })}
+            placeholder="Whole house / common area"
+            options={rooms.map((r) => ({ value: r.id, label: `#${r.room_number}` }))}
+          />
           <Textarea label="Description" value={maintForm.description} onChange={(e) => setMaintForm({ ...maintForm, description: e.target.value })} />
           <Select
             label="Priority"
@@ -323,6 +476,34 @@ export function HousingClient() {
               { value: "urgent", label: "Urgent" },
             ]}
           />
+        </div>
+      </Modal>
+
+      <Modal open={contactOpen} onClose={() => { setContactOpen(false); setEditContact(null); }} title={editContact ? "Edit contact" : "Add local contact"} footer={
+        <>
+          <Button variant="secondary" onClick={() => { setContactOpen(false); setEditContact(null); }}>Cancel</Button>
+          <Button onClick={saveContact} disabled={!contactForm.name.trim()}>Save</Button>
+        </>
+      }>
+        <div className="space-y-3">
+          <Input label="Name *" value={contactForm.name} onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })} placeholder="Campus maintenance" />
+          <Input label="Role" value={contactForm.roleLabel} onChange={(e) => setContactForm({ ...contactForm, roleLabel: e.target.value })} placeholder="Facilities after-hours" />
+          <Select
+            label="Category"
+            value={contactForm.category}
+            onChange={(e) => setContactForm({ ...contactForm, category: e.target.value })}
+            options={[
+              { value: "general", label: "General" },
+              { value: "plumber", label: "Plumber" },
+              { value: "electrician", label: "Electrician" },
+              { value: "landlord", label: "Landlord" },
+              { value: "campus", label: "Campus" },
+              { value: "hvac", label: "HVAC" },
+            ]}
+          />
+          <Input label="Phone" type="tel" value={contactForm.phone} onChange={(e) => setContactForm({ ...contactForm, phone: e.target.value })} />
+          <Input label="Email" type="email" value={contactForm.email} onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })} />
+          <Textarea label="Notes" value={contactForm.notes} onChange={(e) => setContactForm({ ...contactForm, notes: e.target.value })} />
         </div>
       </Modal>
     </div>

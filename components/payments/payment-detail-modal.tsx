@@ -237,6 +237,7 @@ export function PaymentDetailModal({ open, onClose, orgId, payment, onRefresh, c
           </Link>
         </div>
 
+        {canManage && (
         <Card>
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm font-semibold">Log cash/check/Venmo</p>
@@ -269,6 +270,7 @@ export function PaymentDetailModal({ open, onClose, orgId, payment, onRefresh, c
             </Button>
           </div>
         </Card>
+        )}
       </div>
     </Modal>
   );
