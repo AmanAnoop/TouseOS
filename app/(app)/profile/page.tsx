@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { PageHeader, Tabs } from "@/components/ui";
@@ -12,9 +13,12 @@ import { GreekMatchSettings, type GreekMatchFormData } from "@/components/profil
 
 interface OrgRole { org_id: string; role: string; org_name: string; org_type: string }
 
+const VALID_TABS = ["profile", "privacy", "greekmatch"] as const;
+
 export default function ProfilePage() {
   const supabase = createClient();
   const fileRef = useRef<HTMLInputElement>(null);
+  const searchParams = useSearchParams();
 
   const [tab, setTab] = useState("profile");
   const [saving, setSaving] = useState(false);
@@ -227,6 +231,14 @@ export default function ProfilePage() {
   }
 
   const isGreekMember = orgRoles.some((r) => r.org_type === "fraternity" || r.org_type === "sorority");
+
+  useEffect(() => {
+    const t = searchParams.get("tab");
+    if (t && VALID_TABS.includes(t as typeof VALID_TABS[number])) {
+      if (t === "greekmatch" && !isGreekMember) return;
+      setTab(t);
+    }
+  }, [searchParams, isGreekMember]);
 
   return (
     <div className="space-y-5 max-w-2xl mx-auto">

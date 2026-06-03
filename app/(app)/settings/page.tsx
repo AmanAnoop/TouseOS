@@ -10,6 +10,10 @@ import {
   PageHeader, Tabs,
 } from "@/components/ui";
 import { OrgProfileForm, type OrgProfileFormData } from "@/components/settings/org-profile-form";
+import { colorsForOrgStorage } from "@/lib/chapter-theme";
+import { getGreekOrgById } from "@/lib/greek-letter-orgs";
+import { getProductId } from "@/lib/org-product";
+import { getUniversityById } from "@/lib/university-colors";
 import { InviteCodeCard } from "@/components/settings/invite-code-card";
 import { MemberRolesPanel, type OrgMemberWithProfile } from "@/components/settings/member-roles-panel";
 import { StripeConnectPanel } from "@/components/settings/stripe-connect-panel";
@@ -26,7 +30,8 @@ export default function SettingsPage() {
 
   const [orgForm, setOrgForm] = useState<OrgProfileFormData>({
     name: "", campus: "", councilOrLeague: "", contactEmail: "",
-    privacy: "private", primaryColor: "#059669", secondaryColor: "#065f46",
+    privacy: "private", primaryColor: "#004225", secondaryColor: "#0B1F3A",
+    universityId: "", greekAffiliationId: "",
   });
 
   useEffect(() => {
@@ -45,14 +50,17 @@ export default function SettingsPage() {
       setMyRole(String(m.role));
       const orgData = m.organizations as unknown as Record<string, unknown>;
       setOrg(orgData);
+      const settings = (orgData.settings ?? {}) as Record<string, unknown>;
       setOrgForm({
         name: String(orgData.name ?? ""),
         campus: String(orgData.campus ?? ""),
         councilOrLeague: String(orgData.council_or_league ?? ""),
         contactEmail: String(orgData.contact_email ?? ""),
         privacy: String(orgData.privacy ?? "private"),
-        primaryColor: String(orgData.primary_color ?? "#059669"),
-        secondaryColor: String(orgData.secondary_color ?? "#065f46"),
+        primaryColor: String(orgData.primary_color ?? "#004225"),
+        secondaryColor: String(orgData.secondary_color ?? "#0B1F3A"),
+        universityId: String(settings.university_id ?? ""),
+        greekAffiliationId: String(settings.greek_affiliation_id ?? ""),
       });
 
       const { data: membersData } = await supabase
@@ -71,14 +79,28 @@ export default function SettingsPage() {
   async function saveOrgProfile() {
     if (!orgId) return;
     setSaving(true);
+    const prevSettings = (org?.settings ?? {}) as Record<string, unknown>;
+    const orgType = String(org?.type ?? "fraternity");
+    const stored = colorsForOrgStorage({
+      product: getProductId(orgType),
+      greekOrg: getGreekOrgById(orgForm.greekAffiliationId),
+      university: getUniversityById(orgForm.universityId),
+      primaryColor: orgForm.primaryColor,
+      secondaryColor: orgForm.secondaryColor,
+    });
     const { error } = await supabase.from("organizations").update({
       name: orgForm.name,
       campus: orgForm.campus || null,
       council_or_league: orgForm.councilOrLeague || null,
       contact_email: orgForm.contactEmail || null,
       privacy: orgForm.privacy,
-      primary_color: orgForm.primaryColor,
-      secondary_color: orgForm.secondaryColor,
+      primary_color: stored.primary_color,
+      secondary_color: stored.secondary_color,
+      settings: {
+        ...prevSettings,
+        university_id: orgForm.universityId || null,
+        greek_affiliation_id: orgForm.greekAffiliationId || null,
+      },
     }).eq("id", orgId);
     setSaving(false);
     if (error) { toast.error(error.message); return; }

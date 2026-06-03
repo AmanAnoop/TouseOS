@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
+import { OnboardingRegalTheme } from "@/components/onboarding/onboarding-regal-theme";
+import { homePathForOrgType } from "@/lib/resolve-home";
 
 export const metadata = { title: "Onboarding" };
 export const dynamic = "force-dynamic";
@@ -20,17 +22,22 @@ export default async function OnboardingRoute({
   if (!forceCreate) {
     const { data: m } = await supabase
       .from("org_members")
-      .select("org_id")
+      .select("org_id, organizations(type)")
       .eq("user_id", user.id)
       .neq("status", "removed")
       .limit(1)
       .maybeSingle();
 
-    if (m) redirect("/dashboard");
+    if (m) {
+      const org = m.organizations as { type?: string } | { type?: string }[] | null;
+      const orgType = Array.isArray(org) ? org[0]?.type : org?.type;
+      redirect(homePathForOrgType(orgType));
+    }
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen theme-regal bg-background flex flex-col items-center justify-center p-4">
+      <OnboardingRegalTheme />
       <OnboardingWizard mode={forceCreate ? "create" : "welcome"} allowBackToDashboard={forceCreate} />
     </div>
   );

@@ -4,6 +4,7 @@ import { constructWebhookEvent } from "@/lib/stripe";
 import { stripe } from "@/lib/stripe";
 import { createServiceClient } from "@/lib/supabase/server";
 import { createNotification } from "@/lib/notifications";
+import { triggerBudgetSyncForOrg } from "@/lib/budget-auto-sync";
 
 function getUserIdFromMemberProfiles(mp: unknown): string | null {
   if (!mp) return null;
@@ -85,6 +86,10 @@ export async function POST(request: Request) {
         resource_id: paymentId,
         metadata: { amount: session.amount_total, session_id: session.id },
       });
+
+      if (updatedPayment?.org_id) {
+        void triggerBudgetSyncForOrg(updatedPayment.org_id);
+      }
     }
 
     if (session.metadata?.type === "philanthropy" && session.metadata?.campaignId) {
@@ -134,6 +139,8 @@ export async function POST(request: Request) {
             resource_id: campaignId,
             metadata: { amount: donationAmount, session_id: session.id, stripe: true },
           });
+
+          if (orgId) void triggerBudgetSyncForOrg(orgId);
         }
       }
     }

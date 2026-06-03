@@ -10,7 +10,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
-import { Button, Input, Card } from "@/components/ui";
+import { AuthShell } from "@/components/auth/auth-shell";
+import { Button, Input } from "@/components/ui";
 
 const schema = z.object({
   email: z.string().email("Valid email required"),
@@ -21,7 +22,7 @@ type FormData = z.infer<typeof schema>;
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") ?? "/dashboard";
+  const next = searchParams.get("next") ?? "/home";
   const supabase = createClient();
   const [loading, setLoading] = useState(false);
 
@@ -45,14 +46,18 @@ function LoginForm() {
   }
 
   return (
-    <Card>
-      <div className="mb-6">
-        <h1 className="text-xl font-bold text-foreground">Welcome back</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Sign in to your TouseOS workspace.
+    <AuthShell
+      title="Sign in"
+      subtitle="Enter your chapter or team workspace."
+      footer={
+        <p className="text-center text-sm text-muted-foreground">
+          New here?{" "}
+          <Link href="/signup" className="text-primary font-medium hover:underline">
+            Create an account
+          </Link>
         </p>
-      </div>
-
+      }
+    >
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
         <Input
           label="Email"
@@ -70,33 +75,29 @@ function LoginForm() {
           error={errors.password?.message}
           {...register("password")}
           trailing={
-            <Link
-              href="/forgot-password"
-              className="text-xs text-greek-600 hover:underline"
-            >
+            <Link href="/forgot-password" className="text-xs text-campus-600 hover:underline font-medium">
               Forgot?
             </Link>
           }
         />
 
-        <Button type="submit" loading={loading} className="w-full mt-1">
-          Sign in
+        <Button type="submit" loading={loading} className="w-full mt-2">
+          Sign in to command center
         </Button>
       </form>
-
-      <p className="text-center text-sm text-muted-foreground mt-5">
-        No account?{" "}
-        <Link href="/signup" className="text-greek-600 font-medium hover:underline">
-          Create one
-        </Link>
-      </p>
-    </Card>
+    </AuthShell>
   );
 }
 
 export default function LoginPage() {
   return (
-    <React.Suspense fallback={<div className="p-8 text-center text-muted-foreground">Loading...</div>}>
+    <React.Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center text-muted-foreground font-serif">
+          Loading…
+        </div>
+      }
+    >
       <LoginForm />
     </React.Suspense>
   );

@@ -40,7 +40,9 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/forgot-password");
 
   if (isAuthRoute && user) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    const next = request.nextUrl.searchParams.get("next");
+    const dest = next && next.startsWith("/") ? next : "/home";
+    return NextResponse.redirect(new URL(dest, request.url));
   }
 
   // Protected routes: redirect unauthenticated users to login

@@ -16,10 +16,10 @@ const buttonBase =
   "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50";
 
 const buttonVariants: Record<ButtonVariant, string> = {
-  primary: "bg-greek-600 text-white hover:bg-greek-700 active:bg-greek-800",
+  primary: "bg-primary text-primary-foreground hover:opacity-90 active:opacity-95 shadow-card",
   secondary: "bg-surface-1 text-foreground hover:bg-surface-2 border border-border",
   ghost: "text-foreground hover:bg-surface-1",
-  danger: "bg-red-600 text-white hover:bg-red-700",
+  danger: "bg-red-700 text-white hover:bg-red-800",
   outline: "border border-border text-foreground hover:bg-surface-1",
 };
 
@@ -111,7 +111,7 @@ export function Card({ className, children, padding = "md", onClick }: CardProps
     <div
       onClick={onClick}
       className={cn(
-        "rounded-xl border border-border bg-card shadow-card",
+        "regal-card",
         onClick && "cursor-pointer",
         padding === "none" ? "" :
         padding === "sm" ? "p-4" :
@@ -658,14 +658,14 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, description, action, breadcrumb, className }: PageHeaderProps) {
   return (
-    <div className={cn("flex items-start justify-between gap-4 pb-4", className)}>
+    <div className={cn("flex items-start justify-between gap-4 pb-4 border-b border-campus-600/25 mb-1", className)}>
       <div>
         {breadcrumb && (
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
             {breadcrumb}
           </p>
         )}
-        <h1 className="text-xl font-bold text-foreground">{title}</h1>
+        <h1 className="font-serif text-2xl font-semibold text-foreground tracking-tight">{title}</h1>
         {description && (
           <p className="text-sm text-muted-foreground mt-0.5">{description}</p>
         )}

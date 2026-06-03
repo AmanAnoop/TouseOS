@@ -1,6 +1,20 @@
 import type { Metadata, Viewport } from "next";
+import { Cormorant_Garamond, Source_Sans_3 } from "next/font/google";
 import { Toaster } from "react-hot-toast";
 import "./globals.css";
+
+const sans = Source_Sans_3({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+});
+
+const serif = Cormorant_Garamond({
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  variable: "--font-serif",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: { default: "TouseOS", template: "%s | TouseOS" },
@@ -11,7 +25,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#059669",
+  themeColor: "#004225",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -19,7 +33,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className={`${sans.variable} ${serif.variable} theme-regal`}>
       <body>
         {children}
         <Toaster

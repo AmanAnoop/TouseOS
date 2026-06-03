@@ -2,6 +2,7 @@
 
 import { Building, Save } from "lucide-react";
 import { Button, Card, CardHeader, Input, Select } from "@/components/ui";
+import { ChapterIdentityPicker } from "@/components/settings/chapter-identity-picker";
 import { orgTypeLabel } from "@/lib/utils";
 
 export interface OrgProfileFormData {
@@ -12,6 +13,8 @@ export interface OrgProfileFormData {
   privacy: string;
   primaryColor: string;
   secondaryColor: string;
+  universityId: string;
+  greekAffiliationId: string;
 }
 
 interface OrgProfileFormProps {
@@ -41,21 +44,23 @@ export function OrgProfileForm({ form, org, isAdmin, saving, onChange, onSave }:
             disabled={!isAdmin}
           />
         </div>
-        <div className="mt-4 grid sm:grid-cols-2 gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium">Primary color</label>
-            <div className="flex items-center gap-3">
-              <input type="color" className="h-9 w-16 rounded-lg border border-border cursor-pointer" value={form.primaryColor} onChange={(e) => onChange({ primaryColor: e.target.value })} disabled={!isAdmin} />
-              <span className="text-sm font-mono text-muted-foreground">{form.primaryColor}</span>
-            </div>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium">Secondary color</label>
-            <div className="flex items-center gap-3">
-              <input type="color" className="h-9 w-16 rounded-lg border border-border cursor-pointer" value={form.secondaryColor} onChange={(e) => onChange({ secondaryColor: e.target.value })} disabled={!isAdmin} />
-              <span className="text-sm font-mono text-muted-foreground">{form.secondaryColor}</span>
-            </div>
-          </div>
+        <div className="mt-4">
+          <ChapterIdentityPicker
+            orgType={String(org?.type ?? "fraternity")}
+            disabled={!isAdmin}
+            value={{
+              universityId: form.universityId,
+              greekAffiliationId: form.greekAffiliationId,
+              primaryColor: form.primaryColor,
+              secondaryColor: form.secondaryColor,
+            }}
+            onChange={(identity) => onChange({
+              universityId: identity.universityId,
+              greekAffiliationId: identity.greekAffiliationId,
+              primaryColor: identity.primaryColor,
+              secondaryColor: identity.secondaryColor,
+            })}
+          />
         </div>
         {isAdmin && (
           <Button onClick={onSave} loading={saving} icon={<Save size={14} />} className="mt-4">

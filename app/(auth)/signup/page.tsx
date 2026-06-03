@@ -9,7 +9,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
-import { Button, Input, Card } from "@/components/ui";
+import { AuthShell } from "@/components/auth/auth-shell";
+import { Button, Input } from "@/components/ui";
 
 const schema = z.object({
   fullName: z.string().min(2, "Name required"),
@@ -59,14 +60,18 @@ export default function SignupPage() {
   }
 
   return (
-    <Card>
-      <div className="mb-6">
-        <h1 className="text-xl font-bold text-foreground">Create your account</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Start managing your organization with TouseOS.
+    <AuthShell
+      title="Create account"
+      subtitle="Officers and members start here — you'll pick your campus and chapter colors next."
+      footer={
+        <p className="text-center text-sm text-muted-foreground">
+          Already registered?{" "}
+          <Link href="/login" className="text-primary font-medium hover:underline">
+            Sign in
+          </Link>
         </p>
-      </div>
-
+      }
+    >
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
         <Input
           label="Full name"
@@ -101,23 +106,16 @@ export default function SignupPage() {
           {...register("confirmPassword")}
         />
 
-        <Button type="submit" loading={loading} className="w-full mt-1">
-          Create account
+        <Button type="submit" loading={loading} className="w-full mt-2">
+          Continue to setup
         </Button>
       </form>
 
-      <p className="text-center text-sm text-muted-foreground mt-5">
-        Already have an account?{" "}
-        <Link href="/login" className="text-greek-600 font-medium hover:underline">
-          Sign in
-        </Link>
-      </p>
-
-      <p className="text-center text-xs text-muted-foreground mt-3">
+      <p className="text-center text-xs text-muted-foreground mt-4 pt-2 border-t border-border">
         By signing up you agree to our{" "}
-        <Link href="/terms" className="underline">Terms</Link> and{" "}
-        <Link href="/privacy" className="underline">Privacy Policy</Link>.
+        <Link href="/terms" className="underline text-campus-600">Terms</Link> and{" "}
+        <Link href="/privacy" className="underline text-campus-600">Privacy Policy</Link>.
       </p>
-    </Card>
+    </AuthShell>
   );
 }

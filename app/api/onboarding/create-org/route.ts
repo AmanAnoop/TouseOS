@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getProductId, productHomePath } from "@/lib/org-product";
+import { colorsForOrgStorage } from "@/lib/chapter-theme";
+import { getGreekOrgById } from "@/lib/greek-letter-orgs";
+import { getUniversityById } from "@/lib/university-colors";
+import { REGAL_PRIMARY, REGAL_SECONDARY } from "@/lib/regal-theme";
 
 const VALID_ORG_TYPES = new Set([
   "fraternity",
@@ -29,7 +33,16 @@ async function ensureUserProfile(
 async function createOrgDirect(
   service: Awaited<ReturnType<typeof createServiceClient>>,
   user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> },
-  input: { name: string; type: string; campus: string | null; councilOrLeague: string | null; contactEmail: string | null },
+  input: {
+    name: string;
+    type: string;
+    campus: string | null;
+    councilOrLeague: string | null;
+    contactEmail: string | null;
+    primaryColor: string;
+    secondaryColor: string;
+    settings: Record<string, unknown>;
+  },
 ) {
   const profile = await ensureUserProfile(service, user);
 
@@ -41,6 +54,9 @@ async function createOrgDirect(
       campus: input.campus,
       council_or_league: input.councilOrLeague,
       contact_email: input.contactEmail,
+      primary_color: input.primaryColor,
+      secondary_color: input.secondaryColor,
+      settings: input.settings,
     })
     .select("id, name, type, invite_code")
     .single();
@@ -104,6 +120,20 @@ export async function POST(request: Request) {
   const campus = body.campus ? String(body.campus) : null;
   const councilOrLeague = body.councilOrLeague ? String(body.councilOrLeague) : null;
   const contactEmail = body.contactEmail ? String(body.contactEmail) : null;
+  const universityId = body.universityId ? String(body.universityId) : "";
+  const greekAffiliationId = body.greekAffiliationId ? String(body.greekAffiliationId) : "";
+  const greekOrg = getGreekOrgById(greekAffiliationId);
+  const university = getUniversityById(universityId);
+  const product = getProductId(type);
+  const stored = colorsForOrgStorage({
+    product,
+    greekOrg: greekOrg?.id === "custom" ? undefined : greekOrg,
+    university: university?.id === "custom-campus" ? undefined : university,
+    primaryColor: body.primaryColor ? String(body.primaryColor) : REGAL_PRIMARY,
+    secondaryColor: body.secondaryColor ? String(body.secondaryColor) : REGAL_SECONDARY,
+  });
+  const primaryColor = stored.primary_color;
+  const secondaryColor = stored.secondary_color;
 
   if (!name || !type) {
     return NextResponse.json({ error: "Organization name and type are required" }, { status: 400 });
@@ -114,7 +144,19 @@ export async function POST(request: Request) {
   }
 
   const service = await createServiceClient();
-  const input = { name, type, campus, councilOrLeague, contactEmail };
+  const input = {
+    name,
+    type,
+    campus,
+    councilOrLeague,
+    contactEmail,
+    primaryColor,
+    secondaryColor,
+    settings: {
+      university_id: universityId || null,
+      greek_affiliation_id: greekAffiliationId || null,
+    },
+  };
 
   let org: { id: string; name: string; type?: string; invite_code?: string | null };
 
@@ -167,8 +209,13 @@ export async function POST(request: Request) {
     }
   }
 
-  const product = getProductId(org.type ?? type);
-  const redirectTo = productHomePath(product);
+  await service.from("organizations").update({
+    primary_color: primaryColor,
+    secondary_color: secondaryColor,
+    settings: input.settings,
+  }).eq("id", org.id);
+
+  const redirectTo = productHomePath(getProductId(org.type ?? type));
 
   const response = NextResponse.json({
     org: { id: org.id, name: org.name, type: org.type ?? type, invite_code: org.invite_code },

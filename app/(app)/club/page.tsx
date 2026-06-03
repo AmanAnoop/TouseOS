@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireOrgProduct } from "@/lib/org-access";
 import { createClient } from "@/lib/supabase/server";
+import { getUniversityById } from "@/lib/university-colors";
 import {
   Alert, Badge, Button, Card, CardHeader, EmptyState, ProgressBar, StatCard,
 } from "@/components/ui";
@@ -13,6 +14,11 @@ export const metadata = { title: "ClubOS Dashboard" };
 export default async function ClubDashboardPage() {
   const { orgId } = await requireOrgProduct(["club"]);
   const supabase = await createClient();
+  const { data: orgRow } = await supabase.from("organizations").select("settings").eq("id", orgId).single();
+  const settings = (orgRow?.settings ?? {}) as Record<string, unknown>;
+  const university = getUniversityById(
+    typeof settings.university_id === "string" ? settings.university_id : undefined,
+  );
 
   const [membersRes, paymentsRes, eventsRes, appsRes, hoursRes, tasksRes] = await Promise.all([
     supabase.from("member_profiles").select("id, membership_status, payment_status").eq("org_id", orgId),
@@ -43,18 +49,31 @@ export default async function ClubDashboardPage() {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <div className="w-7 h-7 rounded-lg bg-club-600 flex items-center justify-center text-white text-xs font-bold">
+            <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold">
               CL
             </div>
-            <span className="text-sm font-semibold text-club-600 uppercase tracking-wide">ClubOS</span>
+            <span className="text-sm font-semibold text-primary uppercase tracking-wide">ClubOS</span>
           </div>
-          <h1 className="text-2xl font-bold text-foreground">Organization Dashboard</h1>
+          <h1 className="font-serif text-2xl font-semibold text-foreground">Organization Dashboard</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Membership, events, service, and finances for your student organization
+            {university ? (
+              <>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-campus-600" />
+                  {university.name} colors
+                </span>
+                {" · "}
+                <Link href="/settings" className="text-campus-600 hover:underline">Change campus</Link>
+              </>
+            ) : (
+              <>
+                <Link href="/settings" className="text-campus-600 hover:underline">Set your university</Link> for campus colors
+              </>
+            )}
           </p>
         </div>
         <Link href="/events/new">
-          <Button size="sm" className="bg-club-600 hover:bg-club-700 officer-touch">
+          <Button size="sm" className="officer-touch">
             <Calendar size={14} />
             Plan event
           </Button>

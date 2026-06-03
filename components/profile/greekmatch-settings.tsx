@@ -235,7 +235,7 @@ export function GreekMatchSettings({
                 <p className="text-xs text-muted-foreground">View & chat</p>
               </Card>
             </a>
-            <a href="/greekmatch/setup" className="block">
+            <a href="/profile?tab=greekmatch" className="block">
               <Card padding="sm" className="text-center hover:border-rose-300 transition-colors cursor-pointer">
                 <User size={20} className="mx-auto text-blue-500 mb-1" />
                 <p className="text-sm font-semibold">Edit profile</p>

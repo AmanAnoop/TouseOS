@@ -6,6 +6,8 @@ import { Building, ChevronRight, Users, Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { Button, Card, Input } from "@/components/ui";
+import { ChapterIdentityPicker, type ChapterIdentityValue } from "@/components/settings/chapter-identity-picker";
+import { REGAL_PRIMARY, REGAL_SECONDARY } from "@/lib/regal-theme";
 
 const ORG_TYPES = [
   { value: "fraternity", label: "Fraternity", description: "Greek-letter fraternity", icon: "🏛️" },
@@ -29,6 +31,12 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
   const [form, setForm] = useState({
     name: "", campus: "", councilOrLeague: "", contactEmail: "",
   });
+  const [identity, setIdentity] = useState<ChapterIdentityValue>({
+    universityId: "",
+    greekAffiliationId: "",
+    primaryColor: REGAL_PRIMARY,
+    secondaryColor: REGAL_SECONDARY,
+  });
 
   async function createOrg() {
     if (!orgType || !form.name.trim()) {
@@ -46,6 +54,10 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
           campus: form.campus || undefined,
           councilOrLeague: form.councilOrLeague || undefined,
           contactEmail: form.contactEmail || undefined,
+          universityId: identity.universityId || undefined,
+          greekAffiliationId: identity.greekAffiliationId || undefined,
+          primaryColor: identity.primaryColor,
+          secondaryColor: identity.secondaryColor,
         }),
       });
       const data = await res.json();
@@ -83,7 +95,10 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
       return;
     }
     toast.success(`Joined ${data.org?.name ?? "organization"}!`);
-    router.push("/dashboard");
+    if (data.org?.id) {
+      document.cookie = `touse_active_org_id=${data.org.id}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
+    }
+    router.push(data.redirectTo ?? "/home");
     router.refresh();
   }
 
@@ -97,15 +112,18 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
       return;
     }
     toast.success(`Welcome to ${data.org?.name}!`);
-    router.push("/dashboard");
+    if (data.org?.id) {
+      document.cookie = `touse_active_org_id=${data.org.id}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
+    }
+    router.push(data.redirectTo ?? "/home");
     router.refresh();
   }
 
   return (
     <div className="w-full max-w-lg">
       {allowBackToDashboard && (
-        <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground mb-4 inline-block">
-          ← Back to dashboard
+        <Link href="/home" className="text-sm text-muted-foreground hover:text-foreground mb-4 inline-block">
+          ← Back to home
         </Link>
       )}
 
@@ -197,6 +215,13 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
           <Input label="Campus" value={form.campus} onChange={(e) => setForm({ ...form, campus: e.target.value })} />
           <Input label="Council / league" value={form.councilOrLeague} onChange={(e) => setForm({ ...form, councilOrLeague: e.target.value })} />
           <Input label="Contact email" type="email" value={form.contactEmail} onChange={(e) => setForm({ ...form, contactEmail: e.target.value })} />
+          {orgType && (
+            <ChapterIdentityPicker
+              orgType={orgType}
+              value={identity}
+              onChange={setIdentity}
+            />
+          )}
           <div className="flex gap-2">
             <Button variant="secondary" onClick={() => setStep(2)} className="flex-1">Back</Button>
             <Button onClick={createOrg} loading={loading} disabled={!form.name.trim()} className="flex-1">

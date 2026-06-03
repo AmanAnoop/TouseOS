@@ -9,6 +9,7 @@ import {
   LogOut, MessageSquare, Moon, Plus, Settings, Shield,
   Sun, Trophy, Users, Warehouse, X, Zap, HandHeart, LayoutGrid,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { Avatar } from "@/components/ui";
@@ -22,6 +23,7 @@ import {
   productLabel,
   productHomePath,
 } from "@/lib/org-product";
+import { homePathForOrgType } from "@/lib/resolve-home";
 import { SidebarNavLink } from "@/components/layout/sidebar-nav-link";
 
 const ICONS: Record<string, React.ReactNode> = {
@@ -99,6 +101,30 @@ interface SidebarProps {
 export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [switchingOrg, setSwitchingOrg] = useState(false);
+
+  async function switchOrg(target: Organization) {
+    if (target.id === org?.id || switchingOrg) return;
+    setSwitchingOrg(true);
+    try {
+      const res = await fetch("/api/org/switch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orgId: target.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error ?? "Could not switch organization");
+        return;
+      }
+      setOrgOpen(false);
+      router.push(data.redirectTo ?? homePathForOrgType(target.type));
+      router.refresh();
+    } finally {
+      setSwitchingOrg(false);
+    }
+  }
+
   const supabase = createClient();
   const [dark, setDark] = useState(false);
   const [orgOpen, setOrgOpen] = useState(false);
@@ -122,7 +148,7 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
   );
 
   const logoBg =
-    accent === "sports" ? "bg-sports-600" : accent === "club" ? "bg-club-600" : "bg-greek-600";
+    accent === "sports" ? "bg-sports-600" : accent === "club" ? "bg-club-600" : "bg-primary";
 
   useEffect(() => {
     const pref = localStorage.getItem("theme");
@@ -234,11 +260,12 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
           {orgOpen && (
             <div className="mt-1 border border-border rounded-lg overflow-hidden bg-card shadow-card-md">
               {orgs.map((o) => (
-                <Link
+                <button
                   key={o.id}
-                  href="/dashboard"
-                  className="flex items-center gap-2 px-3 py-2 hover:bg-surface-1 text-sm"
-                  onClick={() => setOrgOpen(false)}
+                  type="button"
+                  disabled={switchingOrg}
+                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-surface-1 text-sm text-left disabled:opacity-50"
+                  onClick={() => switchOrg(o)}
                 >
                   <div
                     className="w-6 h-6 rounded flex items-center justify-center text-white text-xs font-bold"
@@ -247,7 +274,8 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
                     {o.name.slice(0, 1)}
                   </div>
                   <span className="truncate">{o.name}</span>
-                </Link>
+                  {o.id === org?.id && <span className="text-[10px] text-muted-foreground ml-auto">Active</span>}
+                </button>
               ))}
               <Link
                 href="/onboarding/create-org"

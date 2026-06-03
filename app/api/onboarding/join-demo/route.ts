@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { activeOrgCookieHeader } from "@/lib/active-org-cookie";
+import { homePathForOrgType } from "@/lib/resolve-home";
 
 const DEMO_ORG_ID = "11111111-1111-1111-1111-111111111111";
 
@@ -9,7 +11,7 @@ export async function POST() {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const service = await createServiceClient();
-  const { data: org } = await service.from("organizations").select("id, name").eq("id", DEMO_ORG_ID).maybeSingle();
+  const { data: org } = await service.from("organizations").select("id, name, type").eq("id", DEMO_ORG_ID).maybeSingle();
 
   if (!org) {
     return NextResponse.json({
@@ -43,5 +45,8 @@ export async function POST() {
     });
   }
 
-  return NextResponse.json({ org });
+  const redirectTo = homePathForOrgType(org.type);
+  const res = NextResponse.json({ org, redirectTo });
+  res.headers.set("Set-Cookie", activeOrgCookieHeader(org.id));
+  return res;
 }

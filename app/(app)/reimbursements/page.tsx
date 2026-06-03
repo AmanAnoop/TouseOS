@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRef } from "react";
+import Link from "next/link";
 import {
   CheckCircle, Clock, DollarSign, Download, Plus,
   Receipt, Upload, X, XCircle,
@@ -147,6 +148,13 @@ export default function ReimbursementsPage() {
 
     await supabase.from("reimbursements").update(updates).eq("id", id);
     setReimbs((prev) => prev.map((r) => r.id === id ? { ...r, ...updates } : r));
+    if (orgId && (updates.status === "paid" || updates.status === "approved")) {
+      void fetch("/api/budget/sync-org", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orgId }),
+      });
+    }
     toast.success(`Request updated`);
     setSelected(null);
   }
@@ -169,7 +177,9 @@ export default function ReimbursementsPage() {
         title="Reimbursements"
         description={`${pendingCount} pending · ${formatCurrency(totalPending)} awaiting approval`}
         action={
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Link href="/budget"><Button variant="secondary" size="sm">Budget</Button></Link>
+            <Link href="/payments"><Button variant="secondary" size="sm">Payments</Button></Link>
             <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={() => downloadCsv("reimbursements.csv", reimbs.map((r) => ({ Submitter: r.submitted_by_name ?? "", Amount: r.amount, Category: r.category, Description: r.description, Status: r.status, Date: formatDate(r.created_at) })))}>Export</Button>
             <Button size="sm" icon={<Plus size={14} />} onClick={() => setSubmitOpen(true)}>Request reimbursement</Button>
           </div>

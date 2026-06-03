@@ -184,7 +184,10 @@ export default function PaymentsPage() {
             </Button>
             <Link href="/payments/plan"><Button variant="secondary" size="sm">Payment plans</Button></Link>
             {can(myRole, "manage_budget") && (
-              <Link href="/budget"><Button variant="secondary" size="sm">View budget</Button></Link>
+              <>
+                <Link href="/budget"><Button variant="secondary" size="sm">Budget</Button></Link>
+                <Link href="/reimbursements"><Button variant="secondary" size="sm">Reimbursements</Button></Link>
+              </>
             )}
             <a href="/payments/hardship">
               <Button variant="secondary" size="sm">Hardship request</Button>

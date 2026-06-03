@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { triggerBudgetSyncForOrg } from "@/lib/budget-auto-sync";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -74,15 +75,18 @@ export async function PATCH(request: Request) {
   const { data, error } = await supabase.from("reimbursements").update(updates).eq("id", id).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const { data: reimb } = await supabase.from("reimbursements").select("org_id").eq("id", id).single();
-  if (reimb) {
+  const orgId = data?.org_id as string | undefined;
+  if (orgId) {
     await supabase.from("audit_logs").insert({
-      org_id: (reimb as Record<string, unknown>).org_id,
+      org_id: orgId,
       actor_id: user.id,
       action: `reimbursement_${status}`,
       resource_type: "reimbursements",
       resource_id: id,
     });
+    if (status === "paid" || status === "approved") {
+      void triggerBudgetSyncForOrg(orgId, user.id);
+    }
   }
 
   return NextResponse.json(data);

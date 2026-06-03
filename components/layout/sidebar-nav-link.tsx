@@ -5,15 +5,15 @@ import { cn } from "@/lib/utils";
 import type { ProductAccent } from "@/lib/org-product";
 
 const ACTIVE: Record<ProductAccent, string> = {
-  greek: "bg-greek-50 text-greek-700 font-medium dark:bg-greek-950/50 dark:text-greek-400",
-  sports: "bg-sports-50 text-sports-700 font-medium dark:bg-sports-950/50 dark:text-sports-400",
-  club: "bg-club-50 text-club-700 font-medium dark:bg-club-950/50 dark:text-club-400",
+  greek: "bg-primary/10 text-primary font-medium border border-primary/15",
+  sports: "bg-primary/10 text-primary font-medium border border-primary/15",
+  club: "bg-primary/10 text-primary font-medium border border-primary/15",
 };
 
 const BADGE: Record<ProductAccent, string> = {
-  greek: "bg-greek-600",
-  sports: "bg-sports-600",
-  club: "bg-club-600",
+  greek: "bg-primary",
+  sports: "bg-primary",
+  club: "bg-primary",
 };
 
 export interface SidebarNavItem {

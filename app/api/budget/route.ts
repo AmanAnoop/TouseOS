@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { DEFAULT_EXPENSE_LINES, DEFAULT_INCOME_LINES } from "@/lib/budget-sync";
+import { triggerBudgetSyncForOrg } from "@/lib/budget-auto-sync";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -40,19 +42,47 @@ export async function POST(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  if (lines?.length) {
-    const lineRows = lines.map((l: Record<string, unknown>) => ({
-      budget_id: budget.id,
-      category: l.category,
-      type: l.type,
-      description: l.description || null,
-      budgeted: parseFloat(String(l.budgeted ?? "0")),
-      actual: parseFloat(String(l.actual ?? "0")),
-    }));
+  const lineRows = lines?.length
+    ? lines.map((l: Record<string, unknown>) => ({
+        budget_id: budget.id,
+        category: l.category,
+        type: l.type,
+        description: l.description || null,
+        budgeted: parseFloat(String(l.budgeted ?? "0")),
+        actual: parseFloat(String(l.actual ?? "0")),
+      }))
+    : [
+        ...DEFAULT_INCOME_LINES.map((category) => ({
+          budget_id: budget.id,
+          category,
+          type: "income",
+          description: "Linked to Payments",
+          budgeted: 0,
+          actual: 0,
+        })),
+        ...DEFAULT_EXPENSE_LINES.map((category) => ({
+          budget_id: budget.id,
+          category,
+          type: "expense",
+          description: "Linked to Reimbursements",
+          budgeted: 0,
+          actual: 0,
+        })),
+      ];
+
+  if (lineRows.length) {
     await supabase.from("budget_lines").insert(lineRows);
   }
 
-  return NextResponse.json(budget, { status: 201 });
+  void triggerBudgetSyncForOrg(orgId, user.id);
+
+  const { data: full } = await supabase
+    .from("budgets")
+    .select("*, budget_lines(*)")
+    .eq("id", budget.id)
+    .single();
+
+  return NextResponse.json(full ?? budget, { status: 201 });
 }
 
 export async function PATCH(request: Request) {

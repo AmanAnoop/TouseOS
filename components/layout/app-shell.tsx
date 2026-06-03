@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { ServiceWorkerRegister } from "@/components/layout/service-worker-register";
 import { ImpersonationBanner } from "@/components/layout/impersonation-banner";
 import { ProductRouteGuard } from "@/components/layout/product-route-guard";
+import { ChapterThemeProvider } from "@/components/theme/chapter-theme-provider";
 import type { Organization, Profile } from "@/types";
 
 interface AppShellProps {
@@ -30,6 +31,7 @@ export function AppShell({
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
+      <ChapterThemeProvider org={org} />
       <ServiceWorkerRegister />
       {/* Desktop sidebar */}
       <div className="hidden lg:flex flex-shrink-0">
