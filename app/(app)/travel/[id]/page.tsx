@@ -10,7 +10,8 @@ import {
 } from "@/components/ui";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { eligibilityIssueLabel } from "@/lib/sports-eligibility";
-import { can, type RoleName } from "@/lib/permissions";
+import { can } from "@/lib/permissions";
+import { useOrg } from "@/hooks/use-org";
 
 const COST_CATEGORIES = [
   "gas", "flights", "hotels", "rental_vans", "buses", "tournament_registration",
@@ -20,8 +21,7 @@ const COST_CATEGORIES = [
 export default function TravelTripDetailPage() {
   const params = useParams();
   const tripId = String(params.id);
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [role, setRole] = useState<RoleName>("general_member");
+  const { orgId, role } = useOrg();
   const [loading, setLoading] = useState(true);
   const [trip, setTrip] = useState<Record<string, unknown> | null>(null);
   const [readiness, setReadiness] = useState<Record<string, unknown> | null>(null);
@@ -55,25 +55,8 @@ export default function TravelTripDetailPage() {
   }, [tripId]);
 
   useEffect(() => {
-    async function init() {
-      const { createClient } = await import("@/lib/supabase/client");
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase
-        .from("org_members")
-        .select("org_id, role")
-        .eq("user_id", user.id)
-        .limit(1)
-        .single();
-      if (m) {
-        setOrgId(m.org_id);
-        setRole(String(m.role) as RoleName);
-        load(m.org_id);
-      }
-    }
-    init();
-  }, [load]);
+    if (orgId) load(orgId);
+  }, [orgId, load]);
 
   async function saveCosts() {
     if (!orgId) return;

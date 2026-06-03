@@ -93,7 +93,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
         <div className="bg-card p-5 space-y-5">
           {/* RSVP action */}
           {Boolean(event.rsvp_enabled)&& isUpcoming && (
-            <EventRsvpButton eventId={id} userId={user.id} capacity={capacity} goingCount={goingCount} />
+            <EventRsvpButton eventId={id} orgId={String(event.org_id)} capacity={capacity} goingCount={goingCount} />
           )}
 
           {/* Countdown */}

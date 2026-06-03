@@ -1,6 +1,6 @@
 # TouseOS product status (realistic)
 
-Last updated: Wave 21 on `cursor/wave21-api-wiring-4a50`.
+Last updated: Wave 22 on `cursor/wave22-dashboard-housing-rsvp-4a50`.
 
 ## How to read these numbers
 
@@ -9,7 +9,7 @@ We separate **“exists in the repo”** from **“works end-to-end without dead
 | Metric | Realistic % | Meaning |
 |--------|-------------|---------|
 | **Backlog modules with a route or API** | **~88%** | Page or endpoint exists |
-| **Connected user journeys** | **~75%** | PNM, governance, hardship, reports wired through APIs; active org on club/social pages |
+| **Connected user journeys** | **~76%** | Dashboard, settings, housing, RSVP, and payments respect active org + APIs |
 | **Production-ready depth** | **~50%** | Tested, permissioned, env-configured; legal summaries expanded (counsel review still needed) |
 | **Launch-ready** | **~44%** | Migrations, Stripe, QA, mobile polish, counsel-approved legal |
 
@@ -40,7 +40,14 @@ We separate **“exists in the repo”** from **“works end-to-end without dead
 - Reimbursement approve/paid triggers budget sync-org API
 - Treasurer dashboard links split budget vs reimbursements
 
-## Wave 21 (latest)
+## Wave 22 (latest)
+
+- Greek dashboard uses active org cookie (`loadActiveMembershipServer`)
+- Settings and travel trip detail use `useOrg()`
+- Housing loads via `GET /api/housing`; payments roster via `/api/members`
+- Event RSVP scoped to org via `/api/events/rsvp`
+
+## Wave 21
 
 - PNM pipeline uses `/api/pnm`; roster export and club committees use `/api/members`
 - Governance meetings + votes via `/api/governance/*`; hardship submit via `POST /api/hardship`

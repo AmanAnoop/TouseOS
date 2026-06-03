@@ -42,10 +42,7 @@ export default function PaymentsPage() {
     setLoading(true);
     const [paymentsRes, memberRes, plansRes] = await Promise.all([
       fetch(`/api/payments?org_id=${encodeURIComponent(oid)}`),
-      supabase
-        .from("member_profiles")
-        .select("id, full_name, membership_status, payment_status, attendance_rate, email, role, org_id, user_id, forms_completed, forms_required, class_year, graduation_year, committees, created_at, updated_at")
-        .eq("org_id", oid),
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}`),
       fetch(`/api/payments/plans?org_id=${encodeURIComponent(oid)}`),
     ]);
     if (paymentsRes.ok) {
@@ -54,13 +51,13 @@ export default function PaymentsPage() {
       const err = await paymentsRes.json().catch(() => ({}));
       toast.error(err.error ?? "Failed to load payments");
     }
-    setMembers((memberRes.data ?? []) as MemberProfile[]);
+    if (memberRes.ok) setMembers((await memberRes.json()) as MemberProfile[]);
     if (plansRes.ok) {
       const plans = await plansRes.json();
       setPlanCount(Array.isArray(plans) ? plans.length : 0);
     }
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
     if (!orgId || !userId) return;

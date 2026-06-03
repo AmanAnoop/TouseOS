@@ -3,94 +3,66 @@
 import { useState, useEffect } from "react";
 import { Check, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui";
 
 export default function EventRsvpButton({
   eventId,
-  userId,
+  orgId,
   capacity,
   goingCount,
 }: {
   eventId: string;
-  userId: string;
+  orgId: string;
   capacity: number | null;
   goingCount: number;
 }) {
-  const supabase = createClient();
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     async function loadRsvp() {
-      // Find member profile for this user
-      const { data: mp } = await supabase
-        .from("member_profiles")
-        .select("id")
-        .eq("user_id", userId)
-        .limit(1)
-        .maybeSingle();
-
-      if (!mp) { setLoading(false); return; }
-
-      const { data: rsvp } = await supabase
-        .from("event_rsvps")
-        .select("status")
-        .eq("event_id", eventId)
-        .eq("member_id", mp.id)
-        .maybeSingle();
-
-      setStatus(rsvp?.status ?? null);
+      const res = await fetch(
+        `/api/events/rsvp?event_id=${encodeURIComponent(eventId)}&org_id=${encodeURIComponent(orgId)}`,
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setStatus(data.status ?? null);
+      }
       setLoading(false);
     }
     loadRsvp();
-  }, [supabase, eventId, userId]);
+  }, [eventId, orgId]);
 
   async function rsvp(newStatus: string) {
     setSaving(true);
-
-    // Get member id
-    const { data: mp } = await supabase
-      .from("member_profiles")
-      .select("id")
-      .eq("user_id", userId)
-      .limit(1)
-      .maybeSingle();
-
-    if (!mp) {
-      toast.error("Profile not found for this org");
-      setSaving(false);
-      return;
-    }
-
-    if (capacity && newStatus === "going" && goingCount >= capacity) {
-      const { error } = await supabase.from("event_rsvps").upsert({
-        event_id: eventId,
-        member_id: mp.id,
-        user_id: userId,
-        status: "waitlist",
-      }, { onConflict: "event_id,member_id" });
-      if (!error) {
-        setStatus("waitlist");
-        toast.success("Added to waitlist");
-      }
-      setSaving(false);
-      return;
-    }
-
-    const { error } = await supabase.from("event_rsvps").upsert({
-      event_id: eventId,
-      member_id: mp.id,
-      user_id: userId,
-      status: newStatus,
-    }, { onConflict: "event_id,member_id" });
-
+    const res = await fetch("/api/events/rsvp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        eventId,
+        orgId,
+        status: newStatus,
+        capacity,
+        goingCount,
+      }),
+    });
     setSaving(false);
-    if (error) { toast.error(error.message); return; }
-
-    setStatus(newStatus);
-    const label = newStatus === "going" ? "You&apos;re going! 🎉" : newStatus === "not_going" ? "RSVP updated" : "Marked as maybe";
+    if (!res.ok) {
+      toast.error((await res.json().catch(() => ({}))).error ?? "RSVP failed");
+      return;
+    }
+    const data = await res.json();
+    setStatus(data.status);
+    if (data.waitlisted) {
+      toast.success("Added to waitlist");
+      return;
+    }
+    const label = data.status === "going"
+      ? "You're going!"
+      : data.status === "not_going"
+        ? "RSVP updated"
+        : "Marked as maybe";
     toast.success(label);
   }
 
