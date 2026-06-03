@@ -1,6 +1,6 @@
 # TouseOS product status (realistic)
 
-Last updated: Wave 15 journey fixes on `cursor/wave15-journey-fixes-4a50`.
+Last updated: Wave 16 reimbursements API on `cursor/wave16-reimbursements-api-4a50`.
 
 ## How to read these numbers
 
@@ -9,11 +9,11 @@ We separate **“exists in the repo”** from **“works end-to-end without dead
 | Metric | Realistic % | Meaning |
 |--------|-------------|---------|
 | **Backlog modules with a route or API** | **~88%** | Page or endpoint exists |
-| **Connected user journeys** | **~64%** | Primary flows link correctly; few 404s or wrong redirects |
-| **Production-ready depth** | **~48%** | Tested, permissioned, env-configured, counsel-ready legal copy |
-| **Launch-ready** | **~42%** | Migrations, Stripe, QA, mobile polish, legal |
+| **Connected user journeys** | **~66%** | Primary flows link correctly; few 404s or wrong redirects |
+| **Production-ready depth** | **~50%** | Tested, permissioned, env-configured; legal summaries expanded (counsel review still needed) |
+| **Launch-ready** | **~44%** | Migrations, Stripe, QA, mobile polish, counsel-approved legal |
 
-**Best single number for “how done is the product?” → ~57–62%** (weighted toward connected journeys, not file count).
+**Best single number for “how done is the product?” → ~58–63%** (weighted toward connected journeys, not file count).
 
 ## By area
 
@@ -21,7 +21,7 @@ We separate **“exists in the repo”** from **“works end-to-end without dead
 |------|-----------|--------|
 | Auth & onboarding | **~70%** | Signup, create-org, join; `/home` routes sports/club correctly; demo needs seed |
 | Greek chapter ops | **~75%** | Members, events, attendance, tasks, comms |
-| Finance (payments ↔ budget ↔ reimbursements) | **~70%** | Ledger + sync; housing rent month dedupe |
+| Finance (payments ↔ budget ↔ reimbursements) | **~74%** | Reimbursements UI → API; dual approval; budget auto-sync on approve/paid |
 | SportsOS | **~65%** | Home, travel detail links; shared finance modules work |
 | ClubOS | **~60%** | Club home, elections, service hours; thinner than Greek/Sports |
 | GreekMatch / social | **~58%** | Multi-org GreekMatch access; social calendar prefill from assets |
@@ -40,7 +40,15 @@ We separate **“exists in the repo”** from **“works end-to-end without dead
 - Reimbursement approve/paid triggers budget sync-org API
 - Treasurer dashboard links split budget vs reimbursements
 
-## Wave 15 (latest fixes)
+## Wave 16 (latest)
+
+- Reimbursements page uses `/api/reimbursements` for list, submit, approve, reject, and mark paid
+- Officer permission checks on PATCH; president approval for amounts over threshold
+- Budget auto-sync triggered server-side (no separate client sync-org call)
+- Active org cookie respected when loading reimbursements and events
+- Terms & privacy expanded with structured beta-ready summaries
+
+## Wave 15
 
 - Housing rent: skip members already billed for the same month label
 - Event detail: working share (Web Share API or clipboard); removed duplicate QR control
@@ -51,9 +59,8 @@ We separate **“exists in the repo”** from **“works end-to-end without dead
 
 | Priority | Item |
 |----------|------|
-| P1 | Reimbursements + some modules still use Supabase client instead of APIs (sync hooks added where critical) |
-| P2 | Orphan API routes (tasks, documents, notifications) — UI uses Supabase directly |
-| Launch | Replace placeholder terms/privacy; run migrations **015–024** |
+| P2 | Orphan API routes (tasks, documents, notifications) — UI still uses Supabase directly |
+| Launch | Counsel review of terms/privacy; run migrations **015–024** |
 
 ## Environment
 
