@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Image, Megaphone } from "lucide-react";
+import { Image as ImageIcon, Megaphone } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { Button, Card, Input, Textarea } from "@/components/ui";
@@ -133,7 +133,7 @@ export function FeedComposer({ orgId, onPosted }: { orgId: string; onPosted?: ()
             <Button
               size="sm"
               loading={loading}
-              icon={<Image size={14} />}
+              icon={<ImageIcon size={14} aria-hidden />}
               onClick={() => fileRef.current?.click()}
             >
               Choose photo

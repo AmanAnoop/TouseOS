@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Brush, Copy, ExternalLink, Image, Link, Palette, Plus, Trash2 } from "lucide-react";
+import { Brush, Copy, ExternalLink, Image as ImageIcon, Link, Palette, Plus, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
   Badge,
@@ -166,7 +166,7 @@ export function SocialAssetsClient({ orgId, org }: { orgId: string; org: OrgBran
                 <img src={org.logo_url} alt="Logo" className="w-16 h-16 object-contain rounded-lg border border-border" />
               ) : (
                 <div className="w-16 h-16 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
-                  <Image size={20} className="text-muted-foreground" />
+                  <ImageIcon size={20} className="text-muted-foreground" aria-hidden />
                 </div>
               )}
             </div>

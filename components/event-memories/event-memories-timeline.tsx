@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui";
 import { EventRecapButton } from "@/components/event-memories/event-recap-button";
 import { formatDate } from "@/lib/utils";
-import { Calendar, Camera, Clock, Image } from "lucide-react";
+import { Calendar, Camera, Clock, Image as ImageIcon } from "lucide-react";
 
 interface TimelineEvent {
   id: string;
@@ -47,7 +47,7 @@ export function EventMemoriesTimeline({
                   <EventRecapButton orgId={orgId} eventId={event.id} eventTitle={event.title} />
                   {event.album && (
                     <Link href="/social" className="flex items-center gap-1 text-xs text-greek-600 hover:underline">
-                      <Image size={12} />
+                      <ImageIcon size={12} aria-hidden />
                       Album
                     </Link>
                   )}
