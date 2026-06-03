@@ -9,6 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import toast from "react-hot-toast";
 import { AuthShell } from "@/components/auth/auth-shell";
+import { OAuthButtons } from "@/components/auth/oauth-buttons";
 import { SupabaseConfigAlert } from "@/components/auth/supabase-config-alert";
 import { Button, Input } from "@/components/ui";
 
@@ -44,6 +45,9 @@ function LoginForm() {
       toast.error("Sign-in link expired or invalid. Request a new confirmation email or try signing in.");
     } else if (err === "supabase_not_configured") {
       toast.error("Authentication is not configured on this deployment.");
+    } else if (err === "oauth" || err === "oauth_invalid_provider") {
+      const msg = searchParams.get("message");
+      toast.error(msg ? decodeURIComponent(msg) : "Social sign-in failed. Try email and password, or contact your admin.");
     }
   }, [searchParams]);
 
@@ -85,6 +89,9 @@ function LoginForm() {
       }
     >
       <SupabaseConfigAlert />
+      <React.Suspense fallback={null}>
+        <OAuthButtons disabled={!canSignIn} mode="signin" />
+      </React.Suspense>
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
         <Input
           label="Email"

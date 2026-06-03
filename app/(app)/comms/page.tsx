@@ -38,6 +38,7 @@ export default function CommsPage() {
   const [scheduleDraft, setScheduleDraft] = useState({
     channel: "announcement", title: "", body: "", audience: "all", scheduledFor: "",
   });
+  const [twilioLive, setTwilioLive] = useState<boolean | null>(null);
 
   const loadScheduled = useCallback(async (oid: string) => {
     const res = await fetch(`/api/comms/schedule?orgId=${oid}`);
@@ -61,6 +62,16 @@ export default function CommsPage() {
       setAnnouncements((await res.json()) as Announcement[]);
     }
     setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/integrations/status")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const twilio = data?.integrations?.find((i: { id: string }) => i.id === "twilio");
+        setTwilioLive(Boolean(twilio?.live));
+      })
+      .catch(() => setTwilioLive(false));
   }, []);
 
   useEffect(() => {
@@ -151,7 +162,14 @@ export default function CommsPage() {
         description="Announcements, email blasts, and message templates"
         action={
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" size="sm" className="officer-touch" onClick={() => setSmsOpen(true)}>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="officer-touch"
+              onClick={() => setSmsOpen(true)}
+              disabled={twilioLive === false}
+              title={twilioLive === false ? "Configure Twilio in Settings → Integrations" : undefined}
+            >
               SMS blast
             </Button>
             <Button variant="secondary" size="sm" className="officer-touch" icon={<Mail size={14} />} onClick={() => setEmailBlastOpen(true)}>
@@ -219,10 +237,23 @@ export default function CommsPage() {
 
       {tab === "sms" && (
         <Card>
+          {twilioLive === false && (
+            <Alert
+              type="warning"
+              title="Twilio SMS not configured"
+              description="Add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_MESSAGING_SERVICE_SID in your deployment. See Settings → Integrations."
+              className="mb-3"
+            />
+          )}
+          {twilioLive === true && (
+            <Alert type="success" title="Twilio connected" description="SMS blasts will send to active members with phone numbers on file." className="mb-3" />
+          )}
           <p className="text-sm text-muted-foreground mb-3">
-            Send SMS to active members with phone numbers on file. Quiet hours (9pm–9am) apply. Requires Twilio configuration.
+            Quiet hours (9pm–9am) apply. Members must have a phone number on their roster profile.
           </p>
-          <Button size="sm" onClick={() => setSmsOpen(true)}>Compose SMS blast</Button>
+          <Button size="sm" onClick={() => setSmsOpen(true)} disabled={twilioLive === false}>
+            Compose SMS blast
+          </Button>
         </Card>
       )}
 

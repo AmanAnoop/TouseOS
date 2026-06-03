@@ -13,6 +13,7 @@ import { OrgProfileForm, type OrgProfileFormData } from "@/components/settings/o
 import { useOrg } from "@/hooks/use-org";
 import { InviteCodeCard } from "@/components/settings/invite-code-card";
 import { MemberRolesPanel, type OrgMemberWithProfile } from "@/components/settings/member-roles-panel";
+import { IntegrationStatusPanel } from "@/components/integrations/integration-status-panel";
 import { StripeConnectPanel } from "@/components/settings/stripe-connect-panel";
 
 export default function SettingsPage() {
@@ -216,6 +217,7 @@ export default function SettingsPage() {
       {tab === "integrations" && (
         <div className="space-y-4">
           <Alert type="info" title="Configure integrations to unlock payment processing, SMS, and AI features." />
+          <IntegrationStatusPanel />
           {isAdmin && orgId && (
             <StripeConnectPanel
               orgId={orgId}

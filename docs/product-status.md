@@ -1,6 +1,6 @@
 # TouseOS product status (realistic)
 
-Last updated: Dashboard UX refactor on `cursor/dashboard-ux-completion-4a50`.
+Last updated: Google/Apple OAuth + Stripe/Twilio live checks on `cursor/oauth-stripe-twilio-4a50`.
 
 ## How to read these numbers
 
@@ -13,7 +13,7 @@ Last updated: Dashboard UX refactor on `cursor/dashboard-ux-completion-4a50`.
 
 ### Overall product complete (recommended single number)
 
-**~86%** — weighted blend (connected journeys 92%, routes 91%, production 66%, launch 81%).
+**~87%** — weighted blend (connected journeys 93%, routes 91%, production 68%, launch 82%).
 
 Do not treat route count as “done.” Live Stripe, SMS, counsel sign-off, and applied migrations still gate a full launch.
 
@@ -21,7 +21,7 @@ Do not treat route count as “done.” Live Stripe, SMS, counsel sign-off, and 
 
 | Area | Connected | Notes |
 |------|-----------|--------|
-| Auth & onboarding | **~85%** | Signup APIs, org create/join |
+| Auth & onboarding | **~90%** | Email + Google/Apple OAuth, profile on callback |
 | Greek chapter ops | **~86%** | Dashboard setup checklist, member vs officer views |
 | Finance | **~84%** | Budget lines RLS, payments with titles |
 | SportsOS | **~76%** | Bulk equipment, waiver forms, team home |
@@ -32,6 +32,12 @@ Do not treat route count as “done.” Live Stripe, SMS, counsel sign-off, and 
 | Admin / platform | **~52%** | Allowlist |
 
 ## Latest (this branch)
+
+- **OAuth:** Google and Apple sign-in on login/signup via `/api/auth/oauth`; profiles created on callback
+- **Integrations:** Live Stripe/Twilio env checks; Settings and Comms show connection status
+- **Twilio:** Clear errors when SMS keys missing; comms SMS disabled until configured
+
+## Prior (`cursor/dashboard-ux-completion-4a50`)
 
 - **Dashboard data layer:** `lib/dashboard-data.ts` centralizes queries, health, deadlines, setup steps
 - **Officer UX:** Deadlines and compliance alerts up top; getting-started checklist for new orgs

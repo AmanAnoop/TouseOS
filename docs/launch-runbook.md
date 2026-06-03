@@ -39,6 +39,15 @@ In **Supabase → Authentication → URL configuration**, add redirect URLs (rep
 
 Set **Site URL** to `https://your-domain.com` (or your Vercel URL). For local dev, add `http://localhost:3000/auth/callback` as well.
 
+### Google & Apple sign-in
+
+In **Supabase → Authentication → Providers**:
+
+1. **Google** — Enable, add OAuth client ID/secret from [Google Cloud Console](https://console.cloud.google.com/) (Web application). Authorized redirect URI: `https://YOUR-REF.supabase.co/auth/v1/callback`.
+2. **Apple** — Enable, configure Services ID, key, and team ID per [Supabase Apple guide](https://supabase.com/docs/guides/auth/social-login/auth-apple). Redirect URI is the same Supabase callback URL.
+
+The app starts OAuth at `/api/auth/oauth?provider=google|apple` and completes at `/auth/callback`. New OAuth users get a `profiles` row automatically before onboarding.
+
 After deploy:
 
 ```bash

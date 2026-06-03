@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isTwilioConfigured } from "@/lib/integrations";
 import { sendMassSms, isWithinQuietHours } from "@/lib/twilio";
 
 export async function POST(request: Request) {
@@ -11,6 +12,13 @@ export async function POST(request: Request) {
 
   if (!orgId || !recipients?.length || !messageBody) {
     return NextResponse.json({ error: "orgId, recipients, and body are required" }, { status: 400 });
+  }
+
+  if (!isTwilioConfigured()) {
+    return NextResponse.json(
+      { error: "Twilio SMS is not configured on this server." },
+      { status: 503 },
+    );
   }
 
   // Enforce quiet hours
