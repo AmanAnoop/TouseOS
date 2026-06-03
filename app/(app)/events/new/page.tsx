@@ -7,37 +7,7 @@ import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { Button, Input, PageHeader, Select, Textarea, Alert } from "@/components/ui";
 
-const GREEK_EVENT_TYPES = [
-  { value: "chapter_meeting", label: "Chapter meeting" },
-  { value: "recruitment", label: "Recruitment event" },
-  { value: "mixer", label: "Mixer" },
-  { value: "formal", label: "Formal" },
-  { value: "date_party", label: "Date party" },
-  { value: "brotherhood", label: "Brotherhood event" },
-  { value: "sisterhood", label: "Sisterhood event" },
-  { value: "philanthropy", label: "Philanthropy event" },
-  { value: "service", label: "Service event" },
-  { value: "tailgate", label: "Tailgate" },
-  { value: "alumni_event", label: "Alumni event" },
-  { value: "new_member_education", label: "New member education" },
-  { value: "standards", label: "Standards meeting" },
-  { value: "retreat", label: "Retreat" },
-  { value: "other", label: "Other" },
-];
-
-const SPORTS_EVENT_TYPES = [
-  { value: "practice", label: "Practice" },
-  { value: "game", label: "Game" },
-  { value: "tournament", label: "Tournament" },
-  { value: "tryout", label: "Tryout" },
-  { value: "team_meeting", label: "Team meeting" },
-  { value: "fundraiser", label: "Fundraiser" },
-  { value: "travel", label: "Travel event" },
-  { value: "conditioning", label: "Conditioning session" },
-  { value: "alumni_game", label: "Alumni game" },
-  { value: "volunteer", label: "Volunteer event" },
-  { value: "other", label: "Other" },
-];
+import { eventTypesForOrgType } from "@/lib/org-product";
 
 export default function NewEventPage() {
   const supabase = createClient();
@@ -85,8 +55,7 @@ export default function NewEventPage() {
     init();
   }, [supabase]);
 
-  const isSports = orgType === "club_sports";
-  const eventTypes = isSports ? SPORTS_EVENT_TYPES : GREEK_EVENT_TYPES;
+  const eventTypes = eventTypesForOrgType(orgType);
 
   async function createEvent() {
     if (!orgId || !form.title || !form.startsAt) return;

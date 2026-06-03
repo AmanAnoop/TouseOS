@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Building, ChevronRight, Users, Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
@@ -10,12 +11,18 @@ const ORG_TYPES = [
   { value: "fraternity", label: "Fraternity", description: "Greek-letter fraternity", icon: "🏛️" },
   { value: "sorority", label: "Sorority", description: "Greek-letter sorority", icon: "🌸" },
   { value: "club_sports", label: "Club Sports", description: "Club sports team (SportsOS)", icon: "🏆" },
-  { value: "general_org", label: "Student Organization", description: "General campus org", icon: "🎓" },
+  { value: "general_org", label: "Student Organization", description: "Clubs, societies & campus orgs (ClubOS)", icon: "🎓" },
 ];
 
-export function OnboardingWizard() {
+interface OnboardingWizardProps {
+  /** welcome = first-time flow; create = add another org */
+  mode?: "welcome" | "create";
+  allowBackToDashboard?: boolean;
+}
+
+export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = false }: OnboardingWizardProps) {
   const router = useRouter();
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(mode === "create" ? 2 : 1);
   const [orgType, setOrgType] = useState("");
   const [inviteCode, setInviteCode] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,22 +31,41 @@ export function OnboardingWizard() {
   });
 
   async function createOrg() {
-    if (!orgType || !form.name) return;
-    setLoading(true);
-    const res = await fetch("/api/onboarding/create-org", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, type: orgType }),
-    });
-    setLoading(false);
-    const data = await res.json();
-    if (!res.ok) {
-      toast.error(data.error ?? "Failed to create organization");
+    if (!orgType || !form.name.trim()) {
+      toast.error("Choose an organization type and enter a name");
       return;
     }
-    toast.success("Organization created!");
-    router.push("/dashboard");
-    router.refresh();
+    setLoading(true);
+    try {
+      const res = await fetch("/api/onboarding/create-org", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name.trim(),
+          type: orgType,
+          campus: form.campus || undefined,
+          councilOrLeague: form.councilOrLeague || undefined,
+          contactEmail: form.contactEmail || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error ?? "Failed to create organization");
+        if (data.hint) console.warn(data.hint);
+        return;
+      }
+      toast.success(`Created ${data.org?.name ?? "organization"}!`);
+      if (data.org?.id) {
+        document.cookie = `touse_active_org_id=${data.org.id}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
+      }
+      const dest = data.redirectTo ?? "/dashboard";
+      router.push(dest);
+      router.refresh();
+    } catch {
+      toast.error("Network error — try again");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function joinByCode() {
@@ -77,6 +103,12 @@ export function OnboardingWizard() {
 
   return (
     <div className="w-full max-w-lg">
+      {allowBackToDashboard && (
+        <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground mb-4 inline-block">
+          ← Back to dashboard
+        </Link>
+      )}
+
       {step === 1 && (
         <div className="space-y-4">
           <div>
@@ -124,7 +156,14 @@ export function OnboardingWizard() {
 
       {step === 2 && (
         <div className="space-y-4">
-          <h2 className="text-xl font-bold">What type of organization?</h2>
+          <h2 className="text-xl font-bold">
+            {mode === "create" ? "Add another organization" : "What type of organization?"}
+          </h2>
+          {mode === "create" && (
+            <p className="text-sm text-muted-foreground">
+              Each org is a separate workspace (Greek chapter, sports team, or student club).
+            </p>
+          )}
           <div className="space-y-2">
             {ORG_TYPES.map((type) => (
               <button
@@ -141,7 +180,13 @@ export function OnboardingWizard() {
               </button>
             ))}
           </div>
-          <Button variant="secondary" onClick={() => setStep(1)} className="w-full">Back</Button>
+          {mode === "welcome" ? (
+            <Button variant="secondary" onClick={() => setStep(1)} className="w-full">Back</Button>
+          ) : (
+            <Link href="/dashboard" className="block text-center text-sm text-muted-foreground hover:underline">
+              Cancel
+            </Link>
+          )}
         </div>
       )}
 
@@ -154,7 +199,9 @@ export function OnboardingWizard() {
           <Input label="Contact email" type="email" value={form.contactEmail} onChange={(e) => setForm({ ...form, contactEmail: e.target.value })} />
           <div className="flex gap-2">
             <Button variant="secondary" onClick={() => setStep(2)} className="flex-1">Back</Button>
-            <Button onClick={createOrg} loading={loading} disabled={!form.name} className="flex-1">Create</Button>
+            <Button onClick={createOrg} loading={loading} disabled={!form.name.trim()} className="flex-1">
+              Create
+            </Button>
           </div>
         </div>
       )}

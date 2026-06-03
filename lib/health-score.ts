@@ -119,7 +119,8 @@ export function computeHealthScore(input: HealthScoreInput): {
 
   const weights: Record<keyof HealthScoreBreakdown, number> = {
     duesCollection: 0.2,
-    recruitmentConversion: input.orgType === "club_sports" ? 0.05 : 0.15,
+    recruitmentConversion:
+      input.orgType === "club_sports" || input.orgType === "general_org" ? 0.05 : 0.15,
     eventAttendance: 0.15,
     memberRetention: 0.1,
     officerTaskCompletion: 0.1,

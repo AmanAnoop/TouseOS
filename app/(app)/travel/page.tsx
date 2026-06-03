@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
   Calculator, Calendar, Car, Hotel, Plane, Plus, Users,
@@ -127,7 +128,9 @@ export default function TravelPage() {
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-bold text-foreground">{trip.title}</h3>
+                    <Link href={`/travel/${trip.id}`} className="font-bold text-foreground hover:text-sports-600">
+                      {trip.title}
+                    </Link>
                     <Badge label={trip.status} color={trip.status === "confirmed" ? "green" : trip.status === "planning" ? "yellow" : "blue"} />
                   </div>
                   {trip.destination && (
@@ -143,26 +146,10 @@ export default function TravelPage() {
                 </div>
               </div>
 
-              {/* Travel readiness checks */}
-              <div className="mt-4">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Readiness checklist</p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {[
-                    { label: "Waivers", icon: "📋", ok: true },
-                    { label: "Payments", icon: "💳", ok: false },
-                    { label: "Hotels", icon: "🏨", ok: true },
-                    { label: "Drivers", icon: "🚗", ok: false },
-                    { label: "Emergency contacts", icon: "📞", ok: true },
-                    { label: "Itinerary", icon: "🗺️", ok: Boolean(trip.itinerary) },
-                    { label: "Roster confirmed", icon: "✅", ok: false },
-                  ].map((item) => (
-                    <div key={item.label} className={`flex items-center gap-1.5 p-2 rounded-lg text-xs ${item.ok ? "bg-green-50 dark:bg-green-950/20 text-green-700" : "bg-red-50 dark:bg-red-950/20 text-red-600"}`}>
-                      <span>{item.icon}</span>
-                      <span>{item.label}</span>
-                      <span className="ml-auto font-bold">{item.ok ? "✓" : "✗"}</span>
-                    </div>
-                  ))}
-                </div>
+              <div className="mt-3">
+                <Link href={`/travel/${trip.id}`} className="text-sm text-sports-600 hover:underline">
+                  Open trip workspace →
+                </Link>
               </div>
             </Card>
           ))}

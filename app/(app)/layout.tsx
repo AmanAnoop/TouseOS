@@ -7,6 +7,7 @@ import {
   IMPERSONATE_ORG_COOKIE,
   isPlatformImpersonationEnabled,
 } from "@/lib/platform-impersonate";
+import { ACTIVE_ORG_COOKIE } from "@/lib/active-org-cookie";
 import type { Organization, Profile } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -42,6 +43,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let orgs = (orgsRes.data ?? []) as Organization[];
 
   const cookieStore = await cookies();
+  const activeOrgId = cookieStore.get(ACTIVE_ORG_COOKIE)?.value;
+  if (activeOrgId && orgs.length > 1) {
+    const idx = orgs.findIndex((o) => o.id === activeOrgId);
+    if (idx > 0) {
+      const [active] = orgs.splice(idx, 1);
+      orgs = [active, ...orgs];
+    }
+  }
+
   const impersonateOrgId = cookieStore.get(IMPERSONATE_ORG_COOKIE)?.value;
   const impersonating =
     Boolean(impersonateOrgId)

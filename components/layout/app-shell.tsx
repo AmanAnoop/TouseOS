@@ -6,6 +6,7 @@ import { BottomNav } from "@/components/layout/bottom-nav";
 import { cn } from "@/lib/utils";
 import { ServiceWorkerRegister } from "@/components/layout/service-worker-register";
 import { ImpersonationBanner } from "@/components/layout/impersonation-banner";
+import { ProductRouteGuard } from "@/components/layout/product-route-guard";
 import type { Organization, Profile } from "@/types";
 
 interface AppShellProps {
@@ -71,7 +72,9 @@ export function AppShell({
           {impersonating && impersonateOrgName && (
             <ImpersonationBanner orgName={impersonateOrgName} />
           )}
-          {children}
+          <ProductRouteGuard orgType={org?.type ?? "general_org"}>
+            {children}
+          </ProductRouteGuard>
         </div>
       </main>
 

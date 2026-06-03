@@ -147,3 +147,7 @@ export function isGreekOrg(type: string): boolean {
 export function isSportsOrg(type: string): boolean {
   return type === "club_sports";
 }
+
+export function isClubOrg(type: string): boolean {
+  return type === "general_org";
+}
