@@ -35,13 +35,15 @@ export function AttendanceTrendChart({ points }: AttendanceTrendChartProps) {
             <XAxis dataKey="name" tick={{ fontSize: 11 }} />
             <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}%`} />
             <Tooltip
-              formatter={(value: number, name: string, item: { payload?: { checkedIn: number; total: number } }) => {
+              formatter={(value, name, item) => {
+                const n = Number(value ?? 0);
                 if (name === "Attendance") {
-                  const c = item.payload?.checkedIn ?? 0;
-                  const t = item.payload?.total ?? 0;
-                  return [`${value}% (${c}/${t})`, "Attendance"];
+                  const payload = item?.payload as { checkedIn?: number; total?: number } | undefined;
+                  const c = payload?.checkedIn ?? 0;
+                  const t = payload?.total ?? 0;
+                  return [`${n}% (${c}/${t})`, "Attendance"];
                 }
-                return [value, name];
+                return [n, String(name)];
               }}
             />
             <Line type="monotone" dataKey="Attendance" stroke="#059669" strokeWidth={2} dot={{ r: 4 }} />

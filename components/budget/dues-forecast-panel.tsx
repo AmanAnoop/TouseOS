@@ -80,7 +80,7 @@ export function DuesForecastPanel({ forecast, onSyncToBudget, syncing }: DuesFor
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
               <XAxis dataKey="name" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
-              <Tooltip formatter={(value: number) => formatCurrency(value)} />
+              <Tooltip formatter={(value) => formatCurrency(Number(value ?? 0))} />
               <Legend />
               <Bar dataKey="Expected" fill="#94a3b8" radius={[4, 4, 0, 0]} />
               <Bar dataKey="Collected" fill="#059669" radius={[4, 4, 0, 0]} />
