@@ -1,6 +1,6 @@
 # TouseOS product status (realistic)
 
-Last updated: Google/Apple OAuth + Stripe/Twilio live checks on `cursor/oauth-stripe-twilio-4a50`.
+Last updated: Documents signed URLs, scheduled SMS, sports/club polish on `cursor/continue-build-4a50`.
 
 ## How to read these numbers
 
@@ -13,7 +13,7 @@ Last updated: Google/Apple OAuth + Stripe/Twilio live checks on `cursor/oauth-st
 
 ### Overall product complete (recommended single number)
 
-**~87%** — weighted blend (connected journeys 93%, routes 91%, production 68%, launch 82%).
+**~88%** — weighted blend (connected journeys 94%, routes 92%, production 70%, launch 83%).
 
 Do not treat route count as “done.” Live Stripe, SMS, counsel sign-off, and applied migrations still gate a full launch.
 
@@ -24,14 +24,22 @@ Do not treat route count as “done.” Live Stripe, SMS, counsel sign-off, and 
 | Auth & onboarding | **~90%** | Email + Google/Apple OAuth, profile on callback |
 | Greek chapter ops | **~86%** | Dashboard setup checklist, member vs officer views |
 | Finance | **~84%** | Budget lines RLS, payments with titles |
-| SportsOS | **~76%** | Bulk equipment, waiver forms, team home |
-| ClubOS | **~66%** | Elections, service hours |
+| SportsOS | **~80%** | Team home shortcuts, required waiver types aligned |
+| ClubOS | **~70%** | Dashboard polish, module shortcuts |
+| Documents | **~85%** | Signed URLs for private/storage-backed files |
+| Comms | **~78%** | Scheduled SMS channel + Twilio status |
 | GreekMatch / social | **~60%** | Photo APIs, calendar |
 | Health score | **~82%** | Real metrics only; no false 100% defaults |
 | Dashboard | **~88%** | `loadDashboardData`, full summary API, getting started |
 | Admin / platform | **~52%** | Allowlist |
 
 ## Latest (this branch)
+
+- **Documents:** `/api/documents/signed-url` for secure view/download; private files no longer use public URLs
+- **Scheduled comms:** SMS channel in scheduler + cron (`lib/scheduled-comms.ts`)
+- **Sports/club homes:** Module shortcuts; sports waivers use shared required types
+
+## Prior (`cursor/oauth-stripe-twilio-4a50`)
 
 - **OAuth:** Google and Apple sign-in on login/signup via `/api/auth/oauth`; profiles created on callback
 - **Integrations:** Live Stripe/Twilio env checks; Settings and Comms show connection status
@@ -53,5 +61,5 @@ Do not treat route count as “done.” Live Stripe, SMS, counsel sign-off, and 
 | Priority | Item |
 |----------|------|
 | P1 | Apply migrations **001–026** in production |
-| P2 | Sports/club home pages — same dashboard patterns |
+| P2 | Greek dashboard patterns on sports/club officer vs member views |
 | Launch | Live Stripe, pilot smoke, terms counsel |

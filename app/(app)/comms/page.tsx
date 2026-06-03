@@ -305,7 +305,11 @@ export default function CommsPage() {
           <select className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm" value={scheduleDraft.channel} onChange={(e) => setScheduleDraft({ ...scheduleDraft, channel: e.target.value })}>
             <option value="announcement">In-app announcement</option>
             <option value="email">Email blast</option>
+            <option value="sms" disabled={twilioLive === false}>SMS blast (Twilio)</option>
           </select>
+          {scheduleDraft.channel === "sms" && twilioLive === false && (
+            <Alert type="warning" title="Configure Twilio before scheduling SMS" />
+          )}
           <input className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm" placeholder="Title / subject" value={scheduleDraft.title} onChange={(e) => setScheduleDraft({ ...scheduleDraft, title: e.target.value })} />
           <Textarea placeholder="Message body..." value={scheduleDraft.body} onChange={(e) => setScheduleDraft({ ...scheduleDraft, body: e.target.value })} />
           <select className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm" value={scheduleDraft.audience} onChange={(e) => setScheduleDraft({ ...scheduleDraft, audience: e.target.value })}>
