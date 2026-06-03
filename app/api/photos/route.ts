@@ -1,6 +1,41 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
+export async function GET(request: Request) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { searchParams } = new URL(request.url);
+  const albumId = searchParams.get("album_id");
+  const orgId = searchParams.get("org_id");
+  const limit = parseInt(searchParams.get("limit") ?? "100", 10);
+
+  if (albumId) {
+    const { data, error } = await supabase
+      .from("photos")
+      .select("*")
+      .eq("album_id", albumId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(data ?? []);
+  }
+
+  if (orgId) {
+    const { data, error } = await supabase
+      .from("photos")
+      .select("id, url, caption, uploader_name, created_at, status, album_id")
+      .eq("org_id", orgId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(data ?? []);
+  }
+
+  return NextResponse.json({ error: "album_id or org_id required" }, { status: 400 });
+}
+
 export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

@@ -46,23 +46,15 @@ function SocialPageContent() {
 
   const loadAlbums = useCallback(async (oid: string) => {
     setLoading(true);
-    const { data } = await supabase
-      .from("photo_albums")
-      .select("*")
-      .eq("org_id", oid)
-      .order("created_at", { ascending: false });
-    setAlbums((data ?? []) as PhotoAlbum[]);
+    const res = await fetch(`/api/photo-albums?org_id=${encodeURIComponent(oid)}`);
+    if (res.ok) setAlbums((await res.json()) as PhotoAlbum[]);
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   const loadPhotos = useCallback(async (albumId: string) => {
-    const { data } = await supabase
-      .from("photos")
-      .select("*")
-      .eq("album_id", albumId)
-      .order("created_at", { ascending: false });
-    setPhotos((data ?? []) as Photo[]);
-  }, [supabase]);
+    const res = await fetch(`/api/photos?album_id=${encodeURIComponent(albumId)}`);
+    if (res.ok) setPhotos((await res.json()) as Photo[]);
+  }, []);
 
   useEffect(() => {
     if (orgId) loadAlbums(orgId);
@@ -95,12 +87,8 @@ function SocialPageContent() {
         const res = await fetch(`/api/events/event-album?org_id=${orgId}&event_id=${eventId}`);
         const data = await res.json();
         if (res.ok && data.album) {
-          const { data: full } = await supabase
-            .from("photo_albums")
-            .select("*")
-            .eq("id", data.album.id)
-            .single();
-          if (full) targetAlbum = full as PhotoAlbum;
+          const albumRes = await fetch(`/api/photo-albums?id=${encodeURIComponent(data.album.id)}`);
+          if (albumRes.ok) targetAlbum = (await albumRes.json()) as PhotoAlbum;
           if (orgId) loadAlbums(orgId);
         }
       }
@@ -116,10 +104,18 @@ function SocialPageContent() {
     }
 
     openAlbum();
-  }, [orgId, albums, searchParams, deepLinkReady, loadAlbums, supabase]);
+  }, [orgId, albums, searchParams, deepLinkReady, loadAlbums]);
 
   async function approvePhoto(id: string, status: string) {
-    await supabase.from("photos").update({ status }).eq("id", id);
+    const res = await fetch("/api/photos", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ photoId: id, status }),
+    });
+    if (!res.ok) {
+      toast.error((await res.json().catch(() => ({}))).error ?? "Update failed");
+      return;
+    }
     setPhotos((prev) => prev.map((p) => p.id === id ? { ...p, status: status as Photo["status"] } : p));
     toast.success(`Photo marked as ${status.replace("_", " ")}`);
   }
@@ -142,13 +138,15 @@ function SocialPageContent() {
 
       const { data: urlData } = supabase.storage.from("photos").getPublicUrl(stored.path);
 
-      await supabase.from("photos").insert({
-        org_id: orgId,
-        album_id: selectedAlbum.id,
-        uploaded_by: user.id,
-        storage_path: stored.path,
-        url: urlData.publicUrl,
-        status: "pending",
+      await fetch("/api/photos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orgId,
+          albumId: selectedAlbum.id,
+          url: urlData.publicUrl,
+          storagePath: stored.path,
+        }),
       });
     }
 
@@ -244,8 +242,17 @@ function SocialPageContent() {
               if (!orgId) return;
               const title = prompt("Album title?");
               if (!title) return;
-              const { data } = await supabase.from("photo_albums").insert({ org_id: orgId, title }).select().single();
-              if (data) { loadAlbums(orgId); setSelectedAlbum(data as PhotoAlbum); setTab("photos"); }
+              const res = await fetch("/api/photo-albums", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ orgId, title }),
+              });
+              if (res.ok) {
+                const data = (await res.json()) as PhotoAlbum;
+                loadAlbums(orgId);
+                setSelectedAlbum(data);
+                setTab("photos");
+              }
             }}>
               New album
             </Button>

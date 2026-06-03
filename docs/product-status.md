@@ -1,6 +1,6 @@
 # TouseOS product status (realistic)
 
-Last updated: Wave 22 on `cursor/wave22-dashboard-housing-rsvp-4a50`.
+Last updated: Wave 23 on `cursor/wave23-social-profile-apis-4a50`.
 
 ## How to read these numbers
 
@@ -9,7 +9,7 @@ We separate **“exists in the repo”** from **“works end-to-end without dead
 | Metric | Realistic % | Meaning |
 |--------|-------------|---------|
 | **Backlog modules with a route or API** | **~88%** | Page or endpoint exists |
-| **Connected user journeys** | **~76%** | Dashboard, settings, housing, RSVP, and payments respect active org + APIs |
+| **Connected user journeys** | **~77%** | Social albums/photos APIs; profile and account scoped to active org |
 | **Production-ready depth** | **~50%** | Tested, permissioned, env-configured; legal summaries expanded (counsel review still needed) |
 | **Launch-ready** | **~44%** | Migrations, Stripe, QA, mobile polish, counsel-approved legal |
 
@@ -40,7 +40,14 @@ We separate **“exists in the repo”** from **“works end-to-end without dead
 - Reimbursement approve/paid triggers budget sync-org API
 - Treasurer dashboard links split budget vs reimbursements
 
-## Wave 22 (latest)
+## Wave 23 (latest)
+
+- Social page: albums and photos via `/api/photo-albums` and `/api/photos` (upload still uses storage + POST)
+- Profile and account member data scoped to active org (`useOrg`)
+- Admin dashboard uses active org membership
+- `GET /api/dashboard/summary` for member/finance snapshot (ready for widgets)
+
+## Wave 22
 
 - Greek dashboard uses active org cookie (`loadActiveMembershipServer`)
 - Settings and travel trip detail use `useOrg()`

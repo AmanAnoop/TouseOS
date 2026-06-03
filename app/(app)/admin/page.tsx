@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { loadActiveMembershipServer } from "@/lib/active-org-membership-server";
 import {
   Alert, Badge, Card, CardHeader, PageHeader, StatCard,
 } from "@/components/ui";
@@ -18,17 +19,10 @@ export default async function AdminPage() {
   if (!user) redirect("/login");
 
   // Check if owner/admin
-  const { data: membership } = await supabase
-    .from("org_members")
-    .select("org_id, role, organizations(*)")
-    .eq("user_id", user.id)
-    .neq("status", "removed")
-    .limit(1)
-    .single();
+  const activeMembership = await loadActiveMembershipServer(user.id);
+  if (!activeMembership) redirect("/onboarding");
 
-  if (!membership) redirect("/onboarding");
-
-  const role = String(membership.role);
+  const role = String(activeMembership.role);
   const isOrgAdmin = ["owner", "president", "vice_president", "advisor"].includes(role);
 
   if (!isOrgAdmin) {
@@ -40,8 +34,9 @@ export default async function AdminPage() {
     );
   }
 
-  const orgId = membership.org_id;
-  const org = membership.organizations as unknown as Record<string, unknown>;
+  const orgId = activeMembership.orgId;
+  const { data: orgRow } = await supabase.from("organizations").select("*").eq("id", orgId).single();
+  const org = (orgRow ?? {}) as Record<string, unknown>;
 
   const [membersRes, paymentsRes, eventsRes, auditRes, reimbsRes, tasksRes] = await Promise.all([
     supabase.from("member_profiles").select("id, full_name, membership_status, payment_status, role, created_at").eq("org_id", orgId).order("full_name"),

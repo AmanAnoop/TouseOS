@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import { PageHeader, Tabs } from "@/components/ui";
 import type { MemberProfile } from "@/types";
 import { ProfileHeader } from "@/components/profile/profile-header";
@@ -17,6 +18,7 @@ const VALID_TABS = ["profile", "privacy", "greekmatch"] as const;
 
 export default function ProfilePage() {
   const supabase = createClient();
+  const { orgId } = useOrg();
   const fileRef = useRef<HTMLInputElement>(null);
   const searchParams = useSearchParams();
 
@@ -66,8 +68,12 @@ export default function ProfilePage() {
       if (!user) return;
       setUserId(user.id);
 
+      const profileQuery = orgId
+        ? supabase.from("member_profiles").select("*").eq("user_id", user.id).eq("org_id", orgId).maybeSingle()
+        : supabase.from("member_profiles").select("*").eq("user_id", user.id).limit(1).maybeSingle();
+
       const [mpRes, rolesRes, gmRes] = await Promise.all([
-        supabase.from("member_profiles").select("*").eq("user_id", user.id).limit(1).single(),
+        profileQuery,
         supabase.from("org_members").select("org_id, role, organizations(name, type)").eq("user_id", user.id).neq("status", "removed"),
         supabase.from("greekmatch_profiles").select("*").eq("user_id", user.id).maybeSingle(),
       ]);
@@ -126,7 +132,7 @@ export default function ProfilePage() {
       }
     }
     load();
-  }, [supabase]);
+  }, [supabase, orgId]);
 
   async function saveProfile() {
     if (!userId || !memberProfile) return;
