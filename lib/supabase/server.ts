@@ -1,14 +1,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase/public-config";
 
 export async function createClient() {
   const cookieStore = await cookies();
+  const url = getSupabaseUrl();
+  const key = getSupabaseAnonKey();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return createServerClient<any>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    url,
+    key,
     {
       cookies: {
         getAll() {
@@ -31,9 +34,10 @@ export async function createClient() {
 }
 
 export async function createServiceClient() {
+  const url = getSupabaseUrl();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return createServerClient<any>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    url,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     {
       cookies: { getAll: () => [], setAll: () => {} },

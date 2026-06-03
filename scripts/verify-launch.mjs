@@ -24,14 +24,34 @@ function ok(key) {
   return typeof v === "string" && v.trim().length > 0;
 }
 
+function hasPublicSupabaseKey() {
+  return ok("NEXT_PUBLIC_SUPABASE_ANON_KEY") || ok("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY");
+}
+
 let failed = 0;
 
 console.log("\nTouseOS launch environment check\n");
 
 for (const key of REQUIRED) {
-  const pass = ok(key);
+  const pass =
+    key === "NEXT_PUBLIC_SUPABASE_ANON_KEY" ? hasPublicSupabaseKey() : ok(key);
   console.log(`${pass ? "✓" : "✗"} ${key} (required)`);
   if (!pass) failed++;
+}
+
+const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ?? "";
+if (anon.startsWith("eyJ")) {
+  try {
+    const payload = JSON.parse(
+      Buffer.from(anon.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"), "base64").toString(),
+    );
+    if (payload.role === "service_role") {
+      console.log("✗ NEXT_PUBLIC_SUPABASE_ANON_KEY looks like service_role — use anon/publishable key");
+      failed++;
+    }
+  } catch {
+    /* ignore decode errors */
+  }
 }
 
 console.log("\nStripe (required for live dues):");

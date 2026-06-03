@@ -1,12 +1,21 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createBrowserClient } from "@supabase/ssr";
-import { isSupabaseConfigured } from "@/lib/supabase/env";
+import {
+  getSupabaseAnonKey,
+  getSupabaseUrl,
+  isSupabaseConfigured,
+} from "@/lib/supabase/public-config";
 
-export { isSupabaseConfigured } from "@/lib/supabase/env";
+export {
+  getSupabaseAnonKey,
+  getSupabaseUrl,
+  isSupabaseConfigured,
+  validateSupabasePublicConfig,
+} from "@/lib/supabase/public-config";
 
 export function createClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  const url = getSupabaseUrl();
+  const key = getSupabaseAnonKey();
 
   if (!isSupabaseConfigured() || !url || !key) {
     return createBrowserClient<any>("https://invalid.supabase.co", "invalid-anon-key");

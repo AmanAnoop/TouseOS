@@ -11,9 +11,22 @@ export type LaunchEnvCheck = {
   hint?: string;
 };
 
+function hasPublicSupabaseKey(): boolean {
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const pub = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  return (
+    (typeof anon === "string" && anon.trim().length > 0) ||
+    (typeof pub === "string" && pub.trim().length > 0)
+  );
+}
+
 const REQUIRED: Array<{ key: string; label: string; hint?: string }> = [
   { key: "NEXT_PUBLIC_SUPABASE_URL", label: "Supabase URL" },
-  { key: "NEXT_PUBLIC_SUPABASE_ANON_KEY", label: "Supabase anon key" },
+  {
+    key: "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    label: "Supabase anon/publishable key",
+    hint: "Public key only — never service_role",
+  },
   { key: "SUPABASE_SERVICE_ROLE_KEY", label: "Supabase service role", hint: "Org create, budget sync, webhooks" },
   { key: "NEXT_PUBLIC_APP_URL", label: "App URL", hint: "Must match production domain for Stripe redirects" },
 ];
@@ -45,11 +58,15 @@ export function getLaunchEnvChecks(): LaunchEnvCheck[] {
   const checks: LaunchEnvCheck[] = [];
 
   for (const item of REQUIRED) {
+    const ok =
+      item.key === "NEXT_PUBLIC_SUPABASE_ANON_KEY"
+        ? hasPublicSupabaseKey()
+        : isSet(item.key);
     checks.push({
       key: item.key,
       label: item.label,
       required: true,
-      ok: isSet(item.key),
+      ok,
       hint: item.hint,
     });
   }

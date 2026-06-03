@@ -22,10 +22,14 @@ Deploy with the same variables in Vercel/hosting.
 
 In the Vercel project → **Settings → Environment Variables**, set at minimum:
 
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_SUPABASE_URL` — `https://YOUR-REF.supabase.co` (Supabase → Settings → API)
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — **anon public** (legacy `eyJ...`) or **publishable** (`sb_publishable_...`) key only
 
-Apply to **Production**, **Preview**, and **Development**. Redeploy after saving. If either is missing, sign-up and sign-in will not work.
+Do **not** put `SUPABASE_SERVICE_ROLE_KEY` in any `NEXT_PUBLIC_*` variable — the browser will send it to Supabase Auth and you will get **Invalid API key** on sign-up.
+
+Apply to **Production**, **Preview**, and **Development**. **Redeploy** after saving (`NEXT_PUBLIC_*` is baked in at build time on Vercel).
+
+Verify: open `https://your-domain.com/api/auth/supabase-config` — should show `"ok": true`.
 
 In **Supabase → Authentication → URL configuration**, add redirect URLs (replace with your domain):
 
