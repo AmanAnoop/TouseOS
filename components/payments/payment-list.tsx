@@ -4,7 +4,10 @@ import { Avatar, Badge, Button, Card } from "@/components/ui";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Payment, MemberProfile } from "@/types";
 
-export type PaymentWithMember = Payment & { member_profiles: MemberProfile | null };
+export type PaymentWithMember = Payment & {
+  member_profiles: MemberProfile | null;
+  payment_items?: { title?: string; category?: string; event_id?: string | null } | { title?: string; category?: string; event_id?: string | null }[] | null;
+};
 
 interface PaymentListProps {
   payments: PaymentWithMember[];
@@ -26,7 +29,10 @@ export function PaymentList({ payments, loading, onCopyParentLink, onPayStripe, 
   return (
     <Card padding="none">
       <div className="divide-y divide-border">
-        {payments.map((p) => (
+        {payments.map((p) => {
+          const item = Array.isArray(p.payment_items) ? p.payment_items[0] : p.payment_items;
+          const chargeTitle = item?.title;
+          return (
           <button
             key={p.id}
             type="button"
@@ -35,9 +41,12 @@ export function PaymentList({ payments, loading, onCopyParentLink, onPayStripe, 
           >
             <Avatar name={p.member_profiles?.full_name ?? "?"} src={p.member_profiles?.profile_photo_url} size="sm" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground">{p.member_profiles?.full_name ?? "Member"}</p>
+              <p className="text-sm font-medium text-foreground">
+                {chargeTitle ? `${chargeTitle} — ${p.member_profiles?.full_name ?? "Member"}` : (p.member_profiles?.full_name ?? "Member")}
+              </p>
               <p className="text-xs text-muted-foreground">
                 Due {p.due_date ? formatDate(p.due_date) : "—"}
+                {item?.category ? ` · ${item.category}` : ""}
                 {p.paid_amount > 0 && p.paid_amount < p.amount && ` · ${formatCurrency(p.paid_amount)} paid`}
               </p>
             </div>
@@ -50,11 +59,12 @@ export function PaymentList({ payments, loading, onCopyParentLink, onPayStripe, 
               />
             </div>
             {onCopyParentLink && <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); onCopyParentLink(p); }}>Parent link</Button>}
-            {(p.status === "pending" || p.status === "overdue") && onPayStripe && (
+            {(p.status === "pending" || p.status === "overdue" || p.status === "partial") && onPayStripe && (
               <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); onPayStripe(p); }}>Pay</Button>
             )}
           </button>
-        ))}
+        );
+        })}
       </div>
     </Card>
   );

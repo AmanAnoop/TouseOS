@@ -215,11 +215,7 @@ export function buildSidebarNavigation(
   if (product === "greek") {
     sections.push(...greekFeatureSections(featureItems));
   } else if (product === "sports") {
-    const home = featureItems.find((i) => i.href === "/sports");
-    if (home) {
-      sections[0]?.items.unshift(mapFeatureItem(home.href, "Team dashboard"));
-    }
-    sections.push(...sportsFeatureSections(featureItems));
+    sections.push(...sportsFeatureSections(featureItems.filter((i) => i.href !== "/sports")));
   } else if (product === "club") {
     const home = featureItems.find((i) => i.href === "/club");
     if (home && sections[0]) {

@@ -20,7 +20,7 @@ export async function GET(request: Request) {
   if (roomError) return NextResponse.json({ error: roomError.message }, { status: 500 });
 
   const roomIds = (roomData ?? []).map((r) => r.id);
-  const [assignRes, maintRes] = await Promise.all([
+  const [assignRes, maintRes, contactsRes] = await Promise.all([
     roomIds.length
       ? supabase
           .from("housing_assignments")
@@ -33,12 +33,19 @@ export async function GET(request: Request) {
       .select("*")
       .eq("org_id", orgId)
       .order("created_at", { ascending: false })
-      .limit(10),
+      .limit(50),
+    supabase
+      .from("housing_contacts")
+      .select("*")
+      .eq("org_id", orgId)
+      .order("category")
+      .order("name"),
   ]);
 
   return NextResponse.json({
     rooms: roomData ?? [],
     assignments: assignRes.data ?? [],
     maintenance: maintRes.data ?? [],
+    contacts: contactsRes.data ?? [],
   });
 }

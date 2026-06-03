@@ -25,6 +25,7 @@ export default function TasksPage() {
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [detailTask, setDetailTask] = useState<Task | null>(null);
   const [userName, setUserName] = useState("");
+  const [memberOptions, setMemberOptions] = useState<Array<{ id: string; name: string }>>([]);
 
   const [form, setForm] = useState({
     title: "", description: "", priority: "medium" as TaskPriority, isRecurring: false,
@@ -59,7 +60,17 @@ export default function TasksPage() {
   }, [userId, orgId]);
 
   useEffect(() => {
-    if (orgId) load(orgId);
+    if (!orgId) return;
+    load(orgId);
+    fetch(`/api/members?org_id=${encodeURIComponent(orgId)}`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => {
+        const opts = (data as Array<{ full_name: string; preferred_name?: string | null }>).map((m) => ({
+          id: m.full_name,
+          name: m.preferred_name ? `${m.preferred_name} (${m.full_name})` : m.full_name,
+        }));
+        setMemberOptions(opts);
+      });
   }, [orgId, load]);
 
   const filtered = tasks.filter((t) => {
@@ -316,7 +327,14 @@ export default function TasksPage() {
             <Input label="Due date" type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} />
           </div>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.isRecurring} onChange={(e) => setForm({ ...form, isRecurring: e.target.checked })} /> Recurring task</label>
-          <Input label="Assignee" placeholder="Who's responsible?" value={form.assigneeName} onChange={(e) => setForm({ ...form, assigneeName: e.target.value })} />
+          <Select
+            label="Assignee"
+            value={form.assigneeName}
+            onChange={(e) => setForm({ ...form, assigneeName: e.target.value })}
+            placeholder="Select member (optional)"
+            options={memberOptions.map((m) => ({ value: m.id, label: m.name }))}
+          />
+          <Input label="Or type assignee name" placeholder="Custom assignee" value={form.assigneeName} onChange={(e) => setForm({ ...form, assigneeName: e.target.value })} />
           <Input label="Tags (comma-separated)" placeholder="recruitment, social, important" value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} />
           {editTask && (
             <Select
