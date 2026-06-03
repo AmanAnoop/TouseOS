@@ -7,10 +7,7 @@ import {
 import { Card } from "@/components/ui";
 import { getProductId, productAccent } from "@/lib/org-product";
 
-const OFFICER_ROLES = new Set([
-  "owner", "president", "vice_president", "treasurer", "secretary",
-  "social_chair", "recruitment_chair", "risk_manager", "advisor", "captain", "coach",
-]);
+import { isDashboardOfficer } from "@/lib/dashboard-roles";
 
 const HOVER: Record<string, string> = {
   greek: "hover:border-greek-300 hover:bg-greek-50/50 dark:hover:bg-greek-950/20",
@@ -31,7 +28,7 @@ export function OfficerQuickActions({
   role: string;
   orgType: string;
 }) {
-  if (!OFFICER_ROLES.has(role)) return null;
+  if (!isDashboardOfficer(role)) return null;
 
   const product = getProductId(orgType);
   const accent = productAccent(product);
