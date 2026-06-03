@@ -5,7 +5,6 @@ import {
   Download, Mail, MapPin, Plus, Briefcase,
   GraduationCap, Heart, Users,
 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import { useOrg } from "@/hooks/use-org";
 import {
   Avatar, Badge, Button, Card, CardHeader, EmptyState,
@@ -17,7 +16,6 @@ import toast from "react-hot-toast";
 import { AlumniCampaignsPanel } from "@/components/alumni/alumni-campaigns-panel";
 
 export default function AlumniPage() {
-  const supabase = createClient();
   const { orgId } = useOrg();
   const [alumni, setAlumni] = useState<AlumniProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,10 +32,10 @@ export default function AlumniPage() {
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
-    const { data } = await supabase.from("alumni_profiles").select("*").eq("org_id", oid).order("full_name");
-    setAlumni((data ?? []) as AlumniProfile[]);
+    const res = await fetch(`/api/alumni?org_id=${encodeURIComponent(oid)}`);
+    setAlumni(res.ok ? ((await res.json()) as AlumniProfile[]) : []);
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
     if (orgId) load(orgId);
@@ -45,21 +43,29 @@ export default function AlumniPage() {
 
   async function addAlumni() {
     if (!orgId || !form.fullName) return;
-    const { error } = await supabase.from("alumni_profiles").insert({
-      org_id: orgId,
-      full_name: form.fullName,
-      email: form.email || null,
-      phone: form.phone || null,
-      graduation_year: form.graduationYear ? parseInt(form.graduationYear) : null,
-      pledge_class: form.pledgeClass || null,
-      city: form.city || null,
-      state: form.state || null,
-      career_field: form.careerField || null,
-      employer: form.employer || null,
-      mentorship_interest: form.mentorshipInterest,
-      contact_preference: form.contactPreference,
+    const res = await fetch("/api/alumni", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        fullName: form.fullName,
+        email: form.email,
+        phone: form.phone,
+        graduationYear: form.graduationYear,
+        pledgeClass: form.pledgeClass,
+        city: form.city,
+        state: form.state,
+        careerField: form.careerField,
+        employer: form.employer,
+        mentorshipInterest: form.mentorshipInterest,
+        contactPreference: form.contactPreference,
+      }),
     });
-    if (error) { toast.error(error.message); return; }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error((err as { error?: string }).error ?? "Failed to add alumni");
+      return;
+    }
     toast.success("Alumni added");
     setAddOpen(false);
     setForm({ fullName: "", email: "", phone: "", graduationYear: "", pledgeClass: "", city: "", state: "", careerField: "", employer: "", mentorshipInterest: false, contactPreference: "email" });

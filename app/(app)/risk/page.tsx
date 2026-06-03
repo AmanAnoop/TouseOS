@@ -5,7 +5,6 @@ import { AlertTriangle, CheckCircle2, Plus, Shield } from "lucide-react";
 import toast from "react-hot-toast";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useOrg } from "@/hooks/use-org";
-import { createClient } from "@/lib/supabase/client";
 import {
   Alert, Badge, Button, Card, CardHeader,
   EmptyState, Modal, PageHeader, ProgressBar, StatCard,
@@ -42,7 +41,6 @@ const CHECKLIST_ITEMS = [
 ];
 
 export default function RiskPage() {
-  const supabase = createClient();
   const { can, loading: permLoading } = usePermissions();
   const [checklists, setChecklists] = useState<RiskChecklist[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,7 +73,7 @@ export default function RiskPage() {
   const load = useCallback(async (oid: string) => {
     setLoading(true);
     const [ckRes, evRes, incRes] = await Promise.all([
-      supabase.from("risk_checklists").select("*").eq("org_id", oid).order("created_at", { ascending: false }),
+      fetch(`/api/risk/checklists?org_id=${encodeURIComponent(oid)}`),
       fetch(`/api/events?org_id=${encodeURIComponent(oid)}`).then(async (r) => {
         if (!r.ok) return { data: [] };
         const all = (await r.json()) as Array<{ id: string; title: string; starts_at: string }>;
@@ -89,11 +87,11 @@ export default function RiskPage() {
       }),
       fetch(`/api/incidents?org_id=${oid}`).then((r) => (r.ok ? r.json() : [])),
     ]);
-    setChecklists((ckRes.data ?? []) as RiskChecklist[]);
+    setChecklists(ckRes.ok ? ((await ckRes.json()) as RiskChecklist[]) : []);
     setEvents((evRes.data ?? []) as Array<{ id: string; title: string; starts_at: string }>);
     setIncidents(Array.isArray(incRes) ? incRes : []);
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   function exportIncidents() {
     if (!orgId) return;
@@ -137,14 +135,22 @@ export default function RiskPage() {
   async function createChecklist() {
     if (!orgId) return;
     const score = computeRiskScore(newChecklist);
-    const { error } = await supabase.from("risk_checklists").insert({
-      org_id: orgId,
-      event_id: selectedEventId || null,
-      ...newChecklist,
-      risk_score: score,
-      notes: notes || null,
+    const res = await fetch("/api/risk/checklists", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        eventId: selectedEventId || null,
+        items: newChecklist,
+        riskScore: score,
+        notes,
+      }),
     });
-    if (error) { toast.error(error.message); return; }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error((err as { error?: string }).error ?? "Failed to save");
+      return;
+    }
     toast.success("Risk checklist saved");
     setCreateOpen(false);
     setNewChecklist(Object.fromEntries(CHECKLIST_ITEMS.map((i) => [i.key, false])));
@@ -154,8 +160,17 @@ export default function RiskPage() {
   }
 
   async function approveChecklist(id: string) {
-    await supabase.from("risk_checklists").update({ approved: true }).eq("id", id);
-    setChecklists((prev) => prev.map((c) => c.id === id ? { ...c, approved: true } : c));
+    if (!orgId) return;
+    const res = await fetch("/api/risk/checklists", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, orgId, approved: true }),
+    });
+    if (!res.ok) {
+      toast.error("Failed to approve");
+      return;
+    }
+    setChecklists((prev) => prev.map((c) => (c.id === id ? { ...c, approved: true } : c)));
     toast.success("Checklist approved");
   }
 

@@ -10,10 +10,6 @@ import {
   PageHeader, Tabs,
 } from "@/components/ui";
 import { OrgProfileForm, type OrgProfileFormData } from "@/components/settings/org-profile-form";
-import { colorsForOrgStorage } from "@/lib/chapter-theme";
-import { getGreekOrgById } from "@/lib/greek-letter-orgs";
-import { getProductId } from "@/lib/org-product";
-import { getUniversityById } from "@/lib/university-colors";
 import { useOrg } from "@/hooks/use-org";
 import { InviteCodeCard } from "@/components/settings/invite-code-card";
 import { MemberRolesPanel, type OrgMemberWithProfile } from "@/components/settings/member-roles-panel";
@@ -37,13 +33,11 @@ export default function SettingsPage() {
   useEffect(() => {
     if (!orgId) return;
     (async () => {
-      const { data: orgData } = await supabase
-        .from("organizations")
-        .select("*, platform_plan, platform_plan_status")
-        .eq("id", orgId)
-        .single();
+      const res = await fetch(`/api/org/settings?org_id=${encodeURIComponent(orgId)}`);
+      if (!res.ok) return;
+      const { org: orgData, members: membersData } = await res.json();
       if (!orgData) return;
-      setOrg(orgData as unknown as Record<string, unknown>);
+      setOrg(orgData as Record<string, unknown>);
       const settings = ((orgData.settings ?? {}) as Record<string, unknown>);
       setOrgForm({
         name: String(orgData.name ?? ""),
@@ -56,15 +50,9 @@ export default function SettingsPage() {
         universityId: String(settings.university_id ?? ""),
         greekAffiliationId: String(settings.greek_affiliation_id ?? ""),
       });
-
-      const { data: membersData } = await supabase
-        .from("org_members")
-        .select("*, profiles(full_name, avatar_url), member_profiles(id, full_name, email)")
-        .eq("org_id", orgId)
-        .order("joined_at");
       setMembers((membersData ?? []) as OrgMemberWithProfile[]);
     })();
-  }, [orgId, supabase]);
+  }, [orgId]);
 
   const isAdmin = ["owner", "president", "advisor"].includes(String(myRole));
   const activeMembers = members.filter((m) => m.status !== "removed");
@@ -72,33 +60,31 @@ export default function SettingsPage() {
   async function saveOrgProfile() {
     if (!orgId) return;
     setSaving(true);
-    const prevSettings = (org?.settings ?? {}) as Record<string, unknown>;
-    const orgType = String(org?.type ?? "fraternity");
-    const stored = colorsForOrgStorage({
-      product: getProductId(orgType),
-      greekOrg: getGreekOrgById(orgForm.greekAffiliationId),
-      university: getUniversityById(orgForm.universityId),
-      primaryColor: orgForm.primaryColor,
-      secondaryColor: orgForm.secondaryColor,
+    const res = await fetch("/api/org/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        name: orgForm.name,
+        campus: orgForm.campus,
+        councilOrLeague: orgForm.councilOrLeague,
+        contactEmail: orgForm.contactEmail,
+        privacy: orgForm.privacy,
+        primaryColor: orgForm.primaryColor,
+        secondaryColor: orgForm.secondaryColor,
+        universityId: orgForm.universityId,
+        greekAffiliationId: orgForm.greekAffiliationId,
+      }),
     });
-    const { error } = await supabase.from("organizations").update({
-      name: orgForm.name,
-      campus: orgForm.campus || null,
-      council_or_league: orgForm.councilOrLeague || null,
-      contact_email: orgForm.contactEmail || null,
-      privacy: orgForm.privacy,
-      primary_color: stored.primary_color,
-      secondary_color: stored.secondary_color,
-      settings: {
-        ...prevSettings,
-        university_id: orgForm.universityId || null,
-        greek_affiliation_id: orgForm.greekAffiliationId || null,
-      },
-    }).eq("id", orgId);
     setSaving(false);
-    if (error) { toast.error(error.message); return; }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error((err as { error?: string }).error ?? "Failed to save");
+      return;
+    }
+    const { org: updated } = await res.json();
     toast.success("Settings saved");
-    setOrg({ ...org, ...orgForm });
+    setOrg(updated as Record<string, unknown>);
   }
 
   async function copyInviteCode() {
@@ -109,9 +95,17 @@ export default function SettingsPage() {
 
   async function regenerateInviteCode() {
     if (!orgId || !isAdmin) return;
-    const newCode = Math.random().toString(36).substring(2, 10).toUpperCase();
-    await supabase.from("organizations").update({ invite_code: newCode }).eq("id", orgId);
-    setOrg({ ...org, invite_code: newCode });
+    const res = await fetch("/api/org/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId, regenerateInviteCode: true }),
+    });
+    if (!res.ok) {
+      toast.error("Failed to regenerate code");
+      return;
+    }
+    const { org: updated } = await res.json();
+    setOrg(updated as Record<string, unknown>);
     toast.success("New invite code generated");
   }
 
@@ -129,23 +123,36 @@ export default function SettingsPage() {
     }
   }
 
+  async function patchMembership(memberId: string, patch: { role?: string; status?: string }) {
+    if (!orgId) return false;
+    const res = await fetch("/api/org/memberships", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId, memberId, ...patch }),
+    });
+    if (!res.ok) {
+      toast.error("Update failed");
+      return false;
+    }
+    const updated = await res.json();
+    setMembers((prev) => prev.map((m) => (m.id === memberId ? { ...m, ...updated } : m)));
+    return true;
+  }
+
   async function approveMember(memberId: string) {
-    await supabase.from("org_members").update({ status: "active" }).eq("id", memberId);
-    setMembers((prev) => prev.map((m) => m.id === memberId ? { ...m, status: "active" } : m));
-    toast.success("Member approved");
+    if (await patchMembership(memberId, { status: "active" })) toast.success("Member approved");
   }
 
   async function changeRole(memberId: string, newRole: string) {
-    await supabase.from("org_members").update({ role: newRole }).eq("id", memberId);
-    setMembers((prev) => prev.map((m) => m.id === memberId ? { ...m, role: newRole } : m));
-    toast.success("Role updated");
+    if (await patchMembership(memberId, { role: newRole })) toast.success("Role updated");
   }
 
   async function removeMember(memberId: string) {
     if (!confirm("Remove this member from the organization?")) return;
-    await supabase.from("org_members").update({ status: "removed" }).eq("id", memberId);
-    setMembers((prev) => prev.filter((m) => m.id !== memberId));
-    toast.success("Member removed");
+    if (await patchMembership(memberId, { status: "removed" })) {
+      setMembers((prev) => prev.filter((m) => m.id !== memberId));
+      toast.success("Member removed");
+    }
   }
 
   async function signOut() {
@@ -295,9 +302,18 @@ export default function SettingsPage() {
                     size="sm"
                     onClick={async () => {
                       if (!orgId || !confirm("Archive this organization? Members will lose access until restored.")) return;
-                      const settings = { ...(org?.settings as object ?? {}), archived: true, archived_at: new Date().toISOString() };
-                      const { error } = await supabase.from("organizations").update({ settings }).eq("id", orgId);
-                      if (error) toast.error(error.message);
+                      const res = await fetch("/api/org/settings", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          orgId,
+                          settingsPatch: {
+                            archived: true,
+                            archived_at: new Date().toISOString(),
+                          },
+                        }),
+                      });
+                      if (!res.ok) toast.error("Failed to archive");
                       else {
                         toast.success("Organization archived");
                         router.push("/onboarding");

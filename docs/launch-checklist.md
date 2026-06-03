@@ -1,49 +1,63 @@
 # TouseOS launch checklist (module 66)
 
-Use this before inviting a live chapter or university pilot. It maps to the MVP priority order in `docs/feature-backlog.md` §66.
+Use this before inviting a live chapter or university pilot.  
+**Runbook:** [launch-runbook.md](./launch-runbook.md) · **Env check:** `npm run launch:check` · **Deploy probe:** `GET /api/ready`
 
 ## Environment
 
-- [ ] Supabase project provisioned; migrations **001 → 022** applied
+- [ ] Supabase project provisioned; migrations **001 → 024** applied (see `supabase/migrations/`)
 - [ ] `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` set
 - [ ] `NEXT_PUBLIC_APP_URL` matches production domain
-- [ ] Stripe keys + webhook endpoint (`checkout.session.completed`, `account.updated`)
+- [ ] Stripe keys + webhook endpoint (`checkout.session.completed`, `account.updated`, `payment_intent.payment_failed`)
+- [x] `.env.example` documents all integration keys
+- [x] `npm run launch:check` script validates required env locally
+- [x] `GET /api/ready` returns env + webhook + cron documentation
 - [ ] Optional: `STRIPE_CONNECT_ENABLED=true`, `PLATFORM_STRIPE_APPLICATION_FEE_PERCENT`
 - [ ] Optional: `PLATFORM_IMPERSONATION_ENABLED=true` (platform staff only)
 - [ ] Resend / Twilio keys if email/SMS reminders enabled
-- [ ] Vercel cron secret for `/api/cron/*` routes
+- [ ] `CRON_SECRET` set in production (Vercel cron → `/api/cron/*`)
 
 ## Core flows (smoke test)
 
-- [ ] Sign up, verify email, join org via invite code
+- [x] Auth routes: signup, login, forgot-password, email verification flow
+- [x] Onboarding: create org (`015_onboarding_rpc`), join via invite
+- [x] Active org cookie + product home routing (Greek / Sports / Club)
+- [ ] Sign up, verify email, join org via invite code (live Supabase)
 - [ ] Officer roles: treasurer can manage payments; member sees own dues only
-- [ ] Create event → RSVP → QR check-in
-- [ ] Upload album photos → officer approval → feed post
+- [x] Events list/create via `/api/events`; RSVP via `/api/events/rsvp`
+- [ ] Create event → RSVP → QR check-in (live test)
+- [x] Photo albums/photos APIs; social upload uses storage + API
+- [ ] Upload album photos → officer approval → feed post (live test)
+- [x] Payments list, plans, hardship, reimbursements, budget sync APIs
 - [ ] Create dues charge → Stripe Checkout (Connect destination if configured)
-- [ ] Reconciliation panel on Payments shows matched Stripe intents
-- [ ] PNM record + consent flag before bulk SMS
-- [ ] Interchapter proposal + workspace messages
-- [ ] Transition binder export (HTML)
-- [ ] Yearbook: HTML export + **PDF download**
+- [x] Stripe reconciliation panel wired on Payments
+- [x] PNM via `/api/pnm`; consent fields on leads
+- [x] Interchapter workspaces + messages APIs
+- [x] Transition binders API + HTML export
+- [x] Yearbook HTML + PDF export routes
 
 ## Compliance & safety
 
-- [ ] Audit log entries for refunds, impersonation, GreekMatch reports
-- [ ] STOP/opt-out on SMS; quiet hours configured
-- [ ] Risk incident export (CSV) tested
-- [ ] University admin sees only configured org metrics
+- [x] Audit log inserts on sensitive API actions (payments, members, etc.)
+- [x] Incidents API + CSV export (`/api/incidents/export`)
+- [x] Risk checklists API (`/api/risk/checklists`)
+- [ ] STOP/opt-out on SMS; quiet hours configured (Twilio live)
+- [ ] Risk incident export (CSV) tested in pilot org
+- [x] University admin routes behind campus allowlist
 
 ## SportsOS (if club sports pilot)
 
-- [ ] Roster import CSV
-- [ ] Attendance at practice/game
-- [ ] Waiver signed before travel roster lock
-- [ ] Travel cost calculator + deposit charge
+- [x] Roster CSV import API
+- [x] Tryouts API; waivers GET/POST; travel trip APIs
+- [ ] Attendance at practice/game (live test)
+- [ ] Waiver signed before travel roster lock (live test)
+- [ ] Travel cost calculator + deposit charge (live test)
 
 ## Go / no-go
 
-- [ ] `npm run build` passes in CI
+- [x] `npm run build` + `typecheck` + `lint` in GitHub Actions (`.github/workflows/ci.yml`)
+- [x] Launch runbook + rollback notes (`docs/launch-runbook.md`)
 - [ ] No P0 open issues on payments, auth, or tenant isolation
-- [ ] Support contact and rollback plan documented for treasurer-facing bugs
+- [ ] Support contact documented for treasurer-facing bugs
 
 **Sign-off:** _______________  **Date:** _______________
