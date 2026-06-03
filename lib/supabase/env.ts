@@ -6,7 +6,4 @@ export {
   validateSupabasePublicConfig,
 } from "@/lib/supabase/public-config";
 
-export type {
-  SupabaseKeyKind,
-  SupabasePublicConfigValidation,
-} from "@/lib/supabase/public-config";
+export type { SupabaseKeyKind, SupabaseConfigValidation } from "@/lib/supabase/public-config";

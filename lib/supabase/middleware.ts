@@ -2,8 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import type { User } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 import {
-  getSupabaseAnonKey,
-  getSupabaseUrl,
+  getSupabaseAnonKeyForServer,
+  getSupabaseUrlForServer,
   isSupabaseConfigured,
 } from "@/lib/supabase/public-config";
 
@@ -24,8 +24,8 @@ export async function updateSupabaseSession(request: NextRequest): Promise<{
   latestCookies: CookieToSet[];
   user: User | null;
 }> {
-  const url = getSupabaseUrl();
-  const anonKey = getSupabaseAnonKey();
+  const url = getSupabaseUrlForServer();
+  const anonKey = getSupabaseAnonKeyForServer();
 
   if (!isSupabaseConfigured() || !url || !anonKey) {
     return {

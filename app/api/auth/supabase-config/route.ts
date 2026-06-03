@@ -1,18 +1,39 @@
 import { NextResponse } from "next/server";
-import { validateSupabasePublicConfig } from "@/lib/supabase/public-config";
+import {
+  validateSupabaseBrowserConfig,
+  validateSupabaseServerConfig,
+} from "@/lib/supabase/public-config";
 
-/** Public diagnostic for auth pages — never returns secret key values. */
+/** Public diagnostic — never returns secret values. */
 export async function GET() {
-  const v = validateSupabasePublicConfig();
+  const server = validateSupabaseServerConfig();
+  const browser = validateSupabaseBrowserConfig();
 
   return NextResponse.json({
-    ok: v.ok,
-    projectRef: v.projectRef,
-    keyKind: v.keyKind,
-    urlSet: Boolean(v.url),
-    keySet: Boolean(v.key),
-    issues: v.issues,
+    ok: server.ok,
+    server: {
+      ok: server.ok,
+      keyKind: server.keyKind,
+      projectRef: server.projectRef,
+      urlSet: Boolean(server.url),
+      keySet: Boolean(server.key),
+      issues: server.issues,
+    },
+    browser: {
+      ok: browser.ok,
+      keyKind: browser.keyKind,
+      urlSet: Boolean(browser.url),
+      keySet: Boolean(browser.key),
+      issues: browser.issues,
+    },
+    authViaApi: server.ok,
+    vercelSteps: [
+      "Vercel → Project → Settings → Environment Variables",
+      "Add NEXT_PUBLIC_SUPABASE_URL = https://YOUR-REF.supabase.co",
+      "Add NEXT_PUBLIC_SUPABASE_ANON_KEY = anon or publishable key (not service_role)",
+      "Enable for Production + Preview, then Deployments → Redeploy",
+    ],
     redeployHint:
-      "NEXT_PUBLIC_* variables are embedded at build time on Vercel. After changing them, trigger a new deployment.",
+      "NEXT_PUBLIC_* is embedded at build time. After adding variables, you must redeploy.",
   });
 }

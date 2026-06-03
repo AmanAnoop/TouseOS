@@ -1,66 +1,69 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { validateSupabasePublicConfig } from "@/lib/supabase/public-config";
 
-type ServerCheck = {
+type ConfigResponse = {
   ok: boolean;
-  keyKind: string;
-  projectRef: string | null;
-  issues: string[];
-  redeployHint?: string;
+  server: { ok: boolean; issues: string[] };
+  browser: { ok: boolean; issues: string[] };
+  authViaApi: boolean;
+  vercelSteps: string[];
+  redeployHint: string;
 };
 
 export function SupabaseConfigAlert() {
-  const [serverCheck, setServerCheck] = useState<ServerCheck | null>(null);
-  const clientValidation = validateSupabasePublicConfig();
+  const [config, setConfig] = useState<ConfigResponse | null>(null);
 
   useEffect(() => {
     fetch("/api/auth/supabase-config")
       .then((r) => r.json())
-      .then((data: ServerCheck) => setServerCheck(data))
-      .catch(() => setServerCheck(null));
+      .then((data: ConfigResponse) => setConfig(data))
+      .catch(() => setConfig(null));
   }, []);
 
-  const issues = [
-    ...clientValidation.issues,
-    ...(serverCheck && !serverCheck.ok ? serverCheck.issues : []),
-  ];
-  const uniqueIssues = [...new Set(issues)];
+  if (!config) return null;
 
-  const showAlert =
-    !clientValidation.ok ||
-    (serverCheck !== null && !serverCheck.ok) ||
-    clientValidation.keyKind === "service_role_jwt";
+  if (config.ok && config.browser.ok) return null;
 
-  if (!showAlert && uniqueIssues.length === 0) return null;
+  if (config.authViaApi && !config.browser.ok) {
+    return (
+      <div
+        role="status"
+        className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm"
+      >
+        <p className="font-medium text-foreground">Sign-up works via server, but browser env is missing</p>
+        <p className="mt-1 text-muted-foreground">
+          Add <code className="text-xs">NEXT_PUBLIC_SUPABASE_URL</code> and{" "}
+          <code className="text-xs">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> in Vercel (same values as your
+          Supabase project), then <strong>redeploy</strong> for full client support.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div
       role="alert"
       className="mb-4 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-foreground"
     >
-      <p className="font-medium">Supabase is misconfigured — sign-up will fail with &quot;Invalid API key&quot;</p>
-      <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
-        {uniqueIssues.length > 0 ? (
-          uniqueIssues.map((issue) => <li key={issue}>{issue}</li>)
-        ) : (
-          <li>
-            Check Vercel env vars: <code className="text-xs">NEXT_PUBLIC_SUPABASE_URL</code> and{" "}
-            <code className="text-xs">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> (anon/public key only).
-          </li>
-        )}
-      </ul>
-      {clientValidation.keyKind === "service_role_jwt" && (
-        <p className="mt-2 font-medium text-foreground">
-          You likely pasted the <strong>service_role</strong> key into{" "}
-          <code className="text-xs">NEXT_PUBLIC_SUPABASE_ANON_KEY</code>. Use the{" "}
-          <strong>anon</strong> or <strong>publishable</strong> key instead.
-        </p>
+      <p className="font-medium">Supabase environment variables are missing on Vercel</p>
+      <ol className="mt-2 list-decimal space-y-1 pl-5 text-muted-foreground">
+        {config.vercelSteps.map((step) => (
+          <li key={step}>{step}</li>
+        ))}
+      </ol>
+      {config.server.issues.length > 0 && (
+        <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
+          {[...new Set([...config.server.issues, ...config.browser.issues])].map((issue) => (
+            <li key={issue}>{issue}</li>
+          ))}
+        </ul>
       )}
+      <p className="mt-2 text-xs text-muted-foreground">{config.redeployHint}</p>
       <p className="mt-2 text-xs text-muted-foreground">
-        {serverCheck?.redeployHint ??
-          "On Vercel, redeploy after updating environment variables so NEXT_PUBLIC_* values are rebuilt."}
+        After redeploy, confirm:{" "}
+        <code className="text-xs">/api/auth/supabase-config</code> shows{" "}
+        <code className="text-xs">&quot;ok&quot;: true</code>.
       </p>
     </div>
   );
