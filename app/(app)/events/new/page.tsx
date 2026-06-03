@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Calendar, ChevronLeft, DollarSign, Image, MapPin, Users } from "lucide-react";
+import { Calendar, ChevronLeft, DollarSign, Image as ImageIcon, MapPin, Users } from "lucide-react";
 import toast from "react-hot-toast";
 import { useOrg } from "@/hooks/use-org";
 import { Button, Input, PageHeader, Select, Textarea, Alert } from "@/components/ui";
@@ -133,7 +133,7 @@ export default function NewEventPage() {
 
       {/* Event page customization (Partiful-style) */}
       <div className="space-y-4">
-        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2"><Image size={15} />Event page</h3>
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2"><ImageIcon size={15} aria-hidden />Event page</h3>
         <div className="grid sm:grid-cols-2 gap-3">
           <Input label="Theme" placeholder="Black tie, Neon nights, Decades..." value={form.theme} onChange={(e) => setForm({ ...form, theme: e.target.value })} />
           <Input label="Dress code" placeholder="Cocktail attire, Casual, Costumes..." value={form.dresscode} onChange={(e) => setForm({ ...form, dresscode: e.target.value })} />

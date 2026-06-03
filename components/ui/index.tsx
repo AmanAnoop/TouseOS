@@ -1,4 +1,5 @@
 import * as React from "react";
+import NextImage from "next/image";
 import { cn } from "@/lib/utils";
 
 /* ── Button ─────────────────────────────────────────────── */
@@ -280,6 +281,7 @@ interface AvatarProps {
 }
 
 const avatarSizes = { xs: "w-6 h-6 text-xs", sm: "w-8 h-8 text-sm", md: "w-10 h-10 text-base", lg: "w-12 h-12 text-lg", xl: "w-16 h-16 text-xl" };
+const avatarPixels = { xs: 24, sm: 32, md: 40, lg: 48, xl: 64 } as const;
 
 const avatarColors = [
   "bg-red-100 text-red-700", "bg-orange-100 text-orange-700",
@@ -299,10 +301,14 @@ export function Avatar({ name, src, size = "md", className }: AvatarProps) {
   const initStr = name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 
   if (src) {
+    const px = avatarPixels[size];
     return (
-      <img
+      <NextImage
         src={src}
-        alt={name}
+        alt={name.trim() || "User avatar"}
+        width={px}
+        height={px}
+        unoptimized
         className={cn("rounded-full object-cover flex-shrink-0", avatarSizes[size], className)}
       />
     );
