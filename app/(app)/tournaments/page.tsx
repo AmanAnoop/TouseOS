@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { loadActiveMembershipServer } from "@/lib/active-org-membership-server";
 import {
   Badge, Button, Card, CardHeader, EmptyState, PageHeader, StatCard,
 } from "@/components/ui";
@@ -16,13 +17,13 @@ export default async function TournamentsPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-  if (!m) redirect("/onboarding");
+  const membership = await loadActiveMembershipServer(user.id);
+  if (!membership) redirect("/onboarding");
 
   const { data: events } = await supabase
     .from("events")
     .select("*")
-    .eq("org_id", m.org_id)
+    .eq("org_id", membership.orgId)
     .in("type", ["tournament", "game", "tryout"])
     .order("starts_at");
 

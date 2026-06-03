@@ -12,24 +12,25 @@ import {
 
 export function ProductRouteGuard({
   orgType,
+  hasGreekMembership = false,
   children,
 }: {
   orgType: string;
+  hasGreekMembership?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const product = getProductId(orgType);
-
   useEffect(() => {
     if (!orgType || !pathname) return;
-    if (isRouteAllowed(orgType, pathname)) return;
+    if (isRouteAllowed(orgType, pathname, { hasGreekMembership })) return;
 
     toast.error(`${productLabel(product)} organizations cannot access this page`);
     router.replace(productHomePath(product));
-  }, [orgType, pathname, product, router]);
+  }, [orgType, pathname, product, router, hasGreekMembership]);
 
-  if (!isRouteAllowed(orgType, pathname)) {
+  if (!isRouteAllowed(orgType, pathname, { hasGreekMembership })) {
     return (
       <div className="flex items-center justify-center min-h-[40vh] text-sm text-muted-foreground">
         Redirecting to your workspace…

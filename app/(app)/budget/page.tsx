@@ -35,6 +35,7 @@ import { getProductId } from "@/lib/org-product";
 import { computeReimbursementAgingAlerts } from "@/lib/reimbursement-aging";
 import { buildBudgetReportHtml, downloadBudgetReportHtml } from "@/lib/budget-export";
 import { Alert } from "@/components/ui";
+import { loadActiveMembership } from "@/lib/active-org-membership";
 
 interface BudgetLine {
   id: string;
@@ -95,7 +96,7 @@ export default function BudgetPage() {
     const [budgetRes, paymentsRes, reimbRes, eventsRes, membersRes, eventPayRes] = await Promise.all([
       fetch(`/api/budget?org_id=${oid}`),
       supabase.from("payments").select("id, amount, paid_amount, status, due_date, member_id, payment_items(category)").eq("org_id", oid),
-      supabase.from("reimbursements").select("id, amount, status, created_at, submitted_by_name, category, event_id, submitted_by").eq("org_id", oid),
+      fetch(`/api/reimbursements?org_id=${encodeURIComponent(oid)}`),
       supabase.from("events").select("id, title, starts_at").eq("org_id", oid).order("starts_at", { ascending: false }).limit(50),
       supabase.from("member_profiles").select("*").eq("org_id", oid),
       supabase.from("payments").select("amount, paid_amount, status, member_id, payment_items(event_id)").eq("org_id", oid),
@@ -125,7 +126,9 @@ export default function BudgetPage() {
         category: item?.category ?? null,
       };
     }));
-    setReimbs((reimbRes.data ?? []) as typeof reimbs);
+    if (reimbRes.ok) {
+      setReimbs((await reimbRes.json()) as typeof reimbs);
+    }
     setEvents((eventsRes.data ?? []) as typeof events);
     setMembers((membersRes.data ?? []) as MemberProfile[]);
     setEventPayments((eventPayRes.data ?? []) as unknown as typeof eventPayments);
@@ -177,14 +180,13 @@ export default function BudgetPage() {
     async function init() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id, role, organizations(name, type)").eq("user_id", user.id).limit(1).single();
-      if (m) {
-        setOrgId(m.org_id);
-        setMyRole(String(m.role ?? "general_member") as RoleName);
-        const orgRow = (m.organizations as unknown) as Record<string, unknown>;
-        setOrgName(String(orgRow?.name ?? "Chapter"));
-        setOrgType(String(orgRow?.type ?? "fraternity"));
-        load(m.org_id);
+      const membership = await loadActiveMembership(supabase, user.id);
+      if (membership) {
+        setOrgId(membership.orgId);
+        setMyRole(membership.role);
+        setOrgName(membership.orgName);
+        setOrgType(membership.orgType);
+        load(membership.orgId);
       }
     }
     init();

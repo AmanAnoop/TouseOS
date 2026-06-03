@@ -9,6 +9,7 @@ import {
   Modal, PageHeader, Select, StatCard, Tabs, Textarea,
 } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
+import { useOrg } from "@/hooks/use-org";
 
 interface RestorativeAction {
   action: string;
@@ -59,7 +60,7 @@ export default function StandardsPage() {
   const [cases, setCases] = useState<StandardsCase[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
-  const [orgId, setOrgId] = useState<string | null>(null);
+  const { orgId } = useOrg();
   const [tab, setTab] = useState("open");
   const [createOpen, setCreateOpen] = useState(false);
   const [selected, setSelected] = useState<StandardsCase | null>(null);
@@ -101,14 +102,8 @@ export default function StandardsPage() {
   }, [supabase]);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) { setOrgId(m.org_id); load(m.org_id); }
-    }
-    init();
-  }, [supabase, load]);
+    if (orgId) load(orgId);
+  }, [orgId, load]);
 
   useEffect(() => {
     if (selected) setEditNotes(selected.notes ?? "");

@@ -3,6 +3,7 @@
 import { Avatar, Badge, Card } from "@/components/ui";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Reimbursement } from "@/types";
+import { needsPresidentApproval } from "@/lib/reimbursement-approval";
 
 const STATUS_COLOR: Record<string, string> = {
   submitted: "yellow",
@@ -33,7 +34,7 @@ export function ReimbursementList({
   return (
     <div className="space-y-2">
       {items.map((r) => {
-        const needsDualApproval = Number(r.amount) >= 250;
+        const needsDualApproval = needsPresidentApproval(r);
         return (
           <Card
             key={r.id}

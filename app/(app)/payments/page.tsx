@@ -20,16 +20,16 @@ import { TreasurerDashboard } from "@/components/payments/treasurer-dashboard";
 import { HardshipReviewPanel } from "@/components/payments/hardship-review-panel";
 import { StripeDestinationBanner } from "@/components/payments/stripe-destination-banner";
 import { StripeReconciliationPanel } from "@/components/payments/stripe-reconciliation-panel";
-import { can, type RoleName } from "@/lib/permissions";
+import { can } from "@/lib/permissions";
+import { useOrg } from "@/hooks/use-org";
 
 export default function PaymentsPage() {
   const supabase = createClient();
+  const { orgId, userId, role: myRole } = useOrg();
   const [payments, setPayments] = useState<PaymentWithMember[]>([]);
   const [members, setMembers] = useState<MemberProfile[]>([]);
   const [planCount, setPlanCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [myRole, setMyRole] = useState<RoleName>("general_member");
   const [myMemberId, setMyMemberId] = useState<string | null>(null);
   const [filter, setFilter] = useState("all");
   const [createOpen, setCreateOpen] = useState(false);
@@ -40,20 +40,21 @@ export default function PaymentsPage() {
 
   const loadPayments = useCallback(async (oid: string) => {
     setLoading(true);
-    const { data } = await supabase
-      .from("payments")
-      .select("*, member_profiles(*)")
-      .eq("org_id", oid)
-      .order("due_date", { ascending: true });
-    const [memberRes, plansRes] = await Promise.all([
+    const [paymentsRes, memberRes, plansRes] = await Promise.all([
+      fetch(`/api/payments?org_id=${encodeURIComponent(oid)}`),
       supabase
         .from("member_profiles")
         .select("id, full_name, membership_status, payment_status, attendance_rate, email, role, org_id, user_id, forms_completed, forms_required, class_year, graduation_year, committees, created_at, updated_at")
         .eq("org_id", oid),
-      fetch(`/api/payments/plans?org_id=${oid}`),
+      fetch(`/api/payments/plans?org_id=${encodeURIComponent(oid)}`),
     ]);
+    if (paymentsRes.ok) {
+      setPayments((await paymentsRes.json()) as PaymentWithMember[]);
+    } else {
+      const err = await paymentsRes.json().catch(() => ({}));
+      toast.error(err.error ?? "Failed to load payments");
+    }
     setMembers((memberRes.data ?? []) as MemberProfile[]);
-    setPayments((data ?? []) as PaymentWithMember[]);
     if (plansRes.ok) {
       const plans = await plansRes.json();
       setPlanCount(Array.isArray(plans) ? plans.length : 0);
@@ -62,25 +63,18 @@ export default function PaymentsPage() {
   }, [supabase]);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id, role").eq("user_id", user.id).limit(1).single();
-      if (m) {
-        setOrgId(m.org_id);
-        setMyRole(String(m.role ?? "general_member") as RoleName);
-        loadPayments(m.org_id);
-        const { data: profile } = await supabase
-          .from("member_profiles")
-          .select("id")
-          .eq("org_id", m.org_id)
-          .eq("user_id", user.id)
-          .maybeSingle();
+    if (!orgId || !userId) return;
+    loadPayments(orgId);
+    supabase
+      .from("member_profiles")
+      .select("id")
+      .eq("org_id", orgId)
+      .eq("user_id", userId)
+      .maybeSingle()
+      .then(({ data: profile }) => {
         if (profile) setMyMemberId(profile.id);
-      }
-    }
-    init();
-  }, [supabase, loadPayments]);
+      });
+  }, [supabase, orgId, userId, loadPayments]);
 
   const canViewAll = can(myRole, "view_payments") || can(myRole, "manage_payments");
   const canManage = can(myRole, "manage_payments");

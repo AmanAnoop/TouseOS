@@ -70,7 +70,16 @@ export function TaskDetailPanel({ task, orgId, userId, userName, onClose, onUpda
     if (error) { toast.error(error.message); return; }
     const { data: urlData } = supabase.storage.from("documents").getPublicUrl(stored.path);
     const next = [...attachments, urlData.publicUrl];
-    await supabase.from("tasks").update({ attachment_urls: next }).eq("id", task.id);
+    const res = await fetch("/api/tasks", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: task.id, attachment_urls: next }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error(err.error ?? "Failed to save attachment");
+      return;
+    }
     setAttachments(next);
     toast.success("Attachment added");
     onUpdate();
@@ -78,7 +87,16 @@ export function TaskDetailPanel({ task, orgId, userId, userName, onClose, onUpda
 
   async function removeAttachment(url: string) {
     const next = attachments.filter((a) => a !== url);
-    await supabase.from("tasks").update({ attachment_urls: next }).eq("id", task.id);
+    const res = await fetch("/api/tasks", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: task.id, attachment_urls: next }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error(err.error ?? "Failed to save attachment");
+      return;
+    }
     setAttachments(next);
     onUpdate();
   }

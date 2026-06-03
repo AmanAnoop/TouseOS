@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { loadActiveMembershipServer } from "@/lib/active-org-membership-server";
 import { YearbookPrintClient } from "@/components/yearbook/yearbook-print-client";
 import type { YearbookExportData } from "@/lib/yearbook-export";
 
@@ -11,16 +12,11 @@ export default async function YearbookPrintPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: m } = await supabase
-    .from("org_members")
-    .select("org_id, organizations(name)")
-    .eq("user_id", user.id)
-    .limit(1)
-    .single();
-  if (!m) redirect("/onboarding");
+  const membership = await loadActiveMembershipServer(user.id);
+  if (!membership) redirect("/onboarding");
 
-  const orgId = m.org_id;
-  const orgName = String(((m.organizations as unknown) as Record<string, unknown>)?.name ?? "Chapter");
+  const orgId = membership.orgId;
+  const orgName = membership.orgName || "Chapter";
 
   const semesterStart = new Date();
   semesterStart.setMonth(semesterStart.getMonth() - 5);

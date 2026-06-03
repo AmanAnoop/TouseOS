@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import {
   CheckCircle, Clock, DollarSign, Download, Plus,
@@ -16,13 +15,17 @@ import {
 import { downloadCsv, formatCurrency, formatDate } from "@/lib/utils";
 import type { Reimbursement } from "@/types";
 import { ReimbursementList } from "@/components/reimbursements/reimbursement-list";
+import { useOrg } from "@/hooks/use-org";
+import {
+  DEFAULT_REIMBURSEMENT_THRESHOLD,
+  needsPresidentApproval,
+} from "@/lib/reimbursement-approval";
+import { can } from "@/lib/permissions";
 
 const STATUS_COLOR: Record<string, string> = {
   submitted: "yellow", needs_info: "orange", approved: "blue",
   rejected: "red", paid: "green",
 };
-
-const APPROVAL_THRESHOLD = 250;
 
 const CATEGORIES = [
   "Food & catering", "Venue / facility", "Transportation",
@@ -33,16 +36,16 @@ const CATEGORIES = [
 
 export default function ReimbursementsPage() {
   const supabase = createClient();
+  const { orgId, role: myRole } = useOrg();
   const fileRef = useRef<HTMLInputElement>(null);
   const [reimbs, setReimbs] = useState<Reimbursement[]>([]);
   const [loading, setLoading] = useState(true);
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [userName, setUserName] = useState("");
   const [tab, setTab] = useState("pending");
   const [submitOpen, setSubmitOpen] = useState(false);
   const [selected, setSelected] = useState<Reimbursement | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [rejectNotes, setRejectNotes] = useState("");
 
   const [form, setForm] = useState({
     amount: "", category: "Food & catering", description: "",
@@ -51,36 +54,36 @@ export default function ReimbursementsPage() {
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [events, setEvents] = useState<Array<{ id: string; title: string }>>([]);
 
+  const canReview = can(myRole, "manage_payments") || can(myRole, "manage_budget");
+
   const load = useCallback(async (oid: string) => {
     setLoading(true);
-    const { data } = await supabase
-      .from("reimbursements")
-      .select("*")
-      .eq("org_id", oid)
-      .order("created_at", { ascending: false });
+    const res = await fetch(`/api/reimbursements?org_id=${encodeURIComponent(oid)}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error(err.error ?? "Failed to load reimbursements");
+      setLoading(false);
+      return;
+    }
+    const data = await res.json();
     setReimbs((data ?? []) as Reimbursement[]);
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      setUserId(user.id);
-      const [mRes, pRes, eRes] = await Promise.all([
-        supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single(),
-        supabase.from("profiles").select("full_name").eq("id", user.id).single(),
-        supabase.from("events").select("id, title").order("starts_at", { ascending: false }).limit(30),
-      ]);
-      if (mRes.data) { setOrgId(mRes.data.org_id); load(mRes.data.org_id); }
-      if (pRes.data) setUserName(String(pRes.data.full_name));
-      if (eRes.data) setEvents(eRes.data as Array<{ id: string; title: string }>);
-    }
-    init();
-  }, [supabase, load]);
+    if (!orgId) return;
+    supabase
+      .from("events")
+      .select("id, title")
+      .eq("org_id", orgId)
+      .order("starts_at", { ascending: false })
+      .limit(30)
+      .then(({ data: eRes }) => setEvents((eRes ?? []) as Array<{ id: string; title: string }>));
+    load(orgId);
+  }, [supabase, orgId, load]);
 
   async function submitReimbursement() {
-    if (!orgId || !userId || !form.amount || !form.description) return;
+    if (!orgId || !form.amount || !form.description) return;
     setUploading(true);
 
     let receiptUrl = form.receiptUrl;
@@ -92,20 +95,25 @@ export default function ReimbursementsPage() {
       receiptUrl = urlData.publicUrl;
     }
 
-    const { error } = await supabase.from("reimbursements").insert({
-      org_id: orgId,
-      submitted_by: userId,
-      submitted_by_name: userName,
-      event_id: form.eventId || null,
-      amount: parseFloat(form.amount),
-      category: form.category,
-      description: form.description,
-      receipt_url: receiptUrl || null,
-      status: "submitted",
+    const res = await fetch("/api/reimbursements", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        amount: form.amount,
+        category: form.category,
+        description: form.description,
+        eventId: form.eventId || null,
+        receiptUrl: receiptUrl || null,
+      }),
     });
 
     setUploading(false);
-    if (error) { toast.error(error.message); return; }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast.error(data.error ?? "Failed to submit");
+      return;
+    }
     toast.success("Reimbursement submitted");
     setSubmitOpen(false);
     setForm({ amount: "", category: "Food & catering", description: "", eventId: "", receiptUrl: "" });
@@ -113,50 +121,47 @@ export default function ReimbursementsPage() {
     load(orgId);
   }
 
-  async function updateStatus(id: string, status: string, notes?: string, approvalType?: "treasurer" | "president") {
-    const reimb = reimbs.find((r) => r.id === id);
-    const updates: Record<string, unknown> = {};
-    const now = new Date().toISOString();
+  async function updateStatus(
+    id: string,
+    status: string,
+    options?: { approvalType?: "treasurer" | "president"; rejectionReason?: string },
+  ) {
+    if (!orgId) return;
+    setActionLoading(true);
 
-    if (status === "rejected" || status === "needs_info") {
-      updates.status = status;
-      if (notes) updates.rejection_reason = notes;
-    } else if (approvalType === "treasurer") {
-      updates.treasurer_approved_at = now;
-      if (reimb && Number(reimb.amount) <= APPROVAL_THRESHOLD) {
-        updates.status = "approved";
-        updates.reviewed_by = userId;
-        updates.reviewed_at = now;
-      } else {
-        toast.success("Treasurer approved — president approval required above $" + APPROVAL_THRESHOLD);
-      }
-    } else if (approvalType === "president") {
-      updates.president_approved_at = now;
-      updates.status = "approved";
-      updates.reviewed_by = userId;
-      updates.reviewed_at = now;
-    } else if (status === "paid") {
-      updates.status = "paid";
-      updates.paid_at = now;
-    } else {
-      updates.status = status;
-      if (status === "approved") {
-        updates.reviewed_by = userId;
-        updates.reviewed_at = now;
-      }
+    const res = await fetch("/api/reimbursements", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id,
+        status: options?.approvalType ? undefined : status,
+        approvalType: options?.approvalType,
+        rejectionReason: options?.rejectionReason,
+      }),
+    });
+
+    setActionLoading(false);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast.error(data.error ?? "Update failed");
+      return;
     }
 
-    await supabase.from("reimbursements").update(updates).eq("id", id);
-    setReimbs((prev) => prev.map((r) => r.id === id ? { ...r, ...updates } : r));
-    if (orgId && (updates.status === "paid" || updates.status === "approved")) {
-      void fetch("/api/budget/sync-org", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orgId }),
-      });
-    }
-    toast.success(`Request updated`);
+    setReimbs((prev) => prev.map((r) => (r.id === id ? { ...r, ...data } as Reimbursement : r)));
+    toast.success(data.message ?? "Request updated");
     setSelected(null);
+    setRejectNotes("");
+    load(orgId);
+  }
+
+  function handleReject() {
+    if (!selected) return;
+    const reason = rejectNotes.trim();
+    if (!reason) {
+      toast.error("Add a short reason for the member");
+      return;
+    }
+    updateStatus(selected.id, "rejected", { rejectionReason: reason });
   }
 
   const filtered = reimbs.filter((r) => {
@@ -167,20 +172,28 @@ export default function ReimbursementsPage() {
     return true;
   });
 
-  const pendingCount = reimbs.filter((r) => ["submitted","needs_info"].includes(r.status)).length;
-  const totalPending = reimbs.filter((r) => r.status === "submitted").reduce((s, r) => s + Number(r.amount), 0);
+  const pendingCount = reimbs.filter((r) => ["submitted", "needs_info"].includes(r.status)).length;
+  const totalPending = reimbs
+    .filter((r) => ["submitted", "needs_info", "approved"].includes(r.status))
+    .reduce((s, r) => s + Number(r.amount), 0);
   const totalPaid = reimbs.filter((r) => r.status === "paid").reduce((s, r) => s + Number(r.amount), 0);
+
+  const threshold = selected
+    ? (selected.approval_threshold ?? DEFAULT_REIMBURSEMENT_THRESHOLD)
+    : DEFAULT_REIMBURSEMENT_THRESHOLD;
 
   return (
     <div className="space-y-5">
       <PageHeader
         title="Reimbursements"
-        description={`${pendingCount} pending · ${formatCurrency(totalPending)} awaiting approval`}
+        description={`${pendingCount} pending · ${formatCurrency(totalPending)} in pipeline`}
         action={
           <div className="flex gap-2 flex-wrap">
             <Link href="/budget"><Button variant="secondary" size="sm">Budget</Button></Link>
             <Link href="/payments"><Button variant="secondary" size="sm">Payments</Button></Link>
-            <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={() => downloadCsv("reimbursements.csv", reimbs.map((r) => ({ Submitter: r.submitted_by_name ?? "", Amount: r.amount, Category: r.category, Description: r.description, Status: r.status, Date: formatDate(r.created_at) })))}>Export</Button>
+            {canReview && (
+              <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={() => downloadCsv("reimbursements.csv", reimbs.map((r) => ({ Submitter: r.submitted_by_name ?? "", Amount: r.amount, Category: r.category, Description: r.description, Status: r.status, Date: formatDate(r.created_at) })))}>Export</Button>
+            )}
             <Button size="sm" icon={<Plus size={14} />} onClick={() => setSubmitOpen(true)}>Request reimbursement</Button>
           </div>
         }
@@ -188,7 +201,7 @@ export default function ReimbursementsPage() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard title="Pending" value={pendingCount} deltaType={pendingCount > 0 ? "down" : "neutral"} icon={<Clock size={18} />} />
-        <StatCard title="Awaiting payment" value={formatCurrency(totalPending)} icon={<DollarSign size={18} />} />
+        <StatCard title="In pipeline" value={formatCurrency(totalPending)} icon={<DollarSign size={18} />} />
         <StatCard title="Total paid" value={formatCurrency(totalPaid)} deltaType="up" icon={<CheckCircle size={18} />} />
         <StatCard title="Total requests" value={reimbs.length} icon={<Receipt size={18} />} />
       </div>
@@ -206,7 +219,7 @@ export default function ReimbursementsPage() {
       />
 
       {loading ? (
-        <div className="space-y-2">{[1,2,3].map((i) => <Card key={i} className="h-16 animate-pulse bg-surface-2 border-0">&nbsp;</Card>)}</div>
+        <div className="space-y-2">{[1, 2, 3].map((i) => <Card key={i} className="h-16 animate-pulse bg-surface-2 border-0">&nbsp;</Card>)}</div>
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={<Receipt size={24} />}
@@ -218,11 +231,10 @@ export default function ReimbursementsPage() {
         <ReimbursementList
           items={filtered}
           onSelect={setSelected}
-          showApprovalHints={tab === "pending"}
+          showApprovalHints={tab === "pending" && canReview}
         />
       )}
 
-      {/* Submit modal */}
       <Modal
         open={submitOpen}
         onClose={() => setSubmitOpen(false)}
@@ -245,18 +257,17 @@ export default function ReimbursementsPage() {
             <Select label="Assign to event (optional)" value={form.eventId} onChange={(e) => setForm({ ...form, eventId: e.target.value })} placeholder="No specific event" options={events.map((e) => ({ value: e.id, label: e.title }))} />
           )}
 
-          {/* Receipt upload */}
           <div>
             <label className="text-sm font-medium block mb-1.5">Receipt</label>
             <div
               onClick={() => fileRef.current?.click()}
-              className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors ${receiptFile ? "border-greek-400 bg-greek-50 dark:bg-greek-950/20" : "border-border hover:border-greek-300"}`}
+              className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors ${receiptFile ? "border-primary/50 bg-primary/5" : "border-border hover:border-primary/40"}`}
             >
               {receiptFile ? (
                 <div className="flex items-center justify-center gap-2">
-                  <Receipt size={16} className="text-greek-600" />
+                  <Receipt size={16} className="text-primary" />
                   <p className="text-sm font-medium text-foreground">{receiptFile.name}</p>
-                  <button onClick={(e) => { e.stopPropagation(); setReceiptFile(null); }} className="text-muted-foreground hover:text-red-500">
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setReceiptFile(null); }} className="text-muted-foreground hover:text-red-500">
                     <X size={14} />
                   </button>
                 </div>
@@ -272,28 +283,27 @@ export default function ReimbursementsPage() {
         </div>
       </Modal>
 
-      {/* Detail modal */}
       <Modal
         open={!!selected}
-        onClose={() => setSelected(null)}
+        onClose={() => { setSelected(null); setRejectNotes(""); }}
         title={selected?.description ?? ""}
         size="md"
         footer={
           <div className="flex gap-2 flex-wrap w-full">
-            {selected?.status === "submitted" && (
+            {canReview && selected?.status === "submitted" && (
               <>
-                <Button onClick={() => updateStatus(selected.id, "approved", undefined, "treasurer")} icon={<CheckCircle size={14} />}>Treasurer approve</Button>
-                {Number(selected.amount) > APPROVAL_THRESHOLD && (
-                  <Button onClick={() => updateStatus(selected.id, "approved", undefined, "president")}>President approve</Button>
+                <Button loading={actionLoading} onClick={() => updateStatus(selected.id, "approved", { approvalType: "treasurer" })} icon={<CheckCircle size={14} />}>Treasurer approve</Button>
+                {selected && needsPresidentApproval(selected) && (
+                  <Button loading={actionLoading} onClick={() => updateStatus(selected.id, "approved", { approvalType: "president" })}>President approve</Button>
                 )}
-                <Button variant="secondary" onClick={() => updateStatus(selected.id, "needs_info")}>Need info</Button>
-                <Button variant="danger" onClick={() => updateStatus(selected.id, "rejected")} icon={<XCircle size={14} />}>Reject</Button>
+                <Button variant="secondary" loading={actionLoading} onClick={() => updateStatus(selected.id, "needs_info", { rejectionReason: rejectNotes || "More information needed" })}>Need info</Button>
+                <Button variant="danger" loading={actionLoading} onClick={handleReject} icon={<XCircle size={14} />}>Reject</Button>
               </>
             )}
-            {selected?.status === "approved" && (
-              <Button onClick={() => updateStatus(selected.id, "paid")} icon={<DollarSign size={14} />}>Mark as paid</Button>
+            {canReview && selected?.status === "approved" && (
+              <Button loading={actionLoading} onClick={() => updateStatus(selected.id, "paid")} icon={<DollarSign size={14} />}>Mark as paid</Button>
             )}
-            <Button variant="secondary" onClick={() => setSelected(null)} className="ml-auto">Close</Button>
+            <Button variant="secondary" onClick={() => { setSelected(null); setRejectNotes(""); }} className="ml-auto">Close</Button>
           </div>
         }
       >
@@ -306,19 +316,32 @@ export default function ReimbursementsPage() {
               </div>
               <Badge label={selected.status} color={STATUS_COLOR[selected.status] as "green"} />
             </div>
+            {canReview && needsPresidentApproval(selected) && selected.status === "submitted" && (
+              <p className="text-xs text-muted-foreground">
+                Amounts over {formatCurrency(threshold)} require treasurer and president approval.
+              </p>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div className="p-2 bg-surface-1 rounded"><p className="text-xs text-muted-foreground">Submitted by</p><p className="text-sm font-medium">{selected.submitted_by_name ?? "—"}</p></div>
               <div className="p-2 bg-surface-1 rounded"><p className="text-xs text-muted-foreground">Date</p><p className="text-sm font-medium">{formatDate(selected.created_at)}</p></div>
             </div>
             {selected.receipt_url && (
-              <a href={selected.receipt_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-greek-600 hover:underline p-3 rounded-lg border border-border">
+              <a href={selected.receipt_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-primary hover:underline p-3 rounded-lg border border-border">
                 <Receipt size={16} />
                 View receipt
               </a>
             )}
+            {canReview && ["submitted", "needs_info"].includes(selected.status) && (
+              <Textarea
+                label="Notes for member (reject / need info)"
+                placeholder="What receipt or detail is missing?"
+                value={rejectNotes}
+                onChange={(e) => setRejectNotes(e.target.value)}
+              />
+            )}
             {selected.rejection_reason && (
               <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 text-sm text-red-700">
-                Rejection reason: {selected.rejection_reason}
+                {selected.rejection_reason}
               </div>
             )}
           </div>

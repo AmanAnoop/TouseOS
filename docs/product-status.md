@@ -1,6 +1,6 @@
 # TouseOS product status (realistic)
 
-Last updated: connection-fix pass on `cursor/connection-fixes-4a50`.
+Last updated: Wave 20 on `cursor/wave20-active-org-sweep-4a50`.
 
 ## How to read these numbers
 
@@ -9,11 +9,11 @@ We separate **“exists in the repo”** from **“works end-to-end without dead
 | Metric | Realistic % | Meaning |
 |--------|-------------|---------|
 | **Backlog modules with a route or API** | **~88%** | Page or endpoint exists |
-| **Connected user journeys** | **~62%** | Primary flows link correctly; few 404s or wrong redirects |
-| **Production-ready depth** | **~48%** | Tested, permissioned, env-configured, counsel-ready legal copy |
-| **Launch-ready** | **~42%** | Migrations, Stripe, QA, mobile polish, legal |
+| **Connected user journeys** | **~74%** | Primary flows link correctly; multi-org users see active chapter everywhere |
+| **Production-ready depth** | **~50%** | Tested, permissioned, env-configured; legal summaries expanded (counsel review still needed) |
+| **Launch-ready** | **~44%** | Migrations, Stripe, QA, mobile polish, counsel-approved legal |
 
-**Best single number for “how done is the product?” → ~55–60%** (weighted toward connected journeys, not file count).
+**Best single number for “how done is the product?” → ~62–67%** (weighted toward connected journeys, not file count).
 
 ## By area
 
@@ -21,10 +21,10 @@ We separate **“exists in the repo”** from **“works end-to-end without dead
 |------|-----------|--------|
 | Auth & onboarding | **~70%** | Signup, create-org, join; `/home` routes sports/club correctly; demo needs seed |
 | Greek chapter ops | **~75%** | Members, events, attendance, tasks, comms |
-| Finance (payments ↔ budget ↔ reimbursements) | **~68%** | Ledger + sync; cross-links added; reimbursements still update via Supabase + sync-org hook |
+| Finance (payments ↔ budget ↔ reimbursements) | **~76%** | Payments list via API; reimbursements + budget sync |
 | SportsOS | **~65%** | Home, travel detail links; shared finance modules work |
 | ClubOS | **~60%** | Club home, elections, service hours; thinner than Greek/Sports |
-| GreekMatch / social | **~55%** | Profile tab deep links fixed; some actions still toast-only |
+| GreekMatch / social | **~58%** | Multi-org GreekMatch access; social calendar prefill from assets |
 | Admin / platform | **~50%** | Platform admin behind email allowlist |
 
 ## Fixed in this pass (dead ends)
@@ -40,17 +40,52 @@ We separate **“exists in the repo”** from **“works end-to-end without dead
 - Reimbursement approve/paid triggers budget sync-org API
 - Treasurer dashboard links split budget vs reimbursements
 
+## Wave 20 (latest)
+
+- Remaining chapter/sports pages use `useOrg()` (transition, PNM, reports, interchapter, alumni, big-little, coaches, standings, tryouts, payment plans/hardship, social collab, tournaments tools)
+- Server pages: yearbook, NME, tournaments use `loadActiveMembershipServer`
+
+## Wave 19
+
+- Roster via `GET /api/members`; forms via forms API; philanthropy via `/api/philanthropy`
+- Feed server page uses active org cookie (`loadActiveMembershipServer`)
+- Active org on health, governance, social, risk, standards, attendance points, and more
+
+## Wave 18
+
+- Payments list loads via `GET /api/payments`
+- Comms announcements via `/api/comms/announcements` (list + post with audit log)
+- Events list via `/api/events` with active org
+- Active org cookie on housing, travel, vendors, equipment, injuries, waivers, social calendar
+
+## Wave 17
+
+- Tasks, documents, notifications UIs wired to their REST APIs
+- `useOrg` + `loadActiveMembership` respect active org cookie app-wide
+- Budget, payments, reimbursements use active org (not first membership row)
+- Task detail attachments update via tasks API; “My tasks” filter fixed
+
+## Wave 16
+
+- Reimbursements page uses `/api/reimbursements` for list, submit, approve, reject, and mark paid
+- Officer permission checks on PATCH; president approval for amounts over threshold
+- Budget auto-sync triggered server-side (no separate client sync-org call)
+- Active org cookie respected when loading reimbursements and events
+- Terms & privacy expanded with structured beta-ready summaries
+
+## Wave 15
+
+- Housing rent: skip members already billed for the same month label
+- Event detail: working share (Web Share API or clipboard); removed duplicate QR control
+- Social calendar: opens draft composer from `?title=` / `?caption=` (asset library)
+- GreekMatch: sports/club active org can open `/greekmatch` when user belongs to a fraternity/sorority
+
 ## Still open (honest backlog)
 
 | Priority | Item |
 |----------|------|
-| P1 | Reimbursements + some modules still use Supabase client instead of APIs (sync hooks added where critical) |
-| P1 | Multi-org GreekMatch: profile tab visible if any Greek org, guard uses primary org type |
-| P1 | Duplicate monthly rent charges (no month dedupe) |
-| P2 | Event share / duplicate QR buttons on event detail |
-| P2 | Social calendar query params from asset composer |
-| P2 | Orphan API routes (tasks, documents, notifications) — UI uses Supabase directly |
-| Launch | Replace placeholder terms/privacy; run migrations **015–024** |
+| P2 | Many pages still load data via Supabase client (events, comms, housing, etc.) |
+| Launch | Counsel review of terms/privacy; run migrations **015–024** |
 
 ## Environment
 

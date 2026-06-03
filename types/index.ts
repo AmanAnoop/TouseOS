@@ -208,6 +208,10 @@ export interface Reimbursement {
   reviewed_by: string | null;
   reviewed_at: string | null;
   rejection_reason: string | null;
+  paid_at?: string | null;
+  treasurer_approved_at?: string | null;
+  president_approved_at?: string | null;
+  approval_threshold?: number | null;
   created_at: string;
 }
 

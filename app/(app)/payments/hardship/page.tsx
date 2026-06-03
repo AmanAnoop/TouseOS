@@ -4,11 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, Heart } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import { Alert, Button, Card, Input, PageHeader, Select, Textarea } from "@/components/ui";
 
 export default function HardshipRequestPage() {
   const supabase = createClient();
   const router = useRouter();
+  const { orgId, userId } = useOrg();
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -22,23 +24,19 @@ export default function HardshipRequestPage() {
 
   async function submit() {
     setSubmitting(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setSubmitting(false); return; }
-
-    const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-    if (!m) { setSubmitting(false); return; }
+    if (!orgId || !userId) { setSubmitting(false); return; }
 
     const { data: profile } = await supabase
       .from("member_profiles")
       .select("id")
-      .eq("org_id", m.org_id)
-      .eq("user_id", user.id)
+      .eq("org_id", orgId)
+      .eq("user_id", userId)
       .maybeSingle();
 
     await supabase.from("hardship_requests").insert({
-      org_id: m.org_id,
+      org_id: orgId,
       member_id: profile?.id ?? null,
-      user_id: user.id,
+      user_id: userId,
       requested_amount: form.requestedAmount ? parseFloat(form.requestedAmount) : null,
       arrangement: form.requestedArrangement,
       reason: form.reason,
@@ -48,8 +46,8 @@ export default function HardshipRequestPage() {
     });
 
     await supabase.from("tasks").insert({
-      org_id: m.org_id,
-      created_by: user.id,
+      org_id: orgId,
+      created_by: userId,
       title: `Hardship request — ${form.requestedArrangement}`,
       description: `Requested arrangement: ${form.requestedArrangement}\nAmount: $${form.requestedAmount}\nReason: ${form.reason}\n\n${form.additionalContext}`,
       priority: "high",
@@ -58,8 +56,8 @@ export default function HardshipRequestPage() {
     });
 
     await supabase.from("audit_logs").insert({
-      org_id: m.org_id,
-      actor_id: user.id,
+      org_id: orgId,
+      actor_id: userId,
       action: "hardship_request_submitted",
       resource_type: "tasks",
       metadata: { arrangement: form.requestedArrangement, reason: form.reason.slice(0, 100) },

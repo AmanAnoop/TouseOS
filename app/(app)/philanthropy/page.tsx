@@ -5,18 +5,17 @@ import {
   DollarSign, Heart, Plus, QrCode, Share2, Target, Trophy,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
 import {
   Badge, Button, Card, CardHeader, EmptyState,
   Modal, Input, PageHeader, ProgressBar, StatCard, Textarea,
 } from "@/components/ui";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { PhilanthropyCampaign } from "@/types";
+import { useOrg } from "@/hooks/use-org";
 
 export default function PhilanthropyPage() {
-  const supabase = createClient();
+  const { orgId } = useOrg();
   const [campaigns, setCampaigns] = useState<PhilanthropyCampaign[]>([]);
-  const [orgId, setOrgId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState({
     title: "", description: "", goalAmount: "",
@@ -24,19 +23,13 @@ export default function PhilanthropyPage() {
   });
 
   const load = useCallback(async (oid: string) => {
-    const { data } = await supabase.from("philanthropy_campaigns").select("*").eq("org_id", oid).order("created_at", { ascending: false });
-    setCampaigns((data ?? []) as PhilanthropyCampaign[]);
-  }, [supabase]);
+    const res = await fetch(`/api/philanthropy?org_id=${encodeURIComponent(oid)}`);
+    if (res.ok) setCampaigns((await res.json()) as PhilanthropyCampaign[]);
+  }, []);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) { setOrgId(m.org_id); load(m.org_id); }
-    }
-    init();
-  }, [supabase, load]);
+    if (orgId) load(orgId);
+  }, [orgId, load]);
 
   function campaignSlug(title: string) {
     const base = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 32);
@@ -53,18 +46,22 @@ export default function PhilanthropyPage() {
   async function createCampaign() {
     if (!orgId || !form.title) return;
     const slug = campaignSlug(form.title);
-    const { error } = await supabase.from("philanthropy_campaigns").insert({
-      org_id: orgId,
-      title: form.title,
-      description: form.description || null,
-      goal_amount: form.goalAmount ? parseFloat(form.goalAmount) : null,
-      beneficiary: form.beneficiary || null,
-      start_date: form.startDate || null,
-      end_date: form.endDate || null,
-      is_active: true,
-      public_page_slug: slug,
+    const res = await fetch("/api/philanthropy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        title: form.title,
+        description: form.description,
+        goalAmount: form.goalAmount,
+        beneficiary: form.beneficiary,
+        startDate: form.startDate,
+        endDate: form.endDate,
+        publicPageSlug: slug,
+      }),
     });
-    if (error) { toast.error(error.message); return; }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { toast.error(data.error ?? "Failed to create campaign"); return; }
     toast.success("Campaign created!");
     setCreateOpen(false);
     setForm({ title: "", description: "", goalAmount: "", beneficiary: "", startDate: "", endDate: "" });

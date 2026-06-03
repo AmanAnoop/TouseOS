@@ -8,6 +8,8 @@ import {
   PageHeader, Select, StatCard, Textarea,
 } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
+import { useOrg } from "@/hooks/use-org";
+import type { RoleName } from "@/lib/permissions";
 
 interface Injury {
   id: string;
@@ -21,8 +23,12 @@ interface Injury {
   member_profiles: { full_name: string } | null;
 }
 
+const INJURY_OFFICER_ROLES: RoleName[] = [
+  "captain", "co_captain", "coach", "safety_officer", "owner", "president", "advisor",
+];
+
 export function InjuriesClient() {
-  const [orgId, setOrgId] = useState<string | null>(null);
+  const { orgId, role } = useOrg();
   const [injuries, setInjuries] = useState<Injury[]>([]);
   const [members, setMembers] = useState<Array<{ id: string; full_name: string }>>([]);
   const [allowed, setAllowed] = useState(true);
@@ -44,23 +50,14 @@ export function InjuriesClient() {
   }, []);
 
   useEffect(() => {
-    async function init() {
-      const { createClient } = await import("@/lib/supabase/client");
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id, role").eq("user_id", user.id).limit(1).single();
-      if (!m) return;
-      const officerRoles = ["captain", "co_captain", "coach", "safety_officer", "owner", "president", "advisor"];
-      if (!officerRoles.includes(String(m.role))) {
-        setAllowed(false);
-        return;
-      }
-      setOrgId(m.org_id);
-      load(m.org_id);
+    if (!orgId) return;
+    if (!INJURY_OFFICER_ROLES.includes(role)) {
+      setAllowed(false);
+      return;
     }
-    init();
-  }, [load]);
+    setAllowed(true);
+    load(orgId);
+  }, [orgId, role, load]);
 
   async function fileReport() {
     if (!orgId || !form.memberId || !form.bodyArea) return;

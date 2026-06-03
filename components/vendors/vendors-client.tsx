@@ -7,6 +7,7 @@ import {
   Badge, Button, Card, CardHeader, EmptyState, Input, Modal,
   PageHeader, Select, Textarea,
 } from "@/components/ui";
+import { useOrg } from "@/hooks/use-org";
 
 const VENDOR_CATEGORIES = [
   "Venue", "DJ", "Caterer", "Security", "Bus company", "Photographer",
@@ -28,7 +29,7 @@ interface Vendor {
 }
 
 export function VendorsClient() {
-  const [orgId, setOrgId] = useState<string | null>(null);
+  const { orgId } = useOrg();
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
@@ -42,16 +43,8 @@ export function VendorsClient() {
   }, []);
 
   useEffect(() => {
-    async function init() {
-      const { createClient } = await import("@/lib/supabase/client");
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) { setOrgId(m.org_id); load(m.org_id); }
-    }
-    init();
-  }, [load]);
+    if (orgId) load(orgId);
+  }, [orgId, load]);
 
   async function addVendor() {
     if (!orgId || !form.name) return;

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Building, Hammer, Home, Plus, Users } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import {
   Badge, Button, Card, CardHeader, EmptyState, Input, Modal, PageHeader, Select, StatCard, Textarea,
 } from "@/components/ui";
@@ -39,7 +40,7 @@ interface Member {
 
 export function HousingClient() {
   const supabase = createClient();
-  const [orgId, setOrgId] = useState<string | null>(null);
+  const { orgId } = useOrg();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [maintenance, setMaintenance] = useState<Maintenance[]>([]);
@@ -79,17 +80,8 @@ export function HousingClient() {
   }, [supabase]);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) {
-        setOrgId(m.org_id);
-        load(m.org_id);
-      }
-    }
-    init();
-  }, [supabase, load]);
+    if (orgId) load(orgId);
+  }, [orgId, load]);
 
   function occupants(roomId: string) {
     return assignments.filter((a) => a.room_id === roomId);
@@ -174,7 +166,11 @@ export function HousingClient() {
       toast.error(data.error ?? "Failed to create rent charges");
       return;
     }
-    toast.success(data.message ?? `Created ${data.created} rent charge(s)`);
+    if (data.created === 0 && data.skipped > 0) {
+      toast(data.message ?? "Rent already posted for this month", { icon: "ℹ️" });
+    } else {
+      toast.success(data.message ?? `Created ${data.created} rent charge(s)`);
+    }
     load(orgId);
   }
 

@@ -103,9 +103,29 @@ function matchesPrefix(pathname: string, prefixes: string[]): boolean {
   return prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
-export function isRouteAllowed(orgType: string, pathname: string): boolean {
+export function userHasGreekOrg(orgs: { type: string }[]): boolean {
+  return orgs.some((o) => o.type === "fraternity" || o.type === "sorority");
+}
+
+export interface RouteAllowOptions {
+  /** Allow Greek-only routes when the user belongs to any fraternity/sorority (multi-org). */
+  hasGreekMembership?: boolean;
+}
+
+export function isRouteAllowed(
+  orgType: string,
+  pathname: string,
+  options?: RouteAllowOptions,
+): boolean {
   const product = getProductId(orgType);
   if (product === "university") return true;
+
+  if (
+    options?.hasGreekMembership
+    && matchesPrefix(pathname, ["/greekmatch"])
+  ) {
+    return true;
+  }
 
   if (matchesPrefix(pathname, SHARED_PREFIXES)) return true;
   if (matchesPrefix(pathname, SOCIAL_PREFIXES)) {

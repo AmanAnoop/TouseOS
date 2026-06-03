@@ -5,7 +5,6 @@ import {
   Mail, Plus, Send,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
 import {
   Alert, Button, Card,
   Modal, PageHeader, SearchInput, Tabs, Textarea,
@@ -14,14 +13,13 @@ import type { Announcement } from "@/types";
 import { AnnouncementFeed, COMMS_AUDIENCES } from "@/components/comms/announcement-feed";
 import { ScheduledMessagesPanel } from "@/components/comms/scheduled-messages-panel";
 import { CommsAnalyticsPanel } from "@/components/comms/comms-analytics-panel";
+import { useOrg } from "@/hooks/use-org";
 
 export default function CommsPage() {
-  const supabase = createClient();
+  const { orgId } = useOrg();
   const [tab, setTab] = useState("announcements");
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [userProfile, setUserProfile] = useState<{ name: string } | null>(null);
   const [composeOpen, setComposeOpen] = useState(false);
   const [emailBlastOpen, setEmailBlastOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -58,42 +56,34 @@ export default function CommsPage() {
 
   const loadAnnouncements = useCallback(async (oid: string) => {
     setLoading(true);
-    const { data } = await supabase
-      .from("announcements")
-      .select("*")
-      .eq("org_id", oid)
-      .order("pinned", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(50);
-    setAnnouncements((data ?? []) as Announcement[]);
+    const res = await fetch(`/api/comms/announcements?org_id=${encodeURIComponent(oid)}`);
+    if (res.ok) {
+      setAnnouncements((await res.json()) as Announcement[]);
+    }
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const [mRes, pRes] = await Promise.all([
-        supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single(),
-        supabase.from("profiles").select("full_name").eq("id", user.id).single(),
-      ]);
-      if (mRes.data) { setOrgId(mRes.data.org_id); loadAnnouncements(mRes.data.org_id); loadScheduled(mRes.data.org_id); }
-      if (pRes.data) setUserProfile({ name: String(pRes.data.full_name) });
-    }
-    init();
-  }, [supabase, loadAnnouncements]);
+    if (!orgId) return;
+    loadAnnouncements(orgId);
+    loadScheduled(orgId);
+  }, [orgId, loadAnnouncements, loadScheduled]);
 
   async function postAnnouncement() {
     if (!orgId || !draft.title || !draft.body) return;
-    const { error } = await supabase.from("announcements").insert({
-      org_id: orgId,
-      author_name: userProfile?.name ?? "Officer",
-      title: draft.title,
-      body: draft.body,
-      audience: [draft.audience],
-      pinned: draft.pinned,
+    const res = await fetch("/api/comms/announcements", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        title: draft.title,
+        body: draft.body,
+        audience: draft.audience,
+        pinned: draft.pinned,
+      }),
     });
-    if (error) { toast.error(error.message); return; }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { toast.error(data.error ?? "Failed to post"); return; }
     toast.success("Announcement posted");
     setComposeOpen(false);
     setDraft({ title: "", body: "", audience: "all", pinned: false });

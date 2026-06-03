@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import { Button, Card, EmptyState, Input, Modal,
   PageHeader, Select, StatCard, Tabs, Textarea,
 } from "@/components/ui";
@@ -17,10 +18,9 @@ import { TaskDetailPanel } from "@/components/tasks/task-detail-panel";
 
 export default function TasksPage() {
   const supabase = createClient();
+  const { orgId, userId, loading: orgLoading } = useOrg();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
   const [tab, setTab] = useState("board");
   const [filter, setFilter] = useState<"all" | "mine">("all");
   const [createOpen, setCreateOpen] = useState(false);
@@ -35,36 +35,36 @@ export default function TasksPage() {
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
-    const { data } = await supabase
-      .from("tasks")
-      .select("*")
-      .eq("org_id", oid)
-      .neq("status", "cancelled")
-      .order("priority")
-      .order("due_date", { ascending: true, nullsFirst: false });
+    const res = await fetch(`/api/tasks?org_id=${encodeURIComponent(oid)}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error(err.error ?? "Failed to load tasks");
+      setLoading(false);
+      return;
+    }
+    const data = await res.json();
     setTasks((data ?? []) as Task[]);
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      setUserId(user.id);
-      const [mRes, pRes] = await Promise.all([
-        supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single(),
-        supabase.from("profiles").select("full_name").eq("id", user.id).single(),
-      ]);
-      if (mRes.data) { setOrgId(mRes.data.org_id); load(mRes.data.org_id); }
-      if (pRes.data) {
-        setUserName(String(pRes.data.full_name));
-        setForm((f) => ({ ...f, assigneeName: String(pRes.data.full_name) }));
+    if (!userId) return;
+    supabase.from("profiles").select("full_name").eq("id", userId).single().then(({ data: pRes }) => {
+      if (pRes) {
+        setUserName(String(pRes.full_name));
+        setForm((f) => ({ ...f, assigneeName: String(pRes.full_name) }));
       }
-    }
-    init();
-  }, [supabase, load]);
+    });
+  }, [supabase, userId]);
 
-  const filtered = tasks.filter((t) => filter === "all" || t.assigned_to === userId);
+  useEffect(() => {
+    if (orgId) load(orgId);
+  }, [orgId, load]);
+
+  const filtered = tasks.filter((t) => {
+    if (filter === "all") return true;
+    return t.assigned_to === userId || t.created_by === userId;
+  });
 
   const byStatus = {
     todo: filtered.filter((t) => t.status === "todo"),
@@ -76,26 +76,44 @@ export default function TasksPage() {
 
   async function saveTask() {
     if (!orgId || !form.title) return;
-    const payload = {
-      org_id: orgId,
-      created_by: userId,
-      title: form.title,
-      description: form.description || null,
-      priority: form.priority,
-      due_date: form.dueDate || null,
-      assignee_name: form.assigneeName || null,
-      status: (editTask?.status ?? "todo") as TaskStatus,
-      tags: form.tags ? form.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
-      is_recurring: form.isRecurring,
-    };
+    const tags = form.tags ? form.tags.split(",").map((t) => t.trim()).filter(Boolean) : [];
 
     if (editTask) {
-      const { error } = await supabase.from("tasks").update(payload).eq("id", editTask.id);
-      if (error) { toast.error(error.message); return; }
+      const res = await fetch("/api/tasks", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editTask.id,
+          title: form.title,
+          description: form.description || null,
+          priority: form.priority,
+          due_date: form.dueDate || null,
+          assignee_name: form.assigneeName || null,
+          status: editTask.status,
+          tags,
+          is_recurring: form.isRecurring,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { toast.error(data.error ?? "Update failed"); return; }
       toast.success("Task updated");
     } else {
-      const { error } = await supabase.from("tasks").insert(payload);
-      if (error) { toast.error(error.message); return; }
+      const res = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orgId,
+          title: form.title,
+          description: form.description,
+          priority: form.priority,
+          dueDate: form.dueDate,
+          assigneeName: form.assigneeName,
+          tags,
+          isRecurring: form.isRecurring,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { toast.error(data.error ?? "Create failed"); return; }
       toast.success("Task created");
     }
 
@@ -106,10 +124,14 @@ export default function TasksPage() {
   }
 
   async function updateStatus(id: string, status: TaskStatus) {
-    const updates: Partial<Task> = { status };
-    if (status === "done") updates.completed_at = new Date().toISOString();
-    await supabase.from("tasks").update(updates).eq("id", id);
-    setTasks((prev) => prev.map((t) => t.id === id ? { ...t, ...updates } : t));
+    const res = await fetch("/api/tasks", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, status }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { toast.error(data.error ?? "Update failed"); return; }
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...data } as Task : t)));
     if (status === "done") toast.success("Task completed ✓");
   }
 
@@ -194,7 +216,7 @@ export default function TasksPage() {
                 )}
               </div>
               <div className="space-y-2">
-                {loading
+                {(loading || orgLoading)
                   ? Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-20 rounded-xl bg-surface-2 animate-pulse" />)
                   : col.tasks.map((task) => (
                     <TaskCard
@@ -217,7 +239,7 @@ export default function TasksPage() {
       ) : (
         /* List view */
         <Card padding="none">
-          {loading ? (
+          {(loading || orgLoading) ? (
             <div className="p-4 space-y-3">
               {[1,2,3,4,5].map((i) => <div key={i} className="h-10 bg-surface-2 rounded animate-pulse" />)}
             </div>

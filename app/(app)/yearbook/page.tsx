@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { loadActiveMembershipServer } from "@/lib/active-org-membership-server";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
 import { BookOpen, Camera, Heart } from "lucide-react";
@@ -17,11 +18,11 @@ export default async function YearbookPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: m } = await supabase.from("org_members").select("org_id, organizations(name)").eq("user_id", user.id).limit(1).single();
-  if (!m) redirect("/onboarding");
+  const membership = await loadActiveMembershipServer(user.id);
+  if (!membership) redirect("/onboarding");
 
-  const orgId = m.org_id;
-  const orgName = String(((m.organizations as unknown) as Record<string, unknown>)?.name ?? "Chapter");
+  const orgId = membership.orgId;
+  const orgName = membership.orgName || "Chapter";
 
   const semesterStart = new Date();
   semesterStart.setMonth(semesterStart.getMonth() - 5);

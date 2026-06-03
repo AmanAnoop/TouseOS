@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Gavel, Plus, Users } from "lucide-react";
 import toast from "react-hot-toast";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useOrg } from "@/hooks/use-org";
 import { createClient } from "@/lib/supabase/client";
 import {
   Badge, Button, Card, EmptyState, Input, Modal,
@@ -35,8 +36,8 @@ interface Vote {
 
 export default function GovernancePage() {
   const supabase = createClient();
+  const { orgId, userId } = useOrg();
   const { can, loading: permLoading } = usePermissions();
-  const [orgId, setOrgId] = useState<string | null>(null);
   const [tab, setTab] = useState("meetings");
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [votes, setVotes] = useState<Vote[]>([]);
@@ -44,8 +45,6 @@ export default function GovernancePage() {
   const [voteOpen, setVoteOpen] = useState(false);
   const [form, setForm] = useState({ title: "", scheduledAt: "", location: "", agenda: "", quorumRequired: "0" });
   const [voteForm, setVoteForm] = useState({ title: "", description: "", options: "Yes, No, Abstain" });
-  const [userId, setUserId] = useState<string | null>(null);
-
   const load = useCallback(async (oid: string) => {
     const [mRes, vRes] = await Promise.all([
       supabase.from("governance_meetings").select("*").eq("org_id", oid).order("scheduled_at", { ascending: false }),
@@ -56,15 +55,8 @@ export default function GovernancePage() {
   }, [supabase]);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      setUserId(user.id);
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) { setOrgId(m.org_id); load(m.org_id); }
-    }
-    init();
-  }, [supabase, load]);
+    if (orgId) load(orgId);
+  }, [orgId, load]);
 
   async function createMeeting() {
     if (!orgId || !form.title) return;

@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import {
   Alert, Badge, Button, Card, EmptyState,
   Modal, Input, PageHeader, Select, StatCard, Tabs, Textarea,
@@ -55,13 +56,11 @@ export default function InterchapterPage() {
   const [tab, setTab] = useState("proposals");
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [ideas, setIdeas] = useState<Idea[]>([]);
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [orgType, setOrgType] = useState("");
+  const { orgId, orgType, userId } = useOrg();
   const [proposeOpen, setProposeOpen] = useState(false);
   const [ideaOpen, setIdeaOpen] = useState(false);
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
   const [availability, setAvailability] = useState<AvailabilityEntry[]>([]);
-  const [userId, setUserId] = useState<string | null>(null);
   const [userName, setUserName] = useState("");
   const [partnerOrgs, setPartnerOrgs] = useState<Array<{ id: string; name: string }>>([]);
 
@@ -104,22 +103,18 @@ export default function InterchapterPage() {
   }
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id, organizations(name, type)").eq("user_id", user.id).limit(1).single();
-      if (m) {
-        setOrgId(m.org_id);
-        setOrgType(String(((m.organizations as unknown) as Record<string, unknown>)?.type ?? ""));
-        load(m.org_id);
-        loadAvailability(m.org_id);
-      }
-      setUserId(user.id);
-      const { data: prof } = await supabase.from("profiles").select("full_name").eq("id", user.id).single();
+    if (!orgId) return;
+    load(orgId);
+    loadAvailability(orgId);
+  }, [orgId, load, loadAvailability]);
+
+  useEffect(() => {
+    if (!userId) return;
+    (async () => {
+      const { data: prof } = await supabase.from("profiles").select("full_name").eq("id", userId).single();
       if (prof) setUserName(String(prof.full_name));
-    }
-    init();
-  }, [supabase, load]);
+    })();
+  }, [userId, supabase]);
 
   useEffect(() => {
     if (!orgId || proposals.length === 0) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Calendar, CheckCircle, Clock
 ,
@@ -15,6 +16,7 @@ import {
   Modal, PageHeader, Tabs, Textarea,
 } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
+import { useOrg } from "@/hooks/use-org";
 
 interface CalendarPost {
   id: string;
@@ -46,9 +48,10 @@ const CAPTION_TEMPLATES = [
 
 export default function SocialCalendarPage() {
   const supabase = createClient();
+  const { orgId } = useOrg();
+  const searchParams = useSearchParams();
   const [posts, setPosts] = useState<CalendarPost[]>([]);
   const [loading, setLoading] = useState(true);
-  const [orgId, setOrgId] = useState<string | null>(null);
   const [tab, setTab] = useState("calendar");
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState({
@@ -68,14 +71,22 @@ export default function SocialCalendarPage() {
   }, [supabase]);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) { setOrgId(m.org_id); load(m.org_id); }
-    }
-    init();
-  }, [supabase, load]);
+    if (orgId) load(orgId);
+  }, [orgId, load]);
+
+  useEffect(() => {
+    const title = searchParams.get("title");
+    const caption = searchParams.get("caption");
+    if (!title && !caption) return;
+
+    setForm((f) => ({
+      ...f,
+      title: title ?? f.title,
+      caption: caption ?? f.caption,
+    }));
+    setCreateOpen(true);
+    setTab("drafts");
+  }, [searchParams]);
 
   async function createPost() {
     if (!orgId || !form.title) return;

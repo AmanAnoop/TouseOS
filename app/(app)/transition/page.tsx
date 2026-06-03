@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { BookOpen, Download, Plus, Save } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import {
   Button, Card, CardHeader, EmptyState, Modal,
   PageHeader, Select, Tabs, Textarea,
@@ -20,10 +21,9 @@ const BINDER_ROLES = [
 
 export default function TransitionPage() {
   const supabase = createClient();
+  const { orgId, orgName, role } = useOrg();
   const [binders, setBinders] = useState<TransitionBinder[]>([]);
   const [loading, setLoading] = useState(true);
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [orgName, setOrgName] = useState("Chapter");
   const [tab, setTab] = useState("view");
   const [selectedBinder, setSelectedBinder] = useState<TransitionBinder | null>(null);
 
@@ -42,19 +42,12 @@ export default function TransitionPage() {
   }, [supabase]);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id, role, organizations(name)").eq("user_id", user.id).limit(1).single();
-      if (m) {
-        setOrgId(m.org_id);
-        setOrgName(String(((m.organizations as unknown) as Record<string, unknown>)?.name ?? "Chapter"));
-        load(m.org_id);
-        setForm((prev) => ({ ...prev, role: String(m.role) }));
-      }
-    }
-    init();
-  }, [supabase, load]);
+    if (orgId) load(orgId);
+  }, [orgId, load]);
+
+  useEffect(() => {
+    if (role) setForm((prev) => (prev.role ? prev : { ...prev, role: String(role) }));
+  }, [role]);
 
   async function saveBinder() {
     if (!orgId || !form.role) return;

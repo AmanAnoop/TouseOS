@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { CheckCircle, Plus, Users } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import {
   Badge, Button, Card, EmptyState, Input, Modal, PageHeader, Textarea,
 } from "@/components/ui";
@@ -25,8 +25,7 @@ interface CollabPost {
 }
 
 export default function SocialCollabPage() {
-  const supabase = createClient();
-  const [orgId, setOrgId] = useState<string | null>(null);
+  const { orgId } = useOrg();
   const [posts, setPosts] = useState<CollabPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -41,17 +40,8 @@ export default function SocialCollabPage() {
   }, []);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) {
-        setOrgId(m.org_id);
-        load(m.org_id);
-      }
-    }
-    init();
-  }, [supabase, load]);
+    if (orgId) load(orgId);
+  }, [orgId, load]);
 
   async function createCollab() {
     if (!orgId) return;

@@ -8,21 +8,14 @@ export function useUnreadNotifications() {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const res = await fetch("/api/notifications?limit=100");
+    if (!res.ok) {
       setCount(0);
       setLoading(false);
       return;
     }
-
-    const { count: unread } = await supabase
-      .from("notifications")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .is("read_at", null);
-
-    setCount(unread ?? 0);
+    const data = (await res.json()) as Array<{ read_at: string | null }>;
+    setCount(data.filter((n) => !n.read_at).length);
     setLoading(false);
   }, []);
 

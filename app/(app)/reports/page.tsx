@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   BarChart2, Download, FileText,
 } from "lucide-react";
@@ -10,36 +10,16 @@ import {
 } from "@/components/ui";
 import { downloadCsv, formatDate, orgTypeLabel } from "@/lib/utils";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useOrg } from "@/hooks/use-org";
 import { Alert } from "@/components/ui";
 
 export default function ReportsPage() {
   const supabase = createClient();
   const { can, loading: permLoading } = usePermissions();
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [orgType, setOrgType] = useState("general_org");
-  const [orgName, setOrgName] = useState("");
+  const { orgId, orgName, orgType } = useOrg();
   const [tab, setTab] = useState("core");
   const [loading, setLoading] = useState(false);
   const [reportType, setReportType] = useState("roster");
-
-  useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase
-        .from("org_members")
-        .select("org_id, organizations(name, type)")
-        .eq("user_id", user.id)
-        .limit(1)
-        .single();
-      if (m) {
-        setOrgId(m.org_id);
-        setOrgName(String((m.organizations as unknown as Record<string, unknown>)?.name ?? ""));
-        setOrgType(String((m.organizations as unknown as Record<string, unknown>)?.type ?? "general_org"));
-      }
-    }
-    init();
-  }, [supabase]);
 
   async function runReport() {
     if (!orgId) return;

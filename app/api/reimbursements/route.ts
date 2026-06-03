@@ -1,6 +1,28 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { triggerBudgetSyncForOrg } from "@/lib/budget-auto-sync";
+import { can, type RoleName } from "@/lib/permissions";
+import {
+  buildReimbursementUpdates,
+  type ReimbursementApprovalInput,
+} from "@/lib/reimbursement-approval";
+
+const PRESIDENT_ROLES: RoleName[] = ["owner", "president"];
+
+async function membershipForOrg(supabase: Awaited<ReturnType<typeof createClient>>, userId: string, orgId: string) {
+  const { data } = await supabase
+    .from("org_members")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("org_id", orgId)
+    .neq("status", "removed")
+    .maybeSingle();
+  return String(data?.role ?? "general_member") as RoleName;
+}
+
+function canReviewReimbursements(role: RoleName): boolean {
+  return can(role, "manage_payments") || can(role, "manage_budget");
+}
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -10,6 +32,17 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const orgId = searchParams.get("org_id");
   if (!orgId) return NextResponse.json({ error: "org_id required" }, { status: 400 });
+
+  const role = await membershipForOrg(supabase, user.id, orgId);
+  if (!can(role, "view_payments") && !can(role, "manage_payments") && !can(role, "manage_budget")) {
+    const { data: own } = await supabase
+      .from("reimbursements")
+      .select("*")
+      .eq("org_id", orgId)
+      .eq("submitted_by", user.id)
+      .order("created_at", { ascending: false });
+    return NextResponse.json(own ?? []);
+  }
 
   const { data, error } = await supabase
     .from("reimbursements")
@@ -28,6 +61,14 @@ export async function POST(request: Request) {
 
   const body = await request.json();
   const { orgId, amount, category, description, eventId, receiptUrl } = body;
+  if (!orgId || amount == null || !category || !description) {
+    return NextResponse.json({ error: "orgId, amount, category, and description required" }, { status: 400 });
+  }
+
+  const role = await membershipForOrg(supabase, user.id, orgId);
+  if (!can(role, "view_roster")) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", user.id).single();
 
@@ -36,7 +77,7 @@ export async function POST(request: Request) {
     submitted_by: user.id,
     submitted_by_name: profile?.full_name ?? null,
     event_id: eventId || null,
-    amount: parseFloat(amount),
+    amount: parseFloat(String(amount)),
     category,
     description,
     receipt_url: receiptUrl || null,
@@ -62,32 +103,73 @@ export async function PATCH(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id, status, rejectionReason } = await request.json();
+  const body = await request.json();
+  const { id, status, rejectionReason, approvalType } = body as {
+    id: string;
+    status?: string;
+    rejectionReason?: string;
+    approvalType?: "treasurer" | "president";
+  };
 
-  const updates: Record<string, unknown> = { status };
-  if (rejectionReason) updates.rejection_reason = rejectionReason;
-  if (status === "approved" || status === "needs_info") {
-    updates.reviewed_by = user.id;
-    updates.reviewed_at = new Date().toISOString();
+  if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+
+  const { data: existing, error: fetchErr } = await supabase
+    .from("reimbursements")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (fetchErr || !existing) {
+    return NextResponse.json({ error: "Reimbursement not found" }, { status: 404 });
   }
-  if (status === "paid") updates.paid_at = new Date().toISOString();
 
-  const { data, error } = await supabase.from("reimbursements").update(updates).eq("id", id).select().single();
+  const orgId = String(existing.org_id);
+  const role = await membershipForOrg(supabase, user.id, orgId);
+
+  if (String(existing.submitted_by) === user.id && !approvalType && !status) {
+    return NextResponse.json({ error: "No updates provided" }, { status: 400 });
+  }
+
+  const isOfficerAction = Boolean(approvalType || (status && status !== "submitted"));
+  if (isOfficerAction && !canReviewReimbursements(role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  if (approvalType === "president" && !PRESIDENT_ROLES.includes(role)) {
+    return NextResponse.json({ error: "President approval requires president or owner role" }, { status: 403 });
+  }
+
+  const input: ReimbursementApprovalInput = { status, rejectionReason, approvalType };
+  const { updates, toastMessage } = buildReimbursementUpdates(existing, input, user.id);
+
+  if (!Object.keys(updates).length) {
+    return NextResponse.json({ error: "No valid updates" }, { status: 400 });
+  }
+
+  const { data, error } = await supabase
+    .from("reimbursements")
+    .update(updates)
+    .eq("id", id)
+    .select()
+    .single();
+
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const orgId = data?.org_id as string | undefined;
-  if (orgId) {
-    await supabase.from("audit_logs").insert({
-      org_id: orgId,
-      actor_id: user.id,
-      action: `reimbursement_${status}`,
-      resource_type: "reimbursements",
-      resource_id: id,
-    });
-    if (status === "paid" || status === "approved") {
-      void triggerBudgetSyncForOrg(orgId, user.id);
-    }
+  const newStatus = String(data.status);
+  await supabase.from("audit_logs").insert({
+    org_id: orgId,
+    actor_id: user.id,
+    action: approvalType
+      ? `reimbursement_${approvalType}_approved`
+      : `reimbursement_${newStatus}`,
+    resource_type: "reimbursements",
+    resource_id: id,
+    metadata: { approvalType, status: newStatus },
+  });
+
+  if (newStatus === "paid" || newStatus === "approved") {
+    void triggerBudgetSyncForOrg(orgId, user.id);
   }
 
-  return NextResponse.json(data);
+  return NextResponse.json({ ...data, message: toastMessage });
 }

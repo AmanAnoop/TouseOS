@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { FeedPageClient } from "@/components/feed/feed-page-client";
-import { type RoleName } from "@/lib/permissions";
+import { loadActiveMembershipServer } from "@/lib/active-org-membership-server";
 
 export const metadata = { title: "Chapter Feed" };
 export const dynamic = "force-dynamic";
@@ -11,16 +11,10 @@ export default async function FeedPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: m } = await supabase
-    .from("org_members")
-    .select("org_id, role, organizations(name)")
-    .eq("user_id", user.id)
-    .limit(1)
-    .single();
-  if (!m) redirect("/onboarding");
+  const membership = await loadActiveMembershipServer(user.id);
+  if (!membership) redirect("/onboarding");
 
-  const orgId = m.org_id;
-  const role = String(m.role ?? "general_member") as RoleName;
+  const { orgId, orgName, role } = membership;
   const isOfficer = ["owner", "president", "vice_president", "secretary", "social_chair", "treasurer", "advisor"].includes(role);
 
   const [announcementsRes, eventsRes, photosRes] = await Promise.all([
@@ -32,8 +26,6 @@ export default async function FeedPage() {
   const announcements = (announcementsRes.data ?? []) as Array<Record<string, unknown>>;
   const events = (eventsRes.data ?? []) as Array<Record<string, unknown>>;
   const photos = (photosRes.data ?? []) as Array<Record<string, unknown>>;
-
-  const orgName = String((m.organizations as unknown as Record<string, unknown>)?.name ?? "Your chapter");
 
   const timeline = [
     ...announcements.map((a) => ({ id: String(a.id), type: "announcement" as const, created_at: String(a.created_at), data: a })),

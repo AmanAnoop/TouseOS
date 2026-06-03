@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { AlertTriangle, CheckCircle2, Plus, Shield } from "lucide-react";
 import toast from "react-hot-toast";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useOrg } from "@/hooks/use-org";
 import { createClient } from "@/lib/supabase/client";
 import {
   Alert, Badge, Button, Card, CardHeader,
@@ -45,7 +46,7 @@ export default function RiskPage() {
   const { can, loading: permLoading } = usePermissions();
   const [checklists, setChecklists] = useState<RiskChecklist[]>([]);
   const [loading, setLoading] = useState(true);
-  const [orgId, setOrgId] = useState<string | null>(null);
+  const { orgId } = useOrg();
   const [createOpen, setCreateOpen] = useState(false);
   const [events, setEvents] = useState<Array<{ id: string; title: string; starts_at: string }>>([]);
 
@@ -115,14 +116,8 @@ export default function RiskPage() {
   }
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) { setOrgId(m.org_id); load(m.org_id); }
-    }
-    init();
-  }, [supabase, load]);
+    if (orgId) load(orgId);
+  }, [orgId, load]);
 
   function computeRiskScore(items: Record<string, boolean>) {
     const completed = CHECKLIST_ITEMS.filter((i) => items[i.key]).length;
