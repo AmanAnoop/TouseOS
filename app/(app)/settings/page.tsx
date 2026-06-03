@@ -14,6 +14,7 @@ import { colorsForOrgStorage } from "@/lib/chapter-theme";
 import { getGreekOrgById } from "@/lib/greek-letter-orgs";
 import { getProductId } from "@/lib/org-product";
 import { getUniversityById } from "@/lib/university-colors";
+import { useOrg } from "@/hooks/use-org";
 import { InviteCodeCard } from "@/components/settings/invite-code-card";
 import { MemberRolesPanel, type OrgMemberWithProfile } from "@/components/settings/member-roles-panel";
 import { StripeConnectPanel } from "@/components/settings/stripe-connect-panel";
@@ -21,11 +22,10 @@ import { StripeConnectPanel } from "@/components/settings/stripe-connect-panel";
 export default function SettingsPage() {
   const supabase = createClient();
   const router = useRouter();
+  const { orgId, role: myRole } = useOrg();
   const [tab, setTab] = useState("profile");
-  const [orgId, setOrgId] = useState<string | null>(null);
   const [org, setOrg] = useState<Record<string, unknown> | null>(null);
   const [members, setMembers] = useState<OrgMemberWithProfile[]>([]);
-  const [myRole, setMyRole] = useState("");
   const [saving, setSaving] = useState(false);
 
   const [orgForm, setOrgForm] = useState<OrgProfileFormData>({
@@ -35,22 +35,16 @@ export default function SettingsPage() {
   });
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase
-        .from("org_members")
-        .select("org_id, role, organizations(*, platform_plan, platform_plan_status)")
-        .eq("user_id", user.id)
-        .neq("status", "removed")
-        .limit(1)
+    if (!orgId) return;
+    (async () => {
+      const { data: orgData } = await supabase
+        .from("organizations")
+        .select("*, platform_plan, platform_plan_status")
+        .eq("id", orgId)
         .single();
-      if (!m) return;
-      setOrgId(m.org_id);
-      setMyRole(String(m.role));
-      const orgData = m.organizations as unknown as Record<string, unknown>;
-      setOrg(orgData);
-      const settings = (orgData.settings ?? {}) as Record<string, unknown>;
+      if (!orgData) return;
+      setOrg(orgData as unknown as Record<string, unknown>);
+      const settings = ((orgData.settings ?? {}) as Record<string, unknown>);
       setOrgForm({
         name: String(orgData.name ?? ""),
         campus: String(orgData.campus ?? ""),
@@ -66,14 +60,13 @@ export default function SettingsPage() {
       const { data: membersData } = await supabase
         .from("org_members")
         .select("*, profiles(full_name, avatar_url), member_profiles(id, full_name, email)")
-        .eq("org_id", m.org_id)
+        .eq("org_id", orgId)
         .order("joined_at");
       setMembers((membersData ?? []) as OrgMemberWithProfile[]);
-    }
-    init();
-  }, [supabase]);
+    })();
+  }, [orgId, supabase]);
 
-  const isAdmin = ["owner", "president", "advisor"].includes(myRole);
+  const isAdmin = ["owner", "president", "advisor"].includes(String(myRole));
   const activeMembers = members.filter((m) => m.status !== "removed");
 
   async function saveOrgProfile() {

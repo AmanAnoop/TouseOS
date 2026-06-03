@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Building, Hammer, Home, Plus, Users } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
 import { useOrg } from "@/hooks/use-org";
 import {
   Badge, Button, Card, CardHeader, EmptyState, Input, Modal, PageHeader, Select, StatCard, Textarea,
@@ -39,7 +38,6 @@ interface Member {
 }
 
 export function HousingClient() {
-  const supabase = createClient();
   const { orgId } = useOrg();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -57,27 +55,24 @@ export function HousingClient() {
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
-    const { data: roomData } = await supabase
-      .from("housing_rooms")
-      .select("*")
-      .eq("org_id", oid)
-      .order("room_number");
-
-    const roomIds = (roomData ?? []).map((r) => r.id);
-    const [assignRes, maintRes, membersRes] = await Promise.all([
-      roomIds.length
-        ? supabase.from("housing_assignments").select("*, member_profiles(full_name)").in("room_id", roomIds).is("move_out", null)
-        : Promise.resolve({ data: [] }),
-      supabase.from("maintenance_requests").select("*").eq("org_id", oid).order("created_at", { ascending: false }).limit(10),
-      supabase.from("member_profiles").select("id, full_name").eq("org_id", oid).eq("membership_status", "active").order("full_name"),
+    const [housingRes, membersRes] = await Promise.all([
+      fetch(`/api/housing?org_id=${encodeURIComponent(oid)}`),
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}`),
     ]);
-
-    setRooms((roomData ?? []) as Room[]);
-    setAssignments((assignRes.data ?? []) as Assignment[]);
-    setMaintenance((maintRes.data ?? []) as Maintenance[]);
-    setMembers((membersRes.data ?? []) as Member[]);
+    if (housingRes.ok) {
+      const data = await housingRes.json();
+      setRooms((data.rooms ?? []) as Room[]);
+      setAssignments((data.assignments ?? []) as Assignment[]);
+      setMaintenance((data.maintenance ?? []) as Maintenance[]);
+    }
+    if (membersRes.ok) {
+      const mems = (await membersRes.json()) as Array<{ id: string; full_name: string; membership_status: string }>;
+      setMembers(
+        mems.filter((m) => m.membership_status === "active").map((m) => ({ id: m.id, full_name: m.full_name })),
+      );
+    }
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
     if (orgId) load(orgId);

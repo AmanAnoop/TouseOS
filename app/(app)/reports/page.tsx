@@ -4,7 +4,6 @@ import { useState } from "react";
 import {
   BarChart2, Download, FileText,
 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import {
   Badge, Button, Card, CardHeader, PageHeader, Select, Tabs,
 } from "@/components/ui";
@@ -14,7 +13,6 @@ import { useOrg } from "@/hooks/use-org";
 import { Alert } from "@/components/ui";
 
 export default function ReportsPage() {
-  const supabase = createClient();
   const { can, loading: permLoading } = usePermissions();
   const { orgId, orgName, orgType } = useOrg();
   const [tab, setTab] = useState("core");
@@ -52,8 +50,9 @@ export default function ReportsPage() {
           break;
         }
         case "dues": {
-          const { data } = await supabase.from("payments").select("*, member_profiles(full_name, email)").eq("org_id", orgId).order("due_date");
-          downloadCsv(`${orgName}-dues.csv`, (data ?? []).map((p: Record<string, unknown>) => ({
+          const duesRes = await fetch(`/api/payments?org_id=${encodeURIComponent(orgId)}`);
+          const data = duesRes.ok ? await duesRes.json() : [];
+          downloadCsv(`${orgName}-dues.csv`, (data as Record<string, unknown>[]).map((p) => ({
             Member: (p.member_profiles as Record<string, unknown>)?.full_name ?? "—",
             Email: (p.member_profiles as Record<string, unknown>)?.email ?? "—",
             Amount: p.amount,
@@ -66,17 +65,18 @@ export default function ReportsPage() {
           break;
         }
         case "attendance": {
-          const { data: orgEvents } = await supabase.from("events").select("id").eq("org_id", orgId);
-          const eventIds = (orgEvents ?? []).map((e) => e.id);
+          const evRes = await fetch(`/api/events?org_id=${encodeURIComponent(orgId)}`);
+          const orgEvents = evRes.ok ? await evRes.json() : [];
+          const eventIds = (orgEvents as Array<{ id: string }>).map((e) => e.id);
           if (eventIds.length === 0) {
             downloadCsv(`${orgName}-attendance.csv`, []);
             break;
           }
-          const { data } = await supabase
-            .from("event_rsvps")
-            .select("*, events(title, starts_at), member_profiles(full_name)")
-            .in("event_id", eventIds);
-          downloadCsv(`${orgName}-attendance.csv`, (data ?? []).map((r: Record<string, unknown>) => ({
+          const attRes = await fetch(
+            `/api/events/rsvps?org_id=${encodeURIComponent(orgId)}&event_ids=${eventIds.join(",")}&expand=1`,
+          );
+          const attPayload = attRes.ok ? await attRes.json() : { rsvps: [] };
+          downloadCsv(`${orgName}-attendance.csv`, ((attPayload.rsvps ?? []) as Record<string, unknown>[]).map((r) => ({
             Member: (r.member_profiles as Record<string, unknown>)?.full_name ?? "—",
             Event: (r.events as Record<string, unknown>)?.title ?? "—",
             Date: formatDate(String((r.events as Record<string, unknown>)?.starts_at ?? "")),
@@ -86,8 +86,9 @@ export default function ReportsPage() {
           break;
         }
         case "reimbursements": {
-          const { data } = await supabase.from("reimbursements").select("*").eq("org_id", orgId).order("created_at", { ascending: false });
-          downloadCsv(`${orgName}-reimbursements.csv`, (data ?? []).map((r: Record<string, unknown>) => ({
+          const reimRes = await fetch(`/api/reimbursements?org_id=${encodeURIComponent(orgId)}`);
+          const data = reimRes.ok ? await reimRes.json() : [];
+          downloadCsv(`${orgName}-reimbursements.csv`, (data as Record<string, unknown>[]).map((r) => ({
             Submitter: r.submitted_by_name ?? "—",
             Amount: r.amount,
             Category: r.category,
@@ -114,8 +115,9 @@ downloadCsv(`${orgName}-semester-rewind.csv`, [{
           break;
         }
         case "pnm": {
-          const { data } = await supabase.from("pnm_leads").select("*").eq("org_id", orgId).order("created_at", { ascending: false });
-          downloadCsv(`${orgName}-pnm.csv`, (data ?? []).map((p: Record<string, unknown>) => ({
+          const pnmRes = await fetch(`/api/pnm?org_id=${encodeURIComponent(orgId)}`);
+          const data = pnmRes.ok ? await pnmRes.json() : [];
+          downloadCsv(`${orgName}-pnm.csv`, (data as Record<string, unknown>[]).map((p) => ({
             Name: p.full_name,
             Email: p.email ?? "",
             Phone: p.phone ?? "",
@@ -133,8 +135,9 @@ downloadCsv(`${orgName}-semester-rewind.csv`, [{
           break;
         }
         case "alumni": {
-          const { data } = await supabase.from("alumni_profiles").select("*").eq("org_id", orgId).order("full_name");
-          downloadCsv(`${orgName}-alumni.csv`, (data ?? []).map((a: Record<string, unknown>) => ({
+          const alumRes = await fetch(`/api/alumni?org_id=${encodeURIComponent(orgId)}`);
+          const data = alumRes.ok ? await alumRes.json() : [];
+          downloadCsv(`${orgName}-alumni.csv`, (data as Record<string, unknown>[]).map((a) => ({
             Name: a.full_name,
             Email: a.email ?? "",
             Phone: a.phone ?? "",
@@ -150,9 +153,10 @@ downloadCsv(`${orgName}-semester-rewind.csv`, [{
           break;
         }
         case "budget": {
-          const { data: budgets } = await supabase.from("budgets").select("*, budget_lines(*)").eq("org_id", orgId);
+          const budgetRes = await fetch(`/api/budget?org_id=${encodeURIComponent(orgId)}`);
+          const budgets = budgetRes.ok ? await budgetRes.json() : [];
           const rows: Record<string, unknown>[] = [];
-          (budgets ?? []).forEach((b: Record<string, unknown>) => {
+          (budgets as Record<string, unknown>[]).forEach((b) => {
             (b.budget_lines as Record<string, unknown>[]).forEach((l) => {
               rows.push({
                 Budget: b.label,
@@ -169,8 +173,9 @@ downloadCsv(`${orgName}-semester-rewind.csv`, [{
           break;
         }
         case "waivers": {
-          const { data } = await supabase.from("sports_waivers").select("*, member_profiles(full_name)").eq("org_id", orgId);
-          downloadCsv(`${orgName}-waivers.csv`, (data ?? []).map((w: Record<string, unknown>) => ({
+          const waiverRes = await fetch(`/api/waivers?org_id=${encodeURIComponent(orgId)}`);
+          const data = waiverRes.ok ? await waiverRes.json() : [];
+          downloadCsv(`${orgName}-waivers.csv`, (data as Record<string, unknown>[]).map((w) => ({
             Member: (w.member_profiles as Record<string, unknown>)?.full_name ?? "—",
             "Waiver Type": String(w.waiver_type).replace(/_/g, " "),
             Status: w.status,
@@ -180,8 +185,9 @@ downloadCsv(`${orgName}-semester-rewind.csv`, [{
           break;
         }
         case "tasks": {
-          const { data } = await supabase.from("tasks").select("*").eq("org_id", orgId).order("due_date");
-          downloadCsv(`${orgName}-tasks.csv`, (data ?? []).map((t: Record<string, unknown>) => ({
+          const tasksRes = await fetch(`/api/tasks?org_id=${encodeURIComponent(orgId)}`);
+          const data = tasksRes.ok ? await tasksRes.json() : [];
+          downloadCsv(`${orgName}-tasks.csv`, (data as Record<string, unknown>[]).map((t) => ({
             Title: t.title,
             Status: t.status,
             Priority: t.priority,

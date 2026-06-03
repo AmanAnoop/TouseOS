@@ -76,7 +76,17 @@ export default function RiskPage() {
     setLoading(true);
     const [ckRes, evRes, incRes] = await Promise.all([
       supabase.from("risk_checklists").select("*").eq("org_id", oid).order("created_at", { ascending: false }),
-      supabase.from("events").select("id, title, starts_at").eq("org_id", oid).gte("starts_at", new Date().toISOString()).order("starts_at").limit(20),
+      fetch(`/api/events?org_id=${encodeURIComponent(oid)}`).then(async (r) => {
+        if (!r.ok) return { data: [] };
+        const all = (await r.json()) as Array<{ id: string; title: string; starts_at: string }>;
+        const now = new Date().toISOString();
+        return {
+          data: all
+            .filter((e) => new Date(e.starts_at) >= new Date(now))
+            .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())
+            .slice(0, 20),
+        };
+      }),
       fetch(`/api/incidents?org_id=${oid}`).then((r) => (r.ok ? r.json() : [])),
     ]);
     setChecklists((ckRes.data ?? []) as RiskChecklist[]);

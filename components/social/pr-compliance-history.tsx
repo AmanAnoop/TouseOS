@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Shield } from "lucide-react";
 import { Badge, Card, EmptyState } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
@@ -18,7 +18,7 @@ export function PrComplianceHistory({ orgId }: { orgId: string }) {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
 
-  function load() {
+  const load = useCallback(() => {
     setLoading(true);
     fetch(`/api/pr-compliance?org_id=${orgId}`)
       .then((r) => r.json())
@@ -26,11 +26,11 @@ export function PrComplianceHistory({ orgId }: { orgId: string }) {
         if (Array.isArray(data)) setReviews(data);
         setLoading(false);
       });
-  }
+  }, [orgId]);
 
   useEffect(() => {
     load();
-  }, [orgId]);
+  }, [load]);
 
   return (
     <div className="space-y-4">

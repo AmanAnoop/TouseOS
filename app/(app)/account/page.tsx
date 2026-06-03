@@ -7,6 +7,7 @@ import {
 import toast from "react-hot-toast";
 import { InterestsEditor } from "@/components/members/interests-editor";
 import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import {
   Alert, Avatar, Button, Card, CardHeader,
   Input, PageHeader, Tabs,
@@ -23,6 +24,7 @@ import { usePushNotifications } from "@/hooks/use-push-notifications";
 
 export default function AccountPage() {
   const supabase = createClient();
+  const { orgId } = useOrg();
   const [tab, setTab] = useState("profile");
   const [userId, setUserId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -61,7 +63,9 @@ export default function AccountPage() {
         supabase.from("profiles").select("*").eq("id", user.id).single(),
         supabase.from("org_members").select("id, role, status, joined_at, organizations(name, type, campus)").eq("user_id", user.id).neq("status", "removed"),
         supabase.from("profiles").select("notification_email, notification_sms, notification_push, notification_preferences").eq("id", user.id).single(),
-        supabase.from("member_profiles").select("id, interests").eq("user_id", user.id).limit(1).maybeSingle(),
+        orgId
+          ? supabase.from("member_profiles").select("id, interests").eq("user_id", user.id).eq("org_id", orgId).maybeSingle()
+          : supabase.from("member_profiles").select("id, interests").eq("user_id", user.id).limit(1).maybeSingle(),
       ]);
 
       if (pRes.data) {
@@ -100,7 +104,7 @@ export default function AccountPage() {
       }
     }
     init();
-  }, [supabase]);
+  }, [supabase, orgId]);
 
   async function saveProfile() {
     if (!userId) return;

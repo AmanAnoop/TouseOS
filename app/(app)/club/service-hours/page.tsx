@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { HandHeart, Plus } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
 import { useOrg } from "@/hooks/use-org";
 import {
   Badge, Button, Card, EmptyState, Input, Modal, PageHeader, ProgressBar, Select, Textarea,
@@ -23,7 +22,6 @@ interface HourEntry {
 }
 
 export default function ClubServiceHoursPage() {
-  const supabase = createClient();
   const { orgId, orgType, role } = useOrg();
   const [entries, setEntries] = useState<HourEntry[]>([]);
   const [members, setMembers] = useState<MemberProfile[]>([]);
@@ -37,16 +35,16 @@ export default function ClubServiceHoursPage() {
     setLoading(true);
     const [hoursRes, membersRes, goalRes] = await Promise.all([
       fetch(`/api/club/service-hours?org_id=${oid}`),
-      supabase.from("member_profiles").select("id, full_name").eq("org_id", oid).order("full_name"),
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}`),
       fetch(`/api/club/service-goals?org_id=${oid}`),
     ]);
     const goalData = await goalRes.json();
     if (goalRes.ok) setGoal(goalData);
     const hours = await hoursRes.json();
     if (hoursRes.ok) setEntries(hours);
-    setMembers((membersRes.data ?? []) as MemberProfile[]);
+    if (membersRes.ok) setMembers((await membersRes.json()) as MemberProfile[]);
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
     if (!orgId) return;

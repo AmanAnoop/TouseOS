@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { AlertTriangle, Plus, Scale } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
 import {
   Badge, Button, Card, EmptyState, Input,
   Modal, PageHeader, Select, StatCard, Tabs, Textarea,
@@ -56,7 +55,6 @@ const SANCTION_OPTIONS = [
 ];
 
 export default function StandardsPage() {
-  const supabase = createClient();
   const [cases, setCases] = useState<StandardsCase[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,27 +77,23 @@ export default function StandardsPage() {
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
-    const [{ data: caseData }, { data: memberData }] = await Promise.all([
-      supabase
-        .from("standards_cases")
-        .select("*")
-        .eq("org_id", oid)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("member_profiles")
-        .select("id, full_name")
-        .eq("org_id", oid)
-        .eq("membership_status", "active")
-        .order("full_name"),
+    const [caseRes, memberRes] = await Promise.all([
+      fetch(`/api/standards/cases?org_id=${encodeURIComponent(oid)}`),
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}`),
     ]);
-    setCases((caseData ?? []).map((c) => ({
+    const caseData = caseRes.ok ? await caseRes.json() : [];
+    const allMembers = memberRes.ok ? await memberRes.json() : [];
+    const memberData = (allMembers as Array<{ id: string; full_name: string; membership_status: string }>)
+      .filter((m) => m.membership_status === "active")
+      .map((m) => ({ id: m.id, full_name: m.full_name }));
+    setCases((caseData as StandardsCase[]).map((c) => ({
       ...c,
       sanctions: c.sanctions ?? [],
       restorative_actions: (c.restorative_actions ?? []) as RestorativeAction[],
-    })) as StandardsCase[]);
-    setMembers((memberData ?? []) as Member[]);
+    })));
+    setMembers(memberData as Member[]);
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
     if (orgId) load(orgId);

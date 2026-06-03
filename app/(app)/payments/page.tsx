@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { Download, DollarSign, Plus, Send } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
 import {
   Button, Card, CardHeader, EmptyState,
   Input, Modal, PageHeader, ProgressBar, Select,
@@ -24,7 +23,6 @@ import { can } from "@/lib/permissions";
 import { useOrg } from "@/hooks/use-org";
 
 export default function PaymentsPage() {
-  const supabase = createClient();
   const { orgId, userId, role: myRole } = useOrg();
   const [payments, setPayments] = useState<PaymentWithMember[]>([]);
   const [members, setMembers] = useState<MemberProfile[]>([]);
@@ -42,10 +40,7 @@ export default function PaymentsPage() {
     setLoading(true);
     const [paymentsRes, memberRes, plansRes] = await Promise.all([
       fetch(`/api/payments?org_id=${encodeURIComponent(oid)}`),
-      supabase
-        .from("member_profiles")
-        .select("id, full_name, membership_status, payment_status, attendance_rate, email, role, org_id, user_id, forms_completed, forms_required, class_year, graduation_year, committees, created_at, updated_at")
-        .eq("org_id", oid),
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}`),
       fetch(`/api/payments/plans?org_id=${encodeURIComponent(oid)}`),
     ]);
     if (paymentsRes.ok) {
@@ -54,27 +49,24 @@ export default function PaymentsPage() {
       const err = await paymentsRes.json().catch(() => ({}));
       toast.error(err.error ?? "Failed to load payments");
     }
-    setMembers((memberRes.data ?? []) as MemberProfile[]);
+    if (memberRes.ok) setMembers((await memberRes.json()) as MemberProfile[]);
     if (plansRes.ok) {
       const plans = await plansRes.json();
       setPlanCount(Array.isArray(plans) ? plans.length : 0);
     }
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
     if (!orgId || !userId) return;
     loadPayments(orgId);
-    supabase
-      .from("member_profiles")
-      .select("id")
-      .eq("org_id", orgId)
-      .eq("user_id", userId)
-      .maybeSingle()
-      .then(({ data: profile }) => {
-        if (profile) setMyMemberId(profile.id);
-      });
-  }, [supabase, orgId, userId, loadPayments]);
+  }, [orgId, userId, loadPayments]);
+
+  useEffect(() => {
+    if (!userId) return;
+    const me = members.find((m) => m.user_id === userId);
+    setMyMemberId(me?.id ?? null);
+  }, [userId, members]);
 
   const canViewAll = can(myRole, "view_payments") || can(myRole, "manage_payments");
   const canManage = can(myRole, "manage_payments");

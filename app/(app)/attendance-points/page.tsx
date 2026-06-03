@@ -3,13 +3,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { Award, Plus, TrendingUp } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
 import {
   Badge, Button, Card, CardHeader, EmptyState, Input,
   Modal, PageHeader, ProgressBar, StatCard,
 } from "@/components/ui";
 import type { MemberProfile } from "@/types";
-import { DEFAULT_POINT_RULES, getPointRules } from "@/lib/attendance-points";
+import { DEFAULT_POINT_RULES } from "@/lib/attendance-points";
 import { useOrg } from "@/hooks/use-org";
 
 interface PointEntry {
@@ -22,7 +21,6 @@ interface PointEntry {
 }
 
 export default function AttendancePointsPage() {
-  const supabase = createClient();
   const { orgId } = useOrg();
   const [members, setMembers] = useState<MemberProfile[]>([]);
   const [entries, setEntries] = useState<PointEntry[]>([]);
@@ -31,15 +29,17 @@ export default function AttendancePointsPage() {
   const [rules, setRules] = useState(DEFAULT_POINT_RULES);
 
   const load = useCallback(async (oid: string) => {
-    const [mRes, eRes] = await Promise.all([
-      supabase.from("member_profiles").select("*").eq("org_id", oid).order("full_name"),
-      supabase.from("member_point_entries").select("*").eq("org_id", oid).order("created_at", { ascending: false }).limit(50),
+    const [mRes, pRes] = await Promise.all([
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}`),
+      fetch(`/api/member-points?org_id=${encodeURIComponent(oid)}`),
     ]);
-    setMembers((mRes.data ?? []) as MemberProfile[]);
-    setEntries((eRes.data ?? []) as PointEntry[]);
-    const loadedRules = await getPointRules(supabase, oid);
-    setRules(loadedRules);
-  }, [supabase]);
+    if (mRes.ok) setMembers((await mRes.json()) as MemberProfile[]);
+    if (pRes.ok) {
+      const payload = await pRes.json();
+      setEntries((payload.entries ?? []) as PointEntry[]);
+      setRules(payload.rules?.length ? payload.rules : DEFAULT_POINT_RULES);
+    }
+  }, []);
 
   useEffect(() => {
     if (orgId) load(orgId);
@@ -51,16 +51,22 @@ export default function AttendancePointsPage() {
 
   async function awardPoints() {
     if (!orgId || !form.memberId || !form.points) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    const { error } = await supabase.from("member_point_entries").insert({
-      org_id: orgId,
-      member_id: form.memberId,
-      points: parseInt(form.points, 10),
-      reason: form.reason || "Manual award",
-      entry_type: "earned",
-      created_by: user?.id,
+    const res = await fetch("/api/member-points", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        memberId: form.memberId,
+        points: form.points,
+        reason: form.reason,
+        entryType: "earned",
+      }),
     });
-    if (error) { toast.error(error.message); return; }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error((err as { error?: string }).error ?? "Failed to award points");
+      return;
+    }
     toast.success("Points awarded");
     setAwardOpen(false);
     setForm({ memberId: "", points: "1", reason: "" });

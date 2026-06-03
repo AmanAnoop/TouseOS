@@ -1,1 +1,0 @@
-export { createServiceClient } from "./server";

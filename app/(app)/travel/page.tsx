@@ -7,7 +7,6 @@ import {
   Calculator, Calendar, Car, Hotel, Plane, Plus, Users,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
 import {
   Badge, Button, Card, EmptyState, Input,
   Modal, PageHeader, StatCard, Tabs,
@@ -32,7 +31,6 @@ const COST_CATEGORIES = [
 
 export default function TravelPage() {
   const searchParams = useSearchParams();
-  const supabase = createClient();
   const { orgId } = useOrg();
   const [trips, setTrips] = useState<SportsTravelTrip[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,10 +48,10 @@ export default function TravelPage() {
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
-    const { data } = await supabase.from("sports_travel_trips").select("*").eq("org_id", oid).order("departure_date");
-    setTrips((data ?? []) as SportsTravelTrip[]);
+    const res = await fetch(`/api/sports/travel?org_id=${encodeURIComponent(oid)}`);
+    if (res.ok) setTrips((await res.json()) as SportsTravelTrip[]);
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
     if (orgId) load(orgId);
@@ -67,16 +65,23 @@ export default function TravelPage() {
 
   async function createTrip() {
     if (!orgId || !form.title || !form.departureDate) return;
-    const { error } = await supabase.from("sports_travel_trips").insert({
-      org_id: orgId,
-      title: form.title,
-      destination: form.destination || null,
-      departure_date: form.departureDate,
-      return_date: form.returnDate || form.departureDate,
-      itinerary: form.itinerary || null,
-      status: "planning",
+    const res = await fetch("/api/sports/travel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        title: form.title,
+        destination: form.destination,
+        departureDate: form.departureDate,
+        returnDate: form.returnDate || form.departureDate,
+        itinerary: form.itinerary,
+        packingList: form.packingList,
+      }),
     });
-    if (error) { toast.error(error.message); return; }
+    if (!res.ok) {
+      toast.error((await res.json().catch(() => ({}))).error ?? "Failed to create trip");
+      return;
+    }
     toast.success("Trip created!");
     setCreateOpen(false);
     setForm({ title: "", destination: "", departureDate: "", returnDate: "", itinerary: "", packingList: "" });

@@ -64,5 +64,3 @@ export function ReimbursementList({
     </div>
   );
 }
-
-export { STATUS_COLOR };

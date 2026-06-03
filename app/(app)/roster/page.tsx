@@ -27,7 +27,6 @@ const STATUS_OPTIONS = [
   { value: "alumni", label: "Alumni" },
   { value: "advisor", label: "Advisor" },
   { value: "suspended", label: "Suspended" },
-  { value: "new_member", label: "New member" },
 ];
 
 const PAYMENT_OPTIONS = [

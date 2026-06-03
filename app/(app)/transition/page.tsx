@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { BookOpen, Download, Plus, Save } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
 import { useOrg } from "@/hooks/use-org";
 import {
   Button, Card, CardHeader, EmptyState, Modal,
@@ -20,7 +19,6 @@ const BINDER_ROLES = [
 ];
 
 export default function TransitionPage() {
-  const supabase = createClient();
   const { orgId, orgName, role } = useOrg();
   const [binders, setBinders] = useState<TransitionBinder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,10 +34,10 @@ export default function TransitionPage() {
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
-    const { data } = await supabase.from("transition_binders").select("*").eq("org_id", oid).order("created_at", { ascending: false });
-    setBinders((data ?? []) as TransitionBinder[]);
+    const res = await fetch(`/api/transition/binders?org_id=${encodeURIComponent(oid)}`);
+    setBinders(res.ok ? ((await res.json()) as TransitionBinder[]) : []);
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
     if (orgId) load(orgId);
@@ -51,21 +49,29 @@ export default function TransitionPage() {
 
   async function saveBinder() {
     if (!orgId || !form.role) return;
-    const { error } = await supabase.from("transition_binders").insert({
-      org_id: orgId,
-      role: form.role,
-      semester: form.semester,
-      year: parseInt(form.year),
-      responsibilities: form.responsibilities || null,
-      lessons_learned: form.lessonsLearned || null,
-      recommendations: form.recommendations || null,
-      key_deadlines: form.keyDeadlines ? form.keyDeadlines.split("\n").filter(Boolean).map((d) => ({ deadline: d })) : [],
-      key_contacts: form.keyContacts ? form.keyContacts.split("\n").filter(Boolean).map((c) => ({ contact: c })) : [],
-      vendor_notes: form.vendorNotes || null,
-      budget_notes: form.budgetNotes || null,
-      unfinished_tasks: form.unfinishedTasks || null,
+    const res = await fetch("/api/transition/binders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        role: form.role,
+        semester: form.semester,
+        year: form.year,
+        responsibilities: form.responsibilities,
+        lessonsLearned: form.lessonsLearned,
+        recommendations: form.recommendations,
+        keyDeadlinesText: form.keyDeadlines,
+        keyContactsText: form.keyContacts,
+        vendorNotes: form.vendorNotes,
+        budgetNotes: form.budgetNotes,
+        unfinishedTasks: form.unfinishedTasks,
+      }),
     });
-    if (error) { toast.error(error.message); return; }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error((err as { error?: string }).error ?? "Failed to save");
+      return;
+    }
     toast.success("Transition binder saved");
     load(orgId);
   }

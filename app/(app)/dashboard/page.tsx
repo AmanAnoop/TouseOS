@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { loadActiveMembershipServer } from "@/lib/active-org-membership-server";
 import {
   StatCard, Card, CardHeader, Badge, ProgressBar,
   EmptyState, Alert,
@@ -29,24 +30,22 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: membership } = await supabase
-    .from("org_members")
-    .select("org_id, role, organizations(*)")
-    .eq("user_id", user.id)
-    .neq("status", "removed")
-    .order("joined_at", { ascending: true })
-    .limit(1)
+  const activeMembership = await loadActiveMembershipServer(user.id);
+  if (!activeMembership) redirect("/onboarding");
+
+  const orgId = activeMembership.orgId;
+  const { data: orgRow } = await supabase
+    .from("organizations")
+    .select("*")
+    .eq("id", orgId)
     .single();
 
-  if (!membership) redirect("/onboarding");
-
-  const orgId = membership.org_id;
-  const org = membership.organizations as unknown as Record<string, unknown>;
-  const orgType = String(org.type ?? "general_org");
+  const org = (orgRow ?? {}) as Record<string, unknown>;
+  const orgType = activeMembership.orgType || String(org.type ?? "general_org");
   const product = getProductId(orgType);
   if (product === "sports") redirect("/sports");
   if (product === "club") redirect("/club");
-  const myRole = String(membership.role ?? "general_member");
+  const myRole = String(activeMembership.role ?? "general_member");
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
 
   const [
