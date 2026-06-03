@@ -27,7 +27,7 @@ export async function POST(request: Request) {
 
   const body = await request.json();
   const {
-    orgId, title, type, description, location, startsAt, endsAt,
+    orgId, title, type, description, location, address, startsAt, endsAt,
     rsvpEnabled, rsvpLimit, waitlistEnabled, showGuestList, alcohol,
     riskLevel, budgetAmount, dresscode, playlistUrl, theme, isPrivate,
   } = body;
@@ -39,6 +39,7 @@ export async function POST(request: Request) {
     type: type ?? "other",
     description,
     location,
+    address: address ?? null,
     starts_at: startsAt,
     ends_at: endsAt,
     rsvp_enabled: rsvpEnabled ?? true,

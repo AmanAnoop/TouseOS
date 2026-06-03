@@ -420,6 +420,10 @@ export interface SportsTravelTrip {
   org_id: string;
   title: string;
   destination: string | null;
+  venue_name?: string | null;
+  address?: string | null;
+  departure_location?: string | null;
+  meeting_point?: string | null;
   event_id: string | null;
   departure_date: string;
   return_date: string;
@@ -427,6 +431,7 @@ export interface SportsTravelTrip {
   cost_per_player: number | null;
   status: string;
   itinerary: string | null;
+  packing_list?: string | null;
   created_at: string;
 }
 

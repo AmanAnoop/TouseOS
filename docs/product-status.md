@@ -1,6 +1,6 @@
 # TouseOS product status (realistic)
 
-Last updated: Documents signed URLs, scheduled SMS, sports/club polish on `cursor/continue-build-4a50`.
+Last updated: Event/travel locations + club color pickers on `cursor/locations-club-colors-4a50`.
 
 ## How to read these numbers
 
@@ -34,6 +34,12 @@ Do not treat route count as “done.” Live Stripe, SMS, counsel sign-off, and 
 | Admin / platform | **~52%** | Allowlist |
 
 ## Latest (this branch)
+
+- **Events:** Address saved on create; edit location via PATCH; maps link on event page
+- **SportsOS travel:** Venue, address, departure & meet-up fields (migration 027)
+- **Club/sports colors:** Custom primary/secondary pickers in Settings (not only university presets)
+
+## Prior (`cursor/continue-build-4a50`)
 
 - **Documents:** `/api/documents/signed-url` for secure view/download; private files no longer use public URLs
 - **Scheduled comms:** SMS channel in scheduler + cron (`lib/scheduled-comms.ts`)

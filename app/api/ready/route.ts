@@ -12,7 +12,7 @@ export async function GET() {
       status: readiness.readyForPilot ? "ok" : "degraded",
       env: readiness,
       migrations: {
-        expected: "001 through 026 in supabase/migrations/",
+        expected: "001 through 027 in supabase/migrations/",
         seedOptional: "005_seed.sql",
         doc: "docs/launch-checklist.md",
       },

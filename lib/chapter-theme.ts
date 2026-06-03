@@ -30,6 +30,19 @@ export function resolveChapterColors(input: ChapterThemeInput): ResolvedChapterC
   const campusSecondary = uni?.secondary ?? REGAL.racingGreen;
 
   if (product === "sports" || product === "club") {
+    const useCustom =
+      uni?.id === "custom-campus" ||
+      Boolean(input.primaryColor && input.primaryColor !== campusPrimary);
+    if (useCustom && input.primaryColor) {
+      const primary = input.primaryColor;
+      const secondary = input.secondaryColor ?? input.primaryColor;
+      return {
+        orgPrimary: primary,
+        orgSecondary: secondary,
+        campusPrimary: primary,
+        campusSecondary: secondary,
+      };
+    }
     return {
       orgPrimary: campusPrimary,
       orgSecondary: campusSecondary,

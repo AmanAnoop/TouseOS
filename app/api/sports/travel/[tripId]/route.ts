@@ -90,7 +90,10 @@ export async function PATCH(
 ) {
   const { tripId } = await params;
   const body = await request.json();
-  const { orgId, status, itinerary, packingList } = body;
+  const {
+    orgId, status, itinerary, packingList,
+    destination, venueName, address, departureLocation, meetingPoint,
+  } = body;
   if (!orgId) return NextResponse.json({ error: "orgId required" }, { status: 400 });
 
   const supabase = await createClient();
@@ -116,6 +119,11 @@ export async function PATCH(
       ...(status ? { status } : {}),
       ...(itinerary !== undefined ? { itinerary } : {}),
       ...(packingList !== undefined ? { packing_list: packingList } : {}),
+      ...(destination !== undefined ? { destination } : {}),
+      ...(venueName !== undefined ? { venue_name: venueName } : {}),
+      ...(address !== undefined ? { address } : {}),
+      ...(departureLocation !== undefined ? { departure_location: departureLocation } : {}),
+      ...(meetingPoint !== undefined ? { meeting_point: meetingPoint } : {}),
       updated_at: new Date().toISOString(),
     })
     .eq("id", tripId)

@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Calendar, ChevronLeft, DollarSign, Image as ImageIcon, MapPin, Users } from "lucide-react";
+import { Calendar, ChevronLeft, DollarSign, Image as ImageIcon, Users } from "lucide-react";
 import toast from "react-hot-toast";
 import { useOrg } from "@/hooks/use-org";
+import { LocationFields, type LocationFieldValues } from "@/components/location/location-fields";
 import { Button, Input, PageHeader, Select, Textarea, Alert } from "@/components/ui";
 
 import { eventTypesForOrgType } from "@/lib/org-product";
@@ -18,8 +19,13 @@ export default function NewEventPage() {
     title: "",
     type: "other",
     description: "",
-    location: "",
-    address: "",
+    locationValues: {
+      venueName: "",
+      address: "",
+      destination: "",
+      departureLocation: "",
+      meetingPoint: "",
+    } as LocationFieldValues,
     startsAt: "",
     endsAt: "",
     rsvpEnabled: true,
@@ -49,8 +55,8 @@ export default function NewEventPage() {
         title: form.title,
         type: form.type,
         description: form.description || null,
-        location: form.location || null,
-        address: form.address || null,
+        location: form.locationValues.venueName || null,
+        address: form.locationValues.address || null,
         startsAt: form.startsAt,
         endsAt: form.endsAt || null,
         rsvpEnabled: form.rsvpEnabled,
@@ -127,8 +133,11 @@ export default function NewEventPage() {
           <Input label="Start date & time" type="datetime-local" required value={form.startsAt} onChange={(e) => setForm({ ...form, startsAt: e.target.value })} />
           <Input label="End date & time" type="datetime-local" value={form.endsAt} onChange={(e) => setForm({ ...form, endsAt: e.target.value })} />
         </div>
-        <Input label="Location / venue name" placeholder="Beta House, Venue name..." icon={<MapPin size={15} />} value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
-        <Input label="Address" placeholder="123 Main St, Austin, TX" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+        <LocationFields
+          variant="event"
+          values={form.locationValues}
+          onChange={(patch) => setForm({ ...form, locationValues: { ...form.locationValues, ...patch } })}
+        />
       </div>
 
       {/* Event page customization (Partiful-style) */}

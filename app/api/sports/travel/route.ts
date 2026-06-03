@@ -25,7 +25,10 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
-  const { orgId, title, destination, departureDate, returnDate, itinerary, packingList } = body;
+  const {
+    orgId, title, destination, venueName, address, departureLocation, meetingPoint,
+    departureDate, returnDate, itinerary, packingList,
+  } = body;
   if (!orgId || !title) {
     return NextResponse.json({ error: "orgId and title required" }, { status: 400 });
   }
@@ -36,6 +39,10 @@ export async function POST(request: Request) {
       org_id: orgId,
       title,
       destination: destination || null,
+      venue_name: venueName || null,
+      address: address || null,
+      departure_location: departureLocation || null,
+      meeting_point: meetingPoint || null,
       departure_date: departureDate || null,
       return_date: returnDate || null,
       itinerary: itinerary || null,
