@@ -6,8 +6,9 @@ import { loadDashboardData } from "@/lib/dashboard-data";
 import { isDashboardOfficer } from "@/lib/dashboard-roles";
 import {
   StatCard, Card, CardHeader, Badge, ProgressBar,
-  EmptyState, Alert, PageHeader,
+  EmptyState, Alert,
 } from "@/components/ui";
+import { PageShell } from "@/components/layout/page-shell";
 import {
   formatCurrency, formatDateTime, isGreekOrg, isSportsOrg, isClubOrg,
 } from "@/lib/utils";
@@ -77,15 +78,13 @@ export default async function DashboardPage() {
   const showGettingStarted = isOfficer && setupSteps.some((s) => !s.done);
 
   return (
-    <div className="ds-page-stack">
-      <div className="ds-dashboard-top-bar" aria-hidden />
-      <PageHeader
-        title="Dashboard"
-        orgLabel={String(org.name)}
-        description={`${productLabel(product)} workspace${!isOfficer ? " · Member view" : ""}`}
-        action={isOfficer ? <HealthScoreBadge composite={composite} metricsUsed={metricsUsed} /> : undefined}
-      />
-
+    <PageShell
+      title="Dashboard"
+      orgName={String(org.name)}
+      breadcrumb={`${productLabel(product)}${!isOfficer ? " · Member view" : ""}`}
+      showDashboardAccent
+      action={isOfficer ? <HealthScoreBadge composite={composite} metricsUsed={metricsUsed} /> : undefined}
+    >
       <OfficerQuickActions role={myRole} orgType={orgType} />
 
       {!isOfficer && (
@@ -107,7 +106,7 @@ export default async function DashboardPage() {
       )}
 
       {isOfficer ? (
-        <div className="ds-stat-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
+        <div className="ds-stat-grid ds-stat-grid-accent" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
           <StatCard accent title="Members" value={members.length} delta={`${activeCount} active`} icon={<Users size={18} aria-hidden />} />
           <StatCard title="New members" value={newMembers} icon={<Users size={18} aria-hidden />} />
           <StatCard title="Dues collected" value={formatCurrency(totalCollected)} delta={`${collectionRate}%`} deltaType={collectionRate >= 75 ? "up" : "down"} icon={<DollarSign size={18} />} />
@@ -370,6 +369,6 @@ export default async function DashboardPage() {
           </div>
         </Card>
       )}
-    </div>
+    </PageShell>
   );
 }

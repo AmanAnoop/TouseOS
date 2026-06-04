@@ -34,13 +34,14 @@ export function ThemeToggle({ variant = "default" }: ThemeToggleProps) {
     return (
       <button
         type="button"
-        className="ds-btn ds-btn-ghost ds-btn-icon"
-        style={{ color: "rgba(247,246,243,0.65)" }}
+        className="ds-theme-toggle-sidebar"
         onClick={onToggle}
         aria-label={label}
         title={label}
       >
-        {isDark ? <Sun size={16} aria-hidden /> : <Moon size={16} aria-hidden />}
+        <span className="ds-theme-toggle-icon" aria-hidden>
+          {isDark ? <Sun size={16} /> : <Moon size={16} />}
+        </span>
       </button>
     );
   }

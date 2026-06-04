@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { Toaster } from "react-hot-toast";
+import { AppProviders } from "@/components/providers/app-providers";
 import { THEME_INIT_SCRIPT } from "@/lib/touse-theme";
 import "./globals.css";
 
@@ -28,7 +29,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </Script>
       </head>
       <body>
-        {children}
+        <AppProviders>
+          {children}
+        </AppProviders>
         <Toaster
           position="bottom-right"
           toastOptions={{

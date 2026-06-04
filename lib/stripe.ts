@@ -1,8 +1,30 @@
 import Stripe from "stripe";
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-06-20",
-  typescript: true,
+function getStripeSecret(): string | undefined {
+  return process.env.STRIPE_SECRET_KEY?.trim();
+}
+
+let stripeClient: Stripe | null = null;
+
+export function getStripeServer(): Stripe {
+  const key = getStripeSecret();
+  if (!key) {
+    throw new Error("STRIPE_SECRET_KEY is not configured");
+  }
+  if (!stripeClient) {
+    stripeClient = new Stripe(key, {
+      apiVersion: "2024-06-20",
+      typescript: true,
+    });
+  }
+  return stripeClient;
+}
+
+/** @deprecated Use getStripeServer() */
+export const stripe = new Proxy({} as Stripe, {
+  get(_target, prop) {
+    return Reflect.get(getStripeServer(), prop);
+  },
 });
 
 function applicationFeeAmountCents(totalCents: number): number | undefined {
