@@ -262,7 +262,7 @@ export default function InterchapterPage() {
 
   if (!isGreek) {
     return (
-      <div className="space-y-5">
+      <div className="ds-page-stack">
         <PageHeader title="ExecLink" description="Interchapter coordination for Greek organizations" />
         <Alert type="info" title="ExecLink is for Greek organizations" description="This feature is available for fraternities and sororities to coordinate events with other chapters." />
       </div>
@@ -270,7 +270,7 @@ export default function InterchapterPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         breadcrumb="ExecLink"
         title="Touse Exchange"

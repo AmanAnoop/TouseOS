@@ -23,7 +23,7 @@ const config: Config = {
         background: "var(--color-bg)",
         card: "var(--color-bg-raised)",
         primary: "var(--color-org-primary)",
-        "primary-foreground": "var(--color-text-inverse)",
+        "primary-foreground": "var(--color-text-on-brand)",
         org: "var(--color-org-primary)",
         success: "var(--color-success)",
         warning: "var(--color-warning)",
@@ -46,6 +46,7 @@ const config: Config = {
         club: {
           50: "color-mix(in srgb, var(--color-org-primary) 8%, var(--color-bg))",
           600: "var(--color-org-primary)",
+          700: "color-mix(in srgb, var(--color-org-primary) 85%, #000000)",
         },
         ring: "var(--color-org-primary)",
       },

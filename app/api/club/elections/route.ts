@@ -106,3 +106,41 @@ export async function POST(request: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
 }
+
+export async function PATCH(request: Request) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { orgId, id, status } = await request.json();
+  if (!orgId || !id || !status) {
+    return NextResponse.json({ error: "orgId, id, and status required" }, { status: 400 });
+  }
+
+  const { data: m } = await supabase
+    .from("org_members")
+    .select("role, organizations(type)")
+    .eq("user_id", user.id)
+    .eq("org_id", orgId)
+    .single();
+
+  const role = String(m?.role ?? "general_member") as RoleName;
+  if (getProductId(String(((m?.organizations as unknown) as Record<string, unknown>)?.type ?? "")) !== "club" || !can(role, "manage_org_settings")) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const updates: Record<string, unknown> = { status };
+  if (status === "closed") updates.closes_at = new Date().toISOString();
+  if (status === "open") updates.opens_at = new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from("club_elections")
+    .update(updates)
+    .eq("id", id)
+    .eq("org_id", orgId)
+    .select()
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data);
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Avatar, Badge, Table } from "@/components/ui";
+import { Badge, MemberIdentity, Table } from "@/components/ui";
 import { cn, getStatusColor } from "@/lib/utils";
 import { ROLE_LABELS } from "@/lib/permissions";
 import type { MemberProfile } from "@/types";
@@ -22,15 +22,12 @@ export function MemberTable({ members, loading, className, showPayment = false }
       header: "Member",
       mobilePrimary: true,
       render: (m: MemberProfile) => (
-        <div className="flex items-center gap-2">
-          <Avatar name={m.full_name} src={m.profile_photo_url ?? undefined} size="sm" />
-          <div>
-            <p className="font-medium text-sm">{m.full_name}</p>
-            {m.preferred_name && (
-              <p className="text-xs text-muted-foreground">{m.preferred_name}</p>
-            )}
-          </div>
-        </div>
+        <MemberIdentity
+          name={m.full_name}
+          src={m.profile_photo_url}
+          subtitle={m.preferred_name ?? undefined}
+          size="sm"
+        />
       ),
     },
     {

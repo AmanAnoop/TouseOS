@@ -139,7 +139,7 @@ export default function RosterPage() {
   const roleOptions = Object.entries(ROLE_LABELS).map(([v, l]) => ({ value: v, label: l }));
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title={isSportsOrg(orgType) ? "Team Roster" : "Member Roster"}
         description={`${members.length} members`}
@@ -171,14 +171,16 @@ export default function RosterPage() {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="h-9 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          className="ds-input ds-select h-9 min-h-9 text-sm"
+          style={{ width: "auto", minWidth: 140 }}
         >
           {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         <select
           value={paymentFilter}
           onChange={(e) => setPaymentFilter(e.target.value)}
-          className="h-9 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          className="ds-input ds-select h-9 min-h-9 text-sm"
+          style={{ width: "auto", minWidth: 160 }}
         >
           {PAYMENT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>

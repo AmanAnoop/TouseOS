@@ -77,7 +77,7 @@ export default async function DashboardPage() {
   const showGettingStarted = isOfficer && setupSteps.some((s) => !s.done);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+    <div className="ds-page-stack">
       <div className="ds-dashboard-top-bar" aria-hidden />
       <PageHeader
         title="Dashboard"

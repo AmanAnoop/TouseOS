@@ -211,7 +211,7 @@ export default function TasksPage() {
   const total = tasks.filter((t) => t.status !== "cancelled").length;
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Tasks"
         description={`${total - done} open · ${done} completed`}

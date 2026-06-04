@@ -44,27 +44,48 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { orgId, memberId, memberName, hours, activity, eventDate } = await request.json();
-  if (!orgId || !hours || !activity) {
-    return NextResponse.json({ error: "orgId, hours, and activity required" }, { status: 400 });
+  const {
+    orgId, memberId, memberName, hours, activity, eventDate,
+    organizationServed, serviceType, activityNotes,
+  } = await request.json();
+
+  const orgServed = String(organizationServed ?? "").trim();
+  const type = String(serviceType ?? "").trim();
+  const notes = String(activityNotes ?? "").trim();
+  const activityText =
+    String(activity ?? "").trim()
+    || [orgServed, type, notes].filter(Boolean).join(" — ");
+
+  if (!orgId || !hours || !activityText) {
+    return NextResponse.json({ error: "orgId, hours, and organization served required" }, { status: 400 });
+  }
+  if (!orgServed) {
+    return NextResponse.json({ error: "organizationServed required" }, { status: 400 });
   }
 
   const ctx = await assertClubMember(supabase, user.id, orgId);
   if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { data, error } = await supabase
-    .from("club_service_hours")
-    .insert({
-      org_id: orgId,
-      member_id: memberId || null,
-      member_name: memberName || null,
-      hours: Number(hours),
-      activity,
-      event_date: eventDate || null,
-      verified: can(ctx.role, "edit_roster"),
-    })
-    .select()
-    .single();
+  const row: Record<string, unknown> = {
+    org_id: orgId,
+    member_id: memberId || null,
+    member_name: memberName || null,
+    hours: Number(hours),
+    activity: activityText,
+    event_date: eventDate || null,
+    verified: can(ctx.role, "edit_roster"),
+    organization_served: orgServed,
+    service_type: type || null,
+  };
+
+  let { data, error } = await supabase.from("club_service_hours").insert(row).select().single();
+
+  if (error?.message?.includes("organization_served")) {
+    const fallback = { ...row };
+    delete fallback.organization_served;
+    delete fallback.service_type;
+    ({ data, error } = await supabase.from("club_service_hours").insert(fallback).select().single());
+  }
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);

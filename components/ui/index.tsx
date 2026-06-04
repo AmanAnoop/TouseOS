@@ -29,7 +29,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         "ds-btn",
         btnVariantClass[variant],
         size === "sm" && "h-8 text-xs",
-        size === "lg" && "h-11 px-24",
+        size === "lg" && "h-11 px-6",
         className,
       )}
       disabled={props.disabled || loading}
@@ -126,8 +126,8 @@ interface CardHeaderProps {
 
 export function CardHeader({ title, description, action, icon, className }: CardHeaderProps) {
   return (
-    <div className={cn("flex items-start justify-between gap-16", className)} style={{ marginBottom: icon ? 12 : 0 }}>
-      <div className="flex items-start gap-12" style={{ gap: 12 }}>
+    <div className={cn("flex items-start justify-between gap-4", className)} style={{ marginBottom: icon ? 12 : 0 }}>
+      <div className="flex items-start gap-3">
         {icon && (
           <div
             style={{
@@ -253,11 +253,13 @@ interface AvatarProps {
   src?: string | null;
   size?: "xs" | "sm" | "md" | "lg" | "xl";
   className?: string;
+  /** On dark sidebar/chrome — light initials on subtle surface */
+  variant?: "default" | "chrome";
 }
 
 const avatarSizes = { xs: 24, sm: 32, md: 40, lg: 48, xl: 64 };
 
-export function Avatar({ name, src, size = "md", className }: AvatarProps) {
+export function Avatar({ name, src, size = "md", className, variant = "default" }: AvatarProps) {
   const px = avatarSizes[size];
   const initStr = name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 
@@ -275,9 +277,20 @@ export function Avatar({ name, src, size = "md", className }: AvatarProps) {
     );
   }
 
+  const initialsStyle =
+    variant === "chrome"
+      ? {
+          background: "rgba(255,255,255,0.12)",
+          color: "var(--color-text-inverse)",
+        }
+      : {
+          background: "var(--color-org-primary)",
+          color: "var(--color-text-on-brand)",
+        };
+
   return (
     <div
-      className={className}
+      className={cn(className)}
       style={{
         width: px,
         height: px,
@@ -288,11 +301,126 @@ export function Avatar({ name, src, size = "md", className }: AvatarProps) {
         fontSize: px * 0.35,
         fontWeight: 600,
         flexShrink: 0,
-        background: "color-mix(in srgb, var(--color-org-primary) 15%, var(--color-bg-subtle))",
-        color: "var(--color-org-primary)",
+        ...initialsStyle,
       }}
     >
       {initStr}
+    </div>
+  );
+}
+
+/* ── Member identity (avatar + name) ───────────────────── */
+interface MemberIdentityProps {
+  name: string;
+  src?: string | null;
+  subtitle?: string;
+  size?: AvatarProps["size"];
+  avatarVariant?: AvatarProps["variant"];
+  className?: string;
+}
+
+export function MemberIdentity({
+  name,
+  src,
+  subtitle,
+  size = "sm",
+  avatarVariant = "default",
+  className,
+}: MemberIdentityProps) {
+  return (
+    <div className={cn("ds-member-identity", className)}>
+      <Avatar name={name} src={src} size={size} variant={avatarVariant} />
+      <div className="ds-member-identity-text">
+        <p className="ds-member-identity-name">{name}</p>
+        {subtitle && <p className="ds-member-identity-meta">{subtitle}</p>}
+      </div>
+    </div>
+  );
+}
+
+/* ── Action menu (dropdown) ───────────────────────────── */
+interface ActionMenuItem {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}
+
+export function ActionMenu({
+  label,
+  items,
+  className,
+}: {
+  label: string;
+  items: ActionMenuItem[];
+  className?: string;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (!open) return;
+    function onDoc(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  return (
+    <div ref={ref} className={cn("relative inline-block", className)}>
+      <Button
+        size="sm"
+        icon={<span style={{ fontSize: 10, marginLeft: 2 }}>▾</span>}
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+      >
+        {label}
+      </Button>
+      {open && (
+        <div
+          role="menu"
+          className="ds-card"
+          style={{
+            position: "absolute",
+            right: 0,
+            top: "calc(100% + 6px)",
+            zIndex: 50,
+            minWidth: 200,
+            padding: 6,
+            boxShadow: "var(--shadow-lg)",
+          }}
+        >
+          {items.map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              role="menuitem"
+              disabled={item.disabled}
+              onClick={() => {
+                setOpen(false);
+                item.onClick();
+              }}
+              style={{
+                display: "block",
+                width: "100%",
+                textAlign: "left",
+                padding: "8px 12px",
+                fontSize: 13,
+                border: "none",
+                borderRadius: 6,
+                background: "transparent",
+                color: "var(--color-text-primary)",
+                cursor: item.disabled ? "not-allowed" : "pointer",
+                opacity: item.disabled ? 0.5 : 1,
+              }}
+              className="hover:bg-bg-subtle"
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
