@@ -5,6 +5,8 @@ import { stripe } from "@/lib/stripe";
 import { createServiceClient } from "@/lib/supabase/server";
 import { createNotification } from "@/lib/notifications";
 import { triggerBudgetSyncForOrg } from "@/lib/budget-auto-sync";
+import { claimStripeWebhookEvent } from "@/lib/stripe-webhook-idempotency";
+import { recordStripeFinanceTransaction } from "@/lib/finance-stripe-tx";
 
 function getUserIdFromMemberProfiles(mp: unknown): string | null {
   if (!mp) return null;
@@ -34,6 +36,11 @@ export async function POST(request: Request) {
   }
 
   const supabase = await createServiceClient();
+
+  const isNew = await claimStripeWebhookEvent(supabase, event.id);
+  if (!isNew) {
+    return NextResponse.json({ received: true, duplicate: true });
+  }
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
@@ -89,6 +96,15 @@ export async function POST(request: Request) {
             link: "/payments",
           });
         }
+        const payRow = updatedPayment as { id: string; org_id: string; member_id?: string };
+        await recordStripeFinanceTransaction(supabase, {
+          orgId: payRow.org_id,
+          paymentId: payRow.id,
+          memberId: payRow.member_id ?? null,
+          amount: sessionPaid,
+          description: "Dues payment",
+          paymentIntentId: session.payment_intent ? String(session.payment_intent) : null,
+        });
       }
 
       await supabase.from("audit_logs").insert({
@@ -158,6 +174,43 @@ export async function POST(request: Request) {
     }
   }
 
+  if (event.type === "payment_intent.succeeded") {
+    const intent = event.data.object;
+    const paymentId = intent.metadata?.paymentId;
+    if (paymentId) {
+      const sessionPaid = (intent.amount_received ?? intent.amount ?? 0) / 100;
+      const { data: existingPayment } = await supabase
+        .from("payments")
+        .select("amount, paid_amount, org_id, member_id")
+        .eq("id", paymentId)
+        .single();
+
+      const priorPaid = Number(existingPayment?.paid_amount ?? 0);
+      const totalDue = Number(existingPayment?.amount ?? sessionPaid);
+      const newPaid = priorPaid + sessionPaid;
+      const fullyPaid = newPaid >= totalDue;
+
+      await supabase.from("payments").update({
+        status: fullyPaid ? "paid" : "partial",
+        paid_amount: Math.min(newPaid, totalDue),
+        paid_at: fullyPaid ? new Date().toISOString() : undefined,
+        stripe_payment_intent_id: intent.id,
+      }).eq("id", paymentId);
+
+      if (existingPayment?.org_id) {
+        await recordStripeFinanceTransaction(supabase, {
+          orgId: existingPayment.org_id,
+          paymentId,
+          memberId: existingPayment.member_id,
+          amount: sessionPaid,
+          description: "Dues payment",
+          paymentIntentId: intent.id,
+        });
+        void triggerBudgetSyncForOrg(existingPayment.org_id);
+      }
+    }
+  }
+
   if (event.type === "payment_intent.payment_failed") {
     const intent = event.data.object;
     const { data: payment } = await supabase
@@ -173,6 +226,17 @@ export async function POST(request: Request) {
         .eq("id", payment.id)
         .select("id, org_id, member_profiles(user_id, full_name)")
         .single();
+
+      if (updated?.org_id) {
+        await recordStripeFinanceTransaction(supabase, {
+          orgId: updated.org_id,
+          paymentId: payment.id,
+          amount: 0,
+          description: "Payment failed",
+          paymentIntentId: intent.id,
+          status: "failed",
+        });
+      }
 
       if (updated) {
         const mp2 = (updated as unknown as { member_profiles?: unknown }).member_profiles;
