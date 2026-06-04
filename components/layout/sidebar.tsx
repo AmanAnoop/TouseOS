@@ -82,8 +82,7 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
     [product, unreadCount, hasGreekMembership, platformAdmin, universityAdmin],
   );
 
-  const logoBg =
-    accent === "sports" ? "bg-sports-600" : accent === "club" ? "bg-club-600" : "bg-primary";
+  const logoBg = "bg-primary";
 
   useEffect(() => {
     const pref = localStorage.getItem("theme");

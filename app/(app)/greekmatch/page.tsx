@@ -165,7 +165,7 @@ export default function GreekMatchPage() {
           description="Set up your profile to start matching with Greek students across campus."
           action={
             <Link href="/profile">
-              <Button className="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600">
+              <Button>
                 <Heart size={14} className="fill-white" />
                 Set up GreekMatch
               </Button>
@@ -228,7 +228,7 @@ export default function GreekMatchPage() {
           >
             {/* Photo area */}
             <div
-              className="w-full h-2/3 bg-gradient-to-br from-rose-400 to-pink-600 relative flex items-end"
+              className="w-full h-2/3 bg-primary/90 relative flex items-end"
               style={currentProfile.photos?.[0] ? { backgroundImage: `url(${currentProfile.photos[0]})`, backgroundSize: "cover", backgroundPosition: "center" } : {}}
             >
               {/* Swipe indicators */}
@@ -420,7 +420,7 @@ export default function GreekMatchPage() {
         footer={
           <div className="flex flex-col gap-2 w-full">
             <Link href="/greekmatch/matches" className="w-full" onClick={() => setMatchModal(null)}>
-              <Button className="w-full bg-gradient-to-r from-pink-500 to-rose-500">Send a message</Button>
+              <Button className="w-full">Send a message</Button>
             </Link>
             <Button variant="ghost" className="w-full" onClick={() => setMatchModal(null)}>Keep swiping</Button>
           </div>
@@ -442,7 +442,7 @@ export default function GreekMatchPage() {
           </div>
           <h2 className="text-2xl font-bold text-foreground">It&apos;s a match!</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            You and {matchModal?.display_name} both liked each other 💚
+            You and {matchModal?.display_name} both liked each other.
           </p>
         </div>
       </Modal>

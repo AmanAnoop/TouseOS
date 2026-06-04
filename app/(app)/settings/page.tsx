@@ -86,6 +86,17 @@ export default function SettingsPage() {
     const { org: updated } = await res.json();
     toast.success("Settings saved");
     setOrg(updated as Record<string, unknown>);
+    if (updated) {
+      const settings = ((updated.settings ?? {}) as Record<string, unknown>);
+      setOrgForm((prev) => ({
+        ...prev,
+        primaryColor: String(updated.primary_color ?? prev.primaryColor),
+        secondaryColor: String(updated.secondary_color ?? prev.secondaryColor),
+        universityId: String(settings.university_id ?? prev.universityId),
+        greekAffiliationId: String(settings.greek_affiliation_id ?? prev.greekAffiliationId),
+      }));
+    }
+    router.refresh();
   }
 
   async function copyInviteCode() {

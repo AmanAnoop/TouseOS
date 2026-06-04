@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { isPlatformAdminEmail } from "@/lib/platform-admin";
 import { estimatePlatformMrr, PLATFORM_PLANS, type PlatformPlan } from "@/lib/platform-billing";
+import {
+  isMissingPlatformPlanColumn,
+  PLATFORM_PLAN_MIGRATION_HINT,
+  withPlatformPlanDefaults,
+} from "@/lib/platform-plan-columns";
 
 export async function GET() {
   const supabase = await createClient();
@@ -11,15 +16,28 @@ export async function GET() {
   }
 
   const service = await createServiceClient();
-  const { data: orgs, error } = await service
+  const planQuery = await service
     .from("organizations")
     .select("id, name, platform_plan, platform_plan_status, stripe_account_id, created_at")
     .order("created_at", { ascending: false })
     .limit(200);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  let orgRows: Record<string, unknown>[] | null = planQuery.data as Record<string, unknown>[] | null;
+  let loadError = planQuery.error;
 
-  const list = orgs ?? [];
+  if (isMissingPlatformPlanColumn(loadError)) {
+    const baseQuery = await service
+      .from("organizations")
+      .select("id, name, stripe_account_id, created_at")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    orgRows = baseQuery.data as Record<string, unknown>[] | null;
+    loadError = baseQuery.error;
+  }
+
+  if (loadError) return NextResponse.json({ error: loadError.message }, { status: 500 });
+
+  const list = (orgRows ?? []).map((o) => withPlatformPlanDefaults(o));
   const stripeConnected = list.filter((o) => Boolean(o.stripe_account_id)).length;
   const byPlan = PLATFORM_PLANS.map((p) => ({
     plan: p.id,
@@ -78,6 +96,9 @@ export async function PATCH(request: Request) {
     .select("id, name, platform_plan, platform_plan_status, stripe_account_id")
     .single();
 
+  if (isMissingPlatformPlanColumn(error)) {
+    return NextResponse.json({ error: PLATFORM_PLAN_MIGRATION_HINT }, { status: 503 });
+  }
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   await service.from("audit_logs").insert({

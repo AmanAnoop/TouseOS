@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getUniversityAdminCampuses, isUniversityAdminEmail } from "@/lib/university-admin";
+import { fetchOrganizationById } from "@/lib/org-select";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -15,15 +16,12 @@ export async function GET(request: Request) {
   const service = await createServiceClient();
   const campuses = getUniversityAdminCampuses();
 
-  const { data: org, error } = await service
-    .from("organizations")
-    .select("id, name, type, campus, council_or_league, created_at, platform_plan")
-    .eq("id", orgId)
-    .single();
+  const { data: org, error } = await fetchOrganizationById(service, orgId);
 
   if (error || !org) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  if (campuses.length > 0 && org.campus && !campuses.includes(org.campus)) {
+  const campus = org.campus != null ? String(org.campus) : "";
+  if (campuses.length > 0 && campus && !campuses.includes(campus)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

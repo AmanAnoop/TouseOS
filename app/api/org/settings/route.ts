@@ -4,6 +4,11 @@ import { colorsForOrgStorage } from "@/lib/chapter-theme";
 import { getGreekOrgById } from "@/lib/greek-letter-orgs";
 import { getProductId } from "@/lib/org-product";
 import { getUniversityById } from "@/lib/university-colors";
+import { fetchOrganizationById } from "@/lib/org-select";
+import {
+  isMissingPlatformPlanColumn,
+  withPlatformPlanDefaults,
+} from "@/lib/platform-plan-columns";
 
 const ADMIN_ROLES = ["owner", "president", "advisor"];
 
@@ -33,11 +38,7 @@ export async function GET(request: Request) {
   const role = await membershipRole(supabase, user.id, orgId);
   if (!role) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { data: org, error } = await supabase
-    .from("organizations")
-    .select("*, platform_plan, platform_plan_status")
-    .eq("id", orgId)
-    .single();
+  const { data: org, error } = await fetchOrganizationById(supabase, orgId);
 
   if (error || !org) return NextResponse.json({ error: "Org not found" }, { status: 404 });
 
@@ -138,12 +139,22 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "No updates" }, { status: 400 });
   }
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("organizations")
     .update(updates)
     .eq("id", orgId)
     .select("*, platform_plan, platform_plan_status")
     .single();
+
+  if (isMissingPlatformPlanColumn(error)) {
+    ({ data, error } = await supabase
+      .from("organizations")
+      .update(updates)
+      .eq("id", orgId)
+      .select("*")
+      .single());
+    if (data) data = withPlatformPlanDefaults(data as Record<string, unknown>);
+  }
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ org: data });

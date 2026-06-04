@@ -478,7 +478,7 @@ function SocialPageContent() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium">Caption</p>
-              <Button variant="ghost" size="sm" loading={generatingCaption} onClick={generateCaption}>Generate ✨</Button>
+              <Button variant="ghost" size="sm" loading={generatingCaption} onClick={generateCaption}>Generate caption</Button>
             </div>
             <textarea
               className="w-full min-h-[80px] rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"

@@ -60,10 +60,21 @@ export function ChapterIdentityPicker({
       secondaryColor: merged.secondaryColor,
     });
 
+    const universityChanged = next.universityId !== undefined;
+    const colorsTouched = next.primaryColor !== undefined || next.secondaryColor !== undefined;
+
     const out: ChapterIdentityValue = {
       ...merged,
-      primaryColor: resolved.orgPrimary,
-      secondaryColor: campusOnly ? resolved.campusSecondary : resolved.orgSecondary,
+      primaryColor: colorsTouched
+        ? (merged.primaryColor || resolved.orgPrimary)
+        : universityChanged && merged.universityId && merged.universityId !== "custom-campus"
+          ? resolved.campusPrimary
+          : (merged.primaryColor || resolved.orgPrimary),
+      secondaryColor: colorsTouched
+        ? (merged.secondaryColor || resolved.orgSecondary)
+        : universityChanged && merged.universityId && merged.universityId !== "custom-campus"
+          ? resolved.campusSecondary
+          : (merged.secondaryColor || (campusOnly ? resolved.campusSecondary : resolved.orgSecondary)),
     };
 
     applyChapterTheme({
@@ -78,13 +89,13 @@ export function ChapterIdentityPicker({
   }
 
   return (
-    <div className="space-y-4 rounded-xl border border-border bg-surface-1/50 p-4">
+    <div className="space-y-4 rounded-xl border border-border bg-surface-1 p-4">
       <div>
-        <h3 className="font-serif text-base font-semibold text-foreground">Chapter identity & colors</h3>
+        <h3 className="text-sm font-semibold text-foreground">Brand colors</h3>
         <p className="text-xs text-muted-foreground mt-1">
           {campusOnly
-            ? "SportsOS & ClubOS use your university colors across the app."
-            : "Organization colors on buttons & nav · university colors on headers, accents & cards."}
+            ? "Choose your club or team colors. They apply across navigation, buttons, and accents."
+            : "Chapter colors for actions and navigation; campus colors for headers and accents."}
         </p>
       </div>
 
@@ -144,8 +155,8 @@ export function ChapterIdentityPicker({
 
       {(campusOnly || (value.greekAffiliationId === "custom" && isGreek)) && (
         <div className="grid sm:grid-cols-2 gap-3">
-          <label className="text-sm font-medium">
-            {campusOnly ? "Primary brand color" : "Custom org primary"}
+          <label className="text-sm font-medium text-foreground">
+            {campusOnly ? "Primary color" : "Custom org primary"}
             <input
               type="color"
               className="mt-1 h-10 w-full rounded-lg border border-border cursor-pointer"
@@ -157,8 +168,8 @@ export function ChapterIdentityPicker({
               })}
             />
           </label>
-          <label className="text-sm font-medium">
-            {campusOnly ? "Secondary brand color" : "Custom org secondary"}
+          <label className="text-sm font-medium text-foreground">
+            {campusOnly ? "Secondary color" : "Custom org secondary"}
             <input
               type="color"
               className="mt-1 h-10 w-full rounded-lg border border-border cursor-pointer"
@@ -175,13 +186,9 @@ export function ChapterIdentityPicker({
 
       {campusOnly && (
         <p className="text-xs text-muted-foreground">
-          Pick your own team or club colors, or select a university above to start from campus colors — then adjust with the pickers.
+          Select a university to start from preset colors, or set primary and secondary directly. Save organization settings to apply.
         </p>
       )}
-
-      <p className="text-xs text-muted-foreground">
-        {uniOptions.length - 1} campuses in directory · see <code className="text-foreground">docs/greek-letter-org-colors.md</code>
-      </p>
     </div>
   );
 }

@@ -7,7 +7,8 @@ Run these SQL files **in order** in the Supabase SQL Editor (or `psql` against y
 | 001 | `migrations/001_schema.sql` | Yes |
 | 002–014 | `002` … `014` | Yes |
 | 015 | `015_onboarding_rpc.sql` | Yes — create/join org |
-| 016–022 | `016` … `022` | Yes |
+| 016–021 | `016` … `021` | Yes |
+| 022 | `022_wave8_platform_billing.sql` | Yes — `organizations.platform_plan` |
 | 023 | `023_club_org.sql` | Yes if using ClubOS |
 | 024 | `024_club_elections_goals.sql` | Yes for elections/service goals |
 | 025 | `025_feature_fixes.sql` | Yes — budget lines, payment items, tasks RLS, housing contacts, waiver sign |
