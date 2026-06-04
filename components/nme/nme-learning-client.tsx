@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { BookOpen, CheckCircle2 } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
 import { Badge, Button, Card, CardHeader, PageHeader, ProgressBar, StatCard } from "@/components/ui";
 
 interface Module {
@@ -14,27 +13,20 @@ interface Module {
 }
 
 export function NmeLearningClient({ orgId }: { orgId: string }) {
-  const supabase = createClient();
   const [modules, setModules] = useState<Module[]>([]);
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
-  const [memberId, setMemberId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data: mp } = await supabase.from("member_profiles").select("id").eq("org_id", orgId).eq("user_id", user.id).maybeSingle();
-    if (mp) setMemberId(mp.id);
-
-    const [modRes, progRes] = await Promise.all([
-      supabase.from("nme_modules").select("id, title, description, is_required").eq("org_id", orgId).order("order_index"),
-      mp ? supabase.from("nme_progress").select("module_id, completed").eq("org_id", orgId).eq("member_id", mp.id) : Promise.resolve({ data: [] }),
-    ]);
-    setModules((modRes.data ?? []) as Module[]);
-    setCompletedIds(new Set((progRes.data ?? []).filter((p: { completed: boolean }) => p.completed).map((p: { module_id: string }) => p.module_id)));
+    const res = await fetch(`/api/nme/modules?org_id=${encodeURIComponent(orgId)}`);
+    if (res.ok) {
+      const data = await res.json();
+      setModules((data.modules ?? []) as Module[]);
+      setCompletedIds(new Set((data.completedModuleIds ?? []) as string[]));
+    }
     setLoading(false);
-  }, [supabase, orgId]);
+  }, [orgId]);
 
   useEffect(() => {
     load();
@@ -87,7 +79,7 @@ export function NmeLearningClient({ orgId }: { orgId: string }) {
                     </div>
                     {mod.description && <p className="text-xs text-muted-foreground mt-0.5">{mod.description}</p>}
                   </div>
-                  {!done && memberId && (
+                  {!done && (
                     <Button size="sm" onClick={() => completeModule(mod.id)}>Mark complete</Button>
                   )}
                 </div>

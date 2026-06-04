@@ -118,10 +118,13 @@ export function SocialAssetsClient({ orgId, org }: { orgId: string; org: OrgBran
   }
 
   async function deleteAsset(id: string) {
-    const supabase = (await import("@/lib/supabase/client")).createClient();
-    const { error } = await supabase.from("social_assets").delete().eq("id", id);
-    if (error) {
-      toast.error(error.message);
+    const res = await fetch(
+      `/api/social-assets?id=${encodeURIComponent(id)}&org_id=${encodeURIComponent(orgId)}`,
+      { method: "DELETE" },
+    );
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast.error((data as { error?: string }).error ?? "Delete failed");
       return;
     }
     toast.success("Removed");

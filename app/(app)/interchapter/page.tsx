@@ -79,12 +79,12 @@ export default function InterchapterPage() {
 
   const load = useCallback(async (oid: string) => {
     const [propRes, ideaRes] = await Promise.all([
-      supabase.from("interchapter_proposals").select("*").or(`proposing_org_id.eq.${oid},target_org_id.eq.${oid}`).order("created_at", { ascending: false }),
-      supabase.from("interchapter_ideas").select("*").order("upvotes", { ascending: false }).limit(20),
+      fetch(`/api/interchapter/proposals?org_id=${encodeURIComponent(oid)}`),
+      fetch("/api/interchapter/ideas"),
     ]);
-    setProposals((propRes.data ?? []) as Proposal[]);
-    setIdeas((ideaRes.data ?? []) as Idea[]);
-  }, [supabase]);
+    if (propRes.ok) setProposals((await propRes.json()) as Proposal[]);
+    if (ideaRes.ok) setIdeas((await ideaRes.json()) as Idea[]);
+  }, []);
 
   const loadAvailability = useCallback(async (oid: string) => {
     const res = await fetch(`/api/interchapter/availability?org_id=${oid}`);
@@ -140,23 +140,30 @@ export default function InterchapterPage() {
 
   async function submitProposal() {
     if (!orgId || !proposalForm.eventName || !proposalForm.targetOrgId) return;
-    const { error } = await supabase.from("interchapter_proposals").insert({
-      proposing_org_id: orgId,
-      target_org_id: proposalForm.targetOrgId,
-      event_name: proposalForm.eventName,
-      event_type: proposalForm.eventType,
-      estimated_attendance: proposalForm.estimatedAttendance ? parseInt(proposalForm.estimatedAttendance) : null,
-      theme_ideas: proposalForm.themeIdeas || null,
-      venue_ideas: proposalForm.venueIdeas || null,
-      budget_estimate: proposalForm.budgetEstimate ? parseFloat(proposalForm.budgetEstimate) : null,
-      cost_split_proposal: proposalForm.costSplitProposal || null,
-      alcohol: proposalForm.alcohol,
-      risk_level: proposalForm.riskLevel,
-      philanthropy_beneficiary: proposalForm.philanthropyBeneficiary || null,
-      proposed_dates: [],
-      status: "pending",
+    const res = await fetch("/api/interchapter/proposals", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        targetOrgId: proposalForm.targetOrgId,
+        eventName: proposalForm.eventName,
+        eventType: proposalForm.eventType,
+        estimatedAttendance: proposalForm.estimatedAttendance,
+        themeIdeas: proposalForm.themeIdeas,
+        venueIdeas: proposalForm.venueIdeas,
+        budgetEstimate: proposalForm.budgetEstimate,
+        costSplitProposal: proposalForm.costSplitProposal,
+        alcohol: proposalForm.alcohol,
+        riskLevel: proposalForm.riskLevel,
+        philanthropyBeneficiary: proposalForm.philanthropyBeneficiary,
+        proposedDates: [],
+      }),
     });
-    if (error) { toast.error(error.message); return; }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast.error((data as { error?: string }).error ?? "Failed");
+      return;
+    }
     toast.success("Proposal sent!");
     setProposeOpen(false);
     load(orgId);
@@ -164,18 +171,23 @@ export default function InterchapterPage() {
 
   async function postIdea() {
     if (!orgId || !ideaForm.title) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", user?.id ?? "").single();
-    const { error } = await supabase.from("interchapter_ideas").insert({
-      org_id: orgId,
-      poster_name: String(profile?.full_name ?? "Officer"),
-      title: ideaForm.title,
-      description: ideaForm.description || null,
-      idea_type: ideaForm.ideaType,
-      estimated_cost: ideaForm.estimatedCost ? parseFloat(ideaForm.estimatedCost) : null,
-      risk_level: ideaForm.riskLevel,
+    const res = await fetch("/api/interchapter/ideas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        title: ideaForm.title,
+        description: ideaForm.description,
+        ideaType: ideaForm.ideaType,
+        estimatedCost: ideaForm.estimatedCost,
+        riskLevel: ideaForm.riskLevel,
+      }),
     });
-    if (error) { toast.error(error.message); return; }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast.error((data as { error?: string }).error ?? "Failed");
+      return;
+    }
     toast.success("Idea posted!");
     setIdeaOpen(false);
     setIdeaForm({ title: "", description: "", ideaType: "mixer", estimatedCost: "", riskLevel: "low" });
@@ -207,9 +219,17 @@ export default function InterchapterPage() {
     setSelectedProposal(null);
   }
 
-  async function upvoteIdea(id: string, current: number) {
-    await supabase.from("interchapter_ideas").update({ upvotes: current + 1 }).eq("id", id);
-    setIdeas((prev) => prev.map((i) => i.id === id ? { ...i, upvotes: current + 1 } : i));
+  async function upvoteIdea(id: string) {
+    if (!orgId) return;
+    const res = await fetch("/api/interchapter/ideas", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, orgId }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setIdeas((prev) => prev.map((i) => (i.id === id ? { ...i, upvotes: updated.upvotes } : i)));
+    }
   }
 
   const incoming = proposals.filter((p) => p.target_org_id === orgId && p.status === "pending");
@@ -325,7 +345,7 @@ export default function InterchapterPage() {
               <Card key={idea.id} padding="sm">
                 <div className="flex items-start gap-3">
                   <button
-                    onClick={() => upvoteIdea(idea.id, idea.upvotes)}
+                    onClick={() => upvoteIdea(idea.id)}
                     className="flex flex-col items-center gap-0.5 p-2 rounded-lg hover:bg-surface-1 transition-colors flex-shrink-0"
                   >
                     <ThumbsUp size={14} className="text-greek-600" />
