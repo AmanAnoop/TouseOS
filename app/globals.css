@@ -2,9 +2,8 @@
 
 /* ── Step 1: Design tokens ─────────────────────────────────── */
 
-/* Theme tokens — always on html via data-theme (see lib/touse-theme.ts) */
-:root,
-html[data-theme="light"] {
+/* Theme tokens — light default on :root; dark via [data-theme="dark"] (lib/touse-theme.ts) */
+:root {
   --color-bg: #F7F6F3;
   --color-bg-subtle: #F0EEE9;
   --color-bg-raised: #FFFFFF;
@@ -45,7 +44,7 @@ html[data-theme="light"] {
   --focus-ring-opacity: 0.12;
 }
 
-html[data-theme="dark"] {
+[data-theme="dark"] {
   --color-bg: #0F1117;
   --color-bg-subtle: #161B22;
   --color-bg-raised: #1C2128;
@@ -57,8 +56,7 @@ html[data-theme="dark"] {
   --color-text-primary: #E8E6E1;
   --color-text-secondary: #8B8985;
   --color-text-tertiary: #5A5855;
-  /* Must stay light — used for sidebar labels, primary buttons, badges on brand color */
-  --color-text-inverse: #F7F6F3;
+  --color-text-inverse: #0F1117;
   --color-text-on-brand: #F7F6F3;
 
   --color-success: #4ADE80;
@@ -94,16 +92,21 @@ html[data-theme="dark"] {
     color: var(--color-text-primary);
   }
 
-  html[data-theme="light"] {
+  :root,
+  [data-theme="light"] {
     color-scheme: light;
   }
 
-  html[data-theme="dark"] {
+  [data-theme="dark"] {
     color-scheme: dark;
   }
 
   html[data-theme-ready="true"] * {
     transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease;
+  }
+
+  html:not([data-theme-ready="true"]) * {
+    transition: none !important;
   }
 
   body {
@@ -229,7 +232,7 @@ html[data-theme="dark"] {
     max-width: var(--content-max);
     margin-left: auto;
     margin-right: auto;
-    padding: 24px 32px 40px;
+    padding: 32px 40px 40px;
   }
 
   @media (max-width: 767px) {
@@ -297,7 +300,7 @@ html[data-theme="dark"] {
   .ds-sidebar {
     width: var(--sidebar-width);
     background-color: var(--color-sidebar);
-    color: var(--color-text-inverse);
+    color: var(--color-text-on-brand);
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
@@ -1207,6 +1210,71 @@ html[data-theme="dark"] {
     text-transform: uppercase;
     color: var(--color-text-tertiary);
     background: var(--color-bg-raised);
+  }
+
+  /* Theme toggle — sidebar footer, 28px target */
+  .ds-theme-toggle-sidebar {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: rgba(247, 246, 243, 0.65);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background-color 120ms ease, color 120ms ease;
+  }
+
+  .ds-theme-toggle-sidebar:hover {
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--color-text-on-brand);
+  }
+
+  .ds-theme-toggle-icon {
+    display: inline-flex;
+    transition: opacity 120ms ease, transform 120ms ease;
+  }
+
+  /* Page shell — raised header bar per layout spec */
+  .ds-page-shell {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+  }
+
+  .ds-page-shell-header {
+    min-height: 56px;
+    padding: 12px 0 16px;
+    margin: 0 0 24px;
+    border-bottom: 1px solid var(--color-border);
+    background-color: var(--color-bg-raised);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .ds-page-shell-breadcrumb {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    margin: 0 0 4px;
+  }
+
+  .ds-dashboard-accent-bar {
+    height: 4px;
+    width: 100%;
+    background-color: var(--color-org-primary);
+    border-radius: 0;
+    margin: 0 0 24px;
+  }
+
+  .ds-stat-grid-accent .ds-stat-card:first-child {
+    border-left: 3px solid var(--color-org-primary);
   }
 }
 
