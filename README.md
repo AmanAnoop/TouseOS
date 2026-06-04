@@ -102,7 +102,7 @@ supabase/migrations/001_schema.sql
 supabase/migrations/002_greekmatch.sql
 supabase/migrations/003_storage.sql
 supabase/migrations/004_notifications.sql
-supabase/migrations/005_seed.sql              # optional demo data
+supabase/migrations/033_remove_demo_org.sql   # remove legacy demo org (optional)
 supabase/migrations/006_rollout_enhancements.sql
 supabase/migrations/007_phase2_workspace.sql
 supabase/migrations/008_phase3_engagement.sql

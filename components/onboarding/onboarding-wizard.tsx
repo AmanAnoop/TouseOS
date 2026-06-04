@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Building, ChevronRight, Users, Zap } from "lucide-react";
+import { Building, ChevronRight, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { Button, Card, Input } from "@/components/ui";
@@ -102,23 +102,6 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
     router.refresh();
   }
 
-  async function joinDemo() {
-    setLoading(true);
-    const res = await fetch("/api/onboarding/join-demo", { method: "POST" });
-    setLoading(false);
-    const data = await res.json();
-    if (!res.ok) {
-      toast.error(data.error ?? "Demo not available");
-      return;
-    }
-    toast.success(`Welcome to ${data.org?.name}!`);
-    if (data.org?.id) {
-      document.cookie = `touse_active_org_id=${data.org.id}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
-    }
-    router.push(data.redirectTo ?? "/home");
-    router.refresh();
-  }
-
   return (
     <div className="w-full max-w-lg">
       {allowBackToDashboard && (
@@ -131,7 +114,7 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
         <div className="space-y-4">
           <div>
             <h1 className="text-2xl font-bold">Welcome to TouseOS</h1>
-            <p className="text-muted-foreground mt-1">Create your chapter, join with a code, or explore the demo.</p>
+            <p className="text-muted-foreground mt-1">Create your chapter or join with an invite code from your officers.</p>
           </div>
           <Card className="cursor-pointer hover:border-greek-400 transition-colors" onClick={() => setStep(2)}>
             <div className="flex items-center gap-3">
@@ -155,18 +138,6 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
                 <p className="text-sm text-muted-foreground">Enter the code from your officer</p>
               </div>
               <ChevronRight size={16} className="text-muted-foreground" />
-            </div>
-          </Card>
-          <Card className="cursor-pointer hover:border-amber-300 transition-colors" onClick={joinDemo}>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
-                <Zap size={20} className="text-amber-600" />
-              </div>
-              <div className="flex-1">
-                <p className="font-semibold">Try demo chapter</p>
-                <p className="text-sm text-muted-foreground">Explore TouseOS with sample data</p>
-              </div>
-              {loading && <span className="text-xs text-muted-foreground">Joining...</span>}
             </div>
           </Card>
         </div>

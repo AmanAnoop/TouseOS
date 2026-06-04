@@ -19,7 +19,8 @@ Run these SQL files **in order** in the Supabase SQL Editor (or `psql` against y
 | 030 | `030_tasks_recurring_columns.sql` | Yes — `is_recurring`, attachments on tasks |
 | 031 | `031_platform_settings.sql` | Yes — platform feature flags (`platform_settings`) |
 | 032 | `032_club_service_hours_org.sql` | Yes for ClubOS — `organization_served`, `service_type` on service hours |
-| 005 | `005_seed.sql` | Optional demo chapter |
+| 005 | `005_seed.sql` | **Deprecated** — no-op; demo chapter removed |
+| 033 | `033_remove_demo_org.sql` | Optional — deletes legacy demo org if present |
 
 After apply:
 
