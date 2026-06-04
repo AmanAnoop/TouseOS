@@ -21,6 +21,7 @@ Run these SQL files **in order** in the Supabase SQL Editor (or `psql` against y
 | 032 | `032_club_service_hours_org.sql` | Yes for ClubOS — `organization_served`, `service_type` on service hours |
 | 005 | `005_seed.sql` | **Deprecated** — no-op; demo chapter removed |
 | 033 | `033_remove_demo_org.sql` | Optional — deletes legacy demo org if present |
+| 034 | `034_finance_layer.sql` | Yes — Plaid connections, unified finance_transactions, finance_org_settings, Stripe webhook idempotency |
 
 After apply:
 

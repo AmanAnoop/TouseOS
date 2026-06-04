@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { isFinanceOfficerRole } from "@/lib/finance-access";
 import {
   Archive, ArchiveRestore, BookOpen, DollarSign, Download, Plus, RefreshCw, Trash2,
 } from "lucide-react";
@@ -51,7 +53,14 @@ const INCOME_CATEGORIES = DEFAULT_INCOME_LINES;
 const EXPENSE_CATEGORIES = DEFAULT_EXPENSE_LINES;
 
 export default function BudgetPage() {
+  const router = useRouter();
   const { orgId, role: myRole, orgName, orgType, loading: orgLoading } = useOrg();
+
+  useEffect(() => {
+    if (!orgLoading && isFinanceOfficerRole(myRole)) {
+      router.replace("/finance");
+    }
+  }, [orgLoading, myRole, router]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [reimbs, setReimbs] = useState<Array<{ id: string; amount: number; status: string; created_at: string; submitted_by_name: string | null; category: string; event_id: string | null; submitted_by: string | null }>>([]);
