@@ -13,7 +13,7 @@ export async function GET() {
       env: readiness,
       migrations: {
         expected: "001 through 027 in supabase/migrations/",
-        seedOptional: "005_seed.sql",
+        seedDeprecated: "005_seed.sql (demo removed — use 033_remove_demo_org.sql to clean old DBs)",
         doc: "docs/launch-checklist.md",
       },
       webhooks: {

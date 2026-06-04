@@ -1,6 +1,6 @@
 # TouseOS product status (realistic)
 
-Last updated: Priority wave on `cursor/full-completion-4a50` — platform admin, social/GreekMatch, interchapter.
+Last updated: Demo chapter removed; Settings integrations hub for Stripe Connect + Twilio.
 
 ## Overall product complete
 
@@ -55,8 +55,8 @@ Last updated: Priority wave on `cursor/full-completion-4a50` — platform admin,
 | Priority | Item |
 |----------|------|
 | P1 | Merge PRs and apply migrations **001–031** in production |
-| P2 | Live Stripe Connect + webhook pilot |
-| P2 | Twilio STOP / quiet hours live test |
+| P2 | Live Stripe Connect + webhook pilot (UI in Settings → Integrations) |
+| P2 | Twilio live test + STOP / quiet hours in production |
 | Launch | Legal review, `npm run launch:check`, pilot smoke |
 
 ## Recommended merge order

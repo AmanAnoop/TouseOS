@@ -6,7 +6,7 @@ Quick reference for taking TouseOS from pilot to production.
 
 1. Create a Supabase project.
 2. Run every file in `supabase/migrations/` in numeric order (**001 → 024**).
-3. Optionally run `005_seed.sql` for a demo chapter.
+3. Do **not** run `005_seed.sql` (demo chapter removed). If an old DB had demo data, run `033_remove_demo_org.sql`.
 4. Confirm RLS is enabled (migrations apply policies).
 
 ## 2. Environment

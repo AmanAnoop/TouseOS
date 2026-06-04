@@ -6,15 +6,14 @@ import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import {
-  Alert, Badge, Button, Card, CardHeader,
+  Button, Card, CardHeader,
   PageHeader, Tabs,
 } from "@/components/ui";
 import { OrgProfileForm, type OrgProfileFormData } from "@/components/settings/org-profile-form";
 import { useOrg } from "@/hooks/use-org";
 import { InviteCodeCard } from "@/components/settings/invite-code-card";
 import { MemberRolesPanel, type OrgMemberWithProfile } from "@/components/settings/member-roles-panel";
-import { IntegrationStatusPanel } from "@/components/integrations/integration-status-panel";
-import { StripeConnectPanel } from "@/components/settings/stripe-connect-panel";
+import { IntegrationsHub } from "@/components/integrations/integrations-hub";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 
 export default function SettingsPage() {
@@ -227,7 +226,7 @@ export default function SettingsPage() {
       )}
 
       {tab === "integrations" && (
-        <div className="space-y-4">
+        <div className="ds-page-stack max-w-3xl">
           <Card>
             <CardHeader title="Appearance" description="Light and dark mode for the workspace" />
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -235,69 +234,11 @@ export default function SettingsPage() {
               <p className="type-small" style={{ margin: 0 }}>Toggle theme (also in sidebar on desktop)</p>
             </div>
           </Card>
-          <Alert type="info" title="Configure integrations to unlock payment processing, SMS, and AI features." />
-          <IntegrationStatusPanel />
-          {isAdmin && orgId && (
-            <StripeConnectPanel
-              orgId={orgId}
-              initialAccountId={org?.stripe_account_id ? String(org.stripe_account_id) : null}
-            />
-          )}
-          {[
-            {
-              name: "Supabase",
-              description: "Database, authentication, storage, and real-time features",
-              status: "connected",
-              config: "NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_ANON_KEY",
-              docsUrl: "https://supabase.com/docs",
-            },
-            {
-              name: "Stripe",
-              description: "Dues payment processing, checkout links, and webhooks",
-              status: org?.stripe_account_id ? "connected" : "not_configured",
-              config: "STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET",
-              docsUrl: "https://stripe.com/docs",
-            },
-            {
-              name: "Twilio",
-              description: "Consent-based PNM SMS texting with STOP/HELP handling",
-              status: "check_env",
-              config: "TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN + TWILIO_MESSAGING_SERVICE_SID",
-              docsUrl: "https://www.twilio.com/docs",
-            },
-            {
-              name: "OpenAI",
-              description: "AI assistant for captions, event plans, and newsletters",
-              status: "check_env",
-              config: "OPENAI_API_KEY",
-              docsUrl: "https://platform.openai.com/docs",
-            },
-            {
-              name: "Email provider (Resend/SendGrid)",
-              description: "Email blasts, invite emails, and payment receipts",
-              status: "not_configured",
-              config: "RESEND_API_KEY or SENDGRID_API_KEY",
-              docsUrl: "https://resend.com/docs",
-            },
-          ].map((integration) => (
-            <Card key={integration.name} padding="sm">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="font-semibold text-sm">{integration.name}</p>
-                    <Badge
-                      label={integration.status.replace("_", " ")}
-                      color={integration.status === "connected" ? "green" : integration.status === "check_env" ? "yellow" : "gray"}
-                      dot
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">{integration.description}</p>
-                  <p className="text-xs font-mono text-muted-foreground mt-1 bg-surface-2 px-2 py-0.5 rounded">{integration.config}</p>
-                </div>
-                <a href={integration.docsUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-greek-600 hover:underline flex-shrink-0">Docs</a>
-              </div>
-            </Card>
-          ))}
+          <IntegrationsHub
+            orgId={orgId}
+            stripeAccountId={org?.stripe_account_id ? String(org.stripe_account_id) : null}
+            role={myRole}
+          />
         </div>
       )}
 
