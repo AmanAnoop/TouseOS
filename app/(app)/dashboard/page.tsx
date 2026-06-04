@@ -6,7 +6,7 @@ import { loadDashboardData } from "@/lib/dashboard-data";
 import { isDashboardOfficer } from "@/lib/dashboard-roles";
 import {
   StatCard, Card, CardHeader, Badge, ProgressBar,
-  EmptyState, Alert,
+  EmptyState, Alert, PageHeader,
 } from "@/components/ui";
 import {
   formatCurrency, formatDateTime, isGreekOrg, isSportsOrg, isClubOrg,
@@ -77,19 +77,14 @@ export default async function DashboardPage() {
   const showGettingStarted = isOfficer && setupSteps.some((s) => !s.done);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">{String(org.name)}</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">
-            {productLabel(product)} workspace
-            {!isOfficer && " · Member view"}
-          </p>
-        </div>
-        {isOfficer && (
-          <HealthScoreBadge composite={composite} metricsUsed={metricsUsed} />
-        )}
-      </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      <div className="ds-dashboard-top-bar" aria-hidden />
+      <PageHeader
+        title="Dashboard"
+        orgLabel={String(org.name)}
+        description={`${productLabel(product)} workspace${!isOfficer ? " · Member view" : ""}`}
+        action={isOfficer ? <HealthScoreBadge composite={composite} metricsUsed={metricsUsed} /> : undefined}
+      />
 
       <OfficerQuickActions role={myRole} orgType={orgType} />
 
@@ -112,9 +107,9 @@ export default async function DashboardPage() {
       )}
 
       {isOfficer ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-3">
-          <StatCard title="Members" value={members.length} delta={`${activeCount} active`} icon={<Users size={18} />} />
-          <StatCard title="New members" value={newMembers} icon={<Users size={18} />} />
+        <div className="ds-stat-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
+          <StatCard accent title="Members" value={members.length} delta={`${activeCount} active`} icon={<Users size={18} aria-hidden />} />
+          <StatCard title="New members" value={newMembers} icon={<Users size={18} aria-hidden />} />
           <StatCard title="Dues collected" value={formatCurrency(totalCollected)} delta={`${collectionRate}%`} deltaType={collectionRate >= 75 ? "up" : "down"} icon={<DollarSign size={18} />} />
           <StatCard title="Upcoming events" value={events.length} icon={<Calendar size={18} />} />
           <StatCard title="Tasks due soon" value={tasksDue} deltaType={tasksDue > 3 ? "down" : "neutral"} icon={<CheckCircle2 size={18} />} />

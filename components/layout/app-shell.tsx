@@ -3,12 +3,11 @@
 import { useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { BottomNav } from "@/components/layout/bottom-nav";
-import { cn } from "@/lib/utils";
 import { ServiceWorkerRegister } from "@/components/layout/service-worker-register";
 import { ImpersonationBanner } from "@/components/layout/impersonation-banner";
 import { ProductRouteGuard } from "@/components/layout/product-route-guard";
+import { OrgThemeProvider } from "@/components/theme/org-theme-provider";
 import { userHasGreekOrg } from "@/lib/org-product";
-import { ChapterThemeProvider } from "@/components/theme/chapter-theme-provider";
 import type { Organization, Profile } from "@/types";
 
 interface AppShellProps {
@@ -32,11 +31,11 @@ export function AppShell({
   const hasGreekMembership = userHasGreekOrg(orgs);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <ChapterThemeProvider org={org} />
+    <div className="ds-app">
+      <OrgThemeProvider org={org} />
       <ServiceWorkerRegister />
-      {/* Desktop sidebar */}
-      <div className="hidden lg:flex flex-shrink-0">
+
+      <div className="hidden lg:flex flex-shrink-0 fixed left-0 top-0 bottom-0 z-30">
         <Sidebar
           org={org}
           orgs={orgs}
@@ -45,14 +44,15 @@ export function AppShell({
         />
       </div>
 
-      {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 lg:hidden flex">
           <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            className="absolute inset-0"
+            style={{ background: "var(--modal-backdrop)" }}
             onClick={() => setSidebarOpen(false)}
+            aria-hidden
           />
-          <div className="relative z-10 flex">
+          <div className="relative z-10 h-full">
             <Sidebar
               org={org}
               orgs={orgs}
@@ -65,14 +65,8 @@ export function AppShell({
         </div>
       )}
 
-      {/* Main content */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-        <div
-          className={cn(
-            "flex-1 px-4 py-4 sm:px-6 sm:py-6",
-            "pb-nav-mobile lg:pb-6",
-          )}
-        >
+      <div className="ds-main">
+        <div className="ds-main-inner">
           {impersonating && impersonateOrgName && (
             <ImpersonationBanner orgName={impersonateOrgName} />
           )}
@@ -83,13 +77,9 @@ export function AppShell({
             {children}
           </ProductRouteGuard>
         </div>
-      </main>
+      </div>
 
-      {/* Mobile bottom nav */}
-      <BottomNav
-        orgType={org?.type ?? "general_org"}
-        onMenuOpen={() => setSidebarOpen(true)}
-      />
+      <BottomNav orgType={org?.type ?? "general_org"} />
     </div>
   );
 }
