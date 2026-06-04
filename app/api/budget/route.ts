@@ -6,6 +6,10 @@ import { getMemberRole } from "@/lib/api-org-role";
 import { can, type RoleName } from "@/lib/permissions";
 import { DEFAULT_EXPENSE_LINES, DEFAULT_INCOME_LINES } from "@/lib/budget-sync";
 import { triggerBudgetSyncForOrg } from "@/lib/budget-auto-sync";
+import {
+  BUDGET_ARCHIVE_MIGRATION_HINT,
+  isMissingBudgetArchiveColumn,
+} from "@/lib/budget-archive-column";
 
 function canViewBudget(role: RoleName | null): boolean {
   if (!role) return false;
@@ -39,7 +43,7 @@ export async function GET(request: Request) {
   }
 
   let { data, error } = await query;
-  if (error?.message?.includes("archived_at")) {
+  if (isMissingBudgetArchiveColumn(error)) {
     const fallback = await supabase
       .from("budgets")
       .select("*, budget_lines(*)")
@@ -67,7 +71,7 @@ export async function POST(request: Request) {
   if (!write.ok) return write.response;
   const { db } = write;
 
-  const { data: budget, error } = await db.from("budgets").insert({
+  const insertBase = {
     org_id: orgId,
     label: String(label).trim(),
     period: period ?? "semester",
@@ -75,8 +79,17 @@ export async function POST(request: Request) {
     semester: semester || null,
     total_budget: parseFloat(totalBudget ?? "0"),
     notes: notes || null,
-    archived_at: null,
-  }).select().single();
+  };
+
+  let { data: budget, error } = await db
+    .from("budgets")
+    .insert({ ...insertBase, archived_at: null })
+    .select()
+    .single();
+
+  if (isMissingBudgetArchiveColumn(error)) {
+    ({ data: budget, error } = await db.from("budgets").insert(insertBase).select().single());
+  }
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -180,6 +193,9 @@ export async function PATCH(request: Request) {
       .update({ archived_at: new Date().toISOString() })
       .eq("id", budgetId)
       .eq("org_id", resolvedOrgId);
+    if (isMissingBudgetArchiveColumn(error)) {
+      return NextResponse.json({ error: BUDGET_ARCHIVE_MIGRATION_HINT }, { status: 503 });
+    }
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     const { data: full } = await db.from("budgets").select("*, budget_lines(*)").eq("id", budgetId).single();
     return NextResponse.json(full ? normalizeBudgetRecord(full as Record<string, unknown>) : { archived: true });
@@ -191,6 +207,9 @@ export async function PATCH(request: Request) {
       .update({ archived_at: null })
       .eq("id", budgetId)
       .eq("org_id", resolvedOrgId);
+    if (isMissingBudgetArchiveColumn(error)) {
+      return NextResponse.json({ error: BUDGET_ARCHIVE_MIGRATION_HINT }, { status: 503 });
+    }
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     const { data: full } = await db.from("budgets").select("*, budget_lines(*)").eq("id", budgetId).single();
     return NextResponse.json(full ? normalizeBudgetRecord(full as Record<string, unknown>) : { restored: true });

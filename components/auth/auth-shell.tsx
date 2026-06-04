@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { OnboardingRegalTheme } from "@/components/onboarding/onboarding-regal-theme";
 
 interface AuthShellProps {
   children: React.ReactNode;
@@ -12,57 +11,59 @@ interface AuthShellProps {
 
 export function AuthShell({ children, title, subtitle, footer }: AuthShellProps) {
   return (
-    <div className="min-h-screen theme-regal bg-background">
-      <OnboardingRegalTheme />
-      <div className="min-h-screen grid lg:grid-cols-2">
-        <div className="hidden lg:flex flex-col justify-between border-r border-border bg-card/80 p-10 xl:p-14">
+    <div style={{ minHeight: "100vh", background: "var(--color-bg)" }}>
+      <div style={{ minHeight: "100vh", display: "grid" }} className="lg:grid-cols-2">
+        <div
+          className="hidden lg:flex flex-col justify-between"
+          style={{
+            padding: "40px 56px",
+            background: "var(--color-sidebar)",
+            color: "var(--color-text-inverse)",
+            borderRight: "1px solid rgba(255,255,255,0.06)",
+          }}
+        >
           <div>
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-xl font-semibold text-primary-foreground shadow-sm">
-                Τ
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 8,
+                  background: "var(--color-org-primary)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 20,
+                  fontWeight: 600,
+                }}
+              >
+                T
               </div>
               <div>
-                <p className="text-2xl font-semibold tracking-tight text-foreground">TouseOS</p>
-                <p className="text-xs text-muted-foreground">For chapters, teams, and clubs</p>
+                <p className="type-h1" style={{ color: "var(--color-text-inverse)", margin: 0 }}>TouseOS</p>
+                <p className="type-small" style={{ color: "rgba(247,246,243,0.65)", margin: 0 }}>For chapters, teams, and clubs</p>
               </div>
             </div>
-            <p className="mt-10 max-w-md text-2xl font-semibold leading-tight text-foreground xl:text-3xl">
+            <p className="type-display" style={{ marginTop: 40, maxWidth: 400, color: "var(--color-text-inverse)" }}>
               Run your organization in one place.
             </p>
-            <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">
-              Members, dues, events, and communications — built for Greek life, club sports, and campus
-              organizations.
+            <p className="type-body" style={{ marginTop: 12, maxWidth: 360, color: "rgba(247,246,243,0.65)" }}>
+              Members, dues, events, and communications — built for Greek life, club sports, and campus organizations.
             </p>
           </div>
         </div>
 
-        <div className="flex flex-col justify-center px-6 py-10 sm:px-10 lg:px-14">
-          <div className="mb-8 flex items-center justify-center gap-2 lg:hidden">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary font-semibold text-primary-foreground">
-              Τ
-            </div>
-            <span className="text-xl font-semibold">TouseOS</span>
+        <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", padding: "40px 24px" }}>
+          <div className="ds-card" style={{ maxWidth: 420, margin: "0 auto", width: "100%" }}>
+            <h1 className="type-h1" style={{ margin: "0 0 8px" }}>{title}</h1>
+            <p className="type-small" style={{ margin: "0 0 24px" }}>{subtitle}</p>
+            {children}
+            {footer && <div style={{ marginTop: 24 }}>{footer}</div>}
           </div>
-
-          <div className="mx-auto w-full max-w-md">
-            <div className="mb-6 lg:mb-8">
-              <h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
-              <p className="mt-1.5 text-sm text-muted-foreground">{subtitle}</p>
-            </div>
-
-            <div className="regal-card border border-border p-6 shadow-sm sm:p-8">{children}</div>
-
-            {footer && <div className="mt-6">{footer}</div>}
-          </div>
-
-          <p className="mx-auto mt-8 max-w-md text-center text-xs text-muted-foreground">
-            <Link href="/terms" className="hover:text-foreground hover:underline underline-offset-2">
-              Terms
-            </Link>
+          <p className="type-small" style={{ textAlign: "center", marginTop: 32 }}>
+            <Link href="/terms" style={{ color: "var(--color-text-secondary)" }}>Terms</Link>
             {" · "}
-            <Link href="/privacy" className="hover:text-foreground hover:underline underline-offset-2">
-              Privacy
-            </Link>
+            <Link href="/privacy" style={{ color: "var(--color-text-secondary)" }}>Privacy</Link>
           </p>
         </div>
       </div>

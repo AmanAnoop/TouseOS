@@ -17,17 +17,32 @@ export function NotificationBell({ className, iconSize = 16, showLabel }: Notifi
   return (
     <Link
       href="/notifications"
-      className={cn(
-        "relative inline-flex items-center gap-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-1 transition-colors",
-        showLabel ? "px-2 py-1.5" : "p-1.5",
-        className,
-      )}
+      className={cn("ds-btn ds-btn-ghost ds-btn-icon relative", className)}
       title={count > 0 ? `${count} unread notifications` : "Notifications"}
+      aria-label={count > 0 ? `${count} unread notifications` : "Notifications"}
+      style={{ color: "rgba(247,246,243,0.65)" }}
     >
-      <Bell size={iconSize} />
-      {showLabel && <span className="text-xs font-medium">Notifications</span>}
+      <Bell size={iconSize} aria-hidden />
+      {showLabel && <span className="type-small">Notifications</span>}
       {count > 0 && (
-        <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-greek-600 text-white text-[10px] font-bold flex items-center justify-center leading-none">
+        <span
+          style={{
+            position: "absolute",
+            top: 2,
+            right: 2,
+            minWidth: 16,
+            height: 16,
+            borderRadius: 4,
+            background: "var(--color-org-primary)",
+            color: "var(--color-text-inverse)",
+            fontSize: 10,
+            fontWeight: 600,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "0 4px",
+          }}
+        >
           {count > 99 ? "99+" : count}
         </span>
       )}

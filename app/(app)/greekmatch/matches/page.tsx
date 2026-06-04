@@ -137,7 +137,7 @@ export default function GreekMatchMatchesPage() {
                 description="Keep swiping to find your match!"
                 action={
                   <Link href="/greekmatch">
-                    <Button className="bg-gradient-to-r from-pink-500 to-rose-500" size="sm">
+                    <Button size="sm">
                       Discover
                     </Button>
                   </Link>
@@ -157,7 +157,7 @@ export default function GreekMatchMatchesPage() {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={match.photos[0]} alt="" className="w-12 h-12 rounded-full object-cover" />
                   ) : (
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center text-white font-bold">
+                    <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold">
                       {match.display_name[0]?.toUpperCase()}
                     </div>
                   )}

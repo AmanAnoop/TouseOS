@@ -271,26 +271,23 @@ export default function InterchapterPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Zap size={16} className="text-greek-600" />
-            <span className="text-xs font-bold text-greek-600 uppercase tracking-wide">ExecLink</span>
+      <PageHeader
+        breadcrumb="ExecLink"
+        title="Touse Exchange"
+        description="Coordinate mixers, philanthropy, and events with other chapters"
+        action={
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" size="sm" icon={<Lightbulb size={14} />} onClick={() => setIdeaOpen(true)}>Post idea</Button>
+            <Button size="sm" icon={<Plus size={14} />} onClick={() => setProposeOpen(true)}>Propose event</Button>
           </div>
-          <h1 className="text-2xl font-bold text-foreground">Touse Exchange</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Coordinate mixers, philanthropy, and events with other chapters</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" size="sm" icon={<Lightbulb size={14} />} onClick={() => setIdeaOpen(true)}>Post idea</Button>
-          <Button size="sm" icon={<Plus size={14} />} onClick={() => setProposeOpen(true)}>Propose event</Button>
-        </div>
-      </div>
+        }
+      />
 
       {incoming.length > 0 && (
-        <div className="p-4 rounded-xl bg-greek-50 dark:bg-greek-950/30 border border-greek-200 dark:border-greek-800">
+        <div className="p-4 rounded-xl bg-greek-50 border border-greek-200">
           <div className="flex items-center gap-2 mb-3">
             <Zap size={16} className="text-greek-600" />
-            <p className="font-semibold text-greek-700 dark:text-greek-400">{incoming.length} incoming proposal{incoming.length > 1 ? "s" : ""}</p>
+            <p className="font-semibold text-greek-700">{incoming.length} incoming proposal{incoming.length > 1 ? "s" : ""}</p>
           </div>
           <div className="space-y-2">
             {incoming.map((p) => (

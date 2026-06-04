@@ -16,14 +16,11 @@ interface MemberTableProps {
 export function MemberTable({ members, loading, className, showPayment = false }: MemberTableProps) {
   const router = useRouter();
 
-  if (loading) {
-    return <div className={cn("h-48 rounded-xl bg-surface-2 animate-pulse", className)} />;
-  }
-
   const columns = [
     {
       key: "name",
       header: "Member",
+      mobilePrimary: true,
       render: (m: MemberProfile) => (
         <div className="flex items-center gap-2">
           <Avatar name={m.full_name} src={m.profile_photo_url ?? undefined} size="sm" />
@@ -82,12 +79,12 @@ export function MemberTable({ members, loading, className, showPayment = false }
   ];
 
   return (
-    <div className={cn("hidden sm:block", className)}>
+    <div className={cn(className)}>
       <Table<MemberProfile & Record<string, unknown>>
-        // Table column typing is intentionally flexible.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         columns={allColumns}
         data={members as (MemberProfile & Record<string, unknown>)[]}
+        loading={loading}
+        rowKey={(m) => m.id}
         onRowClick={(m) => router.push(`/roster/${m.id}`)}
         emptyMessage="No members match your filters"
       />

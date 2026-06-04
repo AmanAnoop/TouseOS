@@ -270,7 +270,7 @@ export default function ProfilePage() {
         tabs={[
           { id: "profile", label: "Profile" },
           { id: "privacy", label: "Privacy" },
-          ...(isGreekMember ? [{ id: "greekmatch", label: "💚 GreekMatch" }] : []),
+          ...(isGreekMember ? [{ id: "greekmatch", label: "GreekMatch" }] : []),
         ]}
         active={tab}
         onChange={setTab}

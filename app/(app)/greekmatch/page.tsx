@@ -6,7 +6,7 @@ import {
   Flag, Heart, Info, RotateCcw, Settings, Shield, Star, X,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { Badge, Button, EmptyState, Modal, Spinner } from "@/components/ui";
+import { Badge, Button, EmptyState, Modal, Skeleton } from "@/components/ui";
 import toast from "react-hot-toast";
 
 interface GmProfile {
@@ -138,8 +138,14 @@ export default function GreekMatchPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Spinner size="lg" />
+      <div className="max-w-sm mx-auto px-4 py-8 space-y-4" aria-busy="true">
+        <Skeleton style={{ height: 40, width: "100%", borderRadius: 8 }} />
+        <Skeleton style={{ height: 420, width: "100%", borderRadius: 24 }} />
+        <div className="flex justify-center gap-4">
+          <Skeleton style={{ height: 56, width: 56, borderRadius: "50%" }} />
+          <Skeleton style={{ height: 48, width: 48, borderRadius: "50%" }} />
+          <Skeleton style={{ height: 56, width: 56, borderRadius: "50%" }} />
+        </div>
       </div>
     );
   }
@@ -165,7 +171,7 @@ export default function GreekMatchPage() {
           description="Set up your profile to start matching with Greek students across campus."
           action={
             <Link href="/profile">
-              <Button className="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600">
+              <Button>
                 <Heart size={14} className="fill-white" />
                 Set up GreekMatch
               </Button>
@@ -228,7 +234,7 @@ export default function GreekMatchPage() {
           >
             {/* Photo area */}
             <div
-              className="w-full h-2/3 bg-gradient-to-br from-rose-400 to-pink-600 relative flex items-end"
+              className="w-full h-2/3 bg-primary/90 relative flex items-end"
               style={currentProfile.photos?.[0] ? { backgroundImage: `url(${currentProfile.photos[0]})`, backgroundSize: "cover", backgroundPosition: "center" } : {}}
             >
               {/* Swipe indicators */}
@@ -312,21 +318,21 @@ export default function GreekMatchPage() {
         <div className="flex items-center justify-center gap-5 mt-6 w-full">
           <button
             onClick={() => interact("pass")}
-            className="w-14 h-14 rounded-full bg-white dark:bg-surface-1 border-2 border-red-200 dark:border-red-900 flex items-center justify-center shadow-card hover:scale-110 transition-transform active:scale-95"
+            className="w-14 h-14 rounded-full bg-bg-raised border-2 border-red-200 flex items-center justify-center shadow-card hover:scale-110 transition-transform active:scale-95"
           >
             <X size={24} className="text-red-500" />
           </button>
 
           <button
             onClick={() => interact("super_like")}
-            className="w-12 h-12 rounded-full bg-white dark:bg-surface-1 border-2 border-blue-200 dark:border-blue-900 flex items-center justify-center shadow-card hover:scale-110 transition-transform active:scale-95"
+            className="w-12 h-12 rounded-full bg-bg-raised border-2 border-blue-200 flex items-center justify-center shadow-card hover:scale-110 transition-transform active:scale-95"
           >
             <Star size={18} className="text-blue-500 fill-blue-500" />
           </button>
 
           <button
             onClick={() => interact("like")}
-            className="w-14 h-14 rounded-full bg-white dark:bg-surface-1 border-2 border-rose-200 dark:border-rose-900 flex items-center justify-center shadow-card hover:scale-110 transition-transform active:scale-95"
+            className="w-14 h-14 rounded-full bg-bg-raised border-2 border-rose-200 flex items-center justify-center shadow-card hover:scale-110 transition-transform active:scale-95"
           >
             <Heart size={24} className="text-rose-500 fill-rose-500" />
           </button>
@@ -420,7 +426,7 @@ export default function GreekMatchPage() {
         footer={
           <div className="flex flex-col gap-2 w-full">
             <Link href="/greekmatch/matches" className="w-full" onClick={() => setMatchModal(null)}>
-              <Button className="w-full bg-gradient-to-r from-pink-500 to-rose-500">Send a message</Button>
+              <Button className="w-full">Send a message</Button>
             </Link>
             <Button variant="ghost" className="w-full" onClick={() => setMatchModal(null)}>Keep swiping</Button>
           </div>
@@ -436,13 +442,13 @@ export default function GreekMatchPage() {
               <Heart size={32} className="text-rose-500 fill-rose-500 animate-pulse" />
               <Heart size={24} className="text-rose-500 fill-rose-500 -ml-1 -mt-1 animate-bounce" style={{ animationDelay: "0.1s" }} />
             </div>
-            <div className="w-16 h-16 rounded-full bg-greek-100 dark:bg-greek-950/50 flex items-center justify-center text-2xl border-4 border-white shadow-lg font-bold text-greek-700">
+            <div className="w-16 h-16 rounded-full bg-greek-100 flex items-center justify-center text-2xl border-4 border-bg-raised shadow-lg font-bold text-greek-700">
               You
             </div>
           </div>
           <h2 className="text-2xl font-bold text-foreground">It&apos;s a match!</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            You and {matchModal?.display_name} both liked each other 💚
+            You and {matchModal?.display_name} both liked each other.
           </p>
         </div>
       </Modal>

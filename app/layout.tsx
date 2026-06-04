@@ -1,20 +1,8 @@
 import type { Metadata, Viewport } from "next";
-import { Cormorant_Garamond, Source_Sans_3 } from "next/font/google";
+import Script from "next/script";
 import { Toaster } from "react-hot-toast";
+import { THEME_INIT_SCRIPT } from "@/lib/touse-theme";
 import "./globals.css";
-
-const sans = Source_Sans_3({
-  subsets: ["latin"],
-  variable: "--font-sans",
-  display: "swap",
-});
-
-const serif = Cormorant_Garamond({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  variable: "--font-serif",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: { default: "TouseOS", template: "%s | TouseOS" },
@@ -25,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#004225",
+  themeColor: "#F7F6F3",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -33,13 +21,26 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${sans.variable} ${serif.variable} theme-regal`}>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <Script id="touse-theme-init" strategy="beforeInteractive">
+          {THEME_INIT_SCRIPT}
+        </Script>
+      </head>
       <body>
         {children}
         <Toaster
-          position="top-right"
+          position="bottom-right"
           toastOptions={{
-            className: "!bg-card !text-foreground !border !border-border !shadow-card-md !text-sm",
+            duration: 4000,
+            style: {
+              width: "320px",
+              background: "var(--color-bg-raised)",
+              color: "var(--color-text-primary)",
+              border: "1px solid var(--color-border)",
+              boxShadow: "var(--shadow-md)",
+              fontSize: "13px",
+            },
           }}
         />
       </body>

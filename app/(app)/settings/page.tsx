@@ -15,6 +15,7 @@ import { InviteCodeCard } from "@/components/settings/invite-code-card";
 import { MemberRolesPanel, type OrgMemberWithProfile } from "@/components/settings/member-roles-panel";
 import { IntegrationStatusPanel } from "@/components/integrations/integration-status-panel";
 import { StripeConnectPanel } from "@/components/settings/stripe-connect-panel";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 
 export default function SettingsPage() {
   const supabase = createClient();
@@ -86,6 +87,17 @@ export default function SettingsPage() {
     const { org: updated } = await res.json();
     toast.success("Settings saved");
     setOrg(updated as Record<string, unknown>);
+    if (updated) {
+      const settings = ((updated.settings ?? {}) as Record<string, unknown>);
+      setOrgForm((prev) => ({
+        ...prev,
+        primaryColor: String(updated.primary_color ?? prev.primaryColor),
+        secondaryColor: String(updated.secondary_color ?? prev.secondaryColor),
+        universityId: String(settings.university_id ?? prev.universityId),
+        greekAffiliationId: String(settings.greek_affiliation_id ?? prev.greekAffiliationId),
+      }));
+    }
+    router.refresh();
   }
 
   async function copyInviteCode() {
@@ -216,6 +228,13 @@ export default function SettingsPage() {
 
       {tab === "integrations" && (
         <div className="space-y-4">
+          <Card>
+            <CardHeader title="Appearance" description="Light and dark mode for the workspace" />
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <ThemeToggle />
+              <p className="type-small" style={{ margin: 0 }}>Toggle theme (also in sidebar on desktop)</p>
+            </div>
+          </Card>
           <Alert type="info" title="Configure integrations to unlock payment processing, SMS, and AI features." />
           <IntegrationStatusPanel />
           {isAdmin && orgId && (

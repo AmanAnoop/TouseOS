@@ -2,16 +2,15 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Papa from "papaparse";
-import { useRouter } from "next/navigation";
 import {
-  Download, Mail, Upload, UserPlus,
+  Download, Upload, UserPlus,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
-  Avatar, Badge, Button, Card, EmptyState, Input, Modal,
-  PageHeader, SearchInput, Select, Skeleton,
+  Button, EmptyState, Input, Modal,
+  PageHeader, SearchInput, Select,
 } from "@/components/ui";
-import { downloadCsv, getStatusColor } from "@/lib/utils";
+import { downloadCsv } from "@/lib/utils";
 import { ROLE_LABELS, can } from "@/lib/permissions";
 import type { MemberProfile } from "@/types";
 import { MemberTable } from "@/components/roster/member-table";
@@ -36,7 +35,6 @@ const PAYMENT_OPTIONS = [
 ];
 
 export default function RosterPage() {
-  const router = useRouter();
   const { orgId, orgType, role: myRole } = useOrg();
   const [members, setMembers] = useState<MemberProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -186,55 +184,11 @@ export default function RosterPage() {
         </select>
       </div>
 
-      {/* Member cards (mobile) */}
-      <div className="grid gap-3 sm:hidden">
-        {loading
-          ? Array.from({ length: 4 }).map((_, i) => (
-              <Card key={i} padding="sm">
-                <div className="flex items-center gap-3">
-                  <Skeleton className="w-10 h-10 rounded-full" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-3 w-32" />
-                    <Skeleton className="h-3 w-24" />
-                  </div>
-                </div>
-              </Card>
-            ))
-          : filtered.length === 0
-            ? <EmptyState icon={<UserPlus size={20} />} title="No members found" description="Try adjusting your filters." />
-            : filtered.map((m) => (
-                <Card
-                  key={m.id}
-                  padding="sm"
-                  className="cursor-pointer hover:border-greek-300 transition-colors"
-                  onClick={() => router.push(`/roster/${m.id}`)}
-                >
-                  <div className="flex items-center gap-3">
-                    <Avatar name={m.full_name} src={m.profile_photo_url} size="md" />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm text-foreground">{m.full_name}</p>
-                      <p className="text-xs text-muted-foreground">{m.role.replace("_", " ")} · {m.major ?? "—"}</p>
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <Badge label={m.membership_status} color={getStatusColor(m.membership_status) as "green"} />
-                      {m.payment_status === "overdue" && <Badge label="Overdue" color="red" />}
-                    </div>
-                  </div>
-                  {(m.phone || m.email) && (
-                    <div className="flex gap-3 mt-2 pt-2 border-t border-border">
-                      {m.email && (
-                        <a href={`mailto:${m.email}`} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-greek-600" onClick={(e) => e.stopPropagation()}>
-                          <Mail size={12} />
-                          {m.email}
-                        </a>
-                      )}
-                    </div>
-                  )}
-                </Card>
-              ))}
-      </div>
-
-      <MemberTable members={filtered} loading={loading} showPayment={showPayment} />
+      {!loading && filtered.length === 0 ? (
+        <EmptyState icon={<UserPlus size={20} />} title="No members found" description="Try adjusting your filters." />
+      ) : (
+        <MemberTable members={filtered} loading={loading} showPayment={showPayment} />
+      )}
 
       {/* Invite modal */}
       <Modal

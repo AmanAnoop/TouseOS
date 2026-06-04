@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { isPlatformAdminEmail } from "@/lib/platform-admin";
+import {
+  isMissingPlatformPlanColumn,
+  PLATFORM_PLAN_MIGRATION_HINT,
+} from "@/lib/platform-plan-columns";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -82,6 +86,9 @@ export async function PATCH(request: Request) {
     .select()
     .single();
 
+  if (isMissingPlatformPlanColumn(error) && (platformPlan !== undefined || platformPlanStatus !== undefined)) {
+    return NextResponse.json({ error: PLATFORM_PLAN_MIGRATION_HINT }, { status: 503 });
+  }
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   await service.from("audit_logs").insert({

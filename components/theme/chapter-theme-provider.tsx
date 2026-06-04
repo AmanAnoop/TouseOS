@@ -23,12 +23,17 @@ export function ChapterThemeProvider({ org }: { org: Organization | null }) {
   const themeInput = useMemo(() => {
     const { greekAffiliationId, universityId } = readSettings(org);
     const product = getProductId(org?.type ?? "general_org");
+    const campusProduct = product === "sports" || product === "club";
+    const useUniversityPreset =
+      !campusProduct
+      || (!org?.primary_color && universityId && universityId !== "custom-campus");
+
     return {
       product,
       primaryColor: org?.primary_color,
       secondaryColor: org?.secondary_color,
       greekOrg: getGreekOrgById(greekAffiliationId),
-      university: getUniversityById(universityId),
+      university: useUniversityPreset ? getUniversityById(universityId) : undefined,
     };
   }, [org]);
 
