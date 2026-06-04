@@ -52,17 +52,8 @@ export function OAuthButtons({
   const label = mode === "signup" ? "Sign up" : "Continue";
 
   return (
-    <div className="space-y-3">
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t border-border" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-card px-2 text-muted-foreground">Or {mode === "signup" ? "sign up" : "sign in"} with</span>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3">
         <Button
           type="button"
           variant="secondary"
@@ -83,6 +74,9 @@ export function OAuthButtons({
         >
           {label} Apple
         </Button>
+      </div>
+      <div className="auth-divider" role="separator">
+        <span>Or {mode === "signup" ? "sign up" : "sign in"} with email</span>
       </div>
     </div>
   );

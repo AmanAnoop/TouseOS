@@ -127,8 +127,10 @@ export default function LoginPage() {
   return (
     <React.Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center text-muted-foreground">
-          Loading…
+        <div className="auth-layout">
+          <main className="auth-main">
+            <p className="text-muted-foreground text-sm">Loading…</p>
+          </main>
         </div>
       }
     >
