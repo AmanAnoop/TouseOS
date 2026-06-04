@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   AlertCircle, CheckCircle2, Circle, Clock,
-  MoreHorizontal, Plus, User,
+  MessageSquare, MoreHorizontal, Plus, User,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useOrg } from "@/hooks/use-org";
@@ -32,6 +32,8 @@ export default function TasksPage() {
     dueDate: "", assigneeName: "", tags: "",
   });
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
+  const [notifyViaSms, setNotifyViaSms] = useState(false);
+  const [twilioLive, setTwilioLive] = useState<boolean | null>(null);
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
@@ -59,6 +61,16 @@ export default function TasksPage() {
         }
       });
   }, [userId, orgId]);
+
+  useEffect(() => {
+    fetch("/api/integrations/status")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const twilio = data?.integrations?.find((i: { id: string }) => i.id === "twilio");
+        setTwilioLive(Boolean(twilio?.live));
+      })
+      .catch(() => setTwilioLive(false));
+  }, []);
 
   useEffect(() => {
     if (!orgId) return;
@@ -110,11 +122,14 @@ export default function TasksPage() {
           status: editTask.status,
           tags,
           is_recurring: form.isRecurring,
+          notifyViaSms: notifyViaSms && selectedMemberIds.length > 0,
         }),
       });
-      const data = await res.json().catch(() => ({}));
+      const data = await res.json().catch(() => ({})) as { error?: string; sms?: { message?: string; sent?: number } };
       if (!res.ok) { toast.error(data.error ?? "Update failed"); return; }
       toast.success("Task updated");
+      if (data.sms?.sent) toast.success(data.sms.message ?? "Assignees notified by text");
+      else if (notifyViaSms && data.sms?.message) toast.error(data.sms.message);
     } else {
       const res = await fetch("/api/tasks", {
         method: "POST",
@@ -128,17 +143,21 @@ export default function TasksPage() {
           assigneeMemberIds: selectedMemberIds,
           tags,
           isRecurring: form.isRecurring,
+          notifyViaSms: notifyViaSms && selectedMemberIds.length > 0,
         }),
       });
-      const data = await res.json().catch(() => ({}));
+      const data = await res.json().catch(() => ({})) as { error?: string; sms?: { message?: string; sent?: number } };
       if (!res.ok) { toast.error(data.error ?? "Create failed"); return; }
       toast.success("Task created");
+      if (data.sms?.sent) toast.success(data.sms.message ?? "Assignees notified by text");
+      else if (notifyViaSms && data.sms?.message) toast.error(data.sms.message);
     }
 
     setCreateOpen(false);
     setEditTask(null);
     setForm({ title: "", description: "", priority: "medium", isRecurring: false, dueDate: "", assigneeName: "", tags: "" });
     setSelectedMemberIds([]);
+    setNotifyViaSms(false);
     load(orgId);
   }
 
@@ -347,7 +366,34 @@ export default function TasksPage() {
             />
             <Input label="Due date" type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} />
           </div>
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.isRecurring} onChange={(e) => setForm({ ...form, isRecurring: e.target.checked })} /> Recurring task</label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={form.isRecurring} onChange={(e) => setForm({ ...form, isRecurring: e.target.checked })} />
+            Recurring task
+          </label>
+          {twilioLive && selectedMemberIds.length > 0 && (
+            <label className="flex items-start gap-2 text-sm p-3 rounded-lg bg-surface-1 border border-border">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={notifyViaSms}
+                onChange={(e) => setNotifyViaSms(e.target.checked)}
+              />
+              <span>
+                <span className="font-medium flex items-center gap-1">
+                  <MessageSquare size={14} />
+                  Text assignees (Twilio)
+                </span>
+                <span className="block text-xs text-muted-foreground mt-0.5">
+                  Sends a task reminder to each assignee&apos;s phone on the roster. Quiet hours 9pm–9am apply.
+                </span>
+              </span>
+            </label>
+          )}
+          {twilioLive === false && selectedMemberIds.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              Add Twilio keys in Settings → Integrations to text assignees when creating tasks.
+            </p>
+          )}
           <div>
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm font-medium text-foreground">Assign to members</p>
@@ -397,6 +443,7 @@ export default function TasksPage() {
           orgId={orgId}
           userId={userId}
           userName={userName}
+          twilioLive={twilioLive}
           onClose={() => setDetailTask(null)}
           onUpdate={() => load(orgId)}
         />

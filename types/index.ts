@@ -331,6 +331,9 @@ export interface Task {
   due_date: string | null;
   event_id: string | null;
   tags: string[];
+  is_recurring?: boolean;
+  recurrence_rule?: string | null;
+  attachment_urls?: string[];
   completed_at: string | null;
   created_at: string;
 }
