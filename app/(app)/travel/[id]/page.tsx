@@ -9,6 +9,7 @@ import {
   Badge, Button, Card, CardHeader, EmptyState, Input, Modal, PageHeader, ProgressBar, Select,
 } from "@/components/ui";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { TripLocationPanel } from "@/components/travel/trip-location-panel";
 import { eligibilityIssueLabel } from "@/lib/sports-eligibility";
 import { can } from "@/lib/permissions";
 import { useOrg } from "@/hooks/use-org";
@@ -144,6 +145,16 @@ export default function TravelTripDetailPage() {
           ) : undefined
         }
       />
+
+      {orgId && (
+        <TripLocationPanel
+          orgId={orgId}
+          tripId={tripId}
+          trip={trip}
+          canManage={canManage}
+          onSaved={() => load(orgId)}
+        />
+      )}
 
       <Card>
         <CardHeader title="Travel readiness" icon={<CheckCircle2 size={16} />} />

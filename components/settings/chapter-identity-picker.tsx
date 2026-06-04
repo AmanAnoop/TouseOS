@@ -142,29 +142,41 @@ export function ChapterIdentityPicker({
         </div>
       </div>
 
-      {value.greekAffiliationId === "custom" && isGreek && (
+      {(campusOnly || (value.greekAffiliationId === "custom" && isGreek)) && (
         <div className="grid sm:grid-cols-2 gap-3">
           <label className="text-sm font-medium">
-            Custom org primary
+            {campusOnly ? "Primary brand color" : "Custom org primary"}
             <input
               type="color"
               className="mt-1 h-10 w-full rounded-lg border border-border cursor-pointer"
               value={value.primaryColor}
               disabled={disabled}
-              onChange={(e) => emit({ primaryColor: e.target.value })}
+              onChange={(e) => emit({
+                primaryColor: e.target.value,
+                ...(campusOnly ? { universityId: "custom-campus" } : {}),
+              })}
             />
           </label>
           <label className="text-sm font-medium">
-            Custom org secondary
+            {campusOnly ? "Secondary brand color" : "Custom org secondary"}
             <input
               type="color"
               className="mt-1 h-10 w-full rounded-lg border border-border cursor-pointer"
               value={value.secondaryColor}
               disabled={disabled}
-              onChange={(e) => emit({ secondaryColor: e.target.value })}
+              onChange={(e) => emit({
+                secondaryColor: e.target.value,
+                ...(campusOnly ? { universityId: "custom-campus" } : {}),
+              })}
             />
           </label>
         </div>
+      )}
+
+      {campusOnly && (
+        <p className="text-xs text-muted-foreground">
+          Pick your own team or club colors, or select a university above to start from campus colors — then adjust with the pickers.
+        </p>
       )}
 
       <p className="text-xs text-muted-foreground">

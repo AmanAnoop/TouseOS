@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { FeedPageClient } from "@/components/feed/feed-page-client";
 import { loadActiveMembershipServer } from "@/lib/active-org-membership-server";
+import { isDashboardOfficer } from "@/lib/dashboard-roles";
 import { loadFeedTimeline } from "@/lib/feed-timeline";
 
 export const metadata = { title: "Chapter Feed" };
@@ -16,7 +17,7 @@ export default async function FeedPage() {
   if (!membership) redirect("/onboarding");
 
   const { orgId, orgName, role } = membership;
-  const isOfficer = ["owner", "president", "vice_president", "secretary", "social_chair", "treasurer", "advisor"].includes(role);
+  const isOfficer = isDashboardOfficer(role);
 
   const { timeline } = await loadFeedTimeline(supabase, orgId);
 

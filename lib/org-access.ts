@@ -19,5 +19,11 @@ export async function requireOrgProduct(allowed: Array<"greek" | "sports" | "clu
     redirect(productHomePath(product === "university" ? "greek" : product));
   }
 
-  return { orgId: membership.orgId, orgType, product };
+  return {
+    orgId: membership.orgId,
+    orgType,
+    product,
+    role: String(membership.role ?? "general_member"),
+    userId: user.id,
+  };
 }

@@ -80,7 +80,7 @@ export async function PATCH(request: Request) {
 
   const { data: existing } = await supabase
     .from("organizations")
-    .select("type, settings, invite_code")
+    .select("type, settings, invite_code, primary_color, secondary_color")
     .eq("id", orgId)
     .single();
 
@@ -97,17 +97,28 @@ export async function PATCH(request: Request) {
     updates.settings = { ...prevSettings, ...settingsPatch };
   }
 
-  if (name !== undefined) {
-    const orgType = String(existing.type ?? "fraternity");
-    const prevSettings = (existing.settings ?? {}) as Record<string, unknown>;
+  const prevSettings = (existing.settings ?? {}) as Record<string, unknown>;
+  const orgType = String(existing.type ?? "fraternity");
+  const identityTouched =
+    name !== undefined ||
+    campus !== undefined ||
+    councilOrLeague !== undefined ||
+    contactEmail !== undefined ||
+    privacy !== undefined ||
+    primaryColor !== undefined ||
+    secondaryColor !== undefined ||
+    universityId !== undefined ||
+    greekAffiliationId !== undefined;
+
+  if (identityTouched) {
     const stored = colorsForOrgStorage({
       product: getProductId(orgType),
       greekOrg: getGreekOrgById(greekAffiliationId ?? String(prevSettings.greek_affiliation_id ?? "")),
       university: getUniversityById(universityId ?? String(prevSettings.university_id ?? "")),
-      primaryColor: primaryColor ?? "#004225",
-      secondaryColor: secondaryColor ?? "#0B1F3A",
+      primaryColor: primaryColor ?? String(existing.primary_color ?? "#004225"),
+      secondaryColor: secondaryColor ?? String(existing.secondary_color ?? "#0B1F3A"),
     });
-    updates.name = name;
+    if (name !== undefined) updates.name = name;
     if (campus !== undefined) updates.campus = campus || null;
     if (councilOrLeague !== undefined) updates.council_or_league = councilOrLeague || null;
     if (contactEmail !== undefined) updates.contact_email = contactEmail || null;
@@ -117,8 +128,9 @@ export async function PATCH(request: Request) {
     updates.settings = {
       ...prevSettings,
       ...(settingsPatch ?? {}),
-      university_id: universityId ?? prevSettings.university_id ?? null,
-      greek_affiliation_id: greekAffiliationId ?? prevSettings.greek_affiliation_id ?? null,
+      university_id: universityId !== undefined ? universityId : prevSettings.university_id ?? null,
+      greek_affiliation_id:
+        greekAffiliationId !== undefined ? greekAffiliationId : prevSettings.greek_affiliation_id ?? null,
     };
   }
 

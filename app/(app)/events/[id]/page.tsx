@@ -6,10 +6,12 @@ import { Badge, Card, ProgressBar,
 } from "@/components/ui";
 import {
   Calendar, ChevronLeft, Clock, ExternalLink,
-  MapPin, Music, Users,
+  Music, Users,
 } from "lucide-react";
 import { EventHeroActions } from "@/components/events/event-hero-actions";
+import { EventDetailLocationSection } from "@/components/events/event-detail-location-section";
 import { formatDateTime } from "@/lib/utils";
+import { can } from "@/lib/permissions";
 import EventRsvpButton from "./rsvp-button";
 import { EventDetailActions } from "@/components/events/event-detail-actions";
 
@@ -44,6 +46,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
 
   const isPast = new Date(String(event.starts_at)) < new Date();
   const isUpcoming = !isPast;
+  const canEditEvent = can(membership.role, "manage_events");
 
   return (
     <div className="max-w-2xl mx-auto space-y-0">
@@ -152,17 +155,11 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
 
           {/* Details */}
           <div className="space-y-3">
-            {Boolean(event.location)&& (
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg bg-surface-1 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <MapPin size={15} className="text-muted-foreground" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-foreground">{String(event.location)}</p>
-                  {Boolean(event.address)&& <p className="text-xs text-muted-foreground">{String(event.address)}</p>}
-                </div>
-              </div>
-            )}
+            <EventDetailLocationSection
+              orgId={String(event.org_id)}
+              event={event}
+              canEdit={canEditEvent}
+            />
 
             {Boolean(event.starts_at)&& (
               <div className="flex items-start gap-3">

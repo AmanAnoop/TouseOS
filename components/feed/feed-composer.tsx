@@ -52,13 +52,11 @@ export function FeedComposer({ orgId, onPosted }: { orgId: string; onPosted?: ()
       toast.error(upErr.message);
       return;
     }
-    const { data: urlData } = supabase.storage.from("photos").getPublicUrl(stored.path);
     const res = await fetch("/api/feed/photo", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         orgId,
-        url: urlData.publicUrl,
         storagePath: stored.path,
         caption: caption || null,
       }),

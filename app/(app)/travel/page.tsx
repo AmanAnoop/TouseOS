@@ -11,6 +11,7 @@ import {
   Badge, Button, Card, EmptyState, Input,
   Modal, PageHeader, StatCard, Tabs,
 } from "@/components/ui";
+import { LocationFields, type LocationFieldValues } from "@/components/location/location-fields";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useOrg } from "@/hooks/use-org";
 import type { SportsTravelTrip } from "@/types";
@@ -42,8 +43,18 @@ export default function TravelPage() {
   const [subsidy, setSubsidy] = useState(0);
 
   const [form, setForm] = useState({
-    title: "", destination: "", departureDate: "",
-    returnDate: "", itinerary: "", packingList: "",
+    title: "",
+    departureDate: "",
+    returnDate: "",
+    itinerary: "",
+    packingList: "",
+    location: {
+      destination: "",
+      venueName: "",
+      address: "",
+      departureLocation: "",
+      meetingPoint: "",
+    } as LocationFieldValues,
   });
 
   const load = useCallback(async (oid: string) => {
@@ -71,7 +82,11 @@ export default function TravelPage() {
       body: JSON.stringify({
         orgId,
         title: form.title,
-        destination: form.destination,
+        destination: form.location.destination,
+        venueName: form.location.venueName,
+        address: form.location.address,
+        departureLocation: form.location.departureLocation,
+        meetingPoint: form.location.meetingPoint,
         departureDate: form.departureDate,
         returnDate: form.returnDate || form.departureDate,
         itinerary: form.itinerary,
@@ -84,7 +99,14 @@ export default function TravelPage() {
     }
     toast.success("Trip created!");
     setCreateOpen(false);
-    setForm({ title: "", destination: "", departureDate: "", returnDate: "", itinerary: "", packingList: "" });
+    setForm({
+      title: "",
+      departureDate: "",
+      returnDate: "",
+      itinerary: "",
+      packingList: "",
+      location: { destination: "", venueName: "", address: "", departureLocation: "", meetingPoint: "" },
+    });
     load(orgId);
   }
 
@@ -133,8 +155,10 @@ export default function TravelPage() {
                     </Link>
                     <Badge label={trip.status} color={trip.status === "confirmed" ? "green" : trip.status === "planning" ? "yellow" : "blue"} />
                   </div>
-                  {trip.destination && (
-                    <p className="text-sm text-muted-foreground mt-0.5">📍 {trip.destination}</p>
+                  {(trip.destination || trip.venue_name || trip.address) && (
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      📍 {[trip.venue_name, trip.destination, trip.address].filter(Boolean).join(" · ")}
+                    </p>
                   )}
                   <p className="text-sm text-muted-foreground">
                     {formatDate(trip.departure_date)} – {formatDate(trip.return_date)}
@@ -162,7 +186,12 @@ export default function TravelPage() {
       >
         <div className="space-y-4">
           <Input label="Trip title *" placeholder="State Championships – Columbus" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-          <Input label="Destination" placeholder="Columbus, OH" value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} />
+          <LocationFields
+            variant="travel"
+            orgId={orgId ?? undefined}
+            values={form.location}
+            onChange={(patch) => setForm({ ...form, location: { ...form.location, ...patch } })}
+          />
           <div className="grid grid-cols-2 gap-3">
             <Input label="Departure date *" type="date" value={form.departureDate} onChange={(e) => setForm({ ...form, departureDate: e.target.value })} />
             <Input label="Return date" type="date" value={form.returnDate} onChange={(e) => setForm({ ...form, returnDate: e.target.value })} />

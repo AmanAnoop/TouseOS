@@ -137,15 +137,12 @@ function SocialPageContent() {
 
       if (error) { toast.error(`Failed to upload ${file.name}`); continue; }
 
-      const { data: urlData } = supabase.storage.from("photos").getPublicUrl(stored.path);
-
       await fetch("/api/photos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           orgId,
           albumId: selectedAlbum.id,
-          url: urlData.publicUrl,
           storagePath: stored.path,
         }),
       });

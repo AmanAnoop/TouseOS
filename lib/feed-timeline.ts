@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { attachPhotoDisplayUrls } from "@/lib/photo-access";
 
 export type FeedTimelineItem = {
   id: string;
@@ -27,7 +28,7 @@ export async function loadFeedTimeline(
       .limit(3),
     supabase
       .from("photos")
-      .select("id, url, caption, created_at, uploader_name, likes")
+      .select("id, url, storage_path, caption, created_at, uploader_name, likes")
       .eq("org_id", orgId)
       .eq("status", "approved")
       .order("created_at", { ascending: false })
@@ -36,7 +37,15 @@ export async function loadFeedTimeline(
 
   const announcements = (announcementsRes.data ?? []) as Array<Record<string, unknown>>;
   const events = (eventsRes.data ?? []) as Array<Record<string, unknown>>;
-  const photos = (photosRes.data ?? []) as Array<Record<string, unknown>>;
+  const photosRaw = (photosRes.data ?? []) as Array<Record<string, unknown>>;
+  const photosWithUrls = await attachPhotoDisplayUrls(
+    supabase,
+    photosRaw as Array<{ url?: string; storage_path?: string }>,
+  );
+  const photos = photosWithUrls.map((p) => ({
+    ...p,
+    url: p.display_url ?? p.url,
+  })) as Array<Record<string, unknown>>;
 
   const timeline: FeedTimelineItem[] = [
     ...announcements.map((a) => ({

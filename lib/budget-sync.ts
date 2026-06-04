@@ -32,7 +32,7 @@ export function normalizePaymentsForLedger(rows: PaymentWithItem[]): PaymentRow[
   });
 }
 
-const PAYMENT_SELECT = "id, amount, paid_amount, status, payment_items(category, title)";
+export const PAYMENT_SELECT = "id, amount, paid_amount, status, payment_items(category, title)";
 
 export interface ReimbursementRow {
   id: string;
@@ -142,7 +142,7 @@ export function buildFinanceLedger(
     );
   }
 
-  const { paidByCategory, paidTotal, approvedUnpaid } = aggregateReimbursementExpenses(reimbs);
+  const { paidTotal, approvedUnpaid } = aggregateReimbursementExpenses(reimbs);
 
   const incomeByLine = [...incomeMap.entries()]
     .map(([line, amount]) => ({ line, amount: Math.round(amount * 100) / 100 }))
@@ -151,9 +151,6 @@ export function buildFinanceLedger(
   const expenseByLine: Array<{ line: string; amount: number }> = [];
   if (paidTotal > 0) {
     expenseByLine.push({ line: "Reimbursements (paid)", amount: Math.round(paidTotal * 100) / 100 });
-  }
-  for (const [line, amount] of paidByCategory.entries()) {
-    expenseByLine.push({ line, amount: Math.round(amount * 100) / 100 });
   }
   if (approvedUnpaid > 0) {
     expenseByLine.push({
@@ -224,7 +221,7 @@ export async function applyBudgetSync(
     );
   }
 
-  const { paidByCategory, paidTotal, approvedUnpaid } = aggregateReimbursementExpenses(reimbs);
+  const { paidTotal, approvedUnpaid } = aggregateReimbursementExpenses(reimbs);
 
   let lines = (budget.budget_lines ?? []) as BudgetLineRow[];
   const updates: Array<{ lineId: string; category: string; previous: number; next: number }> = [];
@@ -280,8 +277,12 @@ export async function applyBudgetSync(
   }
 
   await upsertLine("Reimbursements (paid)", "expense", paidTotal, "Synced from paid reimbursements");
-  for (const [catLine, amount] of paidByCategory.entries()) {
-    await upsertLine(catLine, "expense", amount, "Synced from reimbursements by category");
+  // Zero stale per-category reimbursement lines from older sync versions (avoid double-counting)
+  for (const line of lines.filter((l) => l.type === "expense" && l.category.startsWith("Reimbursement:"))) {
+    if (Number(line.actual) > 0) {
+      await supabase.from("budget_lines").update({ actual: 0 }).eq("id", line.id);
+      updates.push({ lineId: line.id, category: line.category, previous: Number(line.actual), next: 0 });
+    }
   }
   await upsertLine(
     "Reimbursements (approved, unpaid)",
