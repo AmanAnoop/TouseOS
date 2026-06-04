@@ -548,6 +548,98 @@
     text-align: right;
   }
 
+  /* Mobile: stack table rows as cards (375px+) */
+  .ds-table-mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  @media (min-width: 768px) {
+    .ds-table-mobile {
+      display: none;
+    }
+  }
+
+  .ds-table-desktop {
+    display: none;
+  }
+
+  @media (min-width: 768px) {
+    .ds-table-desktop {
+      display: block;
+    }
+  }
+
+  .ds-table-card {
+    background-color: var(--color-bg-raised);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    box-shadow: var(--shadow-xs);
+    transition: border-color 120ms ease, box-shadow 120ms ease;
+  }
+
+  .ds-table-card[role="button"],
+  .ds-table-card.ds-table-card-clickable {
+    cursor: pointer;
+  }
+
+  .ds-table-card:hover.ds-table-card-clickable {
+    border-color: var(--color-border-strong);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .ds-table-card-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    padding: 6px 0;
+    font-size: 13px;
+  }
+
+  .ds-table-card-row:first-child {
+    padding-top: 0;
+  }
+
+  .ds-table-card-row:last-child {
+    padding-bottom: 0;
+  }
+
+  .ds-table-card-label {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--color-text-tertiary);
+    flex-shrink: 0;
+  }
+
+  .ds-table-card-primary {
+    font-weight: 500;
+    font-size: 15px;
+    color: var(--color-text-primary);
+    margin-bottom: 8px;
+  }
+
+  /* Page-level loading skeleton */
+  .ds-page-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .ds-page-skeleton-header {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .shadow-card {
+    box-shadow: var(--shadow-sm);
+  }
+
   /* Stat cards */
   .ds-stat-grid {
     display: grid;

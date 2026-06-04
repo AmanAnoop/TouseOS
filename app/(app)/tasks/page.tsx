@@ -8,7 +8,7 @@ import {
 import toast from "react-hot-toast";
 import { useOrg } from "@/hooks/use-org";
 import { Button, Card, EmptyState, Input, Modal,
-  PageHeader, Select, StatCard, Tabs, Textarea,
+  PageHeader, Select, Skeleton, StatCard, Tabs, Textarea,
 } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
 import type { Task, TaskStatus, TaskPriority } from "@/types";
@@ -232,7 +232,7 @@ export default function TasksPage() {
       />
 
       {overdue.length > 0 && (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-sm">
+        <div className="ds-alert ds-alert-error flex items-center gap-2 text-sm">
           <AlertCircle size={16} className="flex-shrink-0" />
           <span><strong>{overdue.length} task{overdue.length > 1 ? "s" : ""}</strong> overdue — {overdue.map((t) => t.title).join(", ")}</span>
         </div>
@@ -269,7 +269,12 @@ export default function TasksPage() {
               </div>
               <div className="space-y-2">
                 {(loading || orgLoading)
-                  ? Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-20 rounded-xl bg-surface-2 animate-pulse" />)
+                  ? Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="ds-card" style={{ padding: 14 }}>
+                      <Skeleton style={{ height: 14, width: "70%", marginBottom: 10 }} />
+                      <Skeleton style={{ height: 10, width: "45%" }} />
+                    </div>
+                  ))
                   : col.tasks.map((task) => (
                     <TaskCard
                       key={task.id}

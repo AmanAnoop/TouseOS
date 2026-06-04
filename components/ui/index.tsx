@@ -298,8 +298,14 @@ export function Avatar({ name, src, size = "md", className }: AvatarProps) {
 }
 
 /* ── Skeleton ───────────────────────────────────────────── */
-export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn("ds-skeleton", className)} aria-hidden />;
+export function Skeleton({
+  className,
+  style,
+}: {
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  return <div className={cn("ds-skeleton", className)} style={style} aria-hidden />;
 }
 
 /* ── Stat Card ──────────────────────────────────────────── */
@@ -349,6 +355,10 @@ interface Column<T> {
   render?: (row: T) => React.ReactNode;
   className?: string;
   numeric?: boolean;
+  /** Hide this field on mobile card layout */
+  hideOnMobile?: boolean;
+  /** Use as card title on mobile (defaults to first column) */
+  mobilePrimary?: boolean;
 }
 
 interface TableProps<T extends Record<string, unknown>> {
@@ -357,6 +367,80 @@ interface TableProps<T extends Record<string, unknown>> {
   onRowClick?: (row: T) => void;
   emptyMessage?: string;
   loading?: boolean;
+  /** Row key for React lists */
+  rowKey?: (row: T, index: number) => string;
+}
+
+function TableMobileCards<T extends Record<string, unknown>>({
+  columns,
+  data,
+  onRowClick,
+  emptyMessage,
+  loading,
+  rowKey,
+}: TableProps<T>) {
+  const primaryCol = columns.find((c) => c.mobilePrimary) ?? columns[0];
+  const detailCols = columns.filter((c) => c.key !== primaryCol.key && !c.hideOnMobile);
+
+  if (loading) {
+    return (
+      <div className="ds-table-mobile">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="ds-table-card">
+            <Skeleton className="h-5 w-2/3 mb-3" />
+            <Skeleton className="h-3 w-full mb-2" />
+            <Skeleton className="h-3 w-1/2" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (data.length === 0) {
+    return (
+      <div className="ds-table-mobile">
+        <p className="type-small" style={{ textAlign: "center", padding: 32, color: "var(--color-text-secondary)" }}>
+          {emptyMessage}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="ds-table-mobile">
+      {data.map((row, i) => {
+        const key = rowKey?.(row, i) ?? String((row as { id?: string }).id ?? i);
+        const clickable = Boolean(onRowClick);
+        return (
+          <div
+            key={key}
+            className={cn("ds-table-card", clickable && "ds-table-card-clickable")}
+            role={clickable ? "button" : undefined}
+            tabIndex={clickable ? 0 : undefined}
+            onClick={() => onRowClick?.(row)}
+            onKeyDown={(e) => {
+              if (clickable && (e.key === "Enter" || e.key === " ")) {
+                e.preventDefault();
+                onRowClick?.(row);
+              }
+            }}
+          >
+            <div className="ds-table-card-primary">
+              {primaryCol.render ? primaryCol.render(row) : String(row[primaryCol.key] ?? "")}
+            </div>
+            {detailCols.map((col) => (
+              <div key={col.key} className="ds-table-card-row">
+                <span className="ds-table-card-label">{col.header}</span>
+                <span style={{ textAlign: col.numeric ? "right" : undefined, minWidth: 0 }}>
+                  {col.render ? col.render(row) : String(row[col.key] ?? "")}
+                </span>
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 export function Table<T extends Record<string, unknown>>({
@@ -365,53 +449,105 @@ export function Table<T extends Record<string, unknown>>({
   onRowClick,
   emptyMessage = "No records found.",
   loading,
+  rowKey,
 }: TableProps<T>) {
+  const desktopBody = loading ? (
+    Array.from({ length: 4 }).map((_, i) => (
+      <tr key={i}>
+        {columns.map((col) => (
+          <td key={col.key}>
+            <Skeleton style={{ height: 16, width: "100%" }} />
+          </td>
+        ))}
+      </tr>
+    ))
+  ) : data.length === 0 ? (
+    <tr>
+      <td colSpan={columns.length} style={{ textAlign: "center", padding: 48, color: "var(--color-text-secondary)" }}>
+        {emptyMessage}
+      </td>
+    </tr>
+  ) : (
+    data.map((row, i) => {
+      const key = rowKey?.(row, i) ?? String((row as { id?: string }).id ?? i);
+      return (
+        <tr
+          key={key}
+          style={{ cursor: onRowClick ? "pointer" : undefined }}
+          onClick={() => onRowClick?.(row)}
+        >
+          {columns.map((col) => (
+            <td key={col.key} className={col.numeric ? "ds-td-num" : undefined}>
+              {col.render ? col.render(row) : String(row[col.key] ?? "")}
+            </td>
+          ))}
+        </tr>
+      );
+    })
+  );
+
   return (
-    <div className="ds-table-wrap">
-      <table className="ds-table">
-        <thead>
-          <tr>
-            {columns.map((col) => (
-              <th key={col.key} className={col.numeric ? "text-right" : undefined} style={col.numeric ? { textAlign: "right" } : undefined}>
-                {col.header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {loading ? (
-            Array.from({ length: 4 }).map((_, i) => (
-              <tr key={i}>
-                {columns.map((col) => (
-                  <td key={col.key}>
-                    <Skeleton className="h-4 w-full" />
-                  </td>
-                ))}
-              </tr>
-            ))
-          ) : data.length === 0 ? (
+    <>
+      <TableMobileCards
+        columns={columns}
+        data={data}
+        onRowClick={onRowClick}
+        emptyMessage={emptyMessage}
+        loading={loading}
+        rowKey={rowKey}
+      />
+      <div className="ds-table-desktop ds-table-wrap">
+        <table className="ds-table">
+          <thead>
             <tr>
-              <td colSpan={columns.length} style={{ textAlign: "center", padding: 48, color: "var(--color-text-secondary)" }}>
-                {emptyMessage}
-              </td>
+              {columns.map((col) => (
+                <th key={col.key} className={col.numeric ? "text-right" : undefined} style={col.numeric ? { textAlign: "right" } : undefined}>
+                  {col.header}
+                </th>
+              ))}
             </tr>
-          ) : (
-            data.map((row, i) => (
-              <tr
-                key={i}
-                style={{ cursor: onRowClick ? "pointer" : undefined }}
-                onClick={() => onRowClick?.(row)}
-              >
-                {columns.map((col) => (
-                  <td key={col.key} className={col.numeric ? "ds-td-num" : undefined}>
-                    {col.render ? col.render(row) : String(row[col.key] ?? "")}
-                  </td>
-                ))}
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>{desktopBody}</tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+/** Full-page loading placeholder — header + stat grid + content blocks */
+export function PageSkeleton({
+  stats = 4,
+  rows = 3,
+  className,
+}: {
+  stats?: number;
+  rows?: number;
+  className?: string;
+}) {
+  return (
+    <div className={cn("ds-page-skeleton", className)} aria-busy="true" aria-label="Loading page">
+      <div className="ds-page-skeleton-header">
+        <Skeleton style={{ height: 12, width: 120 }} />
+        <Skeleton style={{ height: 28, width: "min(280px, 70%)" }} />
+        <Skeleton style={{ height: 14, width: "min(360px, 85%)" }} />
+      </div>
+      {stats > 0 && (
+        <div className="ds-stat-grid">
+          {Array.from({ length: stats }).map((_, i) => (
+            <div key={i} className="ds-stat-card">
+              <Skeleton style={{ height: 12, width: 80, marginBottom: 12 }} />
+              <Skeleton style={{ height: 32, width: 64 }} />
+            </div>
+          ))}
+        </div>
+      )}
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="ds-card" style={{ padding: 20 }}>
+          <Skeleton style={{ height: 14, width: "40%", marginBottom: 16 }} />
+          <Skeleton style={{ height: 12, width: "100%", marginBottom: 8 }} />
+          <Skeleton style={{ height: 12, width: "75%" }} />
+        </div>
+      ))}
     </div>
   );
 }

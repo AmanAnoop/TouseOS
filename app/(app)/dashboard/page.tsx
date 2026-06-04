@@ -201,7 +201,7 @@ export default async function DashboardPage() {
             <div className="space-y-3">
               {events.map((e) => (
                 <Link key={e.id} href={`/events/${e.id}`} className="flex items-start gap-3 hover:bg-surface-1 rounded-lg p-2 -mx-2 transition-colors">
-                  <div className="w-10 h-10 rounded-lg bg-greek-50 dark:bg-greek-950/30 flex items-center justify-center text-greek-600 flex-shrink-0">
+                  <div className="w-10 h-10 rounded-lg bg-greek-50 flex items-center justify-center text-greek-600 flex-shrink-0">
                     <Calendar size={16} />
                   </div>
                   <div className="flex-1 min-w-0">

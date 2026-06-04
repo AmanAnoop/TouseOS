@@ -29,6 +29,28 @@ const config: Config = {
         warning: "var(--color-warning)",
         error: "var(--color-error)",
         info: "var(--color-info)",
+        /* Legacy aliases — map old utility names to design tokens */
+        "surface-1": "var(--color-bg-subtle)",
+        "surface-2": "color-mix(in srgb, var(--color-text-primary) 4%, var(--color-bg))",
+        greek: {
+          50: "color-mix(in srgb, var(--color-org-primary) 8%, var(--color-bg))",
+          100: "color-mix(in srgb, var(--color-org-primary) 12%, var(--color-bg))",
+          200: "color-mix(in srgb, var(--color-org-primary) 20%, var(--color-bg))",
+          300: "color-mix(in srgb, var(--color-org-primary) 30%, var(--color-border))",
+          400: "color-mix(in srgb, var(--color-org-primary) 55%, var(--color-text-secondary))",
+          500: "var(--color-org-primary)",
+          600: "var(--color-org-primary)",
+          700: "var(--color-org-primary)",
+          950: "color-mix(in srgb, var(--color-org-primary) 18%, var(--color-bg-subtle))",
+        },
+        club: {
+          50: "color-mix(in srgb, var(--color-org-primary) 8%, var(--color-bg))",
+          600: "var(--color-org-primary)",
+        },
+        ring: "var(--color-org-primary)",
+      },
+      boxShadow: {
+        card: "var(--shadow-sm)",
       },
       fontFamily: {
         sans: ["var(--font-body)"],
