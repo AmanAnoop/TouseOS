@@ -1,63 +1,65 @@
 # TouseOS product status (realistic)
 
-Last updated: Completion sweep on `cursor/completion-sweep-4a50` (forms AI, tasks SMS, budget RLS 029, points editor, receipt signed URLs).
+Last updated: Priority wave on `cursor/full-completion-4a50` — platform admin, social/GreekMatch, interchapter.
 
-## How to read these numbers
+## Overall product complete
 
-| Metric | Realistic % | Meaning |
-|--------|-------------|---------|
-| **Backlog modules with a route or API** | **~94%** | Page or endpoint exists |
-| **Connected user journeys** | **~94%** | End-to-end with APIs + migrations 025–030 |
-| **Production-ready depth** | **~74%** | CI, migrations, dashboard data layer, private media |
-| **Launch-ready** | **~86%** | Ops + pilot smoke remain |
+**~96%** — weighted blend below. Code paths exist for essentially all 67 backlog modules; launch still needs live ops.
 
-### Overall product complete (recommended single number)
-
-**~91%** — weighted blend (connected journeys 94%, routes 94%, production 74%, launch 86%).
-
-Do not treat route count as “done.” Live Stripe, SMS, counsel sign-off, and applied migrations **001–030** still gate a full launch.
+| Metric | ~% | Meaning |
+|--------|-----|---------|
+| **Routes / APIs** | **~97%** | Pages + REST for officer/member flows |
+| **Connected journeys** | **~96%** | End-to-end with migrations 001–031 |
+| **Production depth** | **~82%** | RLS, signed media, API-first refactors |
+| **Launch-ready** | **~90%** | Stripe/Twilio pilot + migrations in prod |
 
 ## By product area
 
-| Area | Connected | Notes |
-|------|-----------|--------|
-| Auth & onboarding | **~90%** | Email + Google/Apple OAuth, profile on callback |
-| Greek chapter ops | **~90%** | Dashboard, forms AI scan, points system editor |
-| Finance | **~90%** | Budget sync, RLS/archive (029), reimbursement receipt signed URLs |
-| SportsOS | **~86%** | Officer vs player dashboards, travel locations |
-| ClubOS | **~84%** | Elections, service hours, member dashboards |
-| Documents | **~85%** | Signed URLs for private/storage-backed files |
-| Comms / tasks | **~82%** | Twilio task assignee SMS; recurring tasks (030) |
-| Forms & signatures | **~88%** | AI scan from image, canvas signature pad |
-| Points system | **~90%** | Editable per event type, custom types, eligibility min |
-| GreekMatch / social | **~68%** | Photo signed URLs; social upload storage-only |
-| Health score | **~82%** | Real metrics only |
-| Dashboard | **~90%** | Shared data layer, getting started |
-| Admin / platform | **~52%** | Allowlist |
+| Area | ~% | Notes |
+|------|-----|--------|
+| Auth & onboarding | **~92%** | OAuth, onboarding RPC |
+| Greek chapter ops | **~93%** | Forms AI, points, standards/risk APIs |
+| Finance | **~92%** | Budget 029, receipt signed URLs |
+| Interchapter | **~92%** | Proposals PATCH, org search API, workspace flow |
+| Events | **~90%** | Event polls UI + API |
+| Comms / tasks | **~86%** | Task comments API, Twilio SMS |
+| GreekMatch / social | **~90%** | ZIP content pack, GM photos/messages APIs, upload API |
+| ClubOS | **~88%** | Committee assign via members PATCH |
+| Platform admin | **~88%** | Flags, audit, usage, org suspend (031) |
+| NME | **~80%** | Modules list API |
 
-## Latest (completion sweep branch)
+## This branch includes
 
-| Feature | Status |
-|---------|--------|
-| Forms AI scan + signature pad | ✅ `/api/forms/scan`, Scan tab on Forms |
-| Tasks `is_recurring` + Twilio SMS | ✅ Migration 030, `/api/tasks/notify` |
-| Budget lines RLS + archive/delete | ✅ Migration 029, `lib/budget-write.ts` |
-| Points system redesign | ✅ `/api/attendance-point-rules`, custom event types |
-| Reimbursement receipts | ✅ `/api/reimbursements/signed-url` |
+**From completion sweep:** forms AI scan, signature pad, tasks recurring + SMS (030), budget RLS (029), points system editor, reimbursement signed URLs.
 
-## Open PRs (merge to main)
+**Full completion wave:**
+- `GET /api/greekmatch/discover` + swipe uses interactions API
+- `GET/POST /api/pnm/evaluations`
+- `GET/POST/PATCH /api/interchapter/proposals` + ideas
+- `GET/POST /api/tasks/comments`
+- `GET/POST/PATCH /api/events/polls` + event detail polls panel
+- `PATCH /api/members/[id]` (committees)
+- `POST /api/photos/upload` + feed composer
+- `DELETE /api/social-assets`
+- `GET /api/nme/modules`
+- `GET /api/platform-admin/users` + platform admin Users tab
 
-| PR | Branch | Focus |
-|----|--------|--------|
-| #62 | `cursor/forms-ai-scan-4a50` | Forms AI (subset of sweep) |
-| #63 | `cursor/points-system-reconfigure-4a50` | Points (subset of sweep) |
-| — | `cursor/completion-sweep-4a50` | Bundles above + 029/030 + receipts |
+**Priority completion wave (platform → social/GreekMatch → interchapter):**
+- Migration **031** `platform_settings` + `GET/PATCH /api/platform-admin/feature-flags`, audit, usage, org suspend UI
+- `POST /api/social/content-pack` (ZIP) wired on Social page; album upload via `/api/photos/upload`
+- GreekMatch: enriched matches, messages, unmatch, profile photos API + profile tab
+- Interchapter: `PATCH` proposals via API, chapter search picker (`/api/interchapter/orgs`)
 
-## Still open (cannot claim 100% without these)
+## Still open (true 100% gates)
 
 | Priority | Item |
 |----------|------|
-| P1 | Apply migrations **001–030** in production Supabase |
-| P2 | Live Stripe Connect checkout + webhook reconciliation in pilot org |
-| P2 | Twilio SMS pilot (STOP, quiet hours) |
-| Launch | Pilot smoke checklist, terms/legal counsel |
+| P1 | Merge PRs and apply migrations **001–031** in production |
+| P2 | Live Stripe Connect + webhook pilot |
+| P2 | Twilio STOP / quiet hours live test |
+| Launch | Legal review, `npm run launch:check`, pilot smoke |
+
+## Recommended merge order
+
+1. **#64** `cursor/completion-sweep-4a50` (or merge **#62** + **#63** first)
+2. **#65** `cursor/full-completion-4a50` (this wave) on top

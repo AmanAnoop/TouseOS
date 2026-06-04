@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation";
 import NextImage from "next/image";
 import { CheckCircle, Download, Flag, Image as ImageIcon, Plus, Star, Upload, X } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
 import {
   Badge, Button, EmptyState,
   Modal, PageHeader, Tabs,
@@ -29,7 +28,6 @@ const APPROVAL_COLOR = {
 
 function SocialPageContent() {
   const searchParams = useSearchParams();
-  const supabase = createClient();
   const [albums, setAlbums] = useState<PhotoAlbum[]>([]);
   const [selectedAlbum, setSelectedAlbum] = useState<PhotoAlbum | null>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -123,29 +121,33 @@ function SocialPageContent() {
 
   async function uploadPhotos(files: FileList) {
     if (!orgId || !selectedAlbum) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       setUploadProgress(Math.round(((i + 1) / files.length) * 100));
-      const path = `${orgId}/${selectedAlbum.id}/${Date.now()}-${file.name}`;
+      const body = new FormData();
+      body.append("file", file);
+      body.append("org_id", orgId);
 
-      const { data: stored, error } = await supabase.storage
-        .from("photos")
-        .upload(path, file, { upsert: false });
+      const upRes = await fetch("/api/photos/upload", { method: "POST", body });
+      const upData = await upRes.json().catch(() => ({}));
+      if (!upRes.ok) {
+        toast.error((upData as { error?: string }).error ?? `Failed to upload ${file.name}`);
+        continue;
+      }
 
-      if (error) { toast.error(`Failed to upload ${file.name}`); continue; }
-
-      await fetch("/api/photos", {
+      const postRes = await fetch("/api/photos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           orgId,
           albumId: selectedAlbum.id,
-          storagePath: stored.path,
+          storagePath: (upData as { storagePath: string }).storagePath,
         }),
       });
+      if (!postRes.ok) {
+        toast.error((await postRes.json().catch(() => ({}))).error ?? `Failed to save ${file.name}`);
+      }
     }
 
     setUploadProgress(0);
@@ -153,29 +155,35 @@ function SocialPageContent() {
     toast.success(`${files.length} photo${files.length > 1 ? "s" : ""} uploaded`);
   }
 
-  function exportContentPack() {
-    const selected = photos.filter((p) => selectedPhotos.includes(p.id));
-    const manifest = [
-      `TouseOS Content Pack — ${selectedAlbum?.title ?? "Album"}`,
-      `Generated: ${new Date().toLocaleString()}`,
-      ``,
-      `CAPTION:`,
-      generatedCaption || "(no caption written)",
-      ``,
-      `PHOTOS (${selected.length}, in carousel order):`,
-      ...selected.map((p, i) => `${i + 1}. ${p.url}`),
-      ``,
-      `PR COMPLIANCE: Review for alcohol, non-members, consent, and chapter guidelines before posting.`,
-    ].join("\n");
-
-    const blob = new Blob([manifest], { type: "text/plain" });
+  async function exportContentPack() {
+    if (!orgId || selectedPhotos.length === 0) {
+      toast.error("Select at least one approved photo for the pack");
+      return;
+    }
+    const res = await fetch("/api/social/content-pack", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        photoIds: selectedPhotos,
+        caption: generatedCaption,
+        albumTitle: selectedAlbum?.title,
+      }),
+    });
+    if (!res.ok) {
+      toast.error((await res.json().catch(() => ({}))).error ?? "Export failed");
+      return;
+    }
+    const blob = await res.blob();
+    const filename = res.headers.get("Content-Disposition")?.match(/filename="([^"]+)"/)?.[1]
+      ?? `content-pack-${(selectedAlbum?.title ?? "album").toLowerCase().replace(/[^a-z0-9]+/g, "-")}.zip`;
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `content-pack-${(selectedAlbum?.title ?? "album").toLowerCase().replace(/\s+/g, "-")}.txt`;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success(`Content pack exported with ${selected.length} photos`);
+    toast.success(`ZIP content pack with ${selectedPhotos.length} photo${selectedPhotos.length > 1 ? "s" : ""}`);
   }
 
   async function generateCaption() {

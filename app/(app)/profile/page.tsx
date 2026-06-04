@@ -11,6 +11,7 @@ import { ProfileHeader } from "@/components/profile/profile-header";
 import { ProfileForm } from "@/components/profile/profile-form";
 import { PrivacySettings } from "@/components/profile/privacy-settings";
 import { GreekMatchSettings, type GreekMatchFormData } from "@/components/profile/greekmatch-settings";
+import { GreekMatchPhotos } from "@/components/profile/greekmatch-photos";
 
 interface OrgRole { org_id: string; role: string; org_name: string; org_type: string }
 
@@ -61,6 +62,7 @@ export default function ProfilePage() {
     minAge: "18",
     maxAge: "30",
   });
+  const [gmPhotos, setGmPhotos] = useState<string[]>([]);
 
   useEffect(() => {
     async function load() {
@@ -124,6 +126,11 @@ export default function ProfilePage() {
           minAge: String(gmRes.data.min_age ?? "18"),
           maxAge: String(gmRes.data.max_age ?? "30"),
         });
+        const photosRes = await fetch("/api/greekmatch/photos");
+        if (photosRes.ok) {
+          const photosData = await photosRes.json();
+          setGmPhotos((photosData.photos as string[]) ?? []);
+        }
       } else {
         setGmSection((prev) => ({
           ...prev,
@@ -289,15 +296,18 @@ export default function ProfilePage() {
       )}
 
       {tab === "greekmatch" && (
-        <GreekMatchSettings
-          form={gmSection}
-          saving={saving}
-          onChange={(updates) => setGmSection({ ...gmSection, ...updates })}
-          onToggleInterest={toggleGmInterest}
-          onSave={saveGreekMatch}
-          onPause={pauseGreekMatch}
-          onOptOut={optOutGreekMatch}
-        />
+        <div className="space-y-4">
+          <GreekMatchPhotos photos={gmPhotos} onChange={setGmPhotos} />
+          <GreekMatchSettings
+            form={gmSection}
+            saving={saving}
+            onChange={(updates) => setGmSection({ ...gmSection, ...updates })}
+            onToggleInterest={toggleGmInterest}
+            onSave={saveGreekMatch}
+            onPause={pauseGreekMatch}
+            onOptOut={optOutGreekMatch}
+          />
+        </div>
       )}
     </div>
   );

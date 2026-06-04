@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Building, Copy, Eye, Flag, Shield, Users } from "lucide-react";
+import { PlatformAuditPanel } from "@/components/platform-admin/platform-audit-panel";
 import { PlatformBillingPanel } from "@/components/platform-admin/platform-billing-panel";
+import { PlatformFeatureFlagsPanel } from "@/components/platform-admin/platform-feature-flags-panel";
+import { PlatformUsagePanel } from "@/components/platform-admin/platform-usage-panel";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { Alert, Badge, Button, Card, EmptyState, Modal, PageHeader, StatCard, Tabs } from "@/components/ui";
@@ -54,6 +57,8 @@ export default function PlatformAdminPage() {
     campaigns: Array<{ title: string; raised_amount: number; goal_amount: number; is_active: boolean }>;
   } | null>(null);
   const [orgDetailLoading, setOrgDetailLoading] = useState(false);
+  const [orgSuspended, setOrgSuspended] = useState(false);
+  const [suspendingOrg, setSuspendingOrg] = useState(false);
   const [tab, setTab] = useState("orgs");
   const [reports, setReports] = useState<Array<{
     id: string;
@@ -118,6 +123,28 @@ export default function PlatformAdminPage() {
       return;
     }
     setOrgDetail(data);
+    setOrgSuspended(Boolean(data.suspended));
+  }
+
+  async function toggleOrgSuspended(suspend: boolean) {
+    if (!selectedOrgId) return;
+    setSuspendingOrg(true);
+    const res = await fetch("/api/platform-admin/org", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId: selectedOrgId, platformSuspended: suspend }),
+    });
+    setSuspendingOrg(false);
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.error ?? "Update failed");
+      return;
+    }
+    setOrgSuspended(suspend);
+    toast.success(suspend ? "Organization suspended" : "Organization reactivated");
+    setOrgs((prev) =>
+      prev.map((o) => (o.id === selectedOrgId ? { ...o, name: o.name } : o)),
+    );
   }
 
   useEffect(() => {
@@ -206,10 +233,14 @@ export default function PlatformAdminPage() {
 
       <Tabs
         tabs={[
+          { id: "overview", label: "Overview" },
           { id: "orgs", label: "Organizations", count: orgs.length },
           { id: "users", label: "Users", count: platformUsers.length || undefined },
+          { id: "audit", label: "Audit log" },
+          { id: "usage", label: "Usage" },
+          { id: "flags", label: "Feature flags" },
           { id: "billing", label: "Billing" },
-          { id: "moderation", label: "GreekMatch reports", count: reports.filter((r) => r.status === "open").length || undefined },
+          { id: "moderation", label: "GreekMatch", count: reports.filter((r) => r.status === "open").length || undefined },
         ]}
         active={tab}
         onChange={setTab}
@@ -217,6 +248,25 @@ export default function PlatformAdminPage() {
 
       {loading ? (
         <Card className="h-40 animate-pulse bg-surface-2 border-0">&nbsp;</Card>
+      ) : tab === "overview" ? (
+        <div className="grid lg:grid-cols-2 gap-4">
+          <PlatformUsagePanel />
+          <Card padding="sm">
+            <p className="text-sm font-semibold mb-2">Quick links</p>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="secondary" onClick={() => setTab("orgs")}>Organizations</Button>
+              <Button size="sm" variant="secondary" onClick={() => setTab("audit")}>Audit log</Button>
+              <Button size="sm" variant="secondary" onClick={() => setTab("flags")}>Feature flags</Button>
+              <Button size="sm" variant="secondary" onClick={() => setTab("moderation")}>Moderation</Button>
+            </div>
+          </Card>
+        </div>
+      ) : tab === "audit" ? (
+        <PlatformAuditPanel />
+      ) : tab === "usage" ? (
+        <PlatformUsagePanel />
+      ) : tab === "flags" ? (
+        <PlatformFeatureFlagsPanel />
       ) : tab === "billing" ? (
         <PlatformBillingPanel />
       ) : tab === "users" ? (
@@ -379,6 +429,14 @@ export default function PlatformAdminPage() {
               >
                 Copy org ID
               </Button>
+              <Button
+                size="sm"
+                variant={orgSuspended ? "secondary" : "danger"}
+                loading={suspendingOrg}
+                onClick={() => toggleOrgSuspended(!orgSuspended)}
+              >
+                {orgSuspended ? "Reactivate org" : "Suspend org"}
+              </Button>
             </div>
           ) : undefined
         }
@@ -388,6 +446,7 @@ export default function PlatformAdminPage() {
         ) : orgDetail ? (
           <div className="space-y-4">
             <div className="flex flex-wrap gap-2">
+              {orgSuspended && <Badge label="Suspended" color="red" />}
               <Badge label={orgTypeLabel(String(orgDetail.org.type ?? ""))} color="blue" />
               {Boolean(orgDetail.org.campus) && (
                 <Badge label={String(orgDetail.org.campus)} color="gray" />
