@@ -17,6 +17,7 @@ export interface BudgetRecord {
   semester: string | null;
   total_budget: number;
   notes: string | null;
+  archived_at: string | null;
   budget_lines: BudgetLineRecord[];
 }
 
@@ -51,8 +52,17 @@ export function normalizeBudgetRecord(raw: Record<string, unknown>): BudgetRecor
     semester: raw.semester != null ? String(raw.semester) : null,
     total_budget: Number(raw.total_budget ?? 0),
     notes: raw.notes != null ? String(raw.notes) : null,
+    archived_at: raw.archived_at != null ? String(raw.archived_at) : null,
     budget_lines: lines,
   };
+}
+
+export function activeBudgets(list: BudgetRecord[]): BudgetRecord[] {
+  return list.filter((b) => !b.archived_at);
+}
+
+export function archivedBudgets(list: BudgetRecord[]): BudgetRecord[] {
+  return list.filter((b) => Boolean(b.archived_at));
 }
 
 export function normalizeBudgetList(payload: unknown): BudgetRecord[] {

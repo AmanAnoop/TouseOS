@@ -20,11 +20,12 @@ interface TaskDetailPanelProps {
   orgId: string;
   userId: string | null;
   userName: string;
+  twilioLive?: boolean | null;
   onClose: () => void;
   onUpdate: () => void;
 }
 
-export function TaskDetailPanel({ task, orgId, userId, userName, onClose, onUpdate }: TaskDetailPanelProps) {
+export function TaskDetailPanel({ task, orgId, userId, userName, twilioLive, onClose, onUpdate }: TaskDetailPanelProps) {
   const supabase = createClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [comments, setComments] = useState<TaskComment[]>([]);
@@ -85,6 +86,20 @@ export function TaskDetailPanel({ task, orgId, userId, userName, onClose, onUpda
     onUpdate();
   }
 
+  async function textAssignees() {
+    const res = await fetch("/api/tasks/notify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId, taskId: task.id }),
+    });
+    const data = await res.json().catch(() => ({})) as { message?: string; sent?: number; error?: string };
+    if (!res.ok) {
+      toast.error(data.message ?? data.error ?? "Could not send texts");
+      return;
+    }
+    toast.success(data.message ?? `Sent ${data.sent ?? 0} message(s)`);
+  }
+
   async function removeAttachment(url: string) {
     const next = attachments.filter((a) => a !== url);
     const res = await fetch("/api/tasks", {
@@ -116,6 +131,12 @@ export function TaskDetailPanel({ task, orgId, userId, userName, onClose, onUpda
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
         {task.description && (
           <p className="text-sm text-muted-foreground">{task.description}</p>
+        )}
+
+        {twilioLive && task.assignee_name && (
+          <Button variant="secondary" size="sm" icon={<MessageSquare size={14} />} onClick={textAssignees}>
+            Text assignees
+          </Button>
         )}
 
         <div>

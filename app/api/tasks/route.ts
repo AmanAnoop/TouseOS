@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { resolveAssignees, syncTaskAssignees } from "@/lib/task-assignee";
+import { notifyTaskAssigneesViaSms } from "@/lib/task-sms";
+import { insertTaskRow, updateTaskRow } from "@/lib/tasks-db";
 
 function normalizeAssigneeNames(body: Record<string, unknown>): string[] {
   if (Array.isArray(body.assigneeNames)) {
@@ -8,9 +10,6 @@ function normalizeAssigneeNames(body: Record<string, unknown>): string[] {
   }
   if (body.assigneeName) {
     return [String(body.assigneeName).trim()].filter(Boolean);
-  }
-  if (Array.isArray(body.assigneeMemberIds)) {
-    return [];
   }
   return [];
 }
@@ -63,26 +62,39 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
-  const { orgId, title, description, priority, dueDate, tags, isRecurring, assigneeMemberIds } = body;
+  const {
+    orgId,
+    title,
+    description,
+    priority,
+    dueDate,
+    tags,
+    isRecurring,
+    assigneeMemberIds,
+    notifyViaSms,
+  } = body;
   if (!orgId || !title?.trim()) {
     return NextResponse.json({ error: "orgId and title required" }, { status: 400 });
   }
 
   let assigneeNames = normalizeAssigneeNames(body);
+  const memberIds: string[] = Array.isArray(assigneeMemberIds)
+    ? assigneeMemberIds.map(String)
+    : [];
 
-  if (Array.isArray(assigneeMemberIds) && assigneeMemberIds.length > 0) {
+  if (memberIds.length > 0) {
     const { data: mems } = await supabase
       .from("member_profiles")
       .select("id, full_name, user_id")
       .eq("org_id", orgId)
-      .in("id", assigneeMemberIds);
+      .in("id", memberIds);
     assigneeNames = (mems ?? []).map((m) => String(m.full_name));
   }
 
   const resolved = await resolveAssignees(supabase, orgId, assigneeNames);
   const primary = resolved[0];
 
-  const { data, error } = await supabase.from("tasks").insert({
+  const insertPayload: Record<string, unknown> = {
     org_id: orgId,
     created_by: user.id,
     title: title.trim(),
@@ -95,13 +107,31 @@ export async function POST(request: Request) {
     assigned_to: primary?.userId ?? null,
     status: "todo",
     tags: tags ?? [],
-    is_recurring: Boolean(isRecurring),
-  }).select().single();
+  };
 
+  if (isRecurring !== undefined) {
+    insertPayload.is_recurring = Boolean(isRecurring);
+  }
+
+  const { data, error } = await insertTaskRow(supabase, insertPayload);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   if (resolved.length) {
     await syncTaskAssignees(supabase, data.id, resolved);
+  }
+
+  let sms: Awaited<ReturnType<typeof notifyTaskAssigneesViaSms>> | undefined;
+  if (notifyViaSms && (resolved.length > 0 || memberIds.length > 0)) {
+    sms = await notifyTaskAssigneesViaSms(supabase, {
+      orgId,
+      taskId: data.id,
+      title: data.title,
+      dueDate: data.due_date,
+      priority: data.priority,
+      actorId: user.id,
+      memberIds: memberIds.length ? memberIds : resolved.map((r) => r.memberId).filter(Boolean) as string[],
+      userIds: resolved.map((r) => r.userId).filter(Boolean) as string[],
+    });
   }
 
   const { data: full } = await supabase.from("tasks").select("*").eq("id", data.id).single();
@@ -110,7 +140,7 @@ export async function POST(request: Request) {
     .select("task_id, user_id, assignee_name, member_id")
     .eq("task_id", data.id);
 
-  return NextResponse.json({ ...full, assignees: assignees ?? [] }, { status: 201 });
+  return NextResponse.json({ ...full, assignees: assignees ?? [], sms }, { status: 201 });
 }
 
 export async function PATCH(request: Request) {
@@ -119,10 +149,21 @@ export async function PATCH(request: Request) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
-  const { id, status, assignee_name: assigneeName, assigneeNames, assigneeMemberIds, org_id: orgIdFromBody, ...rest } = body;
+  const {
+    id,
+    status,
+    assignee_name: assigneeName,
+    assigneeNames,
+    assigneeMemberIds,
+    org_id: orgIdFromBody,
+    notifyViaSms,
+    is_recurring: isRecurringSnake,
+    isRecurring: isRecurringCamel,
+    ...rest
+  } = body;
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
-  const { data: existing } = await supabase.from("tasks").select("org_id").eq("id", id).single();
+  const { data: existing } = await supabase.from("tasks").select("org_id, title, due_date, priority").eq("id", id).single();
   if (!existing) return NextResponse.json({ error: "Task not found" }, { status: 404 });
 
   const orgId = orgIdFromBody ?? existing.org_id;
@@ -132,6 +173,10 @@ export async function PATCH(request: Request) {
     if (status === "done") updates.completed_at = new Date().toISOString();
     else updates.completed_at = null;
   }
+  const recurring = isRecurringSnake ?? isRecurringCamel;
+  if (recurring !== undefined) {
+    updates.is_recurring = Boolean(recurring);
+  }
 
   const namesToSync =
     assigneeNames !== undefined
@@ -140,12 +185,15 @@ export async function PATCH(request: Request) {
         ? [String(assigneeName).trim()].filter(Boolean)
         : null;
 
+  let resolvedMemberIds: string[] = [];
+
   if (Array.isArray(assigneeMemberIds)) {
     const { data: mems } = await supabase
       .from("member_profiles")
       .select("id, full_name, user_id")
       .eq("org_id", orgId)
       .in("id", assigneeMemberIds);
+    resolvedMemberIds = (mems ?? []).map((m) => String(m.id));
     const resolved = await resolveAssignees(
       supabase,
       orgId,
@@ -155,6 +203,7 @@ export async function PATCH(request: Request) {
   } else if (namesToSync !== null) {
     const resolved = await resolveAssignees(supabase, orgId, namesToSync);
     await syncTaskAssignees(supabase, id, resolved);
+    resolvedMemberIds = resolved.map((r) => r.memberId).filter(Boolean) as string[];
     if (resolved.length) {
       updates.assignee_name = resolved.length > 1
         ? `${resolved[0].assigneeName} +${resolved.length - 1} more`
@@ -166,15 +215,28 @@ export async function PATCH(request: Request) {
     }
   }
 
-  const { data, error } = await supabase.from("tasks").update(updates).eq("id", id).select().single();
+  const { data, error } = await updateTaskRow(supabase, id, updates);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  let sms: Awaited<ReturnType<typeof notifyTaskAssigneesViaSms>> | undefined;
+  if (notifyViaSms) {
+    sms = await notifyTaskAssigneesViaSms(supabase, {
+      orgId,
+      taskId: id,
+      title: String(updates.title ?? existing.title),
+      dueDate: (updates.due_date as string | null | undefined) ?? existing.due_date,
+      priority: String(updates.priority ?? existing.priority),
+      actorId: user.id,
+      memberIds: resolvedMemberIds.length ? resolvedMemberIds : undefined,
+    });
+  }
 
   const { data: assignees } = await supabase
     .from("task_assignees")
     .select("task_id, user_id, assignee_name, member_id")
     .eq("task_id", id);
 
-  return NextResponse.json({ ...data, assignees: assignees ?? [] });
+  return NextResponse.json({ ...data, assignees: assignees ?? [], sms });
 }
 
 export async function DELETE(request: Request) {
