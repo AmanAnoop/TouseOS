@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { normalizeBudgetRecord } from "@/lib/budget-api";
-import { forbidUnless, getMemberRole } from "@/lib/api-org-role";
+import { budgetWriteClient } from "@/lib/budget-write";
 import { applyBudgetSync } from "@/lib/budget-sync";
 
 export async function POST(request: Request) {
@@ -14,12 +14,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "orgId and budgetId required" }, { status: 400 });
   }
 
-  const role = await getMemberRole(supabase, user.id, String(orgId));
-  const denied = forbidUnless(role, "manage_budget");
-  if (denied) return denied;
+  const write = await budgetWriteClient(user.id, String(orgId));
+  if (!write.ok) return write.response;
 
   try {
-    const { updates, ledger, budget } = await applyBudgetSync(supabase, orgId, budgetId, {
+    const { updates, ledger, budget } = await applyBudgetSync(write.db, orgId, budgetId, {
       actorId: user.id,
     });
 

@@ -14,6 +14,7 @@ Run these SQL files **in order** in the Supabase SQL Editor (or `psql` against y
 | 026 | `026_task_assignees_health.sql` | Yes — multi-assignee tasks, task assignee RLS |
 | 027 | `027_travel_locations.sql` | Yes — SportsOS trip venue, address, departure/meeting points |
 | 028 | `028_org_location_presets.sql` | Yes — saved venue presets for events and travel |
+| 029 | `029_budget_rls_archive.sql` | Yes — budget_lines RLS fix, archive budgets, delete support |
 | 005 | `005_seed.sql` | Optional demo chapter |
 
 After apply:
