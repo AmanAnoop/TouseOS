@@ -63,6 +63,8 @@ export default function InterchapterPage() {
   const [availability, setAvailability] = useState<AvailabilityEntry[]>([]);
   const [userName, setUserName] = useState("");
   const [partnerOrgs, setPartnerOrgs] = useState<Array<{ id: string; name: string }>>([]);
+  const [targetOrgSearch, setTargetOrgSearch] = useState("");
+  const [greekOrgs, setGreekOrgs] = useState<Array<{ id: string; name: string; campus: string | null }>>([]);
 
   const [proposalForm, setProposalForm] = useState({
     targetOrgId: "", eventName: "", eventType: "mixer",
@@ -121,22 +123,33 @@ export default function InterchapterPage() {
       setPartnerOrgs([]);
       return;
     }
-    const ids = [
-      ...new Set(
-        proposals.flatMap((p) => {
-          if (p.proposing_org_id === orgId) return [p.target_org_id];
-          if (p.target_org_id === orgId) return [p.proposing_org_id];
-          return [];
-        }),
-      ),
-    ];
-    if (ids.length === 0) return;
-    supabase
-      .from("organizations")
-      .select("id, name")
-      .in("id", ids)
-      .then(({ data }) => setPartnerOrgs((data ?? []) as Array<{ id: string; name: string }>));
-  }, [proposals, orgId, supabase]);
+    const ids = new Set(
+      proposals.flatMap((p) => {
+        if (p.proposing_org_id === orgId) return [p.target_org_id];
+        if (p.target_org_id === orgId) return [p.proposing_org_id];
+        return [];
+      }),
+    );
+    if (ids.size === 0) return;
+    fetch(`/api/interchapter/orgs?exclude_org_id=${encodeURIComponent(orgId)}`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((list: Array<{ id: string; name: string }>) =>
+        setPartnerOrgs(list.filter((o) => ids.has(o.id))),
+      );
+  }, [proposals, orgId]);
+
+  useEffect(() => {
+    if (!proposeOpen || !orgId) return;
+    const timer = setTimeout(() => {
+      const q = targetOrgSearch.trim();
+      fetch(
+        `/api/interchapter/orgs?exclude_org_id=${encodeURIComponent(orgId)}${q ? `&q=${encodeURIComponent(q)}` : ""}`,
+      )
+        .then((r) => (r.ok ? r.json() : []))
+        .then((list) => setGreekOrgs(list as Array<{ id: string; name: string; campus: string | null }>));
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [proposeOpen, orgId, targetOrgSearch]);
 
   async function submitProposal() {
     if (!orgId || !proposalForm.eventName || !proposalForm.targetOrgId) return;
@@ -195,8 +208,18 @@ export default function InterchapterPage() {
   }
 
   async function respondToProposal(id: string, status: string) {
+    if (!orgId) return;
     const proposal = proposals.find((p) => p.id === id);
-    await supabase.from("interchapter_proposals").update({ status }).eq("id", id);
+    const res = await fetch("/api/interchapter/proposals", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, orgId, status }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast.error((data as { error?: string }).error ?? "Update failed");
+      return;
+    }
     setProposals((prev) => prev.map((p) => p.id === id ? { ...p, status } : p));
     if (status === "accepted" && proposal && orgId) {
       const res = await fetch("/api/interchapter/workspaces", {
@@ -396,7 +419,24 @@ export default function InterchapterPage() {
       >
         <div className="space-y-4">
           <Alert type="info" title="Your proposal will be sent to the target chapter's exec board for review." />
-          <Input label="Target chapter org ID" placeholder="Paste the org ID or search by name" value={proposalForm.targetOrgId} onChange={(e) => setProposalForm({ ...proposalForm, targetOrgId: e.target.value })} hint="Ask the other chapter's president for their TouseOS org ID" />
+          <Input
+            label="Search chapters"
+            placeholder="Name or campus..."
+            value={targetOrgSearch}
+            onChange={(e) => setTargetOrgSearch(e.target.value)}
+          />
+          <Select
+            label="Target chapter *"
+            value={proposalForm.targetOrgId}
+            onChange={(e) => setProposalForm({ ...proposalForm, targetOrgId: e.target.value })}
+            options={[
+              { value: "", label: greekOrgs.length ? "Select a chapter" : "Search to find chapters" },
+              ...greekOrgs.map((o) => ({
+                value: o.id,
+                label: o.campus ? `${o.name} · ${o.campus}` : o.name,
+              })),
+            ]}
+          />
           <div className="grid sm:grid-cols-2 gap-3">
             <Input label="Event name *" placeholder="Spring Mixer 2025" value={proposalForm.eventName} onChange={(e) => setProposalForm({ ...proposalForm, eventName: e.target.value })} />
             <Select label="Event type" value={proposalForm.eventType} onChange={(e) => setProposalForm({ ...proposalForm, eventType: e.target.value })} options={[

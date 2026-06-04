@@ -1,7 +1,26 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { loadActiveMembershipServer } from "@/lib/active-org-membership-server";
+import { photoDisplayUrl } from "@/lib/photo-access";
 import { rankGreekMatchCandidates } from "@/lib/greekmatch-scorer";
+
+async function resolvePhotos(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  photos: unknown,
+): Promise<string[]> {
+  if (!Array.isArray(photos)) return [];
+  const out: string[] = [];
+  for (const p of photos) {
+    const s = String(p);
+    if (s.startsWith("http")) {
+      out.push(s);
+      continue;
+    }
+    const url = await photoDisplayUrl(supabase, { storage_path: s });
+    if (url) out.push(url);
+  }
+  return out;
+}
 
 export async function GET() {
   const supabase = await createClient();
@@ -86,9 +105,19 @@ export async function GET() {
     filtered as Parameters<typeof rankGreekMatchCandidates>[1],
   );
 
+  const candidatesWithPhotos = await Promise.all(
+    ranked.map(async (c) => ({
+      ...c,
+      photos: await resolvePhotos(supabase, (c as { photos?: unknown }).photos),
+    })),
+  );
+
   return NextResponse.json({
-    myProfile: mine,
-    candidates: ranked,
+    myProfile: {
+      ...mine,
+      photos: await resolvePhotos(supabase, mine.photos),
+    },
+    candidates: candidatesWithPhotos,
     seenCount: seenIds.size,
     profileSuspended: false,
   });

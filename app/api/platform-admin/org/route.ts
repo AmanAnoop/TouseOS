@@ -33,8 +33,11 @@ export async function GET(request: Request) {
     .filter((p) => p.status === "paid")
     .reduce((s, p) => s + Number(p.paid_amount ?? 0), 0);
 
+  const settings = (orgRes.data.settings ?? {}) as Record<string, unknown>;
+
   return NextResponse.json({
     org: orgRes.data,
+    suspended: Boolean(settings.platform_suspended),
     stats: {
       members: members.length,
       activeMembers: members.filter((m) => m.membership_status === "active").length,
@@ -47,4 +50,48 @@ export async function GET(request: Request) {
     recentIncidents: incidentsRes.data ?? [],
     campaigns: campaignsRes.data ?? [],
   });
+}
+
+export async function PATCH(request: Request) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.email || !isPlatformAdminEmail(user.email)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const body = await request.json();
+  const { orgId, platformSuspended, platformPlan, platformPlanStatus } = body;
+  if (!orgId) return NextResponse.json({ error: "orgId required" }, { status: 400 });
+
+  const service = await createServiceClient();
+  const { data: org } = await service.from("organizations").select("settings").eq("id", orgId).single();
+  if (!org) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const prev = (org.settings ?? {}) as Record<string, unknown>;
+  const updates: Record<string, unknown> = { ...prev };
+  if (platformSuspended !== undefined) updates.platform_suspended = Boolean(platformSuspended);
+
+  const orgUpdates: Record<string, unknown> = { settings: updates };
+  if (platformPlan !== undefined) orgUpdates.platform_plan = platformPlan;
+  if (platformPlanStatus !== undefined) orgUpdates.platform_plan_status = platformPlanStatus;
+
+  const { data, error } = await service
+    .from("organizations")
+    .update(orgUpdates)
+    .eq("id", orgId)
+    .select()
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await service.from("audit_logs").insert({
+    org_id: orgId,
+    actor_id: user.id,
+    action: platformSuspended ? "platform_org_suspended" : "platform_org_updated",
+    resource_type: "organizations",
+    resource_id: orgId,
+    metadata: { platformSuspended, platformPlan, platformPlanStatus },
+  });
+
+  return NextResponse.json({ org: data });
 }

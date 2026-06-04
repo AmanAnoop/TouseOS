@@ -16,6 +16,7 @@ Run these SQL files **in order** in the Supabase SQL Editor (or `psql` against y
 | 028 | `028_org_location_presets.sql` | Yes — saved venue presets for events and travel |
 | 029 | `029_budget_rls_archive.sql` | Yes — budget_lines RLS fix, archive budgets, delete support |
 | 030 | `030_tasks_recurring_columns.sql` | Yes — `is_recurring`, attachments on tasks |
+| 031 | `031_platform_settings.sql` | Yes — platform feature flags (`platform_settings`) |
 | 005 | `005_seed.sql` | Optional demo chapter |
 
 After apply:

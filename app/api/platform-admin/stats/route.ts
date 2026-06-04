@@ -1,23 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { isPlatformAdminEmail } from "@/lib/platform-admin";
-
-function parseFeatureFlags(): Record<string, boolean> {
-  const raw = process.env.PLATFORM_FEATURE_FLAGS ?? "";
-  if (!raw.trim()) {
-    return {
-      greekmatch: true,
-      interchapter: true,
-      ai_assistant: true,
-      stripe_payments: true,
-    };
-  }
-  try {
-    return JSON.parse(raw) as Record<string, boolean>;
-  } catch {
-    return { parse_error: true };
-  }
-}
+import { getStoredFeatureFlags } from "@/lib/platform-feature-flags";
 
 export async function GET() {
   const supabase = await createClient();
@@ -46,6 +30,8 @@ export async function GET() {
     0,
   );
 
+  const featureFlags = await getStoredFeatureFlags(service);
+
   return NextResponse.json({
     counts: {
       organizations: orgsRes.count ?? 0,
@@ -55,6 +41,6 @@ export async function GET() {
     },
     donationsRaised: totalDonations,
     paymentsVolume,
-    featureFlags: parseFeatureFlags(),
+    featureFlags,
   });
 }
