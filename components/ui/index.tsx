@@ -29,7 +29,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         "ds-btn",
         btnVariantClass[variant],
         size === "sm" && "h-8 text-xs",
-        size === "lg" && "h-11 px-24",
+        size === "lg" && "h-11 px-6",
         className,
       )}
       disabled={props.disabled || loading}
@@ -126,8 +126,8 @@ interface CardHeaderProps {
 
 export function CardHeader({ title, description, action, icon, className }: CardHeaderProps) {
   return (
-    <div className={cn("flex items-start justify-between gap-16", className)} style={{ marginBottom: icon ? 12 : 0 }}>
-      <div className="flex items-start gap-12" style={{ gap: 12 }}>
+    <div className={cn("flex items-start justify-between gap-4", className)} style={{ marginBottom: icon ? 12 : 0 }}>
+      <div className="flex items-start gap-3">
         {icon && (
           <div
             style={{

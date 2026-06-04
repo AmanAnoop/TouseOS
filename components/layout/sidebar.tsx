@@ -98,7 +98,7 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
       <div className="ds-sidebar-logo">
         <Link
           href={productHomePath(product)}
-          className="flex items-center gap-12"
+          className="flex items-center gap-3"
           style={{ gap: 12, textDecoration: "none", color: "var(--color-text-inverse)" }}
         >
           <div
@@ -134,7 +134,7 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
           <button
             type="button"
             onClick={() => setOrgOpen(!orgOpen)}
-            className="w-full flex items-center gap-12 text-left"
+            className="w-full flex items-center gap-3 text-left"
             style={{
               gap: 12,
               padding: "8px",

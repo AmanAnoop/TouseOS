@@ -23,7 +23,7 @@ const config: Config = {
         background: "var(--color-bg)",
         card: "var(--color-bg-raised)",
         primary: "var(--color-org-primary)",
-        "primary-foreground": "var(--color-text-inverse)",
+        "primary-foreground": "var(--color-text-on-brand)",
         org: "var(--color-org-primary)",
         success: "var(--color-success)",
         warning: "var(--color-warning)",

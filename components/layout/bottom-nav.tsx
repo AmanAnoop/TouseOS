@@ -83,7 +83,7 @@ export function BottomNav({ orgType }: BottomNavProps) {
               height: 16,
               borderRadius: 4,
               background: "var(--color-org-primary)",
-              color: "var(--color-text-inverse)",
+              color: "var(--color-text-on-brand)",
               fontSize: 10,
               fontWeight: 600,
               display: "flex",
