@@ -27,15 +27,22 @@ export async function GET() {
   }
 
   const service = await createServiceClient();
-  const [orgsRes, membersRes, eventsRes, donationsRes] = await Promise.all([
+  const [orgsRes, membersRes, eventsRes, donationsRes, profilesRes, paymentsRes] = await Promise.all([
     service.from("organizations").select("id", { count: "exact", head: true }),
     service.from("member_profiles").select("id", { count: "exact", head: true }),
     service.from("events").select("id", { count: "exact", head: true }),
     service.from("donations").select("amount"),
+    service.from("profiles").select("id", { count: "exact", head: true }),
+    service.from("payments").select("amount, status").eq("status", "paid"),
   ]);
 
   const totalDonations = (donationsRes.data ?? []).reduce(
     (s, d) => s + Number(d.amount ?? 0),
+    0,
+  );
+
+  const paymentsVolume = (paymentsRes.data ?? []).reduce(
+    (s, p) => s + Number(p.amount ?? 0),
     0,
   );
 
@@ -44,8 +51,10 @@ export async function GET() {
       organizations: orgsRes.count ?? 0,
       members: membersRes.count ?? 0,
       events: eventsRes.count ?? 0,
+      users: profilesRes.count ?? 0,
     },
     donationsRaised: totalDonations,
+    paymentsVolume,
     featureFlags: parseFeatureFlags(),
   });
 }

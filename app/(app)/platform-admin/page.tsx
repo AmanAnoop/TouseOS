@@ -26,10 +26,18 @@ export default function PlatformAdminPage() {
   const [orgs, setOrgs] = useState<PlatformOrg[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<{
-    counts: { organizations: number; members: number; events: number };
+    counts: { organizations: number; members: number; events: number; users?: number };
     donationsRaised: number;
+    paymentsVolume?: number;
     featureFlags: Record<string, boolean>;
   } | null>(null);
+  const [platformUsers, setPlatformUsers] = useState<Array<{
+    id: string;
+    full_name: string | null;
+    email: string | null;
+    created_at: string;
+    organizations: Array<{ org_id: string; role: string; org_name: string }>;
+  }>>([]);
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [orgDetail, setOrgDetail] = useState<{
     org: Record<string, unknown>;
@@ -137,10 +145,17 @@ export default function PlatformAdminPage() {
       const statsData = await statsRes.json();
       if (orgsRes.ok) setOrgs(orgsData.orgs ?? []);
       if (statsRes.ok) setStats(statsData);
-      const reportsRes = await fetch("/api/platform-admin/greekmatch-reports");
+      const [reportsRes, usersRes] = await Promise.all([
+        fetch("/api/platform-admin/greekmatch-reports"),
+        fetch("/api/platform-admin/users?limit=50"),
+      ]);
       if (reportsRes.ok) {
         const reportsData = await reportsRes.json();
         setReports(reportsData.reports ?? []);
+      }
+      if (usersRes.ok) {
+        const usersData = await usersRes.json();
+        setPlatformUsers(usersData.users ?? []);
       }
       setLoading(false);
     }
@@ -174,6 +189,8 @@ export default function PlatformAdminPage() {
         <StatCard title="Platform members" value={stats?.counts.members ?? totalMembers} icon={<Users size={18} />} />
         <StatCard title="Events hosted" value={stats?.counts.events ?? 0} icon={<Shield size={18} />} />
         <StatCard title="Donations (all)" value={stats ? `$${Math.round(stats.donationsRaised).toLocaleString()}` : "—"} icon={<Building size={18} />} />
+        <StatCard title="Auth users" value={stats?.counts.users ?? "—"} icon={<Users size={18} />} />
+        <StatCard title="Paid volume" value={stats?.paymentsVolume != null ? `$${Math.round(stats.paymentsVolume).toLocaleString()}` : "—"} icon={<Building size={18} />} />
       </div>
 
       {stats?.featureFlags && (
@@ -190,6 +207,7 @@ export default function PlatformAdminPage() {
       <Tabs
         tabs={[
           { id: "orgs", label: "Organizations", count: orgs.length },
+          { id: "users", label: "Users", count: platformUsers.length || undefined },
           { id: "billing", label: "Billing" },
           { id: "moderation", label: "GreekMatch reports", count: reports.filter((r) => r.status === "open").length || undefined },
         ]}
@@ -201,6 +219,26 @@ export default function PlatformAdminPage() {
         <Card className="h-40 animate-pulse bg-surface-2 border-0">&nbsp;</Card>
       ) : tab === "billing" ? (
         <PlatformBillingPanel />
+      ) : tab === "users" ? (
+        platformUsers.length === 0 ? (
+          <EmptyState icon={<Users size={24} />} title="No users" description="User accounts appear as people sign up." />
+        ) : (
+          <div className="space-y-2">
+            {platformUsers.map((u) => (
+              <Card key={u.id} padding="sm">
+                <p className="font-semibold text-sm">{u.full_name ?? "—"}</p>
+                <p className="text-xs text-muted-foreground">{u.email ?? u.id}</p>
+                {u.organizations.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {u.organizations.map((o) => (
+                      <Badge key={o.org_id} label={`${o.org_name} · ${o.role}`} color="gray" />
+                    ))}
+                  </div>
+                )}
+              </Card>
+            ))}
+          </div>
+        )
       ) : tab === "orgs" ? (
         orgs.length === 0 ? (
           <EmptyState icon={<Building size={24} />} title="No organizations" description="Orgs will appear here as chapters onboard." />

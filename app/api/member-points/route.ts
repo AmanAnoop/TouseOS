@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { can, type RoleName } from "@/lib/permissions";
-import { getPointRules } from "@/lib/attendance-points";
+import { DEFAULT_ELIGIBILITY_MIN, getEligibilityMin, getPointRules } from "@/lib/attendance-points";
 
 async function roleForOrg(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -26,7 +26,7 @@ export async function GET(request: Request) {
   const orgId = new URL(request.url).searchParams.get("org_id");
   if (!orgId) return NextResponse.json({ error: "org_id required" }, { status: 400 });
 
-  const [entriesRes, rules] = await Promise.all([
+  const [entriesRes, rules, eligibilityMin] = await Promise.all([
     supabase
       .from("member_point_entries")
       .select("*")
@@ -34,13 +34,18 @@ export async function GET(request: Request) {
       .order("created_at", { ascending: false })
       .limit(100),
     getPointRules(supabase, orgId),
+    getEligibilityMin(supabase, orgId),
   ]);
 
   if (entriesRes.error) {
     return NextResponse.json({ error: entriesRes.error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ entries: entriesRes.data ?? [], rules });
+  return NextResponse.json({
+    entries: entriesRes.data ?? [],
+    rules,
+    eligibilityMin: eligibilityMin ?? DEFAULT_ELIGIBILITY_MIN,
+  });
 }
 
 export async function POST(request: Request) {

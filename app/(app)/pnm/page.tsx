@@ -418,7 +418,7 @@ export default function PnmPage() {
       )}
 
       {tab === "voting" && orgId && (
-        <PnmVotingPanel leads={leads} />
+        <PnmVotingPanel orgId={orgId} leads={leads} />
       )}
 
       {/* Mass text modal */}

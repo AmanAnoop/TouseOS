@@ -14,6 +14,7 @@ import { formatDateTime } from "@/lib/utils";
 import { can } from "@/lib/permissions";
 import EventRsvpButton from "./rsvp-button";
 import { EventDetailActions } from "@/components/events/event-detail-actions";
+import { EventPollsPanel } from "@/components/events/event-polls-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -234,6 +235,12 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
           )}
 
           {/* Check-in (for past events) */}
+          <EventPollsPanel
+            eventId={id}
+            orgId={membership.orgId}
+            canManage={canEditEvent}
+          />
+
           {isPast && (
             <Card padding="sm" className="bg-surface-1">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Attendance</p>

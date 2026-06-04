@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  BookOpen, DollarSign, Download, Plus, RefreshCw,
+  Archive, ArchiveRestore, BookOpen, DollarSign, Download, Plus, RefreshCw, Trash2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
@@ -33,7 +33,13 @@ import { can } from "@/lib/permissions";
 import { getProductId } from "@/lib/org-product";
 import { computeReimbursementAgingAlerts } from "@/lib/reimbursement-aging";
 import { buildBudgetReportHtml, downloadBudgetReportHtml } from "@/lib/budget-export";
-import { normalizeBudgetList, normalizeBudgetRecord, type BudgetRecord } from "@/lib/budget-api";
+import {
+  activeBudgets,
+  archivedBudgets,
+  normalizeBudgetList,
+  normalizeBudgetRecord,
+  type BudgetRecord,
+} from "@/lib/budget-api";
 import type { PaymentForCost, ReimbForCost } from "@/lib/per-member-cost";
 import { Alert } from "@/components/ui";
 import { useOrg } from "@/hooks/use-org";
@@ -61,6 +67,11 @@ export default function BudgetPage() {
   const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
   const [createBudgetOpen, setCreateBudgetOpen] = useState(false);
   const [addLineOpen, setAddLineOpen] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  const [allBudgets, setAllBudgets] = useState<Budget[]>([]);
+  const [deleteBudgetOpen, setDeleteBudgetOpen] = useState(false);
+  const [archiveBudgetOpen, setArchiveBudgetOpen] = useState(false);
+  const [budgetActionLoading, setBudgetActionLoading] = useState(false);
 
   const [budgetForm, setBudgetForm] = useState({
     label: "", period: "semester", fiscalYear: String(new Date().getFullYear()),
@@ -71,10 +82,11 @@ export default function BudgetPage() {
     description: "", budgeted: "", actual: "0",
   });
 
-  const load = useCallback(async (oid: string) => {
+  const load = useCallback(async (oid: string, opts?: { includeArchived?: boolean }) => {
     setLoading(true);
+    const archivedParam = (opts?.includeArchived ?? showArchived) ? "&include_archived=1" : "";
     const [budgetRes, paymentsRes, reimbRes, eventsRes, membersRes] = await Promise.all([
-      fetch(`/api/budget?org_id=${encodeURIComponent(oid)}`),
+      fetch(`/api/budget?org_id=${encodeURIComponent(oid)}${archivedParam}`),
       fetch(`/api/payments?org_id=${encodeURIComponent(oid)}`),
       fetch(`/api/reimbursements?org_id=${encodeURIComponent(oid)}`),
       fetch(`/api/events?org_id=${encodeURIComponent(oid)}`),
@@ -82,12 +94,19 @@ export default function BudgetPage() {
     ]);
     if (budgetRes.ok) {
       const data = normalizeBudgetList(await budgetRes.json());
-      setBudgets(data);
-      if (data.length > 0) setSelectedBudget(data[0]);
+      setAllBudgets(data);
+      const active = activeBudgets(data);
+      setBudgets(active);
+      setSelectedBudget((prev) => {
+        if (prev && active.some((b) => b.id === prev.id)) return active.find((b) => b.id === prev.id) ?? prev;
+        return active[0] ?? null;
+      });
+      if (active.length === 0) setSelectedBudget(null);
     } else {
       const err = await budgetRes.json().catch(() => ({}));
       toast.error((err as { error?: string }).error ?? "Could not load budgets");
       setBudgets([]);
+      setAllBudgets([]);
       setSelectedBudget(null);
     }
     const rawPayments = paymentsRes.ok
@@ -150,7 +169,7 @@ export default function BudgetPage() {
     }
     setLedgerLoading(false);
     setLoading(false);
-  }, []);
+  }, [showArchived]);
 
   const syncFullBudget = useCallback(async (opts?: { silent?: boolean }) => {
     const budgetId = selectedBudget?.id;
@@ -188,9 +207,9 @@ export default function BudgetPage() {
   }, [orgId, selectedBudget?.id, myRole, loading]);
 
   useEffect(() => {
-    if (orgId) load(orgId);
+    if (orgId) load(orgId, { includeArchived: showArchived });
     else if (!orgLoading) setLoading(false);
-  }, [orgId, orgLoading, load]);
+  }, [orgId, orgLoading, showArchived, load]);
 
   async function createBudget() {
     if (!orgId || !budgetForm.label) return;
@@ -227,6 +246,7 @@ export default function BudgetPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         action: "add",
+        orgId,
         budgetId: selectedBudget.id,
         category: lineForm.category,
         type: lineForm.type,
@@ -249,11 +269,17 @@ export default function BudgetPage() {
   }
 
   async function updateActual(lineId: string, actual: number) {
-    await fetch("/api/budget", {
+    if (!orgId) return;
+    const res = await fetch("/api/budget", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lineId, actual }),
+      body: JSON.stringify({ lineId, actual, orgId }),
     });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error((err as { error?: string }).error ?? "Could not update line");
+      return;
+    }
     setSelectedBudget((prev) => prev ? {
       ...prev,
       budget_lines: prev.budget_lines.map((l) => l.id === lineId ? { ...l, actual } : l),
@@ -261,11 +287,17 @@ export default function BudgetPage() {
   }
 
   async function updateBudgeted(lineId: string, budgeted: number) {
-    await fetch("/api/budget", {
+    if (!orgId) return;
+    const res = await fetch("/api/budget", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lineId, budgeted }),
+      body: JSON.stringify({ lineId, budgeted, orgId }),
     });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error((err as { error?: string }).error ?? "Could not update line");
+      return;
+    }
     setSelectedBudget((prev) => prev ? {
       ...prev,
       budget_lines: prev.budget_lines.map((l) => l.id === lineId ? { ...l, budgeted } : l),
@@ -273,13 +305,81 @@ export default function BudgetPage() {
   }
 
   async function deleteLine(lineId: string) {
-    await fetch("/api/budget", {
+    if (!orgId) return;
+    const res = await fetch("/api/budget", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "delete", lineId }),
+      body: JSON.stringify({ action: "delete", lineId, orgId }),
     });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error((err as { error?: string }).error ?? "Could not delete line");
+      return;
+    }
     setSelectedBudget((prev) => prev ? { ...prev, budget_lines: prev.budget_lines.filter((l) => l.id !== lineId) } : prev);
+    setBudgets((prev) => prev.map((b) =>
+      b.id === selectedBudget?.id
+        ? { ...b, budget_lines: b.budget_lines.filter((l) => l.id !== lineId) }
+        : b,
+    ));
+    toast.success("Line removed");
   }
+
+  async function archiveSelectedBudget() {
+    if (!orgId || !selectedBudget) return;
+    setBudgetActionLoading(true);
+    const res = await fetch("/api/budget", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "archive", budgetId: selectedBudget.id, orgId }),
+    });
+    setBudgetActionLoading(false);
+    setArchiveBudgetOpen(false);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error((err as { error?: string }).error ?? "Could not archive budget");
+      return;
+    }
+    toast.success("Budget archived");
+    await load(orgId, { includeArchived: showArchived });
+  }
+
+  async function restoreBudget(budgetId: string) {
+    if (!orgId) return;
+    setBudgetActionLoading(true);
+    const res = await fetch("/api/budget", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "restore", budgetId, orgId }),
+    });
+    setBudgetActionLoading(false);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error((err as { error?: string }).error ?? "Could not restore budget");
+      return;
+    }
+    toast.success("Budget restored");
+    await load(orgId, { includeArchived: true });
+  }
+
+  async function deleteSelectedBudget() {
+    if (!orgId || !selectedBudget) return;
+    setBudgetActionLoading(true);
+    const res = await fetch(`/api/budget?org_id=${encodeURIComponent(orgId)}&budget_id=${encodeURIComponent(selectedBudget.id)}`, {
+      method: "DELETE",
+    });
+    setBudgetActionLoading(false);
+    setDeleteBudgetOpen(false);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error((err as { error?: string }).error ?? "Could not delete budget");
+      return;
+    }
+    toast.success("Budget deleted");
+    await load(orgId, { includeArchived: showArchived });
+  }
+
+  const archivedList = archivedBudgets(allBudgets);
 
 
   function exportBudget() {
@@ -377,10 +477,70 @@ export default function BudgetPage() {
                 <Button variant="secondary" size="sm" onClick={exportBudgetHtml}>Report (HTML)</Button>
               </>
             )}
+            {canEditBudget && selectedBudget && !selectedBudget.archived_at && (
+              <>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<Archive size={14} />}
+                  onClick={() => setArchiveBudgetOpen(true)}
+                >
+                  Archive
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<Trash2 size={14} />}
+                  className="text-red-600 hover:text-red-700"
+                  onClick={() => setDeleteBudgetOpen(true)}
+                >
+                  Delete
+                </Button>
+              </>
+            )}
             {canEditBudget && <Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateBudgetOpen(true)}>New budget</Button>}
           </div>
         }
       />
+
+      {canEditBudget && archivedList.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <button
+            type="button"
+            onClick={() => setShowArchived((v) => !v)}
+            className="text-primary hover:underline"
+          >
+            {showArchived ? "Hide archived" : `Show archived (${archivedList.length})`}
+          </button>
+        </div>
+      )}
+
+      {showArchived && archivedList.length > 0 && (
+        <Card className="p-4 space-y-2">
+          <p className="text-sm font-semibold text-muted-foreground">Archived budgets</p>
+          {archivedList.map((b) => (
+            <div key={b.id} className="flex flex-wrap items-center justify-between gap-2 py-2 border-b border-border last:border-0">
+              <button
+                type="button"
+                className="text-sm font-medium hover:underline text-left"
+                onClick={() => setSelectedBudget(b)}
+              >
+                {b.label}
+                <span className="text-muted-foreground font-normal ml-2">(archived)</span>
+              </button>
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={<ArchiveRestore size={14} />}
+                loading={budgetActionLoading}
+                onClick={() => restoreBudget(b.id)}
+              >
+                Restore
+              </Button>
+            </div>
+          ))}
+        </Card>
+      )}
 
       {/* Budget switcher */}
       {budgets.length > 1 && (
@@ -404,10 +564,36 @@ export default function BudgetPage() {
       ) : !selectedBudget ? (
         <EmptyState
           icon={<BookOpen size={24} />}
-          title="No budgets yet"
-          description="Create your first budget to track chapter finances."
-          action={<Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateBudgetOpen(true)}>Create budget</Button>}
+          title={archivedList.length > 0 ? "No active budgets" : "No budgets yet"}
+          description={
+            archivedList.length > 0
+              ? "Restore an archived budget or create a new one."
+              : "Create your first budget to track chapter finances."
+          }
+          action={
+            canEditBudget ? (
+              <Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateBudgetOpen(true)}>Create budget</Button>
+            ) : undefined
+          }
         />
+      ) : selectedBudget.archived_at ? (
+        <Card className="p-6 space-y-4">
+          <Alert
+            type="info"
+            title="Archived budget"
+            description={`${selectedBudget.label} is archived and hidden from the active list. Restore it to edit or sync, or delete it permanently.`}
+          />
+          {canEditBudget && (
+            <div className="flex flex-wrap gap-2">
+              <Button icon={<ArchiveRestore size={14} />} onClick={() => restoreBudget(selectedBudget.id)} loading={budgetActionLoading}>
+                Restore budget
+              </Button>
+              <Button variant="secondary" icon={<Trash2 size={14} />} className="text-red-600" onClick={() => setDeleteBudgetOpen(true)}>
+                Delete permanently
+              </Button>
+            </div>
+          )}
+        </Card>
       ) : (
         <>
           <BudgetAlerts alerts={alerts} />
@@ -518,6 +704,42 @@ export default function BudgetPage() {
             <Input label="Actual amount ($)" type="number" value={lineForm.actual} onChange={(e) => setLineForm({ ...lineForm, actual: e.target.value })} placeholder="0.00" />
           </div>
         </div>
+      </Modal>
+
+      <Modal
+        open={archiveBudgetOpen}
+        onClose={() => setArchiveBudgetOpen(false)}
+        title="Archive budget?"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setArchiveBudgetOpen(false)}>Cancel</Button>
+            <Button icon={<Archive size={14} />} loading={budgetActionLoading} onClick={archiveSelectedBudget}>
+              Archive
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-muted-foreground">
+          <strong>{selectedBudget?.label}</strong> will move to archived budgets. You can restore it later. Line items are kept.
+        </p>
+      </Modal>
+
+      <Modal
+        open={deleteBudgetOpen}
+        onClose={() => setDeleteBudgetOpen(false)}
+        title="Delete budget permanently?"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setDeleteBudgetOpen(false)}>Cancel</Button>
+            <Button className="bg-red-600 hover:bg-red-700 text-white" icon={<Trash2 size={14} />} loading={budgetActionLoading} onClick={deleteSelectedBudget}>
+              Delete forever
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-muted-foreground">
+          This removes <strong>{selectedBudget?.label}</strong> and all of its line items. This cannot be undone.
+        </p>
       </Modal>
     </div>
   );

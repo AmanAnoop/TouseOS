@@ -3,11 +3,9 @@
 import { useRef, useState } from "react";
 import { Image as ImageIcon, Megaphone } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
 import { Button, Card, Input, Textarea } from "@/components/ui";
 
 export function FeedComposer({ orgId, onPosted }: { orgId: string; onPosted?: () => void }) {
-  const supabase = createClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"announcement" | "photo">("announcement");
@@ -40,16 +38,14 @@ export function FeedComposer({ orgId, onPosted }: { orgId: string; onPosted?: ()
     const file = files[0];
     if (!file) return;
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const body = new FormData();
+    body.append("file", file);
+    body.append("org_id", orgId);
+    const upRes = await fetch("/api/photos/upload", { method: "POST", body });
+    const upData = await upRes.json().catch(() => ({}));
+    if (!upRes.ok) {
       setLoading(false);
-      return;
-    }
-    const path = `${orgId}/${user.id}/${Date.now()}-${file.name}`;
-    const { data: stored, error: upErr } = await supabase.storage.from("photos").upload(path, file);
-    if (upErr) {
-      setLoading(false);
-      toast.error(upErr.message);
+      toast.error((upData as { error?: string }).error ?? "Upload failed");
       return;
     }
     const res = await fetch("/api/feed/photo", {
@@ -57,7 +53,7 @@ export function FeedComposer({ orgId, onPosted }: { orgId: string; onPosted?: ()
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         orgId,
-        storagePath: stored.path,
+        storagePath: upData.storagePath,
         caption: caption || null,
       }),
     });

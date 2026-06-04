@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, ClipboardList } from "lucide-react";
 import toast from "react-hot-toast";
-import { Button, Card, Input, PageHeader } from "@/components/ui";
+import { SignaturePad } from "@/components/forms/signature-pad";
+import { Button, Card, PageHeader } from "@/components/ui";
 
 interface FormField {
   id: string;
@@ -31,7 +32,6 @@ export default function FillFormPage() {
   const formId = params.id as string;
   const [form, setForm] = useState<FormTemplate | null>(null);
   const [answers, setAnswers] = useState<Record<string, string | boolean>>({});
-  const [signature, setSignature] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
@@ -60,21 +60,37 @@ export default function FillFormPage() {
     setAnswers((prev) => ({ ...prev, [fieldId]: value }));
   }
 
+  function primarySignature(): string | undefined {
+    if (!form) return undefined;
+    for (const field of form.fields) {
+      if (field.type === "signature") {
+        const val = answers[field.id];
+        if (typeof val === "string" && val.startsWith("data:image")) return val;
+      }
+    }
+    return undefined;
+  }
+
   async function submit() {
     if (!form) return;
     for (const field of form.fields) {
-      if (field.required) {
-        const val = answers[field.id];
-        if (val === undefined || val === "" || val === false) {
-          toast.error(`Please complete: ${field.label}`);
+      if (!field.required) continue;
+      if (field.type === "signature") {
+        const sig = answers[field.id];
+        if (typeof sig !== "string" || !sig.startsWith("data:image")) {
+          toast.error(`Please sign: ${field.label}`);
           return;
         }
+        continue;
       }
-      if (field.type === "signature" && field.required && !signature.trim()) {
-        toast.error("Signature is required");
+      const val = answers[field.id];
+      if (val === undefined || val === "" || val === false) {
+        toast.error(`Please complete: ${field.label}`);
         return;
       }
     }
+
+    const signature = primarySignature();
 
     setSubmitting(true);
     const res = await fetch("/api/forms/responses", {
@@ -82,11 +98,8 @@ export default function FillFormPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         formId: form.id,
-        responses: {
-          ...answers,
-          ...(signature ? { _signature: signature } : {}),
-        },
-        signature: signature || undefined,
+        responses: answers,
+        signature,
       }),
     });
     setSubmitting(false);
@@ -163,10 +176,9 @@ export default function FillFormPage() {
                 <span className="text-sm">I agree</span>
               </label>
             ) : field.type === "signature" ? (
-              <Input
-                placeholder="Type your full legal name as signature"
-                value={signature}
-                onChange={(e) => setSignature(e.target.value)}
+              <SignaturePad
+                value={typeof answers[field.id] === "string" ? String(answers[field.id]) : ""}
+                onChange={(dataUrl) => setAnswer(field.id, dataUrl)}
               />
             ) : field.type === "select" ? (
               <select
