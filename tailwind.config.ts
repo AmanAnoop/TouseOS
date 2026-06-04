@@ -46,6 +46,7 @@ const config: Config = {
         club: {
           50: "color-mix(in srgb, var(--color-org-primary) 8%, var(--color-bg))",
           600: "var(--color-org-primary)",
+          700: "color-mix(in srgb, var(--color-org-primary) 85%, #000000)",
         },
         ring: "var(--color-org-primary)",
       },

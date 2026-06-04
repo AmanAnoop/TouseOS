@@ -15,6 +15,7 @@ import { getProductId, productLabel, productHomePath } from "@/lib/org-product";
 import { homePathForOrgType } from "@/lib/resolve-home";
 import { buildSidebarNavigation } from "@/lib/sidebar-navigation";
 import { SidebarNavLink } from "@/components/layout/sidebar-nav-link";
+import { pickReadableTextColor } from "@/lib/color-utils";
 
 interface SidebarProps {
   org: Organization | null;
@@ -102,12 +103,11 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
           style={{ gap: 12, textDecoration: "none", color: "var(--color-text-inverse)" }}
         >
           <div
-            className="flex items-center justify-center"
+            className="ds-brand-mark flex items-center justify-center"
             style={{
               width: 32,
               height: 32,
               borderRadius: 6,
-              background: "var(--color-org-primary)",
               fontSize: 11,
               fontWeight: 600,
             }}
@@ -146,11 +146,11 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
             }}
           >
             <div
+              className="ds-brand-mark"
               style={{
                 width: 32,
                 height: 32,
                 borderRadius: 6,
-                background: "var(--color-org-primary)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -210,12 +210,13 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
                       width: 24,
                       height: 24,
                       borderRadius: 4,
-                      background: o.primary_color,
                       display: "inline-flex",
                       alignItems: "center",
                       justifyContent: "center",
                       fontSize: 10,
                       fontWeight: 600,
+                      background: o.primary_color ?? "var(--color-org-primary)",
+                      color: pickReadableTextColor(o.primary_color ?? "#500000"),
                     }}
                   >
                     {o.name.slice(0, 1)}
@@ -278,10 +279,10 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
         {profile && (
           <Link
             href="/profile"
-            className="flex items-center gap-8 flex-1 min-w-0"
-            style={{ gap: 8, textDecoration: "none", color: "var(--color-text-inverse)" }}
+            className="flex items-center gap-2 flex-1 min-w-0"
+            style={{ textDecoration: "none", color: "var(--color-text-inverse)" }}
           >
-            <Avatar name={profile.full_name || "User"} src={profile.avatar_url} size="sm" />
+            <Avatar name={profile.full_name || "User"} src={profile.avatar_url} size="sm" variant="chrome" />
             <span
               style={{
                 fontSize: 12,

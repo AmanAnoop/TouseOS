@@ -36,6 +36,35 @@ export function hexToRgb(hex: string): { r: number; g: number; b: number } {
   };
 }
 
+/** WCAG relative luminance for #RRGGBB */
+export function relativeLuminance(hex: string): number {
+  const { r, g, b } = hexToRgb(hex);
+  const toLin = (c: number) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * toLin(r) + 0.7152 * toLin(g) + 0.0722 * toLin(b);
+}
+
+/** Pick light or dark text for text on a solid brand/background color */
+export function pickReadableTextColor(
+  backgroundHex: string,
+  light = "#F7F6F3",
+  dark = "#1A1916",
+): string {
+  const hex = backgroundHex?.trim().startsWith("#") ? backgroundHex.trim() : `#${backgroundHex?.trim() ?? "500000"}`;
+  try {
+    return relativeLuminance(hex) > 0.45 ? dark : light;
+  } catch {
+    return light;
+  }
+}
+
+/** True when background is dark enough to require light foreground */
+export function isDarkBackground(hex: string): boolean {
+  return relativeLuminance(hex) <= 0.45;
+}
+
 /** Mix two hex colors (weight on first color 0–1). */
 export function blendHex(a: string, b: string, weightA = 0.5): string {
   const ca = hexToRgb(a);
