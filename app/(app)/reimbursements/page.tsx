@@ -46,6 +46,22 @@ export default function ReimbursementsPage() {
   const [uploading, setUploading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [rejectNotes, setRejectNotes] = useState("");
+  const [openingReceipt, setOpeningReceipt] = useState(false);
+
+  async function openReceipt(reimbursementId: string) {
+    if (!orgId) return;
+    setOpeningReceipt(true);
+    const res = await fetch(
+      `/api/reimbursements/signed-url?org_id=${encodeURIComponent(orgId)}&reimbursement_id=${encodeURIComponent(reimbursementId)}`,
+    );
+    setOpeningReceipt(false);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.url) {
+      toast.error((data as { error?: string }).error ?? "Could not open receipt");
+      return;
+    }
+    window.open(data.url as string, "_blank", "noopener,noreferrer");
+  }
 
   const [form, setForm] = useState({
     amount: "", category: "Food & catering", description: "",
@@ -326,10 +342,15 @@ export default function ReimbursementsPage() {
               <div className="p-2 bg-surface-1 rounded"><p className="text-xs text-muted-foreground">Date</p><p className="text-sm font-medium">{formatDate(selected.created_at)}</p></div>
             </div>
             {selected.receipt_url && (
-              <a href={selected.receipt_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-primary hover:underline p-3 rounded-lg border border-border">
+              <button
+                type="button"
+                disabled={openingReceipt}
+                onClick={() => openReceipt(selected.id)}
+                className="flex w-full items-center gap-2 text-sm text-primary hover:underline p-3 rounded-lg border border-border hover:bg-surface-1 disabled:opacity-50"
+              >
                 <Receipt size={16} />
-                View receipt
-              </a>
+                {openingReceipt ? "Opening receipt…" : "View receipt"}
+              </button>
             )}
             {canReview && ["submitted", "needs_info"].includes(selected.status) && (
               <Textarea
