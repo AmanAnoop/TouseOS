@@ -2,7 +2,10 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { ClipboardList, Eye, FileEdit, Plus, Trash2 } from "lucide-react";
+import { ClipboardList, Eye, FileEdit, Plus, ScanLine, Trash2 } from "lucide-react";
+import { FormScanPanel } from "@/components/forms/form-scan-panel";
+import { SignaturePad } from "@/components/forms/signature-pad";
+import type { ScannedFormDraft } from "@/lib/form-ai";
 import toast from "react-hot-toast";
 import { useOrg } from "@/hooks/use-org";
 import {
@@ -143,6 +146,19 @@ export default function FormsPage() {
     setFields((prev) => prev.filter((f) => f.id !== id));
   }
 
+  function applyScannedDraft(draft: ScannedFormDraft) {
+    setNewForm({
+      title: draft.title,
+      type: draft.type,
+      description: draft.description ?? "",
+      isRequired: false,
+      dueDate: "",
+    });
+    setFields(draft.fields);
+    setTab("forms");
+    setCreateOpen(true);
+  }
+
   async function saveForm() {
     if (!orgId || !newForm.title || fields.length === 0) return;
     const res = await fetch("/api/forms", {
@@ -205,9 +221,14 @@ export default function FormsPage() {
         title="Forms & Signatures"
         description="Build and manage waivers, consent forms, and required documents"
         action={
-          <Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>
-            Build form
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="secondary" icon={<ScanLine size={14} />} onClick={() => setTab("scan")}>
+              Scan with AI
+            </Button>
+            <Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>
+              Build form
+            </Button>
+          </div>
         }
       />
 
@@ -220,6 +241,7 @@ export default function FormsPage() {
       <Tabs
         tabs={[
           { id: "forms", label: "My forms", count: forms.length },
+          { id: "scan", label: "Scan with AI" },
           { id: "templates", label: "Templates" },
         ]}
         active={tab}
@@ -269,6 +291,14 @@ export default function FormsPage() {
             ))}
           </div>
         )
+      )}
+
+      {tab === "scan" && (
+        <FormScanPanel
+          orgId={orgId}
+          onApplyToBuilder={applyScannedDraft}
+          onSaved={() => orgId && load(orgId)}
+        />
       )}
 
       {tab === "templates" && (
@@ -389,7 +419,7 @@ export default function FormsPage() {
                 ) : field.type === "checkbox" ? (
                   <label className="flex items-center gap-2"><input type="checkbox" disabled /><span className="text-sm">I agree</span></label>
                 ) : field.type === "signature" ? (
-                  <div className="h-16 border border-border rounded-lg bg-surface-1 flex items-center justify-center text-sm text-muted-foreground">Signature pad</div>
+                  <SignaturePad value="" onChange={() => {}} disabled />
                 ) : field.type === "select" ? (
                   <select className="h-9 rounded-lg border border-border bg-background px-3 text-sm" disabled>
                     {field.options?.map((o) => <option key={o}>{o}</option>)}
