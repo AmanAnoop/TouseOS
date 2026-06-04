@@ -13,9 +13,17 @@ interface PlaidLinkButtonProps {
     institutionName?: string;
   }) => void;
   label?: string;
+  size?: "sm" | "md" | "lg";
+  className?: string;
 }
 
-export function PlaidLinkButton({ orgId, onSuccess, label = "Connect bank account" }: PlaidLinkButtonProps) {
+export function PlaidLinkButton({
+  orgId,
+  onSuccess,
+  label = "Connect bank account",
+  size = "md",
+  className,
+}: PlaidLinkButtonProps) {
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -63,6 +71,8 @@ export function PlaidLinkButton({ orgId, onSuccess, label = "Connect bank accoun
 
   return (
     <Button
+      size={size}
+      className={className}
       loading={loading}
       onClick={async () => {
         if (linkToken && ready) {

@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Alert, Badge, Card } from "@/components/ui";
 import { StripeIntegrationCard } from "@/components/integrations/stripe-integration-card";
 import { TwilioIntegrationCard } from "@/components/integrations/twilio-integration-card";
+import { BankConnectCard } from "@/components/finance/bank-connect-card";
+import { isFinanceOfficerRole } from "@/lib/finance-access";
 import { can, type RoleName } from "@/lib/permissions";
 
 interface IntegrationsHubProps {
@@ -44,6 +46,7 @@ export function IntegrationsHub({ orgId, stripeAccountId, role }: IntegrationsHu
   const stripeRow = rows.find((r) => r.id === "stripe");
   const twilioRow = rows.find((r) => r.id === "twilio");
   const isAdmin = can(role, "manage_org_settings");
+  const isFinanceOfficer = isFinanceOfficerRole(role);
   const canTestSms = can(role, "send_mass_texts");
 
   if (loading) {
@@ -55,8 +58,18 @@ export function IntegrationsHub({ orgId, stripeAccountId, role }: IntegrationsHu
       <Alert
         type="info"
         title="How integrations work"
-        description="Stripe and Twilio keys are set on the server (Vercel environment). Chapters connect Stripe in the panel below. Twilio is shared across all orgs on this deployment."
+        description="Connect your chapter bank and Stripe from this page. Server keys (Plaid, Stripe, Twilio) are configured by your platform admin."
       />
+
+      {orgId && isFinanceOfficer ? (
+        <BankConnectCard orgId={orgId} variant="compact" />
+      ) : orgId ? (
+        <Card padding="sm">
+          <p className="text-sm text-muted-foreground">
+            Bank account linking is available to the treasurer or president in Settings → Integrations.
+          </p>
+        </Card>
+      ) : null}
 
       {orgId && isAdmin ? (
         <StripeIntegrationCard

@@ -60,6 +60,9 @@ export default function FinancePage() {
         orgId={orgId}
         onOpenSetup={() => setWizardOpen(true)}
       />
+      <p className="text-center text-xs text-muted-foreground">
+        You can also connect your bank anytime under Settings → Integrations.
+      </p>
       <FinanceSetupWizard
         orgId={orgId}
         open={wizardOpen}

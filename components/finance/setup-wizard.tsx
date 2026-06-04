@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 import {
   Alert, Button, Card, Input, Modal,
 } from "@/components/ui";
-import { PlaidLinkButton } from "@/components/finance/plaid-link-button";
+import { BankConnectCard } from "@/components/finance/bank-connect-card";
 import { DEFAULT_BUDGET_CATEGORIES } from "@/lib/finance-categories";
 
 type SetupPath = "stripe" | "plaid" | "both" | "manual";
@@ -123,9 +123,9 @@ export function FinanceSetupWizard({
       return (
         <div className="space-y-3">
           {([
-            { id: "stripe" as const, title: "Collect dues through TouseOS", desc: "Stripe Connect Express — payouts to your chapter account." },
-            { id: "plaid" as const, title: "Connect existing bank account", desc: "Read-only Plaid Link for balances and transactions." },
-            { id: "both" as const, title: "Do both (recommended)", desc: "Stripe for dues + Plaid for chapter checking." },
+            { id: "plaid" as const, title: "Connect chapter bank account", desc: "Fastest start — balances & transactions in ~2 minutes (recommended)." },
+            { id: "both" as const, title: "Bank + collect dues", desc: "Plaid for your checking account and Stripe for member payments." },
+            { id: "stripe" as const, title: "Collect dues only", desc: "Stripe Connect — money goes directly to your chapter account." },
             { id: "manual" as const, title: "Set up manually", desc: "Classic budget editor without bank or Stripe automation." },
           ]).map((opt) => (
             <button
@@ -146,11 +146,34 @@ export function FinanceSetupWizard({
     const reviewStep = path === "plaid" || path === "both" ? 2 : -1;
     const budgetStep = steps.length - 1;
 
+    if (step === connectStep && path === "plaid") {
+      return (
+        <BankConnectCard
+          orgId={orgId}
+          variant="compact"
+          onConnected={() => {
+            setPlaidDone(true);
+            setStep(2);
+          }}
+        />
+      );
+    }
+
     if (step === connectStep && path !== "manual") {
       const needsStripe = path === "stripe" || path === "both";
-      const needsPlaid = path === "plaid" || path === "both";
+      const needsPlaid = path === "both";
       return (
         <div className="space-y-4">
+          {needsPlaid && (
+            <BankConnectCard
+              orgId={orgId}
+              variant="compact"
+              onConnected={() => {
+                setPlaidDone(true);
+                setCategorizePreview([]);
+              }}
+            />
+          )}
           {needsStripe && (
             <div className="space-y-2">
               <Alert type="info" title="Stripe Connect" description="TouseOS never holds chapter funds. Optional platform fee may apply per deployment." />
@@ -159,20 +182,6 @@ export function FinanceSetupWizard({
                 <Button variant="secondary" onClick={refreshStripeStatus}>Check status</Button>
               </div>
               {stripeDone && <p className="text-sm text-green-600 dark:text-green-400">Stripe ready.</p>}
-            </div>
-          )}
-          {needsPlaid && (
-            <div className="space-y-2 pt-2 border-t">
-              <p className="font-medium text-sm">Chapter bank (Plaid)</p>
-              <PlaidLinkButton
-                orgId={orgId}
-                label={plaidDone ? "Reconnect" : "Connect with Plaid"}
-                onSuccess={(r) => {
-                  setPlaidDone(true);
-                  setCategorizePreview((r.recentTransactions as typeof categorizePreview) ?? []);
-                  toast.success("Bank connected");
-                }}
-              />
             </div>
           )}
           {needsStripe && (

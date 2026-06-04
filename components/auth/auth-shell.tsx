@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Calendar, Landmark, Users } from "lucide-react";
 
 interface AuthShellProps {
   children: React.ReactNode;
@@ -9,64 +10,82 @@ interface AuthShellProps {
   footer?: React.ReactNode;
 }
 
+const FEATURES = [
+  { icon: Users, title: "Roster & communications", desc: "One hub for members, announcements, and chapter feed." },
+  { icon: Landmark, title: "Dues & chapter finances", desc: "Collect dues with Stripe and sync your checking account." },
+  { icon: Calendar, title: "Events & operations", desc: "Calendar, tasks, documents, and officer handoffs." },
+];
+
 export function AuthShell({ children, title, subtitle, footer }: AuthShellProps) {
   return (
-    <div style={{ minHeight: "100vh", background: "var(--color-bg)" }}>
-      <div style={{ minHeight: "100vh", display: "grid" }} className="lg:grid-cols-2">
-        <div
-          className="hidden lg:flex flex-col justify-between"
-          style={{
-            padding: "40px 56px",
-            background: "var(--color-sidebar)",
-            color: "var(--color-text-inverse)",
-            borderRight: "1px solid rgba(255,255,255,0.06)",
-          }}
-        >
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 8,
-                  background: "var(--color-org-primary)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 20,
-                  fontWeight: 600,
-                }}
-              >
-                T
-              </div>
-              <div>
-                <p className="type-h1" style={{ color: "var(--color-text-inverse)", margin: 0 }}>TouseOS</p>
-                <p className="type-small" style={{ color: "rgba(247,246,243,0.65)", margin: 0 }}>For chapters, teams, and clubs</p>
-              </div>
-            </div>
-            <p className="type-display" style={{ marginTop: 40, maxWidth: 400, color: "var(--color-text-inverse)" }}>
-              Run your organization in one place.
-            </p>
-            <p className="type-body" style={{ marginTop: 12, maxWidth: 360, color: "rgba(247,246,243,0.65)" }}>
-              Members, dues, events, and communications — built for Greek life, club sports, and campus organizations.
-            </p>
-          </div>
-        </div>
+    <div className="auth-layout">
+      <aside className="auth-panel" aria-hidden={false}>
+        <div className="auth-panel-inner">
+          <Link href="/login" className="auth-brand">
+            <span className="auth-brand-mark" aria-hidden>T</span>
+            <span className="auth-brand-text">
+              <span className="auth-brand-name">TouseOS</span>
+              <span className="auth-brand-tagline">For chapters, teams, and clubs</span>
+            </span>
+          </Link>
 
-        <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", padding: "40px 24px" }}>
-          <div className="ds-card" style={{ maxWidth: 420, margin: "0 auto", width: "100%" }}>
-            <h1 className="type-h1" style={{ margin: "0 0 8px" }}>{title}</h1>
-            <p className="type-small" style={{ margin: "0 0 24px" }}>{subtitle}</p>
-            {children}
-            {footer && <div style={{ marginTop: 24 }}>{footer}</div>}
+          <div className="auth-panel-hero">
+            <p className="auth-panel-eyebrow">Campus organizations, simplified</p>
+            <h1 className="auth-panel-headline">
+              Run your chapter
+              <br />
+              in one place.
+            </h1>
+            <p className="auth-panel-lead">
+              Members, dues, events, and finances — built for Greek life, club sports, and campus orgs.
+            </p>
           </div>
-          <p className="type-small" style={{ textAlign: "center", marginTop: 32 }}>
-            <Link href="/terms" style={{ color: "var(--color-text-secondary)" }}>Terms</Link>
-            {" · "}
-            <Link href="/privacy" style={{ color: "var(--color-text-secondary)" }}>Privacy</Link>
+
+          <ul className="auth-feature-list">
+            {FEATURES.map((f) => (
+              <li key={f.title} className="auth-feature-item">
+                <span className="auth-feature-icon" aria-hidden>
+                  <f.icon size={18} strokeWidth={1.75} />
+                </span>
+                <span>
+                  <span className="auth-feature-title">{f.title}</span>
+                  <span className="auth-feature-desc">{f.desc}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+
+          <p className="auth-panel-foot">
+            Trusted by treasurers and officers who need clarity, not spreadsheets.
           </p>
         </div>
-      </div>
+      </aside>
+
+      <main className="auth-main">
+        <div className="auth-mobile-brand">
+          <Link href="/login" className="auth-brand auth-brand--compact">
+            <span className="auth-brand-mark auth-brand-mark--sm" aria-hidden>T</span>
+            <span className="auth-brand-name">TouseOS</span>
+          </Link>
+        </div>
+
+        <div className="auth-form-wrap">
+          <div className="auth-form-card">
+            <header className="auth-form-header">
+              <h2 className="auth-form-title">{title}</h2>
+              <p className="auth-form-subtitle">{subtitle}</p>
+            </header>
+            <div className="auth-form-body">{children}</div>
+            {footer ? <footer className="auth-form-footer">{footer}</footer> : null}
+          </div>
+
+          <p className="auth-legal">
+            <Link href="/terms">Terms</Link>
+            <span aria-hidden> · </span>
+            <Link href="/privacy">Privacy</Link>
+          </p>
+        </div>
+      </main>
     </div>
   );
 }

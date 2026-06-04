@@ -7,11 +7,12 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
-  Alert, Badge, Button, Card, EmptyState, Input, ProgressBar, Select, StatCard,
+  Alert, Badge, Button, Card, Input, ProgressBar, Select, StatCard,
 } from "@/components/ui";
 import { DEFAULT_BUDGET_CATEGORIES } from "@/lib/finance-categories";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { PlaidLinkButton } from "@/components/finance/plaid-link-button";
+import { BankConnectCard } from "@/components/finance/bank-connect-card";
 
 interface DashboardData {
   settings: Record<string, unknown> | null;
@@ -133,21 +134,28 @@ export function FinanceDashboard({ orgId, onOpenSetup }: FinanceDashboardProps) 
 
   if (data?.needsSetup) {
     return (
-      <EmptyState
-        icon={<Wallet className="h-10 w-10" />}
-        title="Set up chapter finances"
-        description="Connect Stripe for dues and Plaid for your chapter bank account. Setup takes about five minutes."
-        action={<Button onClick={onOpenSetup}>Start setup wizard</Button>}
-      />
+      <div className="space-y-6">
+        <BankConnectCard orgId={orgId} variant="hero" onConnected={loadDashboard} />
+        <div className="flex flex-wrap gap-2 justify-center">
+          <Button onClick={onOpenSetup}>Full setup wizard</Button>
+          <span className="text-sm text-muted-foreground self-center">Stripe dues, budget categories, and more</span>
+        </div>
+      </div>
     );
   }
+
+  const bankDisconnected = data?.plaid.status === "disconnected" || data?.plaid.expired;
 
   const plaidBanner = data?.plaid.expired || data?.plaid.status === "error";
   const stripeIncomplete = data?.stripe.enabled && !data?.stripe.onboardingComplete;
 
   return (
     <div className="space-y-6">
-      {plaidBanner && (
+      {bankDisconnected && (
+        <BankConnectCard orgId={orgId} variant="hero" onConnected={() => { loadDashboard(); loadTransactions(); }} />
+      )}
+
+      {plaidBanner && !bankDisconnected && (
         <div className="space-y-2">
           <Alert
             type="warning"
