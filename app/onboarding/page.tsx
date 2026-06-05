@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
-import { OnboardingRegalTheme } from "@/components/onboarding/onboarding-regal-theme";
 import { homePathForOrgType } from "@/lib/resolve-home";
 
 export const metadata = { title: "Onboarding" };
@@ -35,10 +34,5 @@ export default async function OnboardingRoute({
     }
   }
 
-  return (
-    <div className="min-h-screen theme-regal bg-background flex flex-col items-center justify-center p-4">
-      <OnboardingRegalTheme />
-      <OnboardingWizard mode={forceCreate ? "create" : "welcome"} allowBackToDashboard={forceCreate} />
-    </div>
-  );
+  return <OnboardingWizard mode={forceCreate ? "create" : "welcome"} allowBackToDashboard={forceCreate} />;
 }

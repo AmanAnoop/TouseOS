@@ -86,6 +86,10 @@ export default function BigLittlePage() {
 
   async function createMatch() {
     if (!orgId || !selectedBig || !selectedLittle) return;
+    if (selectedBig === selectedLittle) {
+      toast.error("A member cannot be matched with themselves");
+      return;
+    }
     const big = members.find((m) => m.id === selectedBig);
     const little = members.find((m) => m.id === selectedLittle);
     const score = big && little ? computeMatchScore(big, little) : null;

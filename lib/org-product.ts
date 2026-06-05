@@ -57,7 +57,6 @@ const SPORTS_ONLY_PREFIXES = [
   "/tournaments",
   "/standings",
   "/waivers",
-  "/travel",
   "/equipment",
   "/injuries",
   "/coaches",
@@ -136,6 +135,10 @@ export function isRouteAllowed(
     return product === "greek" || product === "sports" || product === "club";
   }
 
+  if (matchesPrefix(pathname, ["/travel"])) {
+    return product === "greek" || product === "sports";
+  }
+
   if (matchesPrefix(pathname, GREEK_ONLY_PREFIXES)) return product === "greek";
   if (matchesPrefix(pathname, SPORTS_ONLY_PREFIXES)) return product === "sports";
   if (matchesPrefix(pathname, CLUB_ONLY_PREFIXES)) return product === "club";
@@ -181,6 +184,8 @@ export const CORE_NAV: NavItemDef[] = [
 export const GREEK_FEATURE_NAV: NavItemDef[] = [
   { href: "/pnm", label: "PNM Recruitment", products: ["greek"] },
   { href: "/big-little", label: "Big/Little", products: ["greek"] },
+  { href: "/travel", label: "Travel", products: ["greek"] },
+  { href: "/travel/templates", label: "Travel templates", products: ["greek"] },
   { href: "/social", label: "Touse Social", products: ["greek"] },
   { href: "/social-calendar", label: "Social Calendar", products: ["greek"] },
   { href: "/social-collab", label: "Collab planner", products: ["greek"] },
@@ -202,7 +207,8 @@ export const SPORTS_FEATURE_NAV: NavItemDef[] = [
   { href: "/social", label: "Photos & Social", products: ["sports"] },
   { href: "/yearbook", label: "Season Yearbook", products: ["sports"] },
   { href: "/waivers", label: "Waivers & Compliance", products: ["sports"] },
-  { href: "/travel", label: "Travel Management", products: ["sports"] },
+  { href: "/travel", label: "Travel", products: ["sports"] },
+  { href: "/travel/templates", label: "Travel templates", products: ["sports"] },
   { href: "/equipment", label: "Equipment & Uniforms", products: ["sports"] },
   { href: "/injuries", label: "Injury Reports", products: ["sports"] },
   { href: "/coaches", label: "Coaching Tools", products: ["sports"] },
