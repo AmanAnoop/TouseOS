@@ -14,6 +14,7 @@ export default function HardshipRequestPage() {
   const [submitted, setSubmitted] = useState(false);
 
   const [form, setForm] = useState({
+    requesterName: "",
     requestedAmount: "",
     requestedArrangement: "waiver",
     reason: "",
@@ -22,6 +23,10 @@ export default function HardshipRequestPage() {
   });
 
   async function submit() {
+    if (!form.requesterName.trim()) {
+      toast.error("Enter the name of the individual requesting the deduction");
+      return;
+    }
     setSubmitting(true);
     if (!orgId || !userId) { setSubmitting(false); return; }
 
@@ -30,6 +35,7 @@ export default function HardshipRequestPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         orgId,
+        requesterName: form.requesterName.trim(),
         requestedAmount: form.requestedAmount ? parseFloat(form.requestedAmount) : null,
         arrangement: form.requestedArrangement,
         reason: form.reason,
@@ -74,6 +80,13 @@ export default function HardshipRequestPage() {
 
       <Card>
         <div className="space-y-4">
+          <Input
+            label="Name of individual requesting deduction *"
+            required
+            placeholder="Full legal name"
+            value={form.requesterName}
+            onChange={(e) => setForm({ ...form, requesterName: e.target.value })}
+          />
           <Select
             label="What are you requesting?"
             value={form.requestedArrangement}

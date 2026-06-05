@@ -160,9 +160,29 @@ export function GreekTripDetail({ tripId }: GreekTripDetailProps) {
 
       {tab === "roster" && (
         <Card>
-          <CardHeader title="RSVP roster" icon={<Users size={16} />} />
+          <CardHeader
+            title="RSVP roster"
+            icon={<Users size={16} />}
+            action={canManage && orgId ? (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={async () => {
+                  await fetch(`/api/greek/travel/${tripId}/roster`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ orgId, action: "invite_all" }),
+                  });
+                  toast.success("All members invited");
+                  load(orgId);
+                }}
+              >
+                Invite all members
+              </Button>
+            ) : undefined}
+          />
           {rsvps.length === 0 ? (
-            <EmptyState title="No RSVPs yet" description="Invite members from the roster tab after adding them." />
+            <EmptyState title="No RSVPs yet" description="Use Invite all members to add the chapter roster." />
           ) : (
             <div className="ds-table-wrap">
               <table className="ds-table">
@@ -277,15 +297,58 @@ export function GreekTripDetail({ tripId }: GreekTripDetailProps) {
           <div className="ds-page-stack" style={{ gap: 8, marginTop: 16 }}>
             {checklist.map((item) => (
               <label key={String(item.id)} style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 44 }}>
-                <input type="checkbox" checked={Boolean(item.complete)} readOnly />
+                <input
+                  type="checkbox"
+                  checked={Boolean(item.complete)}
+                  disabled={!canManage}
+                  onChange={async () => {
+                    if (!orgId) return;
+                    await fetch(`/api/greek/travel/${tripId}/checklist`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ orgId, action: "toggle", itemId: item.id }),
+                    });
+                    load(orgId);
+                  }}
+                />
                 <span className="type-body">{String(item.label)}</span>
               </label>
             ))}
           </div>
           {canManage && (
-            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+            <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
               <Input value={checklistLabel} onChange={(e) => setChecklistLabel(e.target.value)} placeholder="Add checklist item" />
-              <Button size="sm" disabled={!checklistLabel.trim()}>Add</Button>
+              <Button
+                size="sm"
+                disabled={!checklistLabel.trim() || !orgId}
+                onClick={async () => {
+                  if (!orgId) return;
+                  await fetch(`/api/greek/travel/${tripId}/checklist`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ orgId, label: checklistLabel.trim() }),
+                  });
+                  setChecklistLabel("");
+                  load(orgId);
+                }}
+              >
+                Add
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={async () => {
+                  if (!orgId) return;
+                  await fetch(`/api/greek/travel/${tripId}/checklist`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ orgId, action: "mark_all_complete" }),
+                  });
+                  load(orgId);
+                }}
+              >
+                Mark all complete
+              </Button>
             </div>
           )}
         </Card>

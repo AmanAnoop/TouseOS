@@ -144,7 +144,7 @@ export function PaymentDetailModal({ open, onClose, orgId, payment, onRefresh, c
           </a>
         )}
 
-        {(lateFeeAmount > 0 || (canManage && (p.status === "overdue" || duePast))) && (
+        {(p.status === "overdue" || duePast) && lateFeeAmount > 0 && (
           <Card padding="sm">
             <p className="text-xs text-muted-foreground">Late fee</p>
             <p className="text-sm font-semibold">{formatCurrency(lateFeeAmount)}</p>

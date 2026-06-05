@@ -29,6 +29,7 @@ export async function POST(request: Request) {
   const body = await request.json();
   const {
     orgId,
+    requesterName,
     requestedAmount,
     arrangement,
     reason,
@@ -36,8 +37,8 @@ export async function POST(request: Request) {
     planInstallments,
   } = body;
 
-  if (!orgId || !reason) {
-    return NextResponse.json({ error: "orgId and reason required" }, { status: 400 });
+  if (!orgId || !reason || !requesterName?.trim()) {
+    return NextResponse.json({ error: "orgId, requesterName, and reason required" }, { status: 400 });
   }
 
   const { data: profile } = await supabase
@@ -56,7 +57,10 @@ export async function POST(request: Request) {
       requested_amount: requestedAmount != null ? Number(requestedAmount) : null,
       arrangement: arrangement ?? "waiver",
       reason,
-      additional_context: additionalContext || null,
+      additional_context: [
+        `Requester: ${String(requesterName).trim()}`,
+        additionalContext || "",
+      ].filter(Boolean).join("\n\n"),
       plan_installments: planInstallments != null ? Number(planInstallments) : null,
       status: "pending",
     })
@@ -92,7 +96,7 @@ export async function PATCH(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id, orgId, status } = await request.json();
+  const { id, orgId, status, approvedAmount } = await request.json();
   if (!id || !orgId || !["approved", "denied"].includes(status)) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
@@ -122,6 +126,29 @@ export async function PATCH(request: Request) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (status === "approved" && data.member_id) {
+    const { data: openPayments } = await supabase
+      .from("payments")
+      .select("id, amount, paid_amount")
+      .eq("org_id", orgId)
+      .eq("member_id", data.member_id)
+      .in("status", ["pending", "overdue", "partial"]);
+
+    const targetAmount = approvedAmount != null
+      ? Number(approvedAmount)
+      : data.arrangement === "waiver"
+        ? 0
+        : Number(data.requested_amount ?? 0);
+
+    for (const pay of openPayments ?? []) {
+      const remaining = Math.max(0, Number(pay.amount) - Number(pay.paid_amount));
+      const newAmount = Math.min(Number(pay.amount), Number(pay.paid_amount) + Math.min(remaining, targetAmount));
+      if (newAmount < Number(pay.amount)) {
+        await supabase.from("payments").update({ amount: newAmount }).eq("id", pay.id);
+      }
+    }
+  }
 
   await supabase.from("audit_logs").insert({
     org_id: orgId,

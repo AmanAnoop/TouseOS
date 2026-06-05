@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { MapPin } from "lucide-react";
 import { Input } from "@/components/ui";
+import { AddressAutocomplete } from "@/components/location/address-autocomplete";
 import { buildMapsUrl } from "@/lib/maps-link";
 
 export interface LocationFieldValues {
@@ -123,18 +124,23 @@ export function LocationFields({
           label="Venue name"
           placeholder="Chapter house, ballroom, field..."
           icon={<MapPin size={15} />}
-          value={values.venueName || values.destination}
-          onChange={(e) => onChange({ venueName: e.target.value, destination: e.target.value })}
+          value={values.venueName}
+          onChange={(e) => onChange({ venueName: e.target.value })}
           disabled={disabled}
         />
       )}
 
-      <Input
+      <AddressAutocomplete
         label="Street address"
         placeholder="123 Main St, City, ST 12345"
         value={values.address}
-        onChange={(e) => onChange({ address: e.target.value })}
+        venueValue={values.venueName}
         disabled={disabled}
+        onSelect={(place) => onChange({
+          address: place.address,
+          venueName: values.venueName || place.venueName,
+          destination: place.venueName,
+        })}
       />
 
       {variant === "travel" && (

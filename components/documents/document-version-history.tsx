@@ -27,7 +27,7 @@ interface DocumentVersionHistoryProps {
 }
 
 export function DocumentVersionHistory({
-  doc, orgId, userId, open, onClose, onUpdated,
+  doc, orgId, open, onClose, onUpdated,
 }: DocumentVersionHistoryProps) {
   const supabase = createClient();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -50,8 +50,7 @@ export function DocumentVersionHistory({
 
   async function uploadNewVersion(file: File) {
     setUploading(true);
-    const nextVersion = currentVersion + 1;
-    const path = `${orgId}/${Date.now()}-v${nextVersion}-${file.name}`;
+    const path = `${orgId}/${Date.now()}-v${currentVersion + 1}-${file.name}`;
 
     const { data: stored, error: uploadError } = await supabase.storage
       .from("documents")
@@ -63,28 +62,24 @@ export function DocumentVersionHistory({
       return;
     }
 
-    const { data: urlData } = supabase.storage.from("documents").getPublicUrl(stored.path);
-
-    await supabase.from("document_versions").insert({
-      document_id: doc.id,
-      version: currentVersion,
-      storage_path: doc.storage_path,
-      url: doc.url,
-      uploaded_by: userId,
+    const res = await fetch(`/api/documents/${doc.id}/version`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        storagePath: stored.path,
+        fileSizeBytes: file.size,
+        mimeType: file.type,
+      }),
     });
 
-    const { error: updateError } = await supabase.from("documents").update({
-      storage_path: stored.path,
-      url: urlData.publicUrl,
-      version: nextVersion,
-      file_size_bytes: file.size,
-      mime_type: file.type,
-      uploaded_by: userId,
-    }).eq("id", doc.id);
-
     setUploading(false);
-    if (updateError) { toast.error(updateError.message); return; }
-    toast.success(`Uploaded version ${nextVersion}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error((err as { error?: string }).error ?? "Failed to save document version");
+      return;
+    }
+    toast.success("New version uploaded");
     onUpdated();
     onClose();
   }

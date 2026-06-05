@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Plus } from "lucide-react";
 import toast from "react-hot-toast";
 import {
@@ -8,11 +8,15 @@ import {
   PageHeader, Select, StatCard, Textarea,
 } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
+import {
+  INJURY_SEVERITY, INJURY_TYPES, guidanceForInjuryType,
+} from "@/lib/injury-guidance";
 import { useOrg } from "@/hooks/use-org";
 import type { RoleName } from "@/lib/permissions";
 
 interface Injury {
   id: string;
+  injury_type?: string;
   severity: string;
   body_area: string;
   context: string;
@@ -34,9 +38,19 @@ export function InjuriesClient() {
   const [allowed, setAllowed] = useState(true);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
-    memberId: "", incidentDate: new Date().toISOString().slice(0, 10),
-    context: "practice", bodyArea: "", severity: "minor", description: "",
+    memberId: "",
+    incidentDate: new Date().toISOString().slice(0, 10),
+    injuryType: "muscle_strain",
+    context: "practice",
+    bodyArea: "",
+    severity: "mild",
+    description: "",
   });
+
+  const guidance = useMemo(
+    () => guidanceForInjuryType(form.injuryType),
+    [form.injuryType],
+  );
 
   const load = useCallback(async (oid: string) => {
     const { createClient } = await import("@/lib/supabase/client");
@@ -64,7 +78,17 @@ export function InjuriesClient() {
     const res = await fetch("/api/injuries", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orgId, ...form }),
+      body: JSON.stringify({
+        orgId,
+        memberId: form.memberId,
+        incidentDate: form.incidentDate,
+        injuryType: form.injuryType,
+        context: form.context,
+        bodyArea: form.bodyArea,
+        severity: form.severity,
+        description: form.description,
+        guidance,
+      }),
     });
     if (res.ok) {
       toast.success("Injury report filed");
@@ -101,7 +125,7 @@ export function InjuriesClient() {
   const active = injuries.filter((i) => !i.is_cleared);
   const cleared = injuries.filter((i) => i.is_cleared);
   const SEVERITY_COLOR: Record<string, "green" | "yellow" | "orange" | "red" | "gray"> = {
-    minor: "green", moderate: "yellow", severe: "orange", critical: "red",
+    mild: "green", minor: "green", moderate: "yellow", severe: "orange", critical: "red",
   };
 
   return (
@@ -123,8 +147,15 @@ export function InjuriesClient() {
           <div className="flex items-start justify-between gap-3 p-4">
             <div>
               <p className="font-semibold">{injury.member_profiles?.full_name ?? "Player"}</p>
-              <p className="text-xs text-muted-foreground">{injury.body_area} · {injury.severity} · {formatDate(injury.incident_date)}</p>
+              <p className="text-xs text-muted-foreground">
+                {injury.body_area} · {injury.injury_type?.replace(/_/g, " ") ?? injury.severity} · {formatDate(injury.incident_date)}
+              </p>
               <p className="text-sm text-muted-foreground mt-1">{injury.description}</p>
+              {injury.injury_type && (
+                <p className="text-sm mt-2 p-2 rounded-lg bg-surface-1 border border-border">
+                  <strong>What to do:</strong> {guidanceForInjuryType(injury.injury_type)}
+                </p>
+              )}
             </div>
             <div className="flex flex-col gap-2 items-end">
               <Badge label={injury.severity} color={SEVERITY_COLOR[injury.severity] ?? "gray"} />
@@ -141,11 +172,16 @@ export function InjuriesClient() {
       <Modal open={open} onClose={() => setOpen(false)} title="File injury report" footer={<><Button variant="secondary" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={fileReport}>Submit</Button></>}>
         <div className="space-y-3">
           <Select label="Player" value={form.memberId} onChange={(e) => setForm({ ...form, memberId: e.target.value })} options={[{ value: "", label: "Select" }, ...members.map((m) => ({ value: m.id, label: m.full_name }))]} />
-          <Input label="Incident date" type="date" value={form.incidentDate} onChange={(e) => setForm({ ...form, incidentDate: e.target.value })} />
+          <Input label="Date of injury" type="date" value={form.incidentDate} onChange={(e) => setForm({ ...form, incidentDate: e.target.value })} />
+          <Select label="Injury type" value={form.injuryType} onChange={(e) => setForm({ ...form, injuryType: e.target.value })} options={INJURY_TYPES.map((t) => ({ value: t.value, label: t.label }))} />
+          <Input label="Body part affected" value={form.bodyArea} onChange={(e) => setForm({ ...form, bodyArea: e.target.value })} placeholder="Knee, ankle, head…" />
+          <Select label="Severity" value={form.severity} onChange={(e) => setForm({ ...form, severity: e.target.value })} options={INJURY_SEVERITY.map((s) => ({ value: s.value, label: s.label }))} />
           <Select label="Context" value={form.context} onChange={(e) => setForm({ ...form, context: e.target.value })} options={["practice", "game", "tournament", "other"].map((v) => ({ value: v, label: v }))} />
-          <Input label="Body area" value={form.bodyArea} onChange={(e) => setForm({ ...form, bodyArea: e.target.value })} placeholder="Knee, ankle…" />
-          <Select label="Severity" value={form.severity} onChange={(e) => setForm({ ...form, severity: e.target.value })} options={["minor", "moderate", "severe", "critical"].map((v) => ({ value: v, label: v }))} />
-          <Textarea label="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={4} />
+          <Textarea label="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} />
+          <Card padding="sm">
+            <p className="type-label" style={{ margin: "0 0 4px" }}>What to do</p>
+            <p className="type-small" style={{ margin: 0 }}>{guidance}</p>
+          </Card>
         </div>
       </Modal>
     </div>

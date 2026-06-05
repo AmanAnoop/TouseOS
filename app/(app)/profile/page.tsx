@@ -12,6 +12,7 @@ import { ProfileForm } from "@/components/profile/profile-form";
 import { PrivacySettings } from "@/components/profile/privacy-settings";
 import { GreekMatchSettings, type GreekMatchFormData } from "@/components/profile/greekmatch-settings";
 import { GreekMatchPhotos } from "@/components/profile/greekmatch-photos";
+import { PaymentPlanPanel } from "@/components/profile/payment-plan-panel";
 
 interface OrgRole { org_id: string; role: string; org_name: string; org_type: string }
 
@@ -275,6 +276,10 @@ export default function ProfilePage() {
         active={tab}
         onChange={setTab}
       />
+
+      {tab === "profile" && orgId && memberProfile?.id && (
+        <PaymentPlanPanel orgId={orgId} memberId={memberProfile.id} />
+      )}
 
       {tab === "profile" && (
         <ProfileForm
