@@ -1,7 +1,8 @@
 import Stripe from "stripe";
+import { getPlatformSecretSync } from "@/lib/platform-secrets";
 
 function getStripeSecret(): string | undefined {
-  return process.env.STRIPE_SECRET_KEY?.trim();
+  return getPlatformSecretSync("STRIPE_SECRET_KEY");
 }
 
 let stripeClient: Stripe | null = null;
@@ -168,9 +169,7 @@ export function formatCurrency(amount: number, currency = "USD") {
 }
 
 export async function constructWebhookEvent(body: string, sig: string) {
-  return stripe.webhooks.constructEvent(
-    body,
-    sig,
-    process.env.STRIPE_WEBHOOK_SECRET!,
-  );
+  const secret = getPlatformSecretSync("STRIPE_WEBHOOK_SECRET");
+  if (!secret) throw new Error("STRIPE_WEBHOOK_SECRET is not configured");
+  return stripe.webhooks.constructEvent(body, sig, secret);
 }

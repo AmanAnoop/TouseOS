@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getIntegrationStatuses, isStripeConfigured } from "@/lib/integrations";
+import { getIntegrationStatuses, isStripeConfigured, warmIntegrationSecrets } from "@/lib/integrations";
 
 /** Live integration readiness for settings and comms (no secrets). */
 export async function GET() {
@@ -8,6 +8,7 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  await warmIntegrationSecrets();
   const integrations = getIntegrationStatuses();
 
   let stripeReachable = false;

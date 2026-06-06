@@ -1,16 +1,12 @@
 /** Mapbox — server geocoding; client uses NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN with react-map-gl. */
 
-export function isMapboxConfigured(): boolean {
-  return Boolean(
-    process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN?.trim()
-    || process.env.MAPBOX_ACCESS_TOKEN?.trim(),
-  );
-}
+import { getPlatformSecretSync } from "@/lib/platform-secrets";
+export { isMapboxConfigured } from "@/lib/integrations";
 
 export function getMapboxToken(): string | null {
   return (
-    process.env.MAPBOX_ACCESS_TOKEN?.trim()
-    ?? process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN?.trim()
+    getPlatformSecretSync("MAPBOX_ACCESS_TOKEN")
+    ?? getPlatformSecretSync("NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN")
     ?? null
   );
 }

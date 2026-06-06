@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Building, Copy, Eye, Flag, Shield, Users } from "lucide-react";
+import Link from "next/link";
+import { Building, Copy, Eye, Flag, KeyRound, Shield, Users } from "lucide-react";
 import { PlatformAuditPanel } from "@/components/platform-admin/platform-audit-panel";
 import { PlatformBillingPanel } from "@/components/platform-admin/platform-billing-panel";
 import { PlatformFeatureFlagsPanel } from "@/components/platform-admin/platform-feature-flags-panel";
@@ -258,6 +259,9 @@ export default function PlatformAdminPage() {
               <Button size="sm" variant="secondary" onClick={() => setTab("audit")}>Audit log</Button>
               <Button size="sm" variant="secondary" onClick={() => setTab("flags")}>Feature flags</Button>
               <Button size="sm" variant="secondary" onClick={() => setTab("moderation")}>Moderation</Button>
+              <Link href="/platform-admin/keys">
+                <Button size="sm" variant="secondary" icon={<KeyRound size={14} />}>Integration keys</Button>
+              </Link>
             </div>
           </Card>
         </div>

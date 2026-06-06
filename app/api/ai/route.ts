@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     });
   }
 
-  const client = getAnthropicClient();
+  const client = await getAnthropicClient();
   if (!client) {
     return NextResponse.json({ error: "AI not configured" }, { status: 503 });
   }

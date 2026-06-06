@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { constructWebhookEvent } from "@/lib/stripe";
 import { stripe } from "@/lib/stripe";
+import { warmIntegrationSecrets } from "@/lib/integrations";
 import { createServiceClient } from "@/lib/supabase/server";
 import { createNotification } from "@/lib/notifications";
 import { triggerBudgetSyncForOrg } from "@/lib/budget-auto-sync";
@@ -21,6 +22,7 @@ function getUserIdFromMemberProfiles(mp: unknown): string | null {
 }
 
 export async function POST(request: Request) {
+  await warmIntegrationSecrets();
   const body = await request.text();
   const headerList = await headers();
   const sig = headerList.get("stripe-signature");
