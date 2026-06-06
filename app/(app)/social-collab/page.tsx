@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { CheckCircle, Plus, Users } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { CheckCircle, Download, Image as ImageIcon, Plus, Users } from "lucide-react";
 import toast from "react-hot-toast";
 import { useOrg } from "@/hooks/use-org";
 import {
@@ -23,6 +24,7 @@ interface CollabPost {
   scheduled_date: string | null;
   status: string;
   checklist: ChecklistItem[];
+  photo_ids?: string[];
   our_pr_approved?: boolean;
   partner_pr_approved?: boolean;
 }
@@ -32,13 +34,24 @@ interface PartnerOrg {
   name: string;
 }
 
+interface ChapterPhoto {
+  id: string;
+  url: string;
+}
+
 export default function SocialCollabPage() {
+  const router = useRouter();
   const { orgId } = useOrg();
   const [posts, setPosts] = useState<CollabPost[]>([]);
+  const [photos, setPhotos] = useState<ChapterPhoto[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [partnerOrgs, setPartnerOrgs] = useState<PartnerOrg[]>([]);
-  const [form, setForm] = useState({ partnerOrgId: "", partnerOrgName: "", title: "", captionDraft: "", scheduledDate: "" });
+  const [form, setForm] = useState({
+    partnerOrgId: "", partnerOrgName: "", title: "", captionDraft: "", scheduledDate: "", photoIds: [] as string[],
+  });
+  const [photoEditPost, setPhotoEditPost] = useState<CollabPost | null>(null);
+  const [editPhotoIds, setEditPhotoIds] = useState<string[]>([]);
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
@@ -54,6 +67,9 @@ export default function SocialCollabPage() {
       fetch(`/api/interchapter/orgs?exclude_org_id=${encodeURIComponent(orgId)}`)
         .then((r) => (r.ok ? r.json() : []))
         .then((data) => setPartnerOrgs((data as PartnerOrg[]).map((o) => ({ id: o.id, name: o.name }))));
+      fetch(`/api/photos?org_id=${encodeURIComponent(orgId)}&limit=48`)
+        .then((r) => (r.ok ? r.json() : []))
+        .then((data) => setPhotos((data as ChapterPhoto[]).filter((p) => p.url)));
     }
   }, [orgId, load]);
 
@@ -69,6 +85,7 @@ export default function SocialCollabPage() {
         title: form.title,
         captionDraft: form.captionDraft,
         scheduledDate: form.scheduledDate || null,
+        photoIds: form.photoIds,
       }),
     });
     const data = await res.json();
@@ -78,7 +95,7 @@ export default function SocialCollabPage() {
     }
     toast.success("Collab post created");
     setOpen(false);
-    setForm({ partnerOrgId: "", partnerOrgName: "", title: "", captionDraft: "", scheduledDate: "" });
+    setForm({ partnerOrgId: "", partnerOrgName: "", title: "", captionDraft: "", scheduledDate: "", photoIds: [] });
     load(orgId);
   }
 
@@ -116,11 +133,90 @@ export default function SocialCollabPage() {
     toast.success(`Marked ${status.replace("_", " ")}`);
   }
 
+  async function savePhotos(post: CollabPost) {
+    if (!orgId) return;
+    await fetch("/api/social/collab", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: post.id, orgId, photoIds: editPhotoIds }),
+    });
+    setPhotoEditPost(null);
+    load(orgId);
+    toast.success("Photos linked");
+  }
+
+  async function scheduleOnCalendar(post: CollabPost) {
+    if (!orgId) return;
+    const res = await fetch("/api/social-calendar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        title: post.title,
+        caption: post.caption_draft,
+        scheduledDate: post.scheduled_date,
+        postType: "carousel",
+        status: "draft",
+        photoIds: post.photo_ids ?? [],
+      }),
+    });
+    if (!res.ok) {
+      toast.error("Could not add to social calendar");
+      return;
+    }
+    toast.success("Added to social calendar");
+    router.push("/social-calendar");
+  }
+
+  async function exportContentPack(post: CollabPost) {
+    if (!orgId || !(post.photo_ids?.length)) {
+      toast.error("Link photos first");
+      return;
+    }
+    const res = await fetch("/api/social/content-pack", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        photoIds: post.photo_ids,
+        caption: post.caption_draft ?? post.title,
+      }),
+    });
+    if (!res.ok) {
+      toast.error("Export failed");
+      return;
+    }
+    toast.success("Content pack ready — check Photos & posts");
+    router.push("/social");
+  }
+
+  function photoPicker(selected: string[], onChange: (ids: string[]) => void) {
+    if (photos.length === 0) return <p className="text-xs text-muted-foreground">Upload photos in Photos & posts first.</p>;
+    return (
+      <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto">
+        {photos.map((photo) => {
+          const isSelected = selected.includes(photo.id);
+          return (
+            <button
+              key={photo.id}
+              type="button"
+              onClick={() => onChange(isSelected ? selected.filter((id) => id !== photo.id) : [...selected, photo.id])}
+              className={`aspect-square rounded-lg overflow-hidden border-2 ${isSelected ? "border-greek-500" : "border-transparent"}`}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={photo.url} alt="" className="w-full h-full object-cover" />
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <div className="ds-page-stack">
       <PageHeader
         title="Collab post planner"
-        description="Plan dual-chapter Instagram posts with a shared checklist and caption draft"
+        description="Plan dual-chapter Instagram posts with photos, checklist, and caption draft"
         action={<Button size="sm" icon={<Plus size={14} />} onClick={() => setOpen(true)}>New collab</Button>}
       />
 
@@ -143,6 +239,9 @@ export default function SocialCollabPage() {
                   <p className="text-sm text-muted-foreground">with {post.partner_org_name}</p>
                   {post.scheduled_date && (
                     <p className="text-xs text-muted-foreground mt-1">Target: {formatDate(post.scheduled_date)}</p>
+                  )}
+                  {post.photo_ids && post.photo_ids.length > 0 && (
+                    <p className="text-xs text-muted-foreground">{post.photo_ids.length} photo(s) linked</p>
                   )}
                 </div>
                 <Badge label={post.status.replace("_", " ")} color="blue" />
@@ -177,6 +276,11 @@ export default function SocialCollabPage() {
                 </button>
               </div>
               <div className="flex gap-2 flex-wrap">
+                <Button size="sm" variant="secondary" icon={<ImageIcon size={14} aria-hidden />} onClick={() => { setPhotoEditPost(post); setEditPhotoIds(post.photo_ids ?? []); }}>
+                  Link photos
+                </Button>
+                <Button size="sm" variant="secondary" onClick={() => scheduleOnCalendar(post)}>Add to calendar</Button>
+                <Button size="sm" variant="secondary" icon={<Download size={14} />} onClick={() => exportContentPack(post)}>Content pack</Button>
                 {post.status === "planning" && (
                   <Button size="sm" variant="secondary" onClick={() => updateStatus(post, "draft_ready")}>
                     Mark draft ready
@@ -200,7 +304,7 @@ export default function SocialCollabPage() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={createCollab} disabled={!form.partnerOrgName || !form.title}>Create</Button>
+            <Button onClick={createCollab} disabled={!form.partnerOrgName && !form.partnerOrgId || !form.title}>Create</Button>
           </>
         }
       >
@@ -221,7 +325,25 @@ export default function SocialCollabPage() {
           <Input label="Post title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Spring mixer recap collab" />
           <Input label="Target date" type="date" value={form.scheduledDate} onChange={(e) => setForm({ ...form, scheduledDate: e.target.value })} />
           <Textarea label="Caption draft" value={form.captionDraft} onChange={(e) => setForm({ ...form, captionDraft: e.target.value })} className="min-h-[80px]" />
+          <div>
+            <p className="text-sm font-medium mb-2">Photos from your chapter</p>
+            {photoPicker(form.photoIds, (photoIds) => setForm({ ...form, photoIds }))}
+          </div>
         </div>
+      </Modal>
+
+      <Modal
+        open={!!photoEditPost}
+        onClose={() => setPhotoEditPost(null)}
+        title="Link photos"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setPhotoEditPost(null)}>Cancel</Button>
+            <Button onClick={() => photoEditPost && savePhotos(photoEditPost)}>Save</Button>
+          </>
+        }
+      >
+        {photoPicker(editPhotoIds, setEditPhotoIds)}
       </Modal>
     </div>
   );

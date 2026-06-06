@@ -37,6 +37,7 @@ export async function POST(request: Request) {
     fields: fields ?? [],
     is_required: isRequired ?? false,
     due_date: dueDate || null,
+    share_token: crypto.randomUUID().replace(/-/g, "").slice(0, 24),
   }).select().single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

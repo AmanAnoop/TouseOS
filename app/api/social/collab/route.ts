@@ -32,7 +32,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { orgId, partnerOrgName, partnerOrgId, title, captionDraft, scheduledDate } = await request.json();
+  const { orgId, partnerOrgName, partnerOrgId, title, captionDraft, scheduledDate, photoIds } = await request.json();
   if (!orgId || !partnerOrgName || !title) {
     return NextResponse.json({ error: "orgId, partnerOrgName, and title required" }, { status: 400 });
   }
@@ -48,6 +48,7 @@ export async function POST(request: Request) {
       scheduled_date: scheduledDate || null,
       checklist: DEFAULT_CHECKLIST.map((item) => ({ item, done: false })),
       created_by: user.id,
+      photo_ids: Array.isArray(photoIds) ? photoIds : [],
     })
     .select()
     .single();
@@ -61,7 +62,7 @@ export async function PATCH(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id, orgId, status, captionDraft, scheduledDate, checklist, our_pr_approved, partner_pr_approved } = await request.json();
+  const { id, orgId, status, captionDraft, scheduledDate, checklist, our_pr_approved, partner_pr_approved, photoIds } = await request.json();
   if (!id || !orgId) return NextResponse.json({ error: "id and orgId required" }, { status: 400 });
 
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -71,6 +72,7 @@ export async function PATCH(request: Request) {
   if (checklist !== undefined) updates.checklist = checklist;
   if (our_pr_approved !== undefined) updates.our_pr_approved = Boolean(our_pr_approved);
   if (partner_pr_approved !== undefined) updates.partner_pr_approved = Boolean(partner_pr_approved);
+  if (photoIds !== undefined) updates.photo_ids = Array.isArray(photoIds) ? photoIds : [];
 
   const { data, error } = await supabase
     .from("collab_posts")

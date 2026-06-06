@@ -27,6 +27,9 @@ function isPublicPath(pathname: string): boolean {
     pathname.startsWith("/pay/") ||
     pathname.startsWith("/join/") ||
     pathname.startsWith("/donate/") ||
+    pathname.startsWith("/f/") ||
+    pathname.startsWith("/api/forms/share") ||
+    pathname.startsWith("/api/forms/responses/public") ||
     pathname.startsWith("/onboarding") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||

@@ -2,7 +2,25 @@
 
 import { useState } from "react";
 import toast from "react-hot-toast";
-import { Button, Card, CardHeader, Textarea } from "@/components/ui";
+import { Button, Card, CardHeader, Input, Textarea } from "@/components/ui";
+
+interface EmergencyContact {
+  name: string;
+  phone: string;
+  role: string;
+}
+
+function parseContacts(raw: unknown): EmergencyContact[] {
+  if (!Array.isArray(raw)) return [{ name: "", phone: "", role: "" }];
+  return raw.map((c) => {
+    const row = c as Record<string, string>;
+    return {
+      name: row.name ?? "",
+      phone: row.phone ?? "",
+      role: row.role ?? "",
+    };
+  });
+}
 
 export function TripLogisticsPanel({
   orgId,
@@ -19,20 +37,18 @@ export function TripLogisticsPanel({
 }) {
   const [packingList, setPackingList] = useState(String(trip.packing_list ?? ""));
   const [mealPlan, setMealPlan] = useState(String(trip.meal_plan ?? ""));
-  const [emergencyContacts, setEmergencyContacts] = useState(
-    JSON.stringify(trip.emergency_contacts ?? [], null, 2),
+  const [contacts, setContacts] = useState<EmergencyContact[]>(() =>
+    parseContacts(trip.emergency_contacts).length > 0
+      ? parseContacts(trip.emergency_contacts)
+      : [{ name: "", phone: "", role: "" }],
   );
   const [saving, setSaving] = useState(false);
 
   async function save() {
-    let contacts: unknown[] = [];
-    try {
-      contacts = emergencyContacts.trim() ? JSON.parse(emergencyContacts) : [];
-      if (!Array.isArray(contacts)) throw new Error("not array");
-    } catch {
-      toast.error("Emergency contacts must be a JSON array");
-      return;
-    }
+    const cleaned = contacts
+      .filter((c) => c.name.trim() || c.phone.trim())
+      .map((c) => ({ name: c.name.trim(), phone: c.phone.trim(), role: c.role.trim() || "Contact" }));
+
     setSaving(true);
     const res = await fetch(`/api/sports/travel/${tripId}`, {
       method: "PATCH",
@@ -41,7 +57,7 @@ export function TripLogisticsPanel({
         orgId,
         packingList,
         mealPlan,
-        emergencyContacts: contacts,
+        emergencyContacts: cleaned,
       }),
     });
     setSaving(false);
@@ -57,14 +73,55 @@ export function TripLogisticsPanel({
       <div className="space-y-3">
         <Textarea label="Packing list" value={packingList} onChange={(e) => setPackingList(e.target.value)} rows={4} disabled={!canManage} />
         <Textarea label="Meal plan" value={mealPlan} onChange={(e) => setMealPlan(e.target.value)} rows={3} disabled={!canManage} />
-        <Textarea
-          label="Emergency contacts (JSON array)"
-          value={emergencyContacts}
-          onChange={(e) => setEmergencyContacts(e.target.value)}
-          rows={4}
-          disabled={!canManage}
-          placeholder='[{"name":"Coach","phone":"555-0100"}]'
-        />
+        <div>
+          <p className="text-sm font-medium mb-2">Emergency contacts</p>
+          <div className="space-y-2">
+            {contacts.map((c, i) => (
+              <div key={i} className="grid sm:grid-cols-3 gap-2 p-2 rounded-lg border border-border">
+                <Input
+                  placeholder="Name"
+                  value={c.name}
+                  disabled={!canManage}
+                  onChange={(e) => {
+                    const next = [...contacts];
+                    next[i] = { ...next[i], name: e.target.value };
+                    setContacts(next);
+                  }}
+                />
+                <Input
+                  placeholder="Phone"
+                  value={c.phone}
+                  disabled={!canManage}
+                  onChange={(e) => {
+                    const next = [...contacts];
+                    next[i] = { ...next[i], phone: e.target.value };
+                    setContacts(next);
+                  }}
+                />
+                <Input
+                  placeholder="Role"
+                  value={c.role}
+                  disabled={!canManage}
+                  onChange={(e) => {
+                    const next = [...contacts];
+                    next[i] = { ...next[i], role: e.target.value };
+                    setContacts(next);
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+          {canManage && (
+            <Button
+              size="sm"
+              variant="secondary"
+              className="mt-2"
+              onClick={() => setContacts([...contacts, { name: "", phone: "", role: "" }])}
+            >
+              Add contact
+            </Button>
+          )}
+        </div>
         {canManage && (
           <Button size="sm" onClick={save} loading={saving}>Save logistics</Button>
         )}

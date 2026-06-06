@@ -55,7 +55,7 @@ export async function POST(request: Request) {
     `✨ ${event.title}`,
     `${dateStr}${event.location ? ` · ${event.location}` : ""}`,
     going > 0 ? `${going} members showed up` : "Thanks to everyone who came out",
-    topPhotos.length > 0 ? `${topPhotos.length} highlight photos in the album` : "More photos coming soon in Touse Social",
+    topPhotos.length > 0 ? `${topPhotos.length} highlight photos in the album` : "More photos coming soon in Photos & posts",
     "Save & share — tag your chapter 💚",
   ];
 

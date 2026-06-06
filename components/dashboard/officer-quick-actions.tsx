@@ -43,7 +43,7 @@ export function OfficerQuickActions({
   if (product === "greek") {
     links.push({ href: "/risk", label: "Risk", icon: <Shield size={18} /> });
     links.push({ href: "/pnm", label: "PNM", icon: <UserPlus size={18} /> });
-    links.push({ href: "/interchapter", label: "ExecLink", icon: <Users size={18} /> });
+    links.push({ href: "/interchapter", label: "Interchapter", icon: <Users size={18} /> });
   }
 
   if (product === "sports") {

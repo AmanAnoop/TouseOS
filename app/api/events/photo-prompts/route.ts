@@ -124,7 +124,7 @@ export async function POST(request: Request) {
           orgId,
           type: "photo_prompt",
           title: "Upload event photos",
-          body: `${prompts.length} photo prompts for "${event.title}" — open Touse Social to contribute.`,
+          body: `${prompts.length} photo prompts for "${event.title}" — open Photos & posts to contribute.`,
           link: albumId ? `/social?eventId=${eventId}&albumId=${albumId}` : `/social?eventId=${eventId}`,
           sendPush: false,
         }),

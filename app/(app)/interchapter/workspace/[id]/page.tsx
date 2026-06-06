@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
-  ArrowLeft, CheckCircle2, DollarSign, FileText, MessageSquare, Shield, Users,
+  ArrowLeft, CheckCircle2, DollarSign, FileText, Heart, MessageSquare, Shield, Users,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
@@ -91,12 +91,12 @@ export default function SharedWorkspacePage() {
   return (
     <div className="ds-page-stack">
       <Link href="/interchapter" className="inline-flex items-center gap-1 text-sm text-greek-600 hover:underline">
-        <ArrowLeft size={14} /> Back to ExecLink
+        <ArrowLeft size={14} /> Back to Interchapter
       </Link>
 
       <PageHeader
         title={ws.title}
-        description="Shared planning workspace for co-hosted events — chat syncs to ExecLink Messages"
+        description="Shared planning workspace for co-hosted events — chat syncs to Interchapter messages"
         action={<Badge label={ws.status} color="green" />}
       />
 
@@ -223,6 +223,16 @@ export default function SharedWorkspacePage() {
               toast.success("Document added");
             }}>Add link</Button>
           </div>
+        </Card>
+
+        <Card>
+          <CardHeader title="Joint philanthropy" icon={<Heart size={16} />} />
+          <p className="text-sm text-muted-foreground mb-3">
+            Launch a shared fundraising page both chapters can promote.
+          </p>
+          <Link href="/philanthropy">
+            <Button size="sm" variant="secondary">Start joint campaign</Button>
+          </Link>
         </Card>
 
         {/* Guest list */}

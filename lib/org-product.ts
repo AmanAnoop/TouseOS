@@ -197,7 +197,7 @@ export const GREEK_FEATURE_NAV: NavItemDef[] = [
   { href: "/big-little", label: "Big/Little", products: ["greek"] },
   { href: "/travel", label: "Travel", products: ["greek"] },
   { href: "/travel/templates", label: "Travel templates", products: ["greek"] },
-  { href: "/social", label: "Touse Social", products: ["greek"] },
+  { href: "/social", label: "Photos & posts", products: ["greek"] },
   { href: "/social-calendar", label: "Social Media", products: ["greek"] },
   { href: "/social-collab", label: "Collab planner", products: ["greek"] },
   { href: "/social-assets", label: "Asset Library", products: ["greek"] },
@@ -207,7 +207,7 @@ export const GREEK_FEATURE_NAV: NavItemDef[] = [
   { href: "/housing", label: "Housing", products: ["greek"] },
   { href: "/alumni", label: "Alumni CRM", products: ["greek"] },
   { href: "/philanthropy", label: "Philanthropy", products: ["greek"] },
-  { href: "/interchapter", label: "ExecLink", products: ["greek"] },
+  { href: "/interchapter", label: "Interchapter", products: ["greek"] },
   { href: "/event-memories", label: "Memories", products: ["greek"] },
   { href: "/study-hours", label: "Study Hours", products: ["greek"] },
 ];

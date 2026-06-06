@@ -40,6 +40,9 @@ export function EquipmentClient() {
   const [bulkForm, setBulkForm] = useState({ equipmentId: "", jerseyNumber: "", uniformSize: "" });
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [issuing, setIssuing] = useState(false);
+  const [returnOpen, setReturnOpen] = useState(false);
+  const [returnAssignmentId, setReturnAssignmentId] = useState("");
+  const [returnCondition, setReturnCondition] = useState("good");
 
   const load = useCallback(async (oid: string) => {
     const res = await fetch(`/api/equipment?org_id=${encodeURIComponent(oid)}`);
@@ -116,15 +119,22 @@ export function EquipmentClient() {
     load(orgId);
   }
 
-  async function returnItem(assignmentId: string) {
-    if (!orgId) return;
+  function openReturn(assignmentId: string) {
+    setReturnAssignmentId(assignmentId);
+    setReturnCondition("good");
+    setReturnOpen(true);
+  }
+
+  async function returnItem() {
+    if (!orgId || !returnAssignmentId) return;
     const res = await fetch("/api/equipment", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orgId, action: "return", assignmentId }),
+      body: JSON.stringify({ orgId, action: "return", assignmentId: returnAssignmentId, condition: returnCondition }),
     });
     if (res.ok) {
-      toast.success("Returned");
+      toast.success(returnCondition === "damaged" ? "Returned as damaged" : "Returned");
+      setReturnOpen(false);
       load(orgId);
     }
   }
@@ -229,12 +239,15 @@ export function EquipmentClient() {
           <CardHeader title="Currently issued" />
           <div className="space-y-2">
             {assignments.map((a) => (
-              <div key={a.id} className="flex items-center justify-between p-3 rounded-lg border border-border">
+              <div key={a.id} className="flex items-center justify-between p-3 rounded-lg border border-border flex-wrap gap-2">
                 <div>
                   <p className="text-sm font-medium">{a.sports_equipment?.item_name}</p>
-                  <p className="text-xs text-muted-foreground">{a.member_profiles?.full_name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {a.member_profiles?.full_name}
+                    {a.condition && a.condition !== "good" ? ` · ${a.condition}` : ""}
+                  </p>
                 </div>
-                <Button size="sm" variant="secondary" onClick={() => returnItem(a.id)}>Return</Button>
+                <Button size="sm" variant="secondary" onClick={() => openReturn(a.id)}>Return</Button>
               </div>
             ))}
           </div>
@@ -255,6 +268,25 @@ export function EquipmentClient() {
           <Select label="Item" value={issueForm.equipmentId} onChange={(e) => setIssueForm({ ...issueForm, equipmentId: e.target.value })} options={[{ value: "", label: "Select" }, ...equipment.filter((e) => e.quantity_available > 0).map((e) => ({ value: e.id, label: e.item_name }))]} />
           <Select label="Member" value={issueForm.memberId} onChange={(e) => setIssueForm({ ...issueForm, memberId: e.target.value })} options={[{ value: "", label: "Select" }, ...members.map((m) => ({ value: m.id, label: m.full_name }))]} />
         </div>
+      </Modal>
+
+      <Modal open={returnOpen} onClose={() => setReturnOpen(false)} title="Return equipment" footer={
+        <>
+          <Button variant="secondary" onClick={() => setReturnOpen(false)}>Cancel</Button>
+          <Button onClick={returnItem}>Confirm return</Button>
+        </>
+      }>
+        <Select
+          label="Condition"
+          value={returnCondition}
+          onChange={(e) => setReturnCondition(e.target.value)}
+          options={[
+            { value: "good", label: "Good" },
+            { value: "fair", label: "Fair wear" },
+            { value: "damaged", label: "Damaged" },
+            { value: "lost", label: "Lost" },
+          ]}
+        />
       </Modal>
 
       <Modal open={bulkOpen} onClose={() => setBulkOpen(false)} title="Issue to multiple members" footer={

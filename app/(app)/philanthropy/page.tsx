@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import {
   DollarSign, Heart, Plus, QrCode, Share2, Target, Trophy,
 } from "lucide-react";
@@ -13,10 +14,38 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import type { PhilanthropyCampaign } from "@/types";
 import { useOrg } from "@/hooks/use-org";
 
+const TOOLKIT = [
+  {
+    title: "Social media templates",
+    description: "Instagram posts, stories, and captions for fundraising",
+    href: "/social-calendar",
+    caption: "So proud of our chapter for raising $[amount] for [cause] 🙌 Every dollar makes a difference. Thank you to everyone who contributed! 💚",
+  },
+  {
+    title: "Email outreach templates",
+    description: "Alumni and parent donation request templates",
+    href: "/comms",
+    caption: "Dear [Name], our chapter is raising funds for [beneficiary]. Your support helps us make a real impact. Donate here: [link]",
+  },
+  {
+    title: "Sponsorship packages",
+    description: "Tiered sponsor packages for events",
+    href: "/social-assets",
+    caption: "Gold ($500): logo on banner + social shoutout. Silver ($250): social post. Bronze ($100): thank-you in program.",
+  },
+  {
+    title: "Impact report template",
+    description: "Show donors where the money went",
+    href: "/reports",
+    caption: "This semester we raised $X for [cause], funding Y volunteer hours and Z dollars directly to the beneficiary.",
+  },
+] as const;
+
 export default function PhilanthropyPage() {
   const { orgId } = useOrg();
   const [campaigns, setCampaigns] = useState<PhilanthropyCampaign[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
+  const [toolkitOpen, setToolkitOpen] = useState<typeof TOOLKIT[number] | null>(null);
   const [form, setForm] = useState({
     title: "", description: "", goalAmount: "",
     beneficiary: "", startDate: "", endDate: "",
@@ -30,6 +59,14 @@ export default function PhilanthropyPage() {
   useEffect(() => {
     if (orgId) load(orgId);
   }, [orgId, load]);
+
+  useEffect(() => {
+    const beneficiary = new URLSearchParams(window.location.search).get("beneficiary");
+    if (beneficiary) {
+      setForm((f) => ({ ...f, beneficiary }));
+      setCreateOpen(true);
+    }
+  }, []);
 
   function campaignSlug(title: string) {
     const base = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 32);
@@ -162,22 +199,52 @@ export default function PhilanthropyPage() {
       <Card>
         <CardHeader title="Fundraising toolkit" description="Templates and resources for campaigns" />
         <div className="grid sm:grid-cols-2 gap-3">
-          {[
-            { title: "Social media templates", description: "Instagram posts, stories, and captions for fundraising", icon: "📸" },
-            { title: "Email outreach templates", description: "Alumni and parent donation request templates", icon: "📧" },
-            { title: "Sponsorship packages", description: "Tiered sponsor packages for events", icon: "🤝" },
-            { title: "Impact report template", description: "Show donors where the money went", icon: "📊" },
-          ].map((item) => (
-            <div key={item.title} className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-surface-1 transition-colors cursor-pointer">
-              <span className="text-xl">{item.icon}</span>
+          {TOOLKIT.map((item) => (
+            <button
+              key={item.title}
+              type="button"
+              onClick={() => setToolkitOpen(item)}
+              className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-surface-1 transition-colors text-left w-full"
+            >
               <div>
                 <p className="text-sm font-medium">{item.title}</p>
                 <p className="text-xs text-muted-foreground">{item.description}</p>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       </Card>
+
+      <Modal
+        open={!!toolkitOpen}
+        onClose={() => setToolkitOpen(null)}
+        title={toolkitOpen?.title ?? "Template"}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setToolkitOpen(null)}>Close</Button>
+            {toolkitOpen && (
+              <>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    navigator.clipboard.writeText(toolkitOpen.caption);
+                    toast.success("Template copied");
+                  }}
+                >
+                  Copy text
+                </Button>
+                <Link href={toolkitOpen.href}>
+                  <Button>Open in app</Button>
+                </Link>
+              </>
+            )}
+          </>
+        }
+      >
+        {toolkitOpen && (
+          <p className="text-sm whitespace-pre-wrap text-muted-foreground">{toolkitOpen.caption}</p>
+        )}
+      </Modal>
 
       <Modal
         open={createOpen}

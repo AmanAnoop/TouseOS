@@ -4,9 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Calendar,
+  Camera,
+  CheckSquare,
   Home,
   LayoutGrid,
+  Plane,
   Settings,
+  Shield,
   Trophy,
   Users,
 } from "lucide-react";
@@ -29,8 +33,9 @@ export function BottomNav({ orgType }: BottomNavProps) {
     product === "sports"
       ? [
           { href: homeHref, label: "Home", icon: Home },
-          { href: "/roster", label: "Roster", icon: Users },
           { href: "/events", label: "Events", icon: Calendar },
+          { href: "/travel", label: "Travel", icon: Plane },
+          { href: "/waivers", label: "Waivers", icon: Shield },
           { href: "/tryouts", label: "Tryouts", icon: Trophy },
         ]
       : product === "club"
@@ -42,9 +47,10 @@ export function BottomNav({ orgType }: BottomNavProps) {
           ]
         : [
             { href: homeHref, label: "Home", icon: Home },
-            { href: "/roster", label: "Roster", icon: Users },
             { href: "/events", label: "Events", icon: Calendar },
-            { href: "/payments", label: "Dues", icon: LayoutGrid },
+            { href: "/social", label: "Photos", icon: Camera },
+            { href: "/payments", label: "Pay", icon: LayoutGrid },
+            { href: "/tasks", label: "Tasks", icon: CheckSquare },
           ];
 
   return (
