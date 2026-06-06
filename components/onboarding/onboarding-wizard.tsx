@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Building2, ChevronRight, GraduationCap, Trophy, Users, UsersRound,
@@ -13,6 +13,12 @@ import { AcademicProfileFields } from "@/components/profile/academic-profile-fie
 import { OnboardingShell } from "@/components/onboarding/onboarding-shell";
 import { REGAL_PRIMARY, REGAL_SECONDARY } from "@/lib/regal-theme";
 import { getProductId } from "@/lib/org-product";
+import { createClient } from "@/lib/supabase/client";
+import {
+  clearOnboardingDraft,
+  loadOnboardingDraft,
+  saveOnboardingDraft,
+} from "@/lib/onboarding-draft";
 
 const ORG_TYPES = [
   {
@@ -85,11 +91,54 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
     setIdentity(next);
   }
 
+  useEffect(() => {
+    const draft = loadOnboardingDraft();
+    if (!draft) return;
+    setStep(draft.step);
+    setOrgType(draft.orgType);
+    setInviteCode(draft.inviteCode);
+    setForm(draft.form);
+    setIdentity(draft.identity);
+    clearOnboardingDraft();
+    if (draft.pendingAction === "create") {
+      void (async () => {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) createOrg();
+      })();
+    } else if (draft.pendingAction === "join") {
+      void (async () => {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) joinByCode();
+      })();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function ensureAuthenticated(action: "create" | "join"): Promise<boolean> {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) return true;
+    saveOnboardingDraft({
+      step,
+      orgType,
+      inviteCode,
+      form,
+      identity,
+      pendingAction: action,
+    });
+    toast("Create an account or sign in to continue");
+    router.push(`/signup?next=${encodeURIComponent("/onboarding")}`);
+    return false;
+  }
+
   async function createOrg() {
     if (!orgType || !form.name.trim()) {
       toast.error("Choose an organization type and enter a name");
       return;
     }
+    if (!(await ensureAuthenticated("create"))) return;
     setLoading(true);
     try {
       const res = await fetch("/api/onboarding/create-org", {
@@ -114,6 +163,7 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
         return;
       }
       toast.success(`Created ${data.org?.name ?? "organization"}!`);
+      clearOnboardingDraft();
       if (data.org?.id) {
         document.cookie = `touse_active_org_id=${data.org.id}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
       }
@@ -129,6 +179,7 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
 
   async function joinByCode() {
     if (!inviteCode.trim()) return;
+    if (!(await ensureAuthenticated("join"))) return;
     setLoading(true);
     const res = await fetch("/api/onboarding/join", {
       method: "POST",
@@ -142,6 +193,7 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
       return;
     }
     toast.success(`Joined ${data.org?.name ?? "organization"}!`);
+    clearOnboardingDraft();
     if (data.org?.id) {
       document.cookie = `touse_active_org_id=${data.org.id}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
       setJoinedOrgId(data.org.id);
@@ -245,6 +297,10 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
               <ChevronRight size={16} style={{ color: "var(--color-text-muted)" }} />
             </div>
           </button>
+          <p className="type-small" style={{ textAlign: "center", color: "var(--color-text-muted)", margin: 0 }}>
+            Already have an account?{" "}
+            <Link href="/login?next=/onboarding" style={{ color: "var(--color-org-primary)" }}>Sign in</Link>
+          </p>
         </div>
       )}
 

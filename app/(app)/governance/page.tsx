@@ -10,6 +10,7 @@ import {
   PageHeader, Tabs, Textarea,
 } from "@/components/ui";
 import { formatDateTime } from "@/lib/utils";
+import { DEFAULT_VOTE_OPTIONS, MEETING_TYPES, meetingTypeLabel } from "@/lib/governance-config";
 
 interface Meeting {
   id: string;
@@ -41,8 +42,19 @@ export default function GovernancePage() {
   const [votes, setVotes] = useState<Vote[]>([]);
   const [meetingOpen, setMeetingOpen] = useState(false);
   const [voteOpen, setVoteOpen] = useState(false);
-  const [form, setForm] = useState({ title: "", scheduledAt: "", location: "", agenda: "", quorumRequired: "0" });
-  const [voteForm, setVoteForm] = useState({ title: "", description: "", options: "Yes, No, Abstain" });
+  const [form, setForm] = useState({
+    title: "",
+    meetingType: "chapter_meeting",
+    scheduledAt: "",
+    location: "",
+    agenda: "",
+    quorumRequired: "0",
+  });
+  const [voteForm, setVoteForm] = useState({
+    title: "",
+    description: "",
+    options: DEFAULT_VOTE_OPTIONS.join(", "),
+  });
   const load = useCallback(async (oid: string) => {
     const [mRes, vRes] = await Promise.all([
       fetch(`/api/governance/meetings?org_id=${encodeURIComponent(oid)}`),
@@ -64,6 +76,7 @@ export default function GovernancePage() {
       body: JSON.stringify({
         orgId,
         title: form.title,
+        meetingType: form.meetingType,
         scheduledAt: form.scheduledAt || null,
         location: form.location || null,
         agenda: form.agenda || null,
@@ -76,7 +89,14 @@ export default function GovernancePage() {
     }
     toast.success("Meeting scheduled");
     setMeetingOpen(false);
-    setForm({ title: "", scheduledAt: "", location: "", agenda: "", quorumRequired: "0" });
+    setForm({
+      title: "",
+      meetingType: "chapter_meeting",
+      scheduledAt: "",
+      location: "",
+      agenda: "",
+      quorumRequired: "0",
+    });
     load(orgId);
   }
 
@@ -98,12 +118,12 @@ export default function GovernancePage() {
     }
     toast.success("Vote created");
     setVoteOpen(false);
-    setVoteForm({ title: "", description: "", options: "Yes, No, Abstain" });
+    setVoteForm({ title: "", description: "", options: DEFAULT_VOTE_OPTIONS.join(", ") });
     load(orgId);
   }
 
   function tallyVote(v: Vote) {
-    const options = v.options ?? ["Yes", "No", "Abstain"];
+    const options = v.options ?? DEFAULT_VOTE_OPTIONS;
     const counts: Record<string, number> = Object.fromEntries(options.map((o) => [o, 0]));
     Object.values(v.votes ?? {}).forEach((choice) => {
       if (counts[choice] !== undefined) counts[choice]++;
@@ -174,6 +194,7 @@ export default function GovernancePage() {
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-semibold">{m.title}</p>
+                      <Badge label={meetingTypeLabel(m.meeting_type)} color="gray" />
                       <Badge label={m.status} color={m.status === "completed" ? "green" : "blue"} />
                     </div>
                     {m.scheduled_at && <p className="text-sm text-muted-foreground mt-1">{formatDateTime(m.scheduled_at)}{m.location ? ` · ${m.location}` : ""}</p>}
@@ -198,7 +219,7 @@ export default function GovernancePage() {
         ) : (
           <div className="space-y-3">
             {votes.map((v) => {
-              const options = v.options ?? ["Yes", "No", "Abstain"];
+              const options = v.options ?? DEFAULT_VOTE_OPTIONS;
               const counts = tallyVote(v);
               const myBallot = userId ? v.votes?.[userId] : undefined;
               return (
@@ -245,6 +266,18 @@ export default function GovernancePage() {
       <Modal open={meetingOpen} onClose={() => setMeetingOpen(false)} title="Schedule meeting" footer={<><Button variant="secondary" onClick={() => setMeetingOpen(false)}>Cancel</Button><Button onClick={createMeeting}>Create</Button></>}>
         <div className="space-y-3">
           <Input label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Chapter meeting" />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium">Meeting type</label>
+            <select
+              className="h-9 rounded-lg border border-border bg-background px-3 text-sm"
+              value={form.meetingType}
+              onChange={(e) => setForm({ ...form, meetingType: e.target.value })}
+            >
+              {MEETING_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+          </div>
           <Input label="Date & time" type="datetime-local" value={form.scheduledAt} onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })} />
           <Input label="Location" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
           <Input label="Quorum required" type="number" value={form.quorumRequired} onChange={(e) => setForm({ ...form, quorumRequired: e.target.value })} />
