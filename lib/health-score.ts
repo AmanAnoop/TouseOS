@@ -76,6 +76,10 @@ function buildMeta(
   return { score, hasData, detail };
 }
 
+function clampScore(score: number): number {
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
 export function computeHealthScore(input: HealthScoreInput): {
   breakdown: HealthScoreBreakdown;
   meta: HealthScoreMeta;
@@ -94,7 +98,7 @@ export function computeHealthScore(input: HealthScoreInput): {
   const totalExpected = input.payments.reduce((s, p) => s + Number(p.amount), 0);
   const totalCollected = input.payments.reduce((s, p) => s + Number(p.paid_amount), 0);
   if (totalExpected > 0) {
-    const score = Math.round((totalCollected / totalExpected) * 100);
+    const score = clampScore((totalCollected / totalExpected) * 100);
     breakdown.duesCollection = score;
     meta.duesCollection = buildMeta("duesCollection", score, true, `${Math.round(totalCollected)}/${Math.round(totalExpected)} collected`);
   } else {
@@ -104,7 +108,7 @@ export function computeHealthScore(input: HealthScoreInput): {
   const pnmTotal = input.pnmLeads.filter((p) => p.status !== "removed").length;
   if (pnmTotal > 0) {
     const pnmAccepted = input.pnmLeads.filter((p) => p.status === "accepted").length;
-    const score = Math.round((pnmAccepted / pnmTotal) * 100);
+    const score = clampScore((pnmAccepted / pnmTotal) * 100);
     breakdown.recruitmentConversion = score;
     meta.recruitmentConversion = buildMeta("recruitmentConversion", score, true, `${pnmAccepted}/${pnmTotal} accepted`);
   } else if (input.orgType === "fraternity" || input.orgType === "sorority") {
@@ -114,7 +118,7 @@ export function computeHealthScore(input: HealthScoreInput): {
   const totalRsvps = input.rsvps.length;
   if (totalRsvps > 0) {
     const checkedIn = input.rsvps.filter((r) => r.checked_in).length;
-    const score = Math.round((checkedIn / totalRsvps) * 100);
+    const score = clampScore((checkedIn / totalRsvps) * 100);
     breakdown.eventAttendance = score;
     meta.eventAttendance = buildMeta("eventAttendance", score, true, `${checkedIn}/${totalRsvps} check-ins`);
   } else if (input.events.length > 0) {
@@ -124,7 +128,7 @@ export function computeHealthScore(input: HealthScoreInput): {
   }
 
   if (input.members.length > 0) {
-    const score = Math.round((activeMembers.length / input.members.length) * 100);
+    const score = clampScore((activeMembers.length / input.members.length) * 100);
     breakdown.memberRetention = score;
     meta.memberRetention = buildMeta("memberRetention", score, true, `${activeMembers.length}/${input.members.length} active`);
   } else {
@@ -135,7 +139,7 @@ export function computeHealthScore(input: HealthScoreInput): {
   const doneTasks = input.tasks.filter((t) => t.status === "done").length;
   const totalTasks = openTasks + doneTasks;
   if (totalTasks > 0) {
-    const score = Math.round((doneTasks / totalTasks) * 100);
+    const score = clampScore((doneTasks / totalTasks) * 100);
     breakdown.officerTaskCompletion = score;
     meta.officerTaskCompletion = buildMeta("officerTaskCompletion", score, true, `${doneTasks}/${totalTasks} done`);
   } else {
@@ -160,8 +164,8 @@ export function computeHealthScore(input: HealthScoreInput): {
     const detail = overBy > 0
       ? `$${Math.round(overBy)} over budget (${Math.round(spendRatio * 100)}% spent)`
       : `${Math.round(spendRatio * 100)}% of budget used`;
-    breakdown.budgetHealth = score;
-    meta.budgetHealth = buildMeta("budgetHealth", score, true, detail);
+    breakdown.budgetHealth = clampScore(score);
+    meta.budgetHealth = buildMeta("budgetHealth", breakdown.budgetHealth, true, detail);
   } else if (lines.length > 0) {
     meta.budgetHealth = buildMeta("budgetHealth", 0, false, "Set budgeted amounts on expense lines");
   } else {
@@ -171,7 +175,7 @@ export function computeHealthScore(input: HealthScoreInput): {
   const membersNeedingForms = activeMembers.filter((m) => m.forms_required > 0);
   if (membersNeedingForms.length > 0) {
     const complete = membersNeedingForms.filter((m) => m.forms_completed >= m.forms_required).length;
-    const score = Math.round((complete / membersNeedingForms.length) * 100);
+    const score = clampScore((complete / membersNeedingForms.length) * 100);
     breakdown.complianceForms = score;
     meta.complianceForms = buildMeta("complianceForms", score, true, `${complete}/${membersNeedingForms.length} members complete`);
   } else if (activeCount > 0) {
@@ -185,7 +189,7 @@ export function computeHealthScore(input: HealthScoreInput): {
   const agingPending = pendingReimbs.filter(
     (r) => now - new Date(r.created_at).getTime() > 14 * 86400000,
   ).length;
-  const score = Math.max(0, 100 - agingPending * 15);
+  const score = clampScore(Math.max(0, 100 - agingPending * 15));
   breakdown.reimbursementHealth = score;
   meta.reimbursementHealth = buildMeta(
     "reimbursementHealth",
@@ -203,7 +207,7 @@ export function computeHealthScore(input: HealthScoreInput): {
       const completed = input.waivers.filter(
         (w) => w.status === "completed" && required.includes(String(w.waiver_type ?? "") as typeof required[number]),
       ).length;
-      const score = Math.round((completed / totalRequired) * 100);
+      const score = clampScore((completed / totalRequired) * 100);
       breakdown.waiverCompletion = score;
       meta.waiverCompletion = buildMeta("waiverCompletion", score, true, `${completed}/${totalRequired} required waivers`);
     } else {
@@ -233,7 +237,7 @@ export function computeHealthScore(input: HealthScoreInput): {
     }
   }
 
-  const finalComposite = weightSum > 0 ? Math.round(composite / weightSum) : null;
+  const finalComposite = weightSum > 0 ? clampScore(composite / weightSum) : null;
 
   return {
     breakdown,

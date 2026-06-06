@@ -8,7 +8,9 @@ import {
   isPlatformImpersonationEnabled,
 } from "@/lib/platform-impersonate";
 import { ACTIVE_ORG_COOKIE } from "@/lib/active-org-cookie";
+import { loadActiveMembershipServer } from "@/lib/active-org-membership-server";
 import type { Organization, Profile } from "@/types";
+import type { ActiveOrgSnapshot } from "@/components/providers/active-org-provider";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +77,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const org = orgs[0] ?? null;
 
+  const activeMembership = await loadActiveMembershipServer(user.id);
+  const activeOrg: ActiveOrgSnapshot | null = activeMembership
+    ? {
+        orgId: activeMembership.orgId,
+        userId: user.id,
+        role: activeMembership.role,
+        orgType: activeMembership.orgType,
+        orgName: activeMembership.orgName,
+      }
+    : null;
+
   // First-time onboarding
   if (orgs.length === 0) {
     redirect("/onboarding");
@@ -85,6 +98,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       org={org}
       orgs={orgs}
       profile={profile}
+      activeOrg={activeOrg}
       impersonating={impersonating}
       impersonateOrgName={impersonating ? org?.name : undefined}
     >

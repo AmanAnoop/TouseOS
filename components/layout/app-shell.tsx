@@ -7,6 +7,7 @@ import { ServiceWorkerRegister } from "@/components/layout/service-worker-regist
 import { ImpersonationBanner } from "@/components/layout/impersonation-banner";
 import { ProductRouteGuard } from "@/components/layout/product-route-guard";
 import { OrgThemeProvider } from "@/components/theme/org-theme-provider";
+import { ActiveOrgProvider, type ActiveOrgSnapshot } from "@/components/providers/active-org-provider";
 import { userHasGreekOrg } from "@/lib/org-product";
 import type { Organization, Profile } from "@/types";
 
@@ -14,6 +15,7 @@ interface AppShellProps {
   org: Organization | null;
   orgs: Organization[];
   profile: Profile | null;
+  activeOrg?: ActiveOrgSnapshot | null;
   impersonating?: boolean;
   impersonateOrgName?: string;
   children: React.ReactNode;
@@ -23,6 +25,7 @@ export function AppShell({
   org,
   orgs,
   profile,
+  activeOrg,
   impersonating,
   impersonateOrgName,
   children,
@@ -74,7 +77,9 @@ export function AppShell({
             orgType={org?.type ?? "general_org"}
             hasGreekMembership={hasGreekMembership}
           >
-            {children}
+            <ActiveOrgProvider initial={activeOrg ?? null}>
+              {children}
+            </ActiveOrgProvider>
           </ProductRouteGuard>
         </div>
       </div>
