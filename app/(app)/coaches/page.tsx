@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { BarChart2, Plus, Target, Trophy, Users } from "lucide-react";
 import toast from "react-hot-toast";
 import { useOrg } from "@/hooks/use-org";
+import { PRACTICE_BLOCKS } from "@/lib/coaching-config";
 import {
   Button, Card, CardHeader, EmptyState, Modal,
   PageHeader, StatCard, Textarea,
@@ -172,12 +173,7 @@ export default function CoachesPage() {
       >
         <div className="space-y-4">
           <div className="grid grid-cols-3 gap-2">
-            {[
-              { label: "Warm-up", time: "0:00 – 0:15", default: "Dynamic stretching, light jog" },
-              { label: "Drills", time: "0:15 – 0:45", default: "Position-specific skill work" },
-              { label: "Scrimmage", time: "0:45 – 1:15", default: "Full team practice game" },
-              { label: "Cool-down", time: "1:15 – 1:30", default: "Static stretching, team meeting" },
-            ].map((block) => (
+            {PRACTICE_BLOCKS.map((block) => (
               <div key={block.label} className="p-2 rounded-lg bg-surface-1 border border-border col-span-3 sm:col-span-1">
                 <p className="text-xs font-bold text-foreground">{block.label}</p>
                 <p className="text-xs text-muted-foreground">{block.time}</p>

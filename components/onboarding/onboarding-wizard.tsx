@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Building2, ChevronRight, GraduationCap, Trophy, Users, UsersRound,
@@ -12,7 +12,8 @@ import { ChapterIdentityPicker, type ChapterIdentityValue } from "@/components/s
 import { AcademicProfileFields } from "@/components/profile/academic-profile-fields";
 import { OnboardingShell } from "@/components/onboarding/onboarding-shell";
 import { REGAL_PRIMARY, REGAL_SECONDARY } from "@/lib/regal-theme";
-import { getProductId } from "@/lib/org-product";
+import { getProductId, productLabel } from "@/lib/org-product";
+import { universitiesForSelect } from "@/lib/university-colors";
 import { createClient } from "@/lib/supabase/client";
 import {
   clearOnboardingDraft,
@@ -35,13 +36,13 @@ const ORG_TYPES = [
   },
   {
     value: "club_sports",
-    label: "Sports",
+    label: productLabel("sports"),
     description: "Club sports team or varsity program",
     Icon: Trophy,
   },
   {
     value: "general_org",
-    label: "Club",
+    label: productLabel("club"),
     description: "Student clubs, societies, and campus organizations",
     Icon: GraduationCap,
   },
@@ -61,7 +62,7 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
   const [form, setForm] = useState({
     name: "", campus: "", councilOrLeague: "", contactEmail: "",
   });
-  const colorsLocked = useRef(false);
+  const [colorsLocked, setColorsLocked] = useState(false);
   const [identity, setIdentity] = useState<ChapterIdentityValue>({
     universityId: "",
     greekAffiliationId: "",
@@ -87,8 +88,11 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
       : "Campus Photography Club";
 
   function handleIdentityChange(next: ChapterIdentityValue) {
-    colorsLocked.current = true;
     setIdentity(next);
+    if (next.universityId && next.universityId !== "custom-campus") {
+      const uni = universitiesForSelect().find((u) => u.id === next.universityId);
+      if (uni) setForm((f) => ({ ...f, campus: uni.name }));
+    }
   }
 
   useEffect(() => {
@@ -238,7 +242,7 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
   const shellSubtitle =
     step === 1 ? "Create your chapter or join with an invite code from your officers."
       : step === 2 ? "Select the type that best describes your organization."
-        : step === 3 ? "Name your org, pick your campus, and set brand colors."
+        : step === 3 ? "Name your org, select your university, and set brand colors."
           : step === 4 ? "Enter the code shared by an officer."
             : "Help your officers reach you and keep chapter records up to date.";
 
@@ -369,7 +373,8 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
               orgType={orgType}
               value={identity}
               onChange={handleIdentityChange}
-              colorsLocked={colorsLocked.current}
+              colorsLocked={colorsLocked}
+              onManualColorChange={() => setColorsLocked(true)}
             />
           )}
           <Input

@@ -49,6 +49,7 @@ export async function POST(request: Request) {
     .insert({
       org_id: orgId,
       title,
+      meeting_type: meetingType || "chapter_meeting",
       scheduled_at: scheduledAt || null,
       location: location || null,
       agenda: agenda || null,
