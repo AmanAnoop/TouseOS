@@ -1,7 +1,10 @@
 "use client";
 
 import { ExternalLink, Lock, Save } from "lucide-react";
-import { Button, Card, CardHeader, Input, Textarea } from "@/components/ui";
+import { Button, Card, CardHeader, Input, Select, Textarea } from "@/components/ui";
+import { AddressAutocomplete } from "@/components/location/address-autocomplete";
+import { MajorSelect } from "@/components/profile/major-select";
+import { CLASS_YEARS, graduationYearOptions } from "@/lib/school-majors";
 
 const PROFILE_INTERESTS = [
   "Sports", "Music", "Art", "Photography", "Travel", "Cooking", "Gaming", "Reading",
@@ -43,10 +46,29 @@ export function ProfileForm({ form, saving, onChange, onToggleInterest, onSave }
           <Input label="Preferred name" placeholder="Alex" value={form.preferredName} onChange={(e) => onChange({ preferredName: e.target.value })} />
           <Input label="Pronouns" placeholder="she/her, he/him, they/them..." value={form.pronouns} onChange={(e) => onChange({ pronouns: e.target.value })} />
           <Input label="Phone" type="tel" placeholder="+1 (555) 000-0000" value={form.phone} onChange={(e) => onChange({ phone: e.target.value })} />
-          <Input label="Class year" placeholder="2026" value={form.classYear} onChange={(e) => onChange({ classYear: e.target.value })} />
-          <Input label="Graduation year" type="number" placeholder="2026" value={form.graduationYear} onChange={(e) => onChange({ graduationYear: e.target.value })} />
-          <Input label="Major" placeholder="Business, CS, Biology..." value={form.major} onChange={(e) => onChange({ major: e.target.value })} />
-          <Input label="Hometown" placeholder="Austin, TX" value={form.hometown} onChange={(e) => onChange({ hometown: e.target.value })} className="sm:col-span-2" />
+          <Select
+            label="Class year"
+            value={form.classYear}
+            onChange={(e) => onChange({ classYear: e.target.value })}
+            placeholder="Select class year"
+            options={CLASS_YEARS.map((y) => ({ value: y.value, label: y.label }))}
+          />
+          <Select
+            label="Graduation year"
+            value={form.graduationYear}
+            onChange={(e) => onChange({ graduationYear: e.target.value })}
+            placeholder="Select year"
+            options={graduationYearOptions()}
+          />
+          <MajorSelect value={form.major} onChange={(major) => onChange({ major })} />
+          <div className="sm:col-span-2">
+            <AddressAutocomplete
+              label="Hometown"
+              value={form.hometown}
+              placeholder="Start typing your hometown…"
+              onSelect={(place) => onChange({ hometown: place.address || place.venueName })}
+            />
+          </div>
         </div>
       </Card>
 

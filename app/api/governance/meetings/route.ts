@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
-  const { orgId, title, scheduledAt, location, agenda, quorumRequired } = body;
+  const { orgId, title, meetingType, scheduledAt, location, agenda, attendeeIds } = body;
   if (!orgId || !title) {
     return NextResponse.json({ error: "orgId and title required" }, { status: 400 });
   }
@@ -44,15 +44,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const attendees = Array.isArray(attendeeIds) ? attendeeIds : [];
+
   const { data, error } = await supabase
     .from("governance_meetings")
     .insert({
       org_id: orgId,
       title,
+      meeting_type: meetingType || "chapter_meeting",
       scheduled_at: scheduledAt || null,
       location: location || null,
       agenda: agenda || null,
-      quorum_required: parseInt(String(quorumRequired ?? "0"), 10) || 0,
+      attendee_ids: attendees,
+      quorum_required: attendees.length,
+      quorum_present: attendees.length,
       status: "scheduled",
     })
     .select()
@@ -67,13 +72,18 @@ export async function PATCH(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id, orgId, quorumPresent, minutes } = await request.json();
+  const { id, orgId, attendeeIds, minutes } = await request.json();
   if (!id || !orgId) {
     return NextResponse.json({ error: "id and orgId required" }, { status: 400 });
   }
 
   const updates: Record<string, unknown> = {};
-  if (quorumPresent !== undefined) updates.quorum_present = quorumPresent;
+  if (attendeeIds !== undefined) {
+    const ids = Array.isArray(attendeeIds) ? attendeeIds : [];
+    updates.attendee_ids = ids;
+    updates.quorum_required = ids.length;
+    updates.quorum_present = ids.length;
+  }
   if (minutes !== undefined) updates.minutes = minutes;
 
   const { data, error } = await supabase

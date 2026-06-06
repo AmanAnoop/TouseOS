@@ -1,15 +1,24 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { AlertTriangle, CheckCircle2, Plus, Shield } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Plus, Shield, Users } from "lucide-react";
 import toast from "react-hot-toast";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useOrg } from "@/hooks/use-org";
 import {
-  Alert, Badge, Button, Card, CardHeader,
+  Alert, Badge, Button, Card, CardHeader, Input,
   EmptyState, Modal, PageHeader, ProgressBar, StatCard,
 } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
+import {
+  computeRiskScore,
+  RISK_CHECKLIST_ITEMS,
+  requiredSoberMonitors,
+  riskLabel,
+  SOBER_MONITOR_GUEST_RATIO,
+  type RiskChecklistMetadata,
+} from "@/lib/risk-config";
+import type { MemberProfile } from "@/types";
 
 interface RiskChecklist {
   id: string;
@@ -26,40 +35,33 @@ interface RiskChecklist {
   risk_score: number | null;
   approved: boolean;
   notes: string | null;
+  metadata?: RiskChecklistMetadata;
   created_at: string;
 }
 
-const CHECKLIST_ITEMS = [
-  { key: "alcohol_policy", label: "Alcohol policy checklist completed", risk: 20 },
-  { key: "sober_monitors_assigned", label: "Sober monitors assigned", risk: 15 },
-  { key: "guest_ratio_checked", label: "Guest ratio within limits", risk: 10 },
-  { key: "venue_contract_uploaded", label: "Venue contract uploaded", risk: 10 },
-  { key: "transportation_plan", label: "Transportation plan in place", risk: 15 },
-  { key: "security_plan", label: "Security/door plan confirmed", risk: 15 },
-  { key: "emergency_plan", label: "Emergency action plan ready", risk: 10 },
-  { key: "food_water_plan", label: "Food and water available", risk: 5 },
-];
+function checklistItemsFromRecord(c: RiskChecklist): Record<string, boolean> {
+  return Object.fromEntries(
+    RISK_CHECKLIST_ITEMS.map((item) => [item.key, Boolean(c[item.key as keyof RiskChecklist])]),
+  );
+}
 
 export default function RiskPage() {
   const { can, loading: permLoading } = usePermissions();
   const [checklists, setChecklists] = useState<RiskChecklist[]>([]);
+  const [members, setMembers] = useState<MemberProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const { orgId } = useOrg();
   const [createOpen, setCreateOpen] = useState(false);
   const [events, setEvents] = useState<Array<{ id: string; title: string; starts_at: string }>>([]);
 
-  const [newChecklist, setNewChecklist] = useState<Record<string, boolean>>({
-    alcohol_policy: false,
-    sober_monitors_assigned: false,
-    guest_ratio_checked: false,
-    venue_contract_uploaded: false,
-    transportation_plan: false,
-    security_plan: false,
-    emergency_plan: false,
-    food_water_plan: false,
-  });
+  const [newChecklist, setNewChecklist] = useState<Record<string, boolean>>(
+    Object.fromEntries(RISK_CHECKLIST_ITEMS.map((i) => [i.key, false])),
+  );
   const [selectedEventId, setSelectedEventId] = useState("");
   const [notes, setNotes] = useState("");
+  const [expectedAttendees, setExpectedAttendees] = useState("");
+  const [soberMonitorIds, setSoberMonitorIds] = useState<string[]>([]);
+
   const [incidents, setIncidents] = useState<Array<Record<string, unknown>>>([]);
   const [incidentOpen, setIncidentOpen] = useState(false);
   const [incidentForm, setIncidentForm] = useState({
@@ -70,9 +72,13 @@ export default function RiskPage() {
     involvedParties: "",
   });
 
+  const attendeeCount = parseInt(expectedAttendees, 10) || 0;
+  const monitorsRequired = requiredSoberMonitors(attendeeCount);
+  const monitorsMet = soberMonitorIds.length >= monitorsRequired;
+
   const load = useCallback(async (oid: string) => {
     setLoading(true);
-    const [ckRes, evRes, incRes] = await Promise.all([
+    const [ckRes, evRes, incRes, memRes] = await Promise.all([
       fetch(`/api/risk/checklists?org_id=${encodeURIComponent(oid)}`),
       fetch(`/api/events?org_id=${encodeURIComponent(oid)}`).then(async (r) => {
         if (!r.ok) return { data: [] };
@@ -86,10 +92,12 @@ export default function RiskPage() {
         };
       }),
       fetch(`/api/incidents?org_id=${oid}`).then((r) => (r.ok ? r.json() : [])),
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}`),
     ]);
     setChecklists(ckRes.ok ? ((await ckRes.json()) as RiskChecklist[]) : []);
     setEvents((evRes.data ?? []) as Array<{ id: string; title: string; starts_at: string }>);
     setIncidents(Array.isArray(incRes) ? incRes : []);
+    if (memRes.ok) setMembers((await memRes.json()) as MemberProfile[]);
     setLoading(false);
   }, []);
 
@@ -127,23 +135,37 @@ export default function RiskPage() {
     if (orgId) load(orgId);
   }, [orgId, load]);
 
-  function computeRiskScore(items: Record<string, boolean>) {
-    const completed = CHECKLIST_ITEMS.filter((i) => items[i.key]).length;
-    return Math.round((completed / CHECKLIST_ITEMS.length) * 100);
+  function toggleSoberMonitor(memberId: string) {
+    setSoberMonitorIds((prev) => {
+      const next = prev.includes(memberId)
+        ? prev.filter((id) => id !== memberId)
+        : [...prev, memberId];
+      const met = next.length >= monitorsRequired;
+      setNewChecklist((c) => ({ ...c, sober_monitors_assigned: met }));
+      return next;
+    });
   }
 
   async function createChecklist() {
     if (!orgId) return;
-    const score = computeRiskScore(newChecklist);
+    const items = {
+      ...newChecklist,
+      sober_monitors_assigned: monitorsMet || newChecklist.sober_monitors_assigned,
+    };
+    const score = computeRiskScore(items);
     const res = await fetch("/api/risk/checklists", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         orgId,
         eventId: selectedEventId || null,
-        items: newChecklist,
+        items,
         riskScore: score,
         notes,
+        metadata: {
+          expected_attendees: attendeeCount || undefined,
+          sober_monitor_ids: soberMonitorIds,
+        },
       }),
     });
     if (!res.ok) {
@@ -153,10 +175,29 @@ export default function RiskPage() {
     }
     toast.success("Risk checklist saved");
     setCreateOpen(false);
-    setNewChecklist(Object.fromEntries(CHECKLIST_ITEMS.map((i) => [i.key, false])));
+    setNewChecklist(Object.fromEntries(RISK_CHECKLIST_ITEMS.map((i) => [i.key, false])));
     setNotes("");
     setSelectedEventId("");
+    setExpectedAttendees("");
+    setSoberMonitorIds([]);
     load(orgId);
+  }
+
+  async function toggleChecklistItem(checklist: RiskChecklist, key: string, checked: boolean) {
+    if (!orgId || !can("manage_incidents")) return;
+    const items = { ...checklistItemsFromRecord(checklist), [key]: checked };
+    const score = computeRiskScore(items);
+    const res = await fetch("/api/risk/checklists", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: checklist.id, orgId, items, riskScore: score }),
+    });
+    if (!res.ok) {
+      toast.error("Failed to update");
+      return;
+    }
+    const updated = await res.json() as RiskChecklist;
+    setChecklists((prev) => prev.map((c) => (c.id === checklist.id ? updated : c)));
   }
 
   async function approveChecklist(id: string) {
@@ -176,12 +217,14 @@ export default function RiskPage() {
 
   const approved = checklists.filter((c) => c.approved).length;
   const pending = checklists.filter((c) => !c.approved).length;
+  const formScore = computeRiskScore(newChecklist);
+  const formRisk = riskLabel(formScore);
 
   return (
     <div className="space-y-5">
       <PageHeader
         title="Risk Management"
-        description="Event risk checklists, incident reports, and approval workflows"
+        description="Event risk checklists, sober monitor assignments, and incident reports"
         action={
           <Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)} disabled={permLoading || !can("manage_incidents")}>
             New risk checklist
@@ -201,7 +244,7 @@ export default function RiskPage() {
       )}
 
       {loading ? (
-        <div className="space-y-3">{[1,2,3].map((i) => <Card key={i} className="h-24 animate-pulse bg-surface-2 border-0">&nbsp;</Card>)}</div>
+        <div className="space-y-3">{[1, 2, 3].map((i) => <Card key={i} className="h-24 animate-pulse bg-surface-2 border-0">&nbsp;</Card>)}</div>
       ) : checklists.length === 0 ? (
         <EmptyState
           icon={<Shield size={24} />}
@@ -213,9 +256,10 @@ export default function RiskPage() {
         <div className="space-y-3">
           {checklists.map((c) => {
             const score = c.risk_score ?? 0;
-            const color = score >= 80 ? "green" : score >= 60 ? "yellow" : "red";
-            const label = score >= 80 ? "Low risk" : score >= 60 ? "Medium risk" : "High risk";
-            const items = CHECKLIST_ITEMS.map((item) => ({
+            const { label, color } = riskLabel(score);
+            const meta = c.metadata ?? {};
+            const monitorIds = meta.sober_monitor_ids ?? [];
+            const items = RISK_CHECKLIST_ITEMS.map((item) => ({
               ...item,
               checked: Boolean(c[item.key as keyof RiskChecklist]),
             }));
@@ -224,6 +268,11 @@ export default function RiskPage() {
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div>
                     <p className="font-semibold text-sm text-foreground">Risk checklist · {formatDate(c.created_at)}</p>
+                    {meta.expected_attendees ? (
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        ~{meta.expected_attendees} attendees · {monitorIds.length} sober monitor{monitorIds.length !== 1 ? "s" : ""} assigned
+                      </p>
+                    ) : null}
                     {c.notes && <p className="text-xs text-muted-foreground mt-0.5">{c.notes}</p>}
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
@@ -235,17 +284,37 @@ export default function RiskPage() {
                   </div>
                 </div>
                 <ProgressBar value={score} color={color} size="md" label={`${score}% complete`} />
-                <div className="mt-3 grid grid-cols-2 gap-1.5">
+                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                   {items.map((item) => (
-                    <div key={item.key} className="flex items-center gap-1.5 text-xs">
-                      {item.checked
-                        ? <CheckCircle2 size={13} className="text-green-500 flex-shrink-0" />
-                        : <AlertTriangle size={13} className="text-yellow-500 flex-shrink-0" />
-                      }
-                      <span className={item.checked ? "text-muted-foreground line-through" : "text-foreground"}>{item.label}</span>
-                    </div>
+                    <label key={item.key} className="flex items-start gap-2 text-xs cursor-pointer p-1.5 rounded hover:bg-surface-1">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 rounded"
+                        checked={item.checked}
+                        disabled={!can("manage_incidents")}
+                        onChange={(e) => toggleChecklistItem(c, item.key, e.target.checked)}
+                      />
+                      <span className={item.checked ? "text-muted-foreground line-through" : "text-foreground"}>
+                        {item.label}
+                      </span>
+                    </label>
                   ))}
                 </div>
+                {monitorIds.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-border">
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
+                      <Users size={12} /> Sober monitors
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {monitorIds.map((id) => {
+                        const m = members.find((mem) => mem.id === id);
+                        return (
+                          <Badge key={id} label={m?.full_name ?? "Member"} color="blue" />
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </Card>
             );
           })}
@@ -380,8 +449,42 @@ export default function RiskPage() {
             </div>
           )}
 
-          <div className="space-y-3">
-            {CHECKLIST_ITEMS.map((item) => (
+          <Input
+            label="Expected attendees"
+            type="number"
+            min={0}
+            placeholder="e.g. 75"
+            value={expectedAttendees}
+            onChange={(e) => setExpectedAttendees(e.target.value)}
+            hint={`Requires ${monitorsRequired} sober monitor${monitorsRequired !== 1 ? "s" : ""} (1 per ${SOBER_MONITOR_GUEST_RATIO} guests, min. 2)`}
+          />
+
+          <Card className="p-3 bg-surface-1 border-border">
+            <p className="text-sm font-medium mb-2 flex items-center gap-1.5">
+              <Users size={14} />
+              Assign sober monitors ({soberMonitorIds.length}/{monitorsRequired})
+            </p>
+            {!monitorsMet && attendeeCount > 0 && (
+              <p className="text-xs text-orange-600 mb-2">
+                Select {monitorsRequired - soberMonitorIds.length} more monitor{monitorsRequired - soberMonitorIds.length !== 1 ? "s" : ""} to meet requirements
+              </p>
+            )}
+            <div className="max-h-40 overflow-y-auto space-y-1">
+              {members.filter((m) => m.membership_status === "active").map((m) => (
+                <label key={m.id} className="flex items-center gap-2 text-sm cursor-pointer p-1.5 rounded hover:bg-background">
+                  <input
+                    type="checkbox"
+                    checked={soberMonitorIds.includes(m.id)}
+                    onChange={() => toggleSoberMonitor(m.id)}
+                  />
+                  <span>{m.full_name}</span>
+                </label>
+              ))}
+            </div>
+          </Card>
+
+          <div className="space-y-2">
+            {RISK_CHECKLIST_ITEMS.map((item) => (
               <label key={item.key} className="flex items-start gap-3 cursor-pointer p-3 rounded-lg border border-border hover:bg-surface-1">
                 <input
                   type="checkbox"
@@ -391,15 +494,15 @@ export default function RiskPage() {
                 />
                 <div>
                   <p className="text-sm font-medium">{item.label}</p>
-                  <p className="text-xs text-muted-foreground">Risk weight: {item.risk}%</p>
+                  <p className="text-xs text-muted-foreground">{item.description}</p>
                 </div>
               </label>
             ))}
           </div>
 
           <div className="p-3 rounded-lg border border-border bg-surface-1">
-            <p className="text-sm font-medium">Risk score: {computeRiskScore(newChecklist)}%</p>
-            <ProgressBar value={computeRiskScore(newChecklist)} color={computeRiskScore(newChecklist) >= 80 ? "green" : computeRiskScore(newChecklist) >= 60 ? "yellow" : "red"} className="mt-2" />
+            <p className="text-sm font-medium">Risk score: {formScore}% · {formRisk.label}</p>
+            <ProgressBar value={formScore} color={formRisk.color} className="mt-2" />
           </div>
 
           <div className="flex flex-col gap-1.5">
