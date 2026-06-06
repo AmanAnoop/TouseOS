@@ -41,6 +41,12 @@ export const TRIP_STATUSES = [
   { value: "completed", label: "Completed" },
 ] as const;
 
+export const ITINERARY_LEG_TYPES = [
+  { value: "transportation", label: "Transportation" },
+  { value: "accommodation", label: "Accommodation" },
+  { value: "activity", label: "Activity" },
+] as const;
+
 export const RSVP_STATUSES = [
   { value: "attending", label: "Attending" },
   { value: "not_attending", label: "Not Attending" },

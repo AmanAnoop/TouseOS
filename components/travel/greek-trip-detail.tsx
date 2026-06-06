@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft, Calendar, CheckSquare, DollarSign, Download, FileText, MapPin, Send, Upload, Users,
+  ArrowLeft, Calendar, CheckSquare, ChevronDown, ChevronUp, DollarSign, Download,
+  FileText, MapPin, Plus, Send, Trash2, Upload, Users,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
@@ -11,7 +12,7 @@ import {
   ProgressBar, Select, StatCard, Tabs,
 } from "@/components/ui";
 import { downloadCsv, formatCurrency, formatDate } from "@/lib/utils";
-import { BUDGET_CATEGORIES, GREEK_TRIP_TYPES } from "@/lib/travel-config";
+import { BUDGET_CATEGORIES, GREEK_TRIP_TYPES, ITINERARY_LEG_TYPES } from "@/lib/travel-config";
 import { can } from "@/lib/permissions";
 import { useOrg } from "@/hooks/use-org";
 
@@ -28,6 +29,22 @@ export function GreekTripDetail({ tripId }: GreekTripDetailProps) {
   const [checklistLabel, setChecklistLabel] = useState("");
   const [budgetForm, setBudgetForm] = useState({ category: "transportation", description: "", estCost: "" });
   const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [legOpen, setLegOpen] = useState(false);
+  const [legForm, setLegForm] = useState({
+    day: "1", legType: "transportation", title: "", location: "",
+    startTime: "", endTime: "", notes: "", confirmationNumber: "",
+  });
+
+  function legDetails(leg: Record<string, unknown>) {
+    const d = (leg.details ?? {}) as Record<string, string | null>;
+    return {
+      title: d.title ?? "Untitled",
+      location: d.location,
+      startTime: d.startTime,
+      endTime: d.endTime,
+      notes: d.notes,
+    };
+  }
 
   const canManage = can(role, "manage_travel") || can(role, "edit_roster");
 
@@ -233,17 +250,93 @@ export function GreekTripDetail({ tripId }: GreekTripDetailProps) {
 
       {tab === "itinerary" && (
         <Card>
-          <CardHeader title="Day-by-day itinerary" icon={<Calendar size={16} />} />
+          <CardHeader
+            title="Day-by-day itinerary"
+            icon={<Calendar size={16} />}
+            action={canManage && orgId ? (
+              <Button size="sm" icon={<Plus size={14} />} onClick={() => setLegOpen(true)}>Add leg</Button>
+            ) : undefined}
+          />
           {legs.length === 0 ? (
             <EmptyState title="No itinerary legs" description="Add transportation, accommodation, and activity legs per day." />
           ) : (
-            <div className="ds-page-stack" style={{ gap: 12 }}>
-              {legs.map((leg) => (
-                <div key={String(leg.id)} className="ds-card" style={{ padding: 16 }}>
-                  <p className="type-label" style={{ margin: "0 0 4px" }}>Day {String(leg.day)} · {String(leg.leg_type)}</p>
-                  <p className="type-body" style={{ margin: 0 }}>{JSON.stringify(leg.details)}</p>
-                </div>
-              ))}
+            <div className="space-y-2">
+              {legs.map((leg, idx) => {
+                const d = legDetails(leg);
+                const typeLabel = ITINERARY_LEG_TYPES.find((t) => t.value === leg.leg_type)?.label ?? String(leg.leg_type);
+                return (
+                  <div key={String(leg.id)} className="flex items-start gap-2 p-3 rounded-lg border border-border">
+                    {canManage && orgId && (
+                      <div className="flex flex-col gap-0.5 flex-shrink-0">
+                        <button
+                          type="button"
+                          disabled={idx === 0}
+                          className="p-0.5 rounded hover:bg-surface-1 disabled:opacity-30"
+                          onClick={async () => {
+                            await fetch(`/api/greek/travel/${tripId}/itinerary`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ orgId, action: "move", legId: leg.id, direction: "up" }),
+                            });
+                            load(orgId);
+                          }}
+                        >
+                          <ChevronUp size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={idx === legs.length - 1}
+                          className="p-0.5 rounded hover:bg-surface-1 disabled:opacity-30"
+                          onClick={async () => {
+                            await fetch(`/api/greek/travel/${tripId}/itinerary`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ orgId, action: "move", legId: leg.id, direction: "down" }),
+                            });
+                            load(orgId);
+                          }}
+                        >
+                          <ChevronDown size={14} />
+                        </button>
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge label={`Day ${String(leg.day)}`} color="blue" />
+                        <Badge label={typeLabel} color="gray" />
+                      </div>
+                      <p className="font-medium text-sm mt-1">{d.title}</p>
+                      {d.location && <p className="text-xs text-muted-foreground">{d.location}</p>}
+                      {(d.startTime || d.endTime) && (
+                        <p className="text-xs text-muted-foreground">
+                          {d.startTime}{d.endTime ? ` – ${d.endTime}` : ""}
+                        </p>
+                      )}
+                      {d.notes && <p className="text-xs mt-1 whitespace-pre-wrap">{d.notes}</p>}
+                      {Boolean(leg.confirmation_number) && (
+                        <p className="text-xs text-muted-foreground mt-1">Conf. #{String(leg.confirmation_number)}</p>
+                      )}
+                    </div>
+                    {canManage && orgId && (
+                      <button
+                        type="button"
+                        className="text-muted-foreground hover:text-red-500 p-1"
+                        onClick={async () => {
+                          await fetch(`/api/greek/travel/${tripId}/itinerary`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ orgId, action: "delete", legId: leg.id }),
+                          });
+                          toast.success("Leg removed");
+                          load(orgId);
+                        }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </Card>
@@ -412,6 +505,68 @@ export function GreekTripDetail({ tripId }: GreekTripDetailProps) {
           )}
         </Card>
       )}
+
+      <Modal
+        open={legOpen}
+        onClose={() => setLegOpen(false)}
+        title="Add itinerary leg"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setLegOpen(false)}>Cancel</Button>
+            <Button
+              disabled={!legForm.title.trim() || !orgId}
+              onClick={async () => {
+                if (!orgId) return;
+                const res = await fetch(`/api/greek/travel/${tripId}/itinerary`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    orgId,
+                    day: parseInt(legForm.day, 10) || 1,
+                    legType: legForm.legType,
+                    title: legForm.title,
+                    location: legForm.location,
+                    startTime: legForm.startTime,
+                    endTime: legForm.endTime,
+                    notes: legForm.notes,
+                    confirmationNumber: legForm.confirmationNumber,
+                  }),
+                });
+                if (!res.ok) {
+                  toast.error((await res.json()).error ?? "Failed to add leg");
+                  return;
+                }
+                toast.success("Itinerary leg added");
+                setLegOpen(false);
+                setLegForm({ day: "1", legType: "transportation", title: "", location: "", startTime: "", endTime: "", notes: "", confirmationNumber: "" });
+                load(orgId);
+              }}
+            >
+              Add leg
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Input label="Day" type="number" min={1} value={legForm.day} onChange={(e) => setLegForm({ ...legForm, day: e.target.value })} />
+            <Select
+              label="Leg type"
+              value={legForm.legType}
+              onChange={(e) => setLegForm({ ...legForm, legType: e.target.value })}
+              options={ITINERARY_LEG_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+            />
+          </div>
+          <Input label="Title *" value={legForm.title} onChange={(e) => setLegForm({ ...legForm, title: e.target.value })} placeholder="Bus to airport" />
+          <Input label="Location" value={legForm.location} onChange={(e) => setLegForm({ ...legForm, location: e.target.value })} />
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Input label="Start time" value={legForm.startTime} onChange={(e) => setLegForm({ ...legForm, startTime: e.target.value })} placeholder="8:00 AM" />
+            <Input label="End time" value={legForm.endTime} onChange={(e) => setLegForm({ ...legForm, endTime: e.target.value })} placeholder="10:30 AM" />
+          </div>
+          <Input label="Confirmation #" value={legForm.confirmationNumber} onChange={(e) => setLegForm({ ...legForm, confirmationNumber: e.target.value })} />
+          <Input label="Notes" value={legForm.notes} onChange={(e) => setLegForm({ ...legForm, notes: e.target.value })} />
+        </div>
+      </Modal>
 
       <Modal open={budgetOpen} onClose={() => setBudgetOpen(false)} title="Add budget line item"
         footer={<Button variant="secondary" onClick={() => setBudgetOpen(false)}>Close</Button>}
