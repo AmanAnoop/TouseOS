@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { can, type RoleName } from "@/lib/permissions";
+import { isTwilioConfigured } from "@/lib/integrations";
+import { sendMassSms, isWithinQuietHours } from "@/lib/twilio";
 
 const OFFICER_ROLES: RoleName[] = [
   "owner", "president", "vice_president", "treasurer", "secretary",
@@ -34,7 +36,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { orgId, title, body, audience, pinned } = await request.json();
+  const { orgId, title, body, audience, pinned, sendSms } = await request.json();
   if (!orgId || !title || !body) {
     return NextResponse.json({ error: "orgId, title, and body required" }, { status: 400 });
   }
@@ -82,7 +84,27 @@ export async function POST(request: Request) {
     metadata: { title, audience: audienceList },
   });
 
-  return NextResponse.json(data, { status: 201 });
+  let smsSent = 0;
+  if (sendSms && isTwilioConfigured() && !isWithinQuietHours(new Date())) {
+    const { data: members } = await supabase
+      .from("member_profiles")
+      .select("full_name, phone, membership_status")
+      .eq("org_id", orgId)
+      .in("membership_status", ["active", "new_member"])
+      .not("phone", "is", null);
+
+    const recipients = (members ?? [])
+      .filter((m) => m.phone)
+      .map((m) => ({ phone: String(m.phone), name: String(m.full_name) }));
+
+    if (recipients.length > 0) {
+      const smsBody = `${title.trim()}\n\n${body.trim()}`.slice(0, 1500);
+      const results = await sendMassSms(recipients, smsBody);
+      smsSent = results.filter((r) => r.status !== "failed" && !r.error).length;
+    }
+  }
+
+  return NextResponse.json({ ...data, smsSent }, { status: 201 });
 }
 
 export async function DELETE(request: Request) {

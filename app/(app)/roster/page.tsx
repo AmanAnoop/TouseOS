@@ -35,7 +35,7 @@ const PAYMENT_OPTIONS = [
 ];
 
 export default function RosterPage() {
-  const { orgId, orgType, role: myRole } = useOrg();
+  const { orgId, orgType, role: myRole, loading: orgLoading } = useOrg();
   const [members, setMembers] = useState<MemberProfile[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -45,7 +45,10 @@ export default function RosterPage() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [massInviteOpen, setMassInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
+  const [invitePhone, setInvitePhone] = useState("");
   const [bulkEmails, setBulkEmails] = useState("");
+  const [sendInviteSms, setSendInviteSms] = useState(false);
+  const [twilioLive, setTwilioLive] = useState<boolean | null>(null);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [inviteRole, setInviteRole] = useState("general_member");
   const [inviting, setInviting] = useState(false);
@@ -64,8 +67,20 @@ export default function RosterPage() {
   }, []);
 
   useEffect(() => {
+    if (orgLoading) return;
     if (orgId) loadMembers(orgId);
-  }, [orgId, loadMembers]);
+    else setLoading(false);
+  }, [orgId, orgLoading, loadMembers]);
+
+  useEffect(() => {
+    fetch("/api/integrations/status")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const twilio = data?.integrations?.find((i: { id: string }) => i.id === "twilio");
+        setTwilioLive(Boolean(twilio?.live));
+      })
+      .catch(() => setTwilioLive(false));
+  }, []);
 
   useEffect(() => {
     if (!orgId) return;
@@ -131,7 +146,16 @@ export default function RosterPage() {
     });
   }
 
-  async function sendInvite(email?: string, emails?: string[]) {
+  function parseBulkInviteLines(raw: string): Array<{ email: string; phone?: string }> {
+    return [...new Set(raw.split("\n").map((line) => line.trim()).filter(Boolean))].map((line) => {
+      const parts = line.split(/[,;\t]/).map((p) => p.trim()).filter(Boolean);
+      const email = parts.find((p) => p.includes("@")) ?? "";
+      const phone = parts.find((p) => !p.includes("@") && /[\d+()]/.test(p));
+      return { email, phone };
+    }).filter((row) => row.email);
+  }
+
+  async function sendInvite(email?: string, emails?: string[], phone?: string, phones?: string[]) {
     if (!orgId) return;
     setInviting(true);
     const res = await fetch("/api/members/invite", {
@@ -141,7 +165,10 @@ export default function RosterPage() {
         orgId,
         email,
         emails,
+        phone,
+        phones,
         role: inviteRole,
+        sendSms: sendInviteSms,
       }),
     });
     setInviting(false);
@@ -151,17 +178,13 @@ export default function RosterPage() {
       setInviteOpen(false);
       setMassInviteOpen(false);
       setInviteEmail("");
+      setInvitePhone("");
       setBulkEmails("");
+      setSendInviteSms(false);
       loadMembers(orgId);
     } else {
       toast.error((data as { error?: string }).error ?? "Failed to send invite");
     }
-  }
-
-  function parseBulkEmails(raw: string): string[] {
-    return [...new Set(
-      raw.split(/[\n,;]+/).map((e) => e.trim().toLowerCase()).filter((e) => e.includes("@")),
-    )];
   }
 
   async function copyInviteLink() {
@@ -239,7 +262,13 @@ export default function RosterPage() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setInviteOpen(false)}>Cancel</Button>
-            <Button onClick={() => sendInvite(inviteEmail)} disabled={!inviteEmail} loading={inviting}>Send invite</Button>
+            <Button
+              onClick={() => sendInvite(inviteEmail, undefined, invitePhone || undefined)}
+              disabled={!inviteEmail}
+              loading={inviting}
+            >
+              Send invite
+            </Button>
           </>
         }
       >
@@ -251,12 +280,35 @@ export default function RosterPage() {
             value={inviteEmail}
             onChange={(e) => setInviteEmail(e.target.value)}
           />
+          <Input
+            label="Phone (optional — for SMS invite)"
+            type="tel"
+            placeholder="+1 (555) 000-0000"
+            value={invitePhone}
+            onChange={(e) => setInvitePhone(e.target.value)}
+          />
           <Select
             label="Role"
             value={inviteRole}
             onChange={(e) => setInviteRole(e.target.value)}
             options={roleOptions}
           />
+          {twilioLive === false && (
+            <p className="type-small" style={{ color: "var(--color-text-tertiary)" }}>
+              Configure Twilio in Settings → Integrations to text invite links.
+            </p>
+          )}
+          {twilioLive && (
+            <label className="type-small flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={sendInviteSms}
+                onChange={(e) => setSendInviteSms(e.target.checked)}
+                disabled={!invitePhone.trim()}
+              />
+              Also text invite link via Twilio
+            </label>
+          )}
         </div>
       </Modal>
 
@@ -271,8 +323,16 @@ export default function RosterPage() {
             <Button variant="secondary" onClick={() => setMassInviteOpen(false)}>Cancel</Button>
             <Button
               loading={inviting}
-              disabled={parseBulkEmails(bulkEmails).length === 0}
-              onClick={() => sendInvite(undefined, parseBulkEmails(bulkEmails))}
+              disabled={parseBulkInviteLines(bulkEmails).length === 0}
+              onClick={() => {
+                const rows = parseBulkInviteLines(bulkEmails);
+                sendInvite(
+                  undefined,
+                  rows.map((r) => r.email),
+                  undefined,
+                  rows.map((r) => r.phone).filter((p): p is string => Boolean(p)),
+                );
+              }}
             >
               Send invites
             </Button>
@@ -305,14 +365,24 @@ export default function RosterPage() {
               id="bulk-emails"
               className="ds-input"
               rows={6}
-              placeholder="one@school.edu, two@school.edu&#10;or one address per line"
+              placeholder="email@school.edu, +15551234567&#10;or one email per line (add phone after comma for SMS)"
               value={bulkEmails}
               onChange={(e) => setBulkEmails(e.target.value)}
             />
             <p className="type-small" style={{ color: "var(--color-text-tertiary)" }}>
-              {parseBulkEmails(bulkEmails).length} valid address{parseBulkEmails(bulkEmails).length !== 1 ? "es" : ""}
+              {parseBulkInviteLines(bulkEmails).length} valid address{parseBulkInviteLines(bulkEmails).length !== 1 ? "es" : ""}
             </p>
           </div>
+          {twilioLive && (
+            <label className="type-small flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={sendInviteSms}
+                onChange={(e) => setSendInviteSms(e.target.checked)}
+              />
+              Text invite link via Twilio when phone numbers are included
+            </label>
+          )}
         </div>
       </Modal>
     </div>

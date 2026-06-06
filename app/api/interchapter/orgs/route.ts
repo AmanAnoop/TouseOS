@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 /** Greek orgs on platform for proposal target picker */
 export async function GET(request: Request) {
-  const supabase = await createClient();
+  const auth = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await auth.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const params = new URL(request.url).searchParams;
@@ -14,6 +14,7 @@ export async function GET(request: Request) {
   const excludeOrgId = params.get("exclude_org_id");
   const kind = params.get("kind");
 
+  const supabase = await createServiceClient();
   let query = supabase
     .from("organizations")
     .select("id, name, type, campus")

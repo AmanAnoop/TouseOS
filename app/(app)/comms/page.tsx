@@ -17,7 +17,7 @@ import { can } from "@/lib/permissions";
 import { useOrg } from "@/hooks/use-org";
 
 export default function CommsPage() {
-  const { orgId, role } = useOrg();
+  const { orgId, role, loading: orgLoading } = useOrg();
   const canManageComms = can(role, "send_mass_texts");
   const [tab, setTab] = useState("announcements");
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -27,7 +27,7 @@ export default function CommsPage() {
   const [query, setQuery] = useState("");
 
   const [draft, setDraft] = useState({
-    title: "", body: "", audience: "all", pinned: false,
+    title: "", body: "", audience: "all", pinned: false, sendSms: false,
   });
 
   const [emailDraft, setEmailDraft] = useState({
@@ -77,10 +77,14 @@ export default function CommsPage() {
   }, []);
 
   useEffect(() => {
-    if (!orgId) return;
+    if (orgLoading) return;
+    if (!orgId) {
+      setLoading(false);
+      return;
+    }
     loadAnnouncements(orgId);
     loadScheduled(orgId);
-  }, [orgId, loadAnnouncements, loadScheduled]);
+  }, [orgId, orgLoading, loadAnnouncements, loadScheduled]);
 
   async function postAnnouncement() {
     if (!orgId || !draft.title || !draft.body) return;
@@ -93,13 +97,17 @@ export default function CommsPage() {
         body: draft.body,
         audience: draft.audience,
         pinned: draft.pinned,
+        sendSms: draft.sendSms,
       }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) { toast.error(data.error ?? "Failed to post"); return; }
-    toast.success("Announcement posted");
+    const smsNote = (data as { smsSent?: number }).smsSent
+      ? ` · ${(data as { smsSent: number }).smsSent} SMS sent`
+      : "";
+    toast.success(`Announcement posted${smsNote}`);
     setComposeOpen(false);
-    setDraft({ title: "", body: "", audience: "all", pinned: false });
+    setDraft({ title: "", body: "", audience: "all", pinned: false, sendSms: false });
     loadAnnouncements(orgId);
   }
 
@@ -306,6 +314,14 @@ export default function CommsPage() {
             <input type="checkbox" className="rounded" checked={draft.pinned} onChange={(e) => setDraft({ ...draft, pinned: e.target.checked })} />
             <span className="text-sm">Pin this announcement</span>
           </label>
+          {twilioLive ? (
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" className="rounded" checked={draft.sendSms} onChange={(e) => setDraft({ ...draft, sendSms: e.target.checked })} />
+              <span className="text-sm">Also send as SMS to members with phone numbers</span>
+            </label>
+          ) : twilioLive === false ? (
+            <p className="text-xs text-muted-foreground">Connect Twilio in Settings → Integrations to text announcements.</p>
+          ) : null}
         </div>
       </Modal>
 

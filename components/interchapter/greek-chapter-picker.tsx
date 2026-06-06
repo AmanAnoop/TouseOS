@@ -44,8 +44,9 @@ export function GreekChapterPicker({
       if (kind !== "all") params.set("kind", kind);
       fetch(`/api/interchapter/orgs?${params}`)
         .then((r) => (r.ok ? r.json() : []))
-        .then((list) => setOptions(list as GreekChapterOption[]));
-    }, 250);
+        .then((list) => setOptions(list as GreekChapterOption[]))
+        .catch(() => setOptions([]));
+    }, search.trim() ? 250 : 0);
     return () => clearTimeout(timer);
   }, [orgId, search, kind]);
 

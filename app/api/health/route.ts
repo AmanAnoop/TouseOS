@@ -62,14 +62,18 @@ export async function GET(request: Request) {
   });
 
   if (composite !== null) {
-    await supabase.from("org_health_scores").upsert({
-      org_id: orgId,
-      period: "current",
-      computed_scores: breakdown,
-      composite_score: composite,
-      computed_at: new Date().toISOString(),
-      updated_by: user.id,
-    }, { onConflict: "org_id,period" });
+    try {
+      await supabase.from("org_health_scores").upsert({
+        org_id: orgId,
+        period: "current",
+        computed_scores: breakdown,
+        composite_score: composite,
+        computed_at: new Date().toISOString(),
+        updated_by: user.id,
+      }, { onConflict: "org_id,period" });
+    } catch {
+      // Non-fatal — still return computed score to the client
+    }
   }
 
   return NextResponse.json({
