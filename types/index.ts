@@ -238,6 +238,21 @@ export interface BudgetLine {
   actual: number;
 }
 
+export type PnmRsvpStatus = "pending" | "going" | "maybe" | "declined";
+
+export interface EventPnmInvite {
+  id: string;
+  event_id: string;
+  org_id: string;
+  pnm_id: string;
+  invite_token: string | null;
+  rsvp_status: PnmRsvpStatus;
+  rsvp_at: string | null;
+  checked_in: boolean;
+  checked_in_at: string | null;
+  created_at: string;
+}
+
 export interface PnmLead {
   id: string;
   org_id: string;

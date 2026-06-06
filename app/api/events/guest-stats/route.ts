@@ -45,17 +45,24 @@ export async function GET(request: Request) {
   const guests = going.filter((r) => !r.member_id && r.guest_name).length;
   const ratioOk = guests === 0 || members / guests >= 3;
 
-  const { count: invitedPnmCount } = await supabase
+  const { data: pnmInvites } = await supabase
     .from("event_pnm_invites")
-    .select("id", { count: "exact", head: true })
+    .select("rsvp_status, checked_in")
     .eq("event_id", eventId)
     .eq("org_id", orgId);
+
+  const pnmRows = pnmInvites ?? [];
+  const pnmGoing = pnmRows.filter((r) => r.rsvp_status === "going").length;
+  const pnmCheckedIn = pnmRows.filter((r) => r.checked_in).length;
 
   return NextResponse.json({
     members,
     guests,
     totalGoing: going.length,
     ratioOk,
-    invitedPnmCount: invitedPnmCount ?? 0,
+    invitedPnmCount: pnmRows.length,
+    pnmGoing,
+    pnmCheckedIn,
+    pnmPending: pnmRows.filter((r) => r.rsvp_status === "pending").length,
   });
 }

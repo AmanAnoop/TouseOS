@@ -22,6 +22,16 @@ interface Attendee {
   member_profiles?: { full_name: string; profile_photo_url: string | null } | null;
 }
 
+interface PnmInviteAttendee {
+  id: string;
+  pnm_id: string;
+  rsvp_status: string;
+  checked_in: boolean;
+  checked_in_at: string | null;
+  invite_token: string | null;
+  pnm_leads?: { full_name: string } | null;
+}
+
 export default function CheckInPage() {
   const params = useParams();
   const eventId = params.id as string;
@@ -29,6 +39,7 @@ export default function CheckInPage() {
   const [event, setEvent] = useState<Record<string, unknown> | null>(null);
   const [orgId, setOrgId] = useState<string | null>(null);
   const [attendees, setAttendees] = useState<Attendee[]>([]);
+  const [pnmInvites, setPnmInvites] = useState<PnmInviteAttendee[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<"list" | "qr">("list");
@@ -39,16 +50,27 @@ export default function CheckInPage() {
   const scanIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadData = useCallback(async () => {
-    const [eventRes, rsvpRes] = await Promise.all([
-      supabase.from("events").select("id, title, starts_at, type, org_id").eq("id", eventId).single(),
+    const eventRes = await supabase.from("events").select("id, title, starts_at, type, org_id").eq("id", eventId).single();
+    const org = eventRes.data ? String((eventRes.data as Record<string, unknown>).org_id ?? "") : "";
+
+    const [rsvpRes, pnmRes] = await Promise.all([
       supabase.from("event_rsvps").select("*, member_profiles(full_name, profile_photo_url)").eq("event_id", eventId).order("checked_in", { ascending: true }),
+      org
+        ? supabase
+            .from("event_pnm_invites")
+            .select("id, pnm_id, rsvp_status, checked_in, checked_in_at, invite_token, pnm_leads(full_name)")
+            .eq("event_id", eventId)
+            .eq("org_id", org)
+        : Promise.resolve({ data: [] }),
     ]);
+
     if (eventRes.data) {
       const ev = eventRes.data as Record<string, unknown>;
       setEvent(ev);
       setOrgId(String(ev.org_id ?? ""));
     }
     setAttendees((rsvpRes.data ?? []) as Attendee[]);
+    setPnmInvites((pnmRes.data ?? []) as unknown as PnmInviteAttendee[]);
     setLoading(false);
   }, [supabase, eventId]);
 
@@ -94,8 +116,38 @@ export default function CheckInPage() {
     setAttendees((prev) => prev.map((a) => a.id === rsvpId ? { ...a, checked_in: false, checked_in_at: null } : a));
   }
 
+  async function checkInPnm(inviteId: string, successMessage = "PNM checked in ✓") {
+    const now = new Date().toISOString();
+    const invite = pnmInvites.find((p) => p.id === inviteId);
+    const { error } = await supabase.from("event_pnm_invites").update({
+      checked_in: true,
+      checked_in_at: now,
+      rsvp_status: invite?.rsvp_status === "pending" ? "going" : invite?.rsvp_status,
+    }).eq("id", inviteId);
+
+    if (error) { toast.error(error.message); return; }
+    setPnmInvites((prev) => prev.map((p) => p.id === inviteId ? { ...p, checked_in: true, checked_in_at: now, rsvp_status: p.rsvp_status === "pending" ? "going" : p.rsvp_status } : p));
+    toast.success(successMessage);
+  }
+
+  async function undoPnmCheckIn(inviteId: string) {
+    await supabase.from("event_pnm_invites").update({ checked_in: false, checked_in_at: null }).eq("id", inviteId);
+    setPnmInvites((prev) => prev.map((p) => p.id === inviteId ? { ...p, checked_in: false, checked_in_at: null } : p));
+  }
+
   async function addWalkIn(name: string) {
     if (!name.trim()) return;
+    const normalized = name.trim().toLowerCase();
+    const matchedInvite = pnmInvites.find((p) => {
+      const pnmName = (p.pnm_leads?.full_name ?? "").toLowerCase();
+      return pnmName === normalized || pnmName.startsWith(normalized) || normalized.startsWith(pnmName.split(" ")[0] ?? "");
+    });
+
+    if (matchedInvite && !matchedInvite.checked_in) {
+      await checkInPnm(matchedInvite.id, `${name} matched invite list — checked in`);
+      return;
+    }
+
     const { data, error } = await supabase.from("event_rsvps").insert({
       event_id: eventId,
       guest_name: name.trim(),
@@ -124,7 +176,12 @@ export default function CheckInPage() {
           const result = await qrReaderRef.current.decodeOnceFromVideoElement(videoRef.current);
           const code = result.getText();
           const match = attendees.find((a) => a.id === code || a.member_id === code);
-          if (match && !match.checked_in) await checkIn(match.id);
+          if (match && !match.checked_in) {
+            await checkIn(match.id);
+          } else {
+            const pnmMatch = pnmInvites.find((p) => p.invite_token === code || p.id === code);
+            if (pnmMatch && !pnmMatch.checked_in) await checkInPnm(pnmMatch.id);
+          }
         } catch {
           // continue scanning
         }
@@ -145,8 +202,8 @@ export default function CheckInPage() {
 
   useEffect(() => () => stopCamera(), []);
 
-  const checked = attendees.filter((a) => a.checked_in).length;
-  const total = attendees.filter((a) => a.status === "going").length;
+  const checked = attendees.filter((a) => a.checked_in).length + pnmInvites.filter((p) => p.checked_in).length;
+  const total = attendees.filter((a) => a.status === "going").length + pnmInvites.filter((p) => p.rsvp_status === "going" || p.rsvp_status === "pending").length;
 
   const filtered = attendees.filter((a) => {
     if (!query) return true;
@@ -214,7 +271,7 @@ export default function CheckInPage() {
           <p className="text-xs text-muted-foreground mt-2 text-center">
             Point camera at a member&apos;s QR code to check them in automatically.
           </p>
-          <p className="text-xs text-muted-foreground text-center">Scanning member QR codes. Point camera at RSVP QR code to check in.</p>
+          <p className="text-xs text-muted-foreground text-center">Scan member RSVP QR codes or PNM invite links (token).</p>
         </Card>
       )}
 
@@ -282,6 +339,36 @@ export default function CheckInPage() {
                       <p className="text-xs text-green-600">Checked in {a.checked_in_at ? new Date(a.checked_in_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}</p>
                     </div>
                     <button onClick={() => undoCheckIn(a.id)} className="text-muted-foreground hover:text-foreground">
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+
+                {pnmInvites.length > 0 && (
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-3">PNM invites</p>
+                )}
+                {pnmInvites.filter((p) => !p.checked_in && (!query || (p.pnm_leads?.full_name ?? "").toLowerCase().includes(query.toLowerCase()))).map((p) => (
+                  <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card hover:bg-surface-1 transition-colors">
+                    <Avatar name={p.pnm_leads?.full_name ?? "PNM"} size="sm" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm text-foreground">{p.pnm_leads?.full_name ?? "PNM"}</p>
+                      <p className="text-xs text-muted-foreground">PNM · RSVP: {p.rsvp_status}</p>
+                    </div>
+                    <Button size="sm" icon={<Check size={14} />} onClick={() => checkInPnm(p.id)}>
+                      Check in
+                    </Button>
+                  </div>
+                ))}
+                {pnmInvites.filter((p) => p.checked_in && (!query || (p.pnm_leads?.full_name ?? "").toLowerCase().includes(query.toLowerCase()))).map((p) => (
+                  <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl border border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-950/20">
+                    <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                      <Check size={14} className="text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm text-foreground">{p.pnm_leads?.full_name ?? "PNM"}</p>
+                      <p className="text-xs text-green-600">PNM checked in {p.checked_in_at ? new Date(p.checked_in_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}</p>
+                    </div>
+                    <button onClick={() => undoPnmCheckIn(p.id)} className="text-muted-foreground hover:text-foreground">
                       <X size={14} />
                     </button>
                   </div>

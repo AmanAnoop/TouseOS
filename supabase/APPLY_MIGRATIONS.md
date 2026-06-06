@@ -31,6 +31,7 @@ Run these SQL files **in order** in the Supabase SQL Editor (or `psql` against y
 | 050 | `050_sidebar_prefs.sql` | Yes — editable sidebar preferences |
 | 051 | `051_chapter_os_fixes.sql` | Yes — task points, document folders, hardship RLS, standards panel |
 | 052 | `052_chapter_os_wave3.sql` | Yes — document folder RLS, per-member housing rent due day |
+| 053 | `053_chapter_os_wave4_pnm_rsvp.sql` | Yes — PNM event invite RSVP tokens and check-in |
 
 After apply:
 
