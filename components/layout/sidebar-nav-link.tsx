@@ -29,7 +29,7 @@ export function SidebarNavLink({
             padding: "2px 6px",
             borderRadius: 4,
             background: "color-mix(in srgb, var(--color-org-primary) 20%, transparent)",
-            color: "var(--color-text-inverse)",
+            color: "var(--color-sidebar-text)",
             fontSize: 10,
             letterSpacing: 0,
             textTransform: "none",

@@ -74,6 +74,7 @@ export async function POST(request: Request) {
     isRecurring,
     assigneeMemberIds,
     notifyViaSms,
+    pointReward,
   } = body;
   if (!orgId || !title?.trim()) {
     return NextResponse.json({ error: "orgId and title required" }, { status: 400 });
@@ -113,6 +114,9 @@ export async function POST(request: Request) {
 
   if (isRecurring !== undefined) {
     insertPayload.is_recurring = Boolean(isRecurring);
+  }
+  if (pointReward !== undefined) {
+    insertPayload.point_reward = Math.max(0, Number(pointReward) || 0);
   }
 
   const { data, error } = await insertTaskRow(supabase, insertPayload);
@@ -177,15 +181,28 @@ export async function PATCH(request: Request) {
   } = body;
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
-  const { data: existing } = await supabase.from("tasks").select("org_id, title, due_date, priority").eq("id", id).single();
+  const { data: existing } = await supabase
+    .from("tasks")
+    .select("org_id, title, due_date, priority, status, point_reward")
+    .eq("id", id)
+    .single();
   if (!existing) return NextResponse.json({ error: "Task not found" }, { status: 404 });
 
   const orgId = orgIdFromBody ?? existing.org_id;
   const updates: Record<string, unknown> = { ...rest };
+  if (rest.pointReward !== undefined) {
+    updates.point_reward = Math.max(0, Number(rest.pointReward) || 0);
+    delete updates.pointReward;
+  }
   if (status) {
     updates.status = status;
-    if (status === "done") updates.completed_at = new Date().toISOString();
-    else updates.completed_at = null;
+    if (status === "done") {
+      updates.completed_at = new Date().toISOString();
+      updates.completed_by = user.id;
+    } else {
+      updates.completed_at = null;
+      updates.completed_by = null;
+    }
   }
   const recurring = isRecurringSnake ?? isRecurringCamel;
   if (recurring !== undefined) {
@@ -231,6 +248,30 @@ export async function PATCH(request: Request) {
 
   const { data, error } = await updateTaskRow(supabase, id, updates);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (
+    status === "done"
+    && existing.status !== "done"
+    && Number(existing.point_reward ?? updates.point_reward ?? 0) > 0
+  ) {
+    const reward = Number(updates.point_reward ?? existing.point_reward ?? 0);
+    const { data: member } = await supabase
+      .from("member_profiles")
+      .select("id")
+      .eq("org_id", orgId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (member && reward > 0) {
+      await supabase.from("member_point_entries").insert({
+        org_id: orgId,
+        member_id: member.id,
+        points: reward,
+        reason: `Completed task: ${existing.title}`,
+        entry_type: "award",
+        awarded_by: user.id,
+      });
+    }
+  }
 
   let sms: Awaited<ReturnType<typeof notifyTaskAssigneesViaSms>> | undefined;
   if (notifyViaSms) {

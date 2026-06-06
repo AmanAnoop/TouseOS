@@ -5,6 +5,8 @@ export const OPTIONAL_TASK_COLUMNS = [
   "is_recurring",
   "recurrence_rule",
   "attachment_urls",
+  "point_reward",
+  "completed_by",
 ] as const;
 
 function stripOptionalColumns(payload: Record<string, unknown>): Record<string, unknown> {

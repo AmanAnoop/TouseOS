@@ -1,6 +1,6 @@
 "use client";
 
-import { Calendar, CheckCircle2, Minus, Trophy } from "lucide-react";
+import { Trophy } from "lucide-react";
 import { Avatar, Badge, Card, EmptyState } from "@/components/ui";
 import type { MemberProfile } from "@/types";
 
@@ -24,30 +24,11 @@ interface PointsSystemOverviewProps {
 const RANK_BORDER = ["#B8952A", "#9CA3AF", "#A16207"];
 
 export function PointsSystemOverview({
-  rules,
   leaderboard,
   entries,
   eligibilityMin,
   currentMemberId,
 }: PointsSystemOverviewProps) {
-  const howItWorks = [
-    {
-      icon: Calendar,
-      label: "Attend an event",
-      value: `+${rules.find((r) => r.label.toLowerCase().includes("meeting"))?.points ?? 10} pts`,
-    },
-    {
-      icon: CheckCircle2,
-      label: "Complete a module",
-      value: "+5 pts",
-    },
-    {
-      icon: Minus,
-      label: "Miss mandatory event",
-      value: "-10 pts",
-    },
-  ];
-
   const myRow = currentMemberId
     ? leaderboard.find((m) => m.id === currentMemberId)
     : undefined;
@@ -60,20 +41,7 @@ export function PointsSystemOverview({
 
   return (
     <div className="ds-page-stack">
-      <section className="points-overview-section">
-        <h2 className="type-h2">How it works</h2>
-        <div className="grid md:grid-cols-3 gap-4">
-          {howItWorks.map((card) => (
-            <Card key={card.label}>
-              <card.icon size={20} style={{ marginBottom: 12, opacity: 0.6 }} aria-hidden />
-              <p className="type-h3" style={{ marginBottom: 8 }}>{card.label}</p>
-              <p className="type-display" style={{ fontSize: 28, margin: 0 }}>{card.value}</p>
-            </Card>
-          ))}
-        </div>
-      </section>
-
-      <section className="points-overview-section">
+      <section>
         <h2 className="type-h2">Top members</h2>
         <Card padding="none">
           {leaderboard.length === 0 ? (

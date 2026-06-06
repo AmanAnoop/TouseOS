@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { can, type RoleName } from "@/lib/permissions";
 import { tagsWithType } from "@/lib/task-config";
+import { triggerBudgetSyncForOrg } from "@/lib/budget-auto-sync";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -12,6 +13,19 @@ export async function GET(request: Request) {
   const orgId = searchParams.get("org_id");
   if (!orgId) return NextResponse.json({ error: "org_id required" }, { status: 400 });
 
+  const { data: membership } = await supabase
+    .from("org_members")
+    .select("role")
+    .eq("org_id", orgId)
+    .eq("user_id", user.id)
+    .neq("status", "removed")
+    .maybeSingle();
+
+  const officerRoles = ["owner", "president", "treasurer", "vice_president", "advisor"];
+  if (!membership || !officerRoles.includes(String(membership.role))) {
+    return NextResponse.json({ error: "Treasurer or president access required" }, { status: 403 });
+  }
+
   const { data, error } = await supabase
     .from("hardship_requests")
     .select("*, member_profiles(full_name, email)")
@@ -19,7 +33,35 @@ export async function GET(request: Request) {
     .order("created_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data ?? []);
+
+  const enriched = await Promise.all(
+    (data ?? []).map(async (row) => {
+      const mp = row.member_profiles as { full_name?: string; email?: string } | null;
+      if (mp?.full_name) return row;
+      if (row.submitter_name) {
+        return {
+          ...row,
+          member_profiles: { full_name: String(row.submitter_name), email: mp?.email ?? "" },
+        };
+      }
+      if (row.user_id) {
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", row.user_id)
+          .maybeSingle();
+        if (prof?.full_name) {
+          return {
+            ...row,
+            member_profiles: { full_name: prof.full_name, email: mp?.email ?? "" },
+          };
+        }
+      }
+      return row;
+    }),
+  );
+
+  return NextResponse.json(enriched);
 }
 
 export async function POST(request: Request) {
@@ -56,6 +98,7 @@ export async function POST(request: Request) {
       org_id: orgId,
       member_id: profile?.id ?? null,
       user_id: user.id,
+      submitter_name: memberName,
       requested_amount: requestedAmount != null ? Number(requestedAmount) : null,
       arrangement: arrangement ?? "waiver",
       reason,
@@ -160,6 +203,10 @@ export async function PATCH(request: Request) {
     resource_type: "hardship_requests",
     resource_id: id,
   });
+
+  if (status === "approved") {
+    void triggerBudgetSyncForOrg(orgId, user.id);
+  }
 
   return NextResponse.json({ success: true, request: data });
 }

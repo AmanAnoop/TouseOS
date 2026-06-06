@@ -18,6 +18,16 @@
   /* Light text on org primary, sidebar, and other saturated surfaces */
   --color-text-inverse: #F7F6F3;
   --color-text-on-brand: #F7F6F3;
+  --color-sidebar-text: #F7F6F3;
+  --color-sidebar-text-muted: rgba(247, 246, 243, 0.65);
+
+  /* Spacing scale (8px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
 
   --color-success: #2D6A4F;
   --color-warning: #B45309;
@@ -58,6 +68,8 @@
   --color-text-tertiary: #5A5855;
   --color-text-inverse: #0F1117;
   --color-text-on-brand: #F7F6F3;
+  --color-sidebar-text: #F7F6F3;
+  --color-sidebar-text-muted: rgba(247, 246, 243, 0.65);
 
   --color-success: #4ADE80;
   --color-warning: #FBB040;
@@ -299,7 +311,17 @@
     outline: none;
   }
 
+  .ds-segment-group {
+    display: flex;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+  }
+
   .ds-segment {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
     flex: 1;
     min-height: 36px;
     padding: 0 12px;
@@ -475,13 +497,13 @@
 
   .ds-sidebar-nav-item:hover {
     background-color: rgba(255, 255, 255, 0.04);
-    color: var(--color-text-inverse);
+    color: var(--color-sidebar-text);
   }
 
   .ds-sidebar-nav-item[data-active="true"] {
     background-color: color-mix(in srgb, var(--color-org-primary) 12%, transparent);
     border-left-color: var(--color-org-primary);
-    color: var(--color-text-inverse);
+    color: var(--color-sidebar-text);
   }
 
   .ds-sidebar-nav-item[data-active="true"] .ds-sidebar-nav-icon {
@@ -507,9 +529,9 @@
 
   /* Page header */
   .ds-page-header {
-    min-height: 56px;
-    padding: 0 0 16px;
-    margin: 0 0 8px;
+    min-height: auto;
+    padding: 0 0 var(--space-2);
+    margin: 0 0 var(--space-4);
     border-bottom: 1px solid var(--color-border);
     background-color: transparent;
     display: flex;
@@ -535,13 +557,19 @@
     box-shadow: var(--shadow-sm);
   }
 
+  .ds-card-header-block {
+    margin-bottom: var(--space-4);
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--color-border);
+  }
+
   .ds-card-header {
     font-size: 14px;
     font-weight: 600;
     color: var(--color-text-primary);
-    padding-bottom: 12px;
-    margin-bottom: 16px;
-    border-bottom: 1px solid var(--color-border);
+    padding: 0;
+    margin: 0;
+    border: none;
   }
 
   /* Buttons */
@@ -1063,7 +1091,7 @@
     position: relative;
     overflow: hidden;
     background: var(--color-sidebar);
-    color: var(--color-text-inverse);
+    color: var(--color-sidebar-text);
   }
 
   @media (min-width: 1024px) {
@@ -1137,12 +1165,20 @@
     font-weight: 400;
     letter-spacing: -0.3px;
     line-height: 1.1;
-    color: var(--color-text-inverse);
+    color: var(--color-sidebar-text);
+  }
+
+  .auth-mobile-brand .auth-brand-name {
+    color: var(--color-text-primary);
+  }
+
+  .auth-mobile-brand .auth-brand-tagline {
+    color: var(--color-text-secondary);
   }
 
   .auth-brand-tagline {
     font-size: 12px;
-    color: color-mix(in srgb, var(--color-text-inverse) 65%, transparent);
+    color: color-mix(in srgb, var(--color-sidebar-text) 65%, transparent);
   }
 
   .auth-panel-hero {
@@ -1154,8 +1190,8 @@
     font-weight: 500;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: color-mix(in srgb, var(--color-text-inverse) 55%, transparent);
-    margin: 0 0 16px;
+    color: color-mix(in srgb, var(--color-sidebar-text) 55%, transparent);
+    margin: 0 0 var(--space-4);
   }
 
   .auth-panel-headline {
@@ -1165,15 +1201,15 @@
     letter-spacing: -0.5px;
     line-height: 1.15;
     margin: 0;
-    color: var(--color-text-inverse);
+    color: var(--color-sidebar-text);
   }
 
   .auth-panel-lead {
-    margin: 16px 0 0;
+    margin: var(--space-4) 0 0;
     max-width: 400px;
     font-size: 15px;
     line-height: 1.65;
-    color: color-mix(in srgb, var(--color-text-inverse) 72%, transparent);
+    color: color-mix(in srgb, var(--color-sidebar-text) 72%, transparent);
   }
 
   .auth-feature-list {
@@ -1195,20 +1231,20 @@
     width: 40px;
     height: 40px;
     border-radius: 8px;
-    background: color-mix(in srgb, var(--color-text-inverse) 8%, transparent);
-    border: 1px solid color-mix(in srgb, var(--color-text-inverse) 12%, transparent);
+    background: color-mix(in srgb, var(--color-sidebar-text) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-sidebar-text) 12%, transparent);
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    color: color-mix(in srgb, var(--color-text-inverse) 90%, transparent);
+    color: color-mix(in srgb, var(--color-sidebar-text) 90%, transparent);
   }
 
   .auth-feature-title {
     display: block;
     font-size: 14px;
     font-weight: 600;
-    color: var(--color-text-inverse);
+    color: var(--color-sidebar-text);
     margin-bottom: 2px;
   }
 
@@ -1216,13 +1252,13 @@
     display: block;
     font-size: 13px;
     line-height: 1.5;
-    color: color-mix(in srgb, var(--color-text-inverse) 62%, transparent);
+    color: color-mix(in srgb, var(--color-sidebar-text) 62%, transparent);
   }
 
   .auth-panel-foot {
     margin: 0;
     font-size: 12px;
-    color: color-mix(in srgb, var(--color-text-inverse) 45%, transparent);
+    color: color-mix(in srgb, var(--color-sidebar-text) 45%, transparent);
   }
 
   .auth-main {

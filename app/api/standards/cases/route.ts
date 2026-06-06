@@ -33,6 +33,8 @@ export async function POST(request: Request) {
     description,
     hearingDate,
     notes,
+    panelLevel,
+    panelMemberIds,
   } = body;
 
   if (!orgId || !description) {
@@ -68,6 +70,8 @@ export async function POST(request: Request) {
       description,
       hearing_date: hearingDate || null,
       notes: notes || null,
+      panel_level: panelLevel || null,
+      panel_member_ids: Array.isArray(panelMemberIds) ? panelMemberIds : [],
       status: "open",
     })
     .select()

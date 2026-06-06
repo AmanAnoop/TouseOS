@@ -78,6 +78,10 @@ export async function POST(request: Request) {
 
   if (!option) return NextResponse.json({ error: "option required" }, { status: 400 });
   if (vote.status !== "open") return NextResponse.json({ error: "Vote is closed" }, { status: 400 });
+  if (vote.deadline && new Date(vote.deadline) < new Date()) {
+    await supabase.from("governance_votes").update({ status: "closed" }).eq("id", voteId);
+    return NextResponse.json({ error: "Voting deadline has passed" }, { status: 400 });
+  }
 
   const voteOptions = (vote.options as string[]) ?? ["Yes", "No", "Abstain"];
   if (!voteOptions.includes(option)) {

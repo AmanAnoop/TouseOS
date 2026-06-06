@@ -16,6 +16,7 @@ interface ReminderComposerModalProps {
 }
 
 type AudiencePreset = "all_members" | "unpaid_only" | "overdue_only" | "specific";
+type SendVia = "in_app" | "email" | "both" | "sms" | "all";
 
 const DEFAULT_MESSAGE =
   "Hi [First Name], this is a reminder that your dues of $[Amount] are due on [Date]. Please log in to TouseOS to make a payment.";
@@ -26,8 +27,9 @@ export function ReminderComposerModal({
   const [body, setBody] = useState(DEFAULT_MESSAGE);
   const [audience, setAudience] = useState<AudiencePreset>("unpaid_only");
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
+  const [memberMessages, setMemberMessages] = useState<Record<string, string>>({});
   const [memberSearch, setMemberSearch] = useState("");
-  const [sendVia, setSendVia] = useState<"in_app" | "email" | "both">("both");
+  const [sendVia, setSendVia] = useState<SendVia>("both");
   const [includeHardship, setIncludeHardship] = useState(true);
   const [includePaymentPlans, setIncludePaymentPlans] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -57,6 +59,11 @@ export function ReminderComposerModal({
 
   function removeChip(id: string) {
     setSelectedMemberIds((prev) => prev.filter((x) => x !== id));
+    setMemberMessages((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
   }
 
   async function send() {
@@ -64,8 +71,8 @@ export function ReminderComposerModal({
     setLoading(true);
 
     const audienceMap: Record<AudiencePreset, string> = {
-      all_members: "all_unpaid",
-      unpaid_only: "all_unpaid",
+      all_members: "all_members",
+      unpaid_only: "unpaid_only",
       overdue_only: "overdue_only",
       specific: "individual",
     };
@@ -83,6 +90,7 @@ export function ReminderComposerModal({
         memberIds: audience === "specific" && selectedMemberIds.length > 1
           ? selectedMemberIds
           : undefined,
+        memberMessages: audience === "specific" ? memberMessages : undefined,
         sendVia,
         includeHardship,
         includePaymentPlans,
@@ -127,7 +135,7 @@ export function ReminderComposerModal({
             value={audience}
             onChange={(e) => setAudience(e.target.value as AudiencePreset)}
           >
-            <option value="all_members">All members</option>
+            <option value="all_members">All members with dues on file</option>
             <option value="unpaid_only">Unpaid only</option>
             <option value="overdue_only">Overdue only</option>
             <option value="specific">Pick individual members</option>
@@ -145,7 +153,7 @@ export function ReminderComposerModal({
               {filteredMembers.length > 0 && (
                 <ul className="ds-autocomplete-list" style={{ position: "relative", marginTop: 4 }}>
                   {filteredMembers.map((m) => (
-                    <li key={m.id} role="option">
+                    <li key={m.id} role="option" aria-selected={selectedMemberIds.includes(m.id)}>
                       <button
                         type="button"
                         className="ds-autocomplete-item"
@@ -180,17 +188,40 @@ export function ReminderComposerModal({
           <p className="type-small" style={{ color: "var(--color-text-tertiary)", marginTop: 4 }}>
             {audience === "overdue_only"
               ? `${overdue.length} overdue charge${overdue.length !== 1 ? "s" : ""}`
-              : `${unpaid.length} outstanding charge${unpaid.length !== 1 ? "s" : ""}`}
+              : audience === "all_members"
+                ? `${members.length} members on roster`
+                : `${unpaid.length} outstanding charge${unpaid.length !== 1 ? "s" : ""}`}
           </p>
         </div>
 
-        <Textarea
-          label="Message"
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          rows={5}
-          style={{ minHeight: 120 }}
-        />
+        {audience === "specific" && selectedMemberIds.length > 0 ? (
+          <div className="space-y-3">
+            <p className="type-label">Personalize each message</p>
+            {selectedMemberIds.map((id) => {
+              const m = members.find((x) => x.id === id);
+              return (
+                <Textarea
+                  key={id}
+                  label={m?.full_name ?? "Member"}
+                  value={memberMessages[id] ?? body}
+                  onChange={(e) => setMemberMessages({ ...memberMessages, [id]: e.target.value })}
+                  rows={3}
+                />
+              );
+            })}
+            <p className="type-small" style={{ color: "var(--color-text-tertiary)" }}>
+              Use [First Name], $[Amount], and [Date] — they are filled in automatically for each person.
+            </p>
+          </div>
+        ) : (
+          <Textarea
+            label="Message"
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={5}
+            style={{ minHeight: 120 }}
+          />
+        )}
 
         <div className="ds-field">
           <span className="type-label">Exclude from reminders</span>
@@ -216,11 +247,12 @@ export function ReminderComposerModal({
 
         <div className="ds-field">
           <span className="type-label">Send via</span>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="ds-segment-group">
             {([
-              ["in_app", "In-app notification"],
+              ["in_app", "In-app"],
               ["email", "Email"],
-              ["both", "Both"],
+              ["sms", "Text message"],
+              ["all", "All channels"],
             ] as const).map(([value, label]) => (
               <button
                 key={value}

@@ -148,7 +148,7 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
         <Link
           href={productHomePath(product)}
           className="flex items-center gap-3"
-          style={{ gap: 12, textDecoration: "none", color: "var(--color-text-inverse)" }}
+          style={{ gap: 12, textDecoration: "none", color: "var(--color-sidebar-text)" }}
         >
           <div
             className="ds-brand-mark flex items-center justify-center"
@@ -190,7 +190,7 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
               background: "transparent",
               border: "none",
               cursor: "pointer",
-              color: "var(--color-text-inverse)",
+              color: "var(--color-sidebar-text)",
             }}
           >
             <div
@@ -248,7 +248,7 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
                     fontSize: 13,
                     background: o.id === org.id ? "rgba(255,255,255,0.06)" : "transparent",
                     border: "none",
-                    color: "var(--color-text-inverse)",
+                    color: "var(--color-sidebar-text)",
                     cursor: "pointer",
                     textAlign: "left",
                   }}
@@ -337,7 +337,7 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
           <Link
             href="/profile"
             className="flex items-center gap-2 flex-1 min-w-0"
-            style={{ textDecoration: "none", color: "var(--color-text-inverse)" }}
+            style={{ textDecoration: "none", color: "var(--color-sidebar-text)" }}
           >
             <Avatar name={profile.full_name || "User"} src={profile.avatar_url} size="sm" variant="chrome" />
             <span

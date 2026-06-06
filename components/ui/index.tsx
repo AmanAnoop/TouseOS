@@ -144,11 +144,9 @@ export function CardHeader({ title, description, action, icon, className }: Card
             {icon}
           </div>
         )}
-        <div>
-          <div className="ds-card-header" style={{ marginBottom: description ? 4 : 0, paddingBottom: description ? 8 : 12 }}>
-            {title}
-          </div>
-          {description && <p className="type-small" style={{ margin: 0 }}>{description}</p>}
+        <div className="ds-card-header-block" style={{ flex: 1, minWidth: 0 }}>
+          <div className="ds-card-header">{title}</div>
+          {description && <p className="type-small" style={{ margin: "4px 0 0" }}>{description}</p>}
         </div>
       </div>
       {action && <div style={{ flexShrink: 0 }}>{action}</div>}

@@ -23,9 +23,10 @@ interface TaskDetailPanelProps {
   twilioLive?: boolean | null;
   onClose: () => void;
   onUpdate: () => void;
+  onDelete?: () => void;
 }
 
-export function TaskDetailPanel({ task, orgId, userName, twilioLive, onClose, onUpdate }: TaskDetailPanelProps) {
+export function TaskDetailPanel({ task, orgId, userName, twilioLive, onClose, onUpdate, onDelete }: TaskDetailPanelProps) {
   const supabase = createClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [comments, setComments] = useState<TaskComment[]>([]);
@@ -126,9 +127,14 @@ export function TaskDetailPanel({ task, orgId, userName, twilioLive, onClose, on
           <h2 className="font-semibold text-foreground truncate">{task.title}</h2>
           <p className="text-xs text-muted-foreground">{task.assignee_name ?? "Unassigned"} · {task.status.replace("_", " ")}</p>
         </div>
+        <div className="flex items-center gap-1">
+          {onDelete && (
+            <Button size="sm" variant="secondary" onClick={onDelete}>Delete</Button>
+          )}
         <button onClick={onClose} className="p-2 rounded-lg hover:bg-surface-1 text-muted-foreground">
           <X size={18} />
         </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6">

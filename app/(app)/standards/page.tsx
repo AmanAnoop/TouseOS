@@ -35,7 +35,16 @@ interface StandardsCase {
 interface Member {
   id: string;
   full_name: string;
+  role?: string;
 }
+
+const PANEL_LEVELS = [
+  { value: "", label: "Choose board level…" },
+  { value: "exec", label: "Exec board" },
+  { value: "standards", label: "Standards board" },
+  { value: "advisor", label: "Advisors" },
+  { value: "committee", label: "Committee chairs" },
+];
 
 const STATUS_COLOR: Record<string, string> = {
   open: "yellow",
@@ -84,6 +93,8 @@ export default function StandardsPage() {
     description: "",
     hearingDate: "",
     notes: "",
+    panelLevel: "",
+    panelMemberId: "",
   });
 
   const load = useCallback(async (oid: string) => {
@@ -94,9 +105,9 @@ export default function StandardsPage() {
     ]);
     const caseData = caseRes.ok ? await caseRes.json() : [];
     const allMembers = memberRes.ok ? await memberRes.json() : [];
-    const memberData = (allMembers as Array<{ id: string; full_name: string; membership_status: string }>)
+    const memberData = (allMembers as Array<{ id: string; full_name: string; membership_status: string; role: string }>)
       .filter((m) => m.membership_status === "active")
-      .map((m) => ({ id: m.id, full_name: m.full_name }));
+      .map((m) => ({ id: m.id, full_name: m.full_name, role: m.role }));
     setCases((caseData as StandardsCase[]).map((c) => ({
       ...c,
       sanctions: c.sanctions ?? [],
@@ -131,6 +142,8 @@ export default function StandardsPage() {
         description: form.description,
         hearingDate: form.hearingDate || null,
         notes: form.notes || null,
+        panelLevel: form.panelLevel || null,
+        panelMemberIds: form.panelMemberId ? [form.panelMemberId] : [],
       }),
     });
     const data = await res.json();
@@ -140,7 +153,7 @@ export default function StandardsPage() {
     }
     toast.success("Case created");
     setCreateOpen(false);
-    setForm({ respondentId: "", respondentName: "", caseType: "conduct", description: "", hearingDate: "", notes: "" });
+    setForm({ respondentId: "", respondentName: "", caseType: "conduct", description: "", hearingDate: "", notes: "", panelLevel: "", panelMemberId: "" });
     load(orgId);
   }
 
@@ -400,6 +413,36 @@ export default function StandardsPage() {
             { value: "dues", label: "Dues violation" },
             { value: "other", label: "Other" },
           ]} />
+          <Select
+            label="Board level"
+            value={form.panelLevel}
+            onChange={(e) => setForm({ ...form, panelLevel: e.target.value, panelMemberId: "" })}
+            options={PANEL_LEVELS}
+          />
+          {form.panelLevel && (
+            <Select
+              label="Member to meet with respondent"
+              value={form.panelMemberId}
+              onChange={(e) => setForm({ ...form, panelMemberId: e.target.value })}
+              options={[
+                { value: "", label: "Select member…" },
+                ...members
+                  .filter((m) => {
+                    if (form.panelLevel === "exec") {
+                      return ["owner", "president", "vice_president", "treasurer", "secretary"].includes(m.role ?? "");
+                    }
+                    if (form.panelLevel === "standards") {
+                      return ["standards_chair", "vice_president", "president"].includes(m.role ?? "");
+                    }
+                    if (form.panelLevel === "advisor") {
+                      return m.role === "advisor";
+                    }
+                    return !["general_member", "new_member"].includes(m.role ?? "");
+                  })
+                  .map((m) => ({ value: m.id, label: m.full_name })),
+              ]}
+            />
+          )}
           <Textarea label="Description *" placeholder="Describe the situation..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="min-h-[100px]" />
           <Input label="Hearing date (optional)" type="date" value={form.hearingDate} onChange={(e) => setForm({ ...form, hearingDate: e.target.value })} />
           <Textarea label="Notes" placeholder="Internal notes..." value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />

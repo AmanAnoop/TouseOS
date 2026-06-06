@@ -145,10 +145,23 @@ export function computeHealthScore(input: HealthScoreInput): {
   const lines = input.budgets.flatMap((b) => b.budget_lines ?? []);
   const expenseLines = lines.filter((l) => l.type === "expense" && Number(l.budgeted) > 0);
   if (expenseLines.length > 0) {
-    const withinBudget = expenseLines.filter((l) => Number(l.actual) <= Number(l.budgeted)).length;
-    const score = Math.round((withinBudget / expenseLines.length) * 100);
+    const totalBudgeted = expenseLines.reduce((s, l) => s + Number(l.budgeted), 0);
+    const totalActual = expenseLines.reduce((s, l) => s + Number(l.actual), 0);
+    const spendRatio = totalBudgeted > 0 ? totalActual / totalBudgeted : 0;
+    let score: number;
+    if (spendRatio <= 1) {
+      // Under or on budget: 100 at 0% spent, 70 at 100% spent
+      score = Math.round(100 - spendRatio * 30);
+    } else {
+      // Over budget: drops quickly — 10% over ≈ 58, 50% over ≈ 0
+      score = Math.max(0, Math.round(70 - (spendRatio - 1) * 140));
+    }
+    const overBy = totalActual - totalBudgeted;
+    const detail = overBy > 0
+      ? `$${Math.round(overBy)} over budget (${Math.round(spendRatio * 100)}% spent)`
+      : `${Math.round(spendRatio * 100)}% of budget used`;
     breakdown.budgetHealth = score;
-    meta.budgetHealth = buildMeta("budgetHealth", score, true, `${withinBudget}/${expenseLines.length} lines on budget`);
+    meta.budgetHealth = buildMeta("budgetHealth", score, true, detail);
   } else if (lines.length > 0) {
     meta.budgetHealth = buildMeta("budgetHealth", 0, false, "Set budgeted amounts on expense lines");
   } else {
@@ -230,6 +243,15 @@ export function computeHealthScore(input: HealthScoreInput): {
     metricsTotal,
   };
 }
+
+/** Plain-language summary of what moves the health score up or down. */
+export const HEALTH_SCORE_DRIVERS = [
+  "Dues collected on time raise the score; overdue balances lower it.",
+  "Staying at or under budget raises the score; spending over budget lowers it.",
+  "Strong event attendance and member retention help.",
+  "Open tasks, overdue reimbursements, and missing forms pull the score down.",
+  "Areas without data are left out — they are not counted as perfect.",
+] as const;
 
 export function healthScoreLabel(score: number | null): { label: string; color: "green" | "yellow" | "red" | "gray" } {
   if (score === null) return { label: "Insufficient data", color: "gray" };

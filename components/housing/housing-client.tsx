@@ -301,37 +301,34 @@ export function HousingClient() {
         title="Housing"
         description="Room assignments, maintenance requests, and house management"
         action={
-          <div className="flex flex-col gap-2 sm:items-end">
-            <div className="flex gap-2 flex-wrap justify-end">
-              <span className="text-xs text-muted-foreground self-center mr-1 hidden sm:inline">Billing</span>
+          canManageHousing ? (
+            <div className="flex gap-2 flex-wrap justify-end items-center">
               <Link href="/payments"><Button size="sm" variant="secondary">Payments</Button></Link>
               <Link href="/budget"><Button size="sm" variant="secondary">Budget</Button></Link>
-              {canManageHousing && assignments.length > 0 && totalRent > 0 && (
-                <Button size="sm" variant="secondary" onClick={() => setRentOpen(true)}>
-                  Post monthly rent
-                </Button>
-              )}
+              <Button size="sm" icon={<Plus size={14} />} onClick={() => setRentOpen(true)}>
+                Post monthly rent
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  setEditContact(null);
+                  setContactForm({ name: "", roleLabel: "", category: "general", phone: "", email: "", notes: "" });
+                  setContactOpen(true);
+                }}
+              >
+                Add contact
+              </Button>
+              <Button size="sm" icon={<Plus size={14} />} onClick={() => setRoomOpen(true)}>
+                Add room
+              </Button>
             </div>
-            {canManageHousing && (
-              <div className="flex gap-2 flex-wrap justify-end">
-                <span className="text-xs text-muted-foreground self-center mr-1 hidden sm:inline">House</span>
-                <Button size="sm" icon={<Plus size={14} />} onClick={() => setRoomOpen(true)}>
-                  Add room
-                </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => {
-                    setEditContact(null);
-                    setContactForm({ name: "", roleLabel: "", category: "general", phone: "", email: "", notes: "" });
-                    setContactOpen(true);
-                  }}
-                >
-                  Add contact
-                </Button>
-              </div>
-            )}
-          </div>
+          ) : (
+            <div className="flex gap-2 flex-wrap justify-end">
+              <Link href="/payments"><Button size="sm" variant="secondary">Payments</Button></Link>
+              <Link href="/budget"><Button size="sm" variant="secondary">Budget</Button></Link>
+            </div>
+          )
         }
       />
 
