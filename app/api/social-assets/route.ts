@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { orgId, title, assetType, content } = await request.json();
+  const { orgId, title, assetType, content, fileUrl } = await request.json();
   if (!orgId || !title) return NextResponse.json({ error: "orgId and title required" }, { status: 400 });
 
   const { data, error } = await supabase.from("social_assets").insert({
@@ -27,6 +27,7 @@ export async function POST(request: Request) {
     title,
     asset_type: assetType ?? "template",
     content: content ?? null,
+    file_url: fileUrl ?? null,
     created_by: user.id,
   }).select().single();
 

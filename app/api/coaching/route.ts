@@ -44,3 +44,48 @@ export async function POST(request: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data, { status: 201 });
 }
+
+export async function PATCH(request: Request) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { orgId, memberId, availability } = await request.json();
+  if (!orgId || !memberId || !availability) {
+    return NextResponse.json({ error: "orgId, memberId, and availability required" }, { status: 400 });
+  }
+
+  const { data: existing } = await supabase
+    .from("coaching_notes")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("note_type", "availability")
+    .eq("title", memberId)
+    .maybeSingle();
+
+  if (existing) {
+    const { data, error } = await supabase
+      .from("coaching_notes")
+      .update({ content: availability })
+      .eq("id", existing.id)
+      .select()
+      .single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(data);
+  }
+
+  const { data, error } = await supabase
+    .from("coaching_notes")
+    .insert({
+      org_id: orgId,
+      note_type: "availability",
+      title: memberId,
+      content: availability,
+      created_by: user.id,
+    })
+    .select()
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data, { status: 201 });
+}

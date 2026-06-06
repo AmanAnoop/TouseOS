@@ -29,7 +29,7 @@ export async function GET(
     supabase.from("greek_trip_budget_items").select("*, payer:paid_by(full_name)").eq("trip_id", tripId),
     supabase.from("greek_trip_checklist_items").select("*").eq("trip_id", tripId).order("sort_order"),
     supabase.from("greek_trip_documents").select("*").eq("trip_id", tripId).order("created_at", { ascending: false }),
-    supabase.from("member_profiles").select("id, full_name").eq("org_id", orgId).eq("status", "active"),
+    supabase.from("member_profiles").select("id, full_name").eq("org_id", orgId).eq("membership_status", "active"),
   ]);
 
   return NextResponse.json({

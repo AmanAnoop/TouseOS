@@ -3,14 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft, Calendar, CheckSquare, DollarSign, FileText, MapPin, Send, Users,
+  ArrowLeft, Calendar, CheckSquare, DollarSign, Download, FileText, MapPin, Send, Upload, Users,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
   Badge, Button, Card, CardHeader, EmptyState, Input, Modal, PageHeader,
   ProgressBar, Select, StatCard, Tabs,
 } from "@/components/ui";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { downloadCsv, formatCurrency, formatDate } from "@/lib/utils";
 import { BUDGET_CATEGORIES, GREEK_TRIP_TYPES } from "@/lib/travel-config";
 import { can } from "@/lib/permissions";
 import { useOrg } from "@/hooks/use-org";
@@ -27,6 +27,7 @@ export function GreekTripDetail({ tripId }: GreekTripDetailProps) {
   const [budgetOpen, setBudgetOpen] = useState(false);
   const [checklistLabel, setChecklistLabel] = useState("");
   const [budgetForm, setBudgetForm] = useState({ category: "transportation", description: "", estCost: "" });
+  const [uploadingDoc, setUploadingDoc] = useState(false);
 
   const canManage = can(role, "manage_travel") || can(role, "edit_roster");
 
@@ -164,21 +165,40 @@ export function GreekTripDetail({ tripId }: GreekTripDetailProps) {
             title="RSVP roster"
             icon={<Users size={16} />}
             action={canManage && orgId ? (
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={async () => {
-                  await fetch(`/api/greek/travel/${tripId}/roster`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ orgId, action: "invite_all" }),
-                  });
-                  toast.success("All members invited");
-                  load(orgId);
-                }}
-              >
-                Invite all members
-              </Button>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  icon={<Download size={14} />}
+                  onClick={() => {
+                    downloadCsv(`${String(trip?.name ?? "trip")}-roster.csv`, rsvps.map((r) => {
+                      const member = r.member as { full_name?: string } | undefined;
+                      return {
+                        Name: member?.full_name ?? "Member",
+                        RSVP: String(r.status).replace("_", " "),
+                        "Dietary notes": String(r.dietary_notes || ""),
+                      };
+                    }));
+                  }}
+                >
+                  Export CSV
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={async () => {
+                    await fetch(`/api/greek/travel/${tripId}/roster`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ orgId, action: "invite_all" }),
+                    });
+                    toast.success("All members invited");
+                    load(orgId);
+                  }}
+                >
+                  Invite all members
+                </Button>
+              </div>
             ) : undefined}
           />
           {rsvps.length === 0 ? (
@@ -274,7 +294,46 @@ export function GreekTripDetail({ tripId }: GreekTripDetailProps) {
 
       {tab === "documents" && (
         <Card>
-          <CardHeader title="Trip documents" icon={<FileText size={16} />} />
+          <CardHeader
+            title="Trip documents"
+            icon={<FileText size={16} />}
+            action={canManage && orgId ? (
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={<Upload size={14} />}
+                loading={uploadingDoc}
+                onClick={() => document.getElementById("greek-trip-doc-input")?.click()}
+              >
+                Upload
+              </Button>
+            ) : undefined}
+          />
+          {canManage && orgId && (
+            <input
+              id="greek-trip-doc-input"
+              type="file"
+              accept=".pdf,.docx,.png,.jpg,.jpeg"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file || !orgId) return;
+                setUploadingDoc(true);
+                const fd = new FormData();
+                fd.append("file", file);
+                fd.append("org_id", orgId);
+                const res = await fetch(`/api/greek/travel/${tripId}/documents`, { method: "POST", body: fd });
+                setUploadingDoc(false);
+                if (res.ok) {
+                  toast.success("Document uploaded");
+                  load(orgId);
+                } else {
+                  toast.error((await res.json()).error ?? "Upload failed");
+                }
+                e.target.value = "";
+              }}
+            />
+          )}
           {documents.length === 0 ? (
             <EmptyState title="No documents" description="Upload PDF, DOCX, PNG, or JPG files." />
           ) : (
