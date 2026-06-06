@@ -6,6 +6,7 @@ export const OPTIONAL_TASK_COLUMNS = [
   "recurrence_rule",
   "attachment_urls",
   "point_reward",
+  "point_reward_recipient",
   "completed_by",
 ] as const;
 

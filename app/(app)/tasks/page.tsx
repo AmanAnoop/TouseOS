@@ -32,7 +32,7 @@ export default function TasksPage() {
   const [form, setForm] = useState({
     taskType: "administrative" as TaskTypeValue,
     title: "", description: "", priority: "medium" as TaskPriority, isRecurring: false,
-    dueDate: "", assigneeName: "", tags: "", pointReward: "0",
+    dueDate: "", assigneeName: "", tags: "", pointReward: "0", pointRewardRecipient: "completer" as "completer" | "assignees",
   });
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [notifyViaSms, setNotifyViaSms] = useState(false);
@@ -127,6 +127,7 @@ export default function TasksPage() {
           tags,
           is_recurring: form.isRecurring,
           pointReward: parseInt(form.pointReward, 10) || 0,
+          pointRewardRecipient: form.pointRewardRecipient,
           notifyViaSms: notifyViaSms && selectedMemberIds.length > 0,
         }),
       });
@@ -149,6 +150,7 @@ export default function TasksPage() {
           tags,
           isRecurring: form.isRecurring,
           pointReward: parseInt(form.pointReward, 10) || 0,
+          pointRewardRecipient: form.pointRewardRecipient,
           notifyViaSms: notifyViaSms && selectedMemberIds.length > 0,
         }),
       });
@@ -161,7 +163,7 @@ export default function TasksPage() {
 
     setCreateOpen(false);
     setEditTask(null);
-    setForm({ taskType: "administrative", title: "", description: "", priority: "medium", isRecurring: false, dueDate: "", assigneeName: "", tags: "", pointReward: "0" });
+    setForm({ taskType: "administrative", title: "", description: "", priority: "medium", isRecurring: false, dueDate: "", assigneeName: "", tags: "", pointReward: "0", pointRewardRecipient: "completer" });
     setSelectedMemberIds([]);
     setNotifyViaSms(false);
     load(orgId);
@@ -204,6 +206,7 @@ export default function TasksPage() {
       assigneeName: task.assignee_name ?? "",
       tags: (task.tags ?? []).filter((t) => !t.startsWith("type:")).join(", "),
       pointReward: String((task as Task & { point_reward?: number }).point_reward ?? 0),
+      pointRewardRecipient: ((task as Task & { point_reward_recipient?: string }).point_reward_recipient === "assignees" ? "assignees" : "completer"),
     });
     setSelectedMemberIds(
       assignees.map((a) => a.member_id).filter((id): id is string => Boolean(id)),
@@ -431,10 +434,20 @@ export default function TasksPage() {
             label="Point reward"
             type="number"
             min={0}
-            hint="Anyone who completes this task earns these points"
             value={form.pointReward}
             onChange={(e) => setForm({ ...form, pointReward: e.target.value })}
           />
+          {Number(form.pointReward) > 0 && (
+            <Select
+              label="Award points to"
+              value={form.pointRewardRecipient}
+              onChange={(e) => setForm({ ...form, pointRewardRecipient: e.target.value as "completer" | "assignees" })}
+              options={[
+                { value: "completer", label: "Whoever marks the task done (even if unassigned)" },
+                { value: "assignees", label: "Assigned members when task is completed" },
+              ]}
+            />
+          )}
           <Input label="Tags (comma-separated)" placeholder="recruitment, social, important" value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} />
           {editTask && (
             <Select

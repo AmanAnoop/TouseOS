@@ -58,7 +58,7 @@ export default function InterchapterPage() {
   const [tab, setTab] = useState("proposals");
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [ideas, setIdeas] = useState<Idea[]>([]);
-  const { orgId, orgType, userId } = useOrg();
+  const { orgId, orgType, userId, loading: orgLoading } = useOrg();
   const [proposeOpen, setProposeOpen] = useState(false);
   const [ideaOpen, setIdeaOpen] = useState(false);
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
@@ -248,6 +248,14 @@ export default function InterchapterPage() {
   const sent = proposals.filter((p) => p.proposing_org_id === orgId);
 
   const isGreek = orgType === "fraternity" || orgType === "sorority";
+
+  if (orgLoading) {
+    return (
+      <div className="ds-page-stack">
+        <div className="h-40 rounded-lg bg-surface-2 animate-pulse" />
+      </div>
+    );
+  }
 
   if (!isGreek) {
     return (

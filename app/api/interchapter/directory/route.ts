@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { GREEK_LETTER_ORGS, type GreekOrgKind } from "@/lib/greek-letter-orgs";
 
 /** National Greek org directory with platform chapter listings. */
 export async function GET(request: Request) {
-  const supabase = await createClient();
+  const auth = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await auth.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const supabase = await createServiceClient();
 
   const params = new URL(request.url).searchParams;
   const q = params.get("q")?.trim().toLowerCase() ?? "";

@@ -13,6 +13,21 @@ import {
   isProtectedNavHref,
   type SidebarProductPreferences,
 } from "@/lib/sidebar-preferences";
+import type { SidebarSectionDef } from "@/lib/sidebar-navigation";
+
+function orderedSectionItems(
+  section: SidebarSectionDef,
+  prefs: SidebarProductPreferences,
+) {
+  const customOrder = prefs.sectionOrder[section.id];
+  if (!customOrder?.length) return section.items;
+  const orderMap = new Map(customOrder.map((href, index) => [href, index]));
+  return [...section.items].sort((a, b) => {
+    const ai = orderMap.has(a.href) ? orderMap.get(a.href)! : 10_000 + section.items.indexOf(a);
+    const bi = orderMap.has(b.href) ? orderMap.get(b.href)! : 10_000 + section.items.indexOf(b);
+    return ai - bi;
+  });
+}
 import { sidebarIcon } from "@/components/layout/sidebar-icons";
 
 export const SIDEBAR_PREFS_UPDATED_EVENT = "touseos:sidebar-preferences-updated";
@@ -188,7 +203,7 @@ export function SidebarEditorPanel({
           <Card key={section.id} padding="sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">{section.title}</p>
             <ul className="space-y-1">
-              {section.items.map((item) => {
+              {orderedSectionItems(section, prefs).map((item) => {
                 const hidden = prefs.hiddenHrefs.includes(item.href) && !isProtectedNavHref(item.href, product);
                 const protectedItem = isProtectedNavHref(item.href, product);
                 return (

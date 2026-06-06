@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Heart, RefreshCw, TrendingUp } from "lucide-react";
-import { useOrg } from "@/hooks/use-org";
+import { usePageOrgLoader } from "@/hooks/use-page-org-loader";
 import {
   Alert, Badge, Button, Card, CardHeader, PageHeader, ProgressBar, StatCard,
 } from "@/components/ui";
@@ -15,29 +15,29 @@ interface MetricMeta {
 }
 
 export default function HealthPage() {
-  const { orgId } = useOrg();
-  const [loading, setLoading] = useState(true);
   const [composite, setComposite] = useState<number | null>(null);
   const [metricsUsed, setMetricsUsed] = useState(0);
   const [metricsTotal, setMetricsTotal] = useState(0);
   const [meta, setMeta] = useState<Partial<Record<HealthMetricKey, MetricMeta>> | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   async function load(oid: string) {
-    setLoading(true);
-    const res = await fetch(`/api/health?orgId=${oid}`);
+    setLoadError(null);
+    const res = await fetch(`/api/health?orgId=${encodeURIComponent(oid)}`);
     if (res.ok) {
       const data = await res.json();
       setComposite(data.composite ?? null);
       setMeta(data.meta ?? null);
       setMetricsUsed(data.metricsUsed ?? 0);
       setMetricsTotal(data.metricsTotal ?? 0);
+    } else {
+      const err = await res.json().catch(() => ({}));
+      setLoadError((err as { error?: string }).error ?? "Failed to load health score");
+      setMeta(null);
     }
-    setLoading(false);
   }
 
-  useEffect(() => {
-    if (orgId) load(orgId);
-  }, [orgId]);
+  const { orgId, loading } = usePageOrgLoader(load, []);
 
   const healthMeta = healthScoreLabel(composite);
 
@@ -71,7 +71,11 @@ export default function HealthPage() {
         }
       />
 
-      {composite === null && !loading && (
+      {loadError && !loading && (
+        <Alert type="error" title="Could not load health score" description={loadError} />
+      )}
+
+      {composite === null && !loading && !loadError && (
         <Alert
           type="info"
           title="Not enough data yet"
@@ -140,6 +144,8 @@ export default function HealthPage() {
               );
             })}
           </div>
+        ) : loadError ? (
+          <p className="text-sm text-muted-foreground">{loadError}</p>
         ) : (
           <p className="text-sm text-muted-foreground">Unable to load health score.</p>
         )}

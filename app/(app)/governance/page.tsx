@@ -47,7 +47,7 @@ interface MemberOption {
 }
 
 export default function GovernancePage() {
-  const { orgId, userId } = useOrg();
+  const { orgId, userId, loading: orgLoading } = useOrg();
   const { can, loading: permLoading } = usePermissions();
   const [tab, setTab] = useState("meetings");
   const [meetings, setMeetings] = useState<Meeting[]>([]);
@@ -88,8 +88,9 @@ export default function GovernancePage() {
   }, []);
 
   useEffect(() => {
+    if (orgLoading) return;
     if (orgId) load(orgId);
-  }, [orgId, load]);
+  }, [orgId, orgLoading, load]);
 
   async function createMeeting() {
     if (!orgId || !form.title) return;

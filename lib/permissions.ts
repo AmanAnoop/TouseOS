@@ -88,7 +88,7 @@ const ROLE_PERMISSIONS: Record<RoleName, Permission[]> = {
   ],
   secretary: [
     "view_roster","edit_roster","manage_events","view_documents",
-    "manage_documents","view_reports",
+    "manage_documents","view_reports","manage_org_settings",
   ],
   social_chair: [
     "view_roster","manage_events","manage_guest_lists","view_photos",

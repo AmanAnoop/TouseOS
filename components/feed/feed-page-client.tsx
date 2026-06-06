@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 import { FeedComposer } from "@/components/feed/feed-composer";
 import { FeedUpcomingEvents } from "@/components/feed/feed-upcoming-events";
-import { Badge, Card, EmptyState } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, Modal } from "@/components/ui";
 import { timeAgo } from "@/lib/utils";
-import { Bell, Star } from "lucide-react";
+import { Bell, Star, Trash2 } from "lucide-react";
 
 type FeedItem = {
   id: string;
@@ -37,6 +39,26 @@ export function FeedPageClient({
   upcomingEvents: UpcomingEvent[];
 }) {
   const router = useRouter();
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteTitle, setDeleteTitle] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  async function confirmDelete() {
+    if (!deleteId) return;
+    setDeleting(true);
+    const res = await fetch(
+      `/api/comms/announcements?id=${encodeURIComponent(deleteId)}&org_id=${encodeURIComponent(orgId)}`,
+      { method: "DELETE" },
+    );
+    setDeleting(false);
+    if (!res.ok) {
+      toast.error((await res.json().catch(() => ({}))).error ?? "Could not delete");
+      return;
+    }
+    toast.success("Announcement removed");
+    setDeleteId(null);
+    router.refresh();
+  }
 
   return (
     <div className="max-w-xl mx-auto">
@@ -81,6 +103,18 @@ export function FeedPageClient({
                       <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{String(a.body)}</p>
                       <p className="text-xs text-muted-foreground mt-2">{String(a.author_name ?? "Officer")} · {timeAgo(String(a.created_at))}</p>
                     </div>
+                    {isOfficer && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        icon={<Trash2 size={14} />}
+                        aria-label="Delete announcement"
+                        onClick={() => {
+                          setDeleteId(item.id);
+                          setDeleteTitle(String(a.title));
+                        }}
+                      />
+                    )}
                   </div>
                 </Card>
               );
@@ -112,6 +146,22 @@ export function FeedPageClient({
           })
         )}
       </div>
+
+      <Modal
+        open={Boolean(deleteId)}
+        onClose={() => setDeleteId(null)}
+        title="Delete announcement"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setDeleteId(null)}>Cancel</Button>
+            <Button variant="danger" loading={deleting} onClick={confirmDelete}>Delete</Button>
+          </>
+        }
+      >
+        <p className="text-sm text-muted-foreground">
+          Remove &ldquo;{deleteTitle}&rdquo; from the chapter feed? This cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }

@@ -32,6 +32,7 @@ Run these SQL files **in order** in the Supabase SQL Editor (or `psql` against y
 | 051 | `051_chapter_os_fixes.sql` | Yes — task points, document folders, hardship RLS, standards panel |
 | 052 | `052_chapter_os_wave3.sql` | Yes — document folder RLS, per-member housing rent due day |
 | 053 | `053_chapter_os_wave4_pnm_rsvp.sql` | Yes — PNM event invite RSVP tokens and check-in |
+| 054 | `054_ux_bugfixes.sql` | Yes — task point recipient mode, Greek org discovery for interchapter |
 
 After apply:
 

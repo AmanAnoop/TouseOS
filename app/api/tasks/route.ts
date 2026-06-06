@@ -6,6 +6,48 @@ import { resolveAssignees, syncTaskAssignees } from "@/lib/task-assignee";
 import { notifyTaskAssigneesViaSms } from "@/lib/task-sms";
 import { insertTaskRow, updateTaskRow } from "@/lib/tasks-db";
 
+async function awardTaskPointReward(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  opts: {
+    orgId: string;
+    taskId: string;
+    taskTitle: string;
+    reward: number;
+    recipientMode: string;
+    actorUserId: string;
+  },
+) {
+  const memberIds: string[] = [];
+  if (opts.recipientMode === "assignees") {
+    const { data: assignees } = await supabase
+      .from("task_assignees")
+      .select("member_id")
+      .eq("task_id", opts.taskId);
+    for (const row of assignees ?? []) {
+      if (row.member_id) memberIds.push(String(row.member_id));
+    }
+  } else {
+    const { data: member } = await supabase
+      .from("member_profiles")
+      .select("id")
+      .eq("org_id", opts.orgId)
+      .eq("user_id", opts.actorUserId)
+      .maybeSingle();
+    if (member?.id) memberIds.push(String(member.id));
+  }
+
+  for (const memberId of [...new Set(memberIds)]) {
+    await supabase.from("member_point_entries").insert({
+      org_id: opts.orgId,
+      member_id: memberId,
+      points: opts.reward,
+      reason: `Completed task: ${opts.taskTitle}`,
+      entry_type: "earned",
+      created_by: opts.actorUserId,
+    });
+  }
+}
+
 function normalizeAssigneeNames(body: Record<string, unknown>): string[] {
   if (Array.isArray(body.assigneeNames)) {
     return body.assigneeNames.map((n) => String(n).trim()).filter(Boolean);
@@ -75,6 +117,7 @@ export async function POST(request: Request) {
     assigneeMemberIds,
     notifyViaSms,
     pointReward,
+    pointRewardRecipient,
   } = body;
   if (!orgId || !title?.trim()) {
     return NextResponse.json({ error: "orgId and title required" }, { status: 400 });
@@ -117,6 +160,9 @@ export async function POST(request: Request) {
   }
   if (pointReward !== undefined) {
     insertPayload.point_reward = Math.max(0, Number(pointReward) || 0);
+  }
+  if (pointRewardRecipient === "assignees" || pointRewardRecipient === "completer") {
+    insertPayload.point_reward_recipient = pointRewardRecipient;
   }
 
   const { data, error } = await insertTaskRow(supabase, insertPayload);
@@ -183,7 +229,7 @@ export async function PATCH(request: Request) {
 
   const { data: existing } = await supabase
     .from("tasks")
-    .select("org_id, title, due_date, priority, status, point_reward")
+    .select("org_id, title, due_date, priority, status, point_reward, point_reward_recipient")
     .eq("id", id)
     .single();
   if (!existing) return NextResponse.json({ error: "Task not found" }, { status: 404 });
@@ -193,6 +239,10 @@ export async function PATCH(request: Request) {
   if (rest.pointReward !== undefined) {
     updates.point_reward = Math.max(0, Number(rest.pointReward) || 0);
     delete updates.pointReward;
+  }
+  if (rest.pointRewardRecipient === "assignees" || rest.pointRewardRecipient === "completer") {
+    updates.point_reward_recipient = rest.pointRewardRecipient;
+    delete updates.pointRewardRecipient;
   }
   if (status) {
     updates.status = status;
@@ -249,28 +299,19 @@ export async function PATCH(request: Request) {
   const { data, error } = await updateTaskRow(supabase, id, updates);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  if (
-    status === "done"
-    && existing.status !== "done"
-    && Number(existing.point_reward ?? updates.point_reward ?? 0) > 0
-  ) {
-    const reward = Number(updates.point_reward ?? existing.point_reward ?? 0);
-    const { data: member } = await supabase
-      .from("member_profiles")
-      .select("id")
-      .eq("org_id", orgId)
-      .eq("user_id", user.id)
-      .maybeSingle();
-    if (member && reward > 0) {
-      await supabase.from("member_point_entries").insert({
-        org_id: orgId,
-        member_id: member.id,
-        points: reward,
-        reason: `Completed task: ${existing.title}`,
-        entry_type: "award",
-        awarded_by: user.id,
-      });
-    }
+  const reward = Number(updates.point_reward ?? existing.point_reward ?? 0);
+  const recipientMode = String(
+    updates.point_reward_recipient ?? existing.point_reward_recipient ?? "completer",
+  );
+  if (status === "done" && existing.status !== "done" && reward > 0) {
+    await awardTaskPointReward(supabase, {
+      orgId,
+      taskId: id,
+      taskTitle: String(existing.title),
+      reward,
+      recipientMode,
+      actorUserId: user.id,
+    });
   }
 
   let sms: Awaited<ReturnType<typeof notifyTaskAssigneesViaSms>> | undefined;
