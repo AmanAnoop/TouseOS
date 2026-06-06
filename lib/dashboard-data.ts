@@ -3,6 +3,8 @@ import { computeHealthScore } from "@/lib/health-score";
 import type { DeadlineItem } from "@/components/dashboard/upcoming-deadlines";
 import { attachPhotoDisplayUrls } from "@/lib/photo-access";
 import { isClubOrg, isGreekOrg, isSportsOrg } from "@/lib/utils";
+import { filterRosterMembers } from "@/lib/member-filters";
+import { enrichMemberPhotos } from "@/lib/member-photo";
 import type {
   Announcement,
   Event,
@@ -271,14 +273,13 @@ export async function loadDashboardData(
   ] = await Promise.all([
     supabase
       .from("member_profiles")
-      .select(
-        "id, full_name, membership_status, payment_status, attendance_rate, forms_completed, forms_required, created_at, is_injured, user_id",
-      )
-      .eq("org_id", orgId),
+      .select("*, profiles:user_id(avatar_url)")
+      .eq("org_id", orgId)
+      .order("full_name"),
     supabase
       .from("member_profiles")
       .select(
-        "id, full_name, membership_status, payment_status, attendance_rate, forms_completed, forms_required, created_at, is_injured",
+        "id, full_name, membership_status, payment_status, attendance_rate, forms_completed, forms_required, created_at, is_injured, user_id, profile_photo_url, profiles:user_id(avatar_url)",
       )
       .eq("org_id", orgId)
       .eq("user_id", userId)
@@ -369,7 +370,9 @@ export async function loadDashboardData(
       .limit(200),
   ]);
 
-  const members = (membersRes.data ?? []) as MemberProfile[];
+  const members = enrichMemberPhotos(
+    filterRosterMembers((membersRes.data ?? []) as MemberProfile[]),
+  );
   const events = (eventsRes.data ?? []) as Event[];
   const payments = (paymentsRes.data ?? []) as Payment[];
   const announcements = (announcementsRes.data ?? []) as Announcement[];
@@ -417,7 +420,10 @@ export async function loadDashboardData(
   const sportsTryouts = (tryoutsRes.data ?? []) as DashboardData["sportsTryouts"];
   const clubApplications = (clubMembershipRes.data ?? []) as DashboardData["clubApplications"];
   const clubHours = (clubServiceRes.data ?? []) as DashboardData["clubHours"];
-  const myProfile = (myProfileRes.data ?? null) as MemberProfile | null;
+  const myProfileRaw = (myProfileRes.data ?? null) as (MemberProfile & { profiles?: { avatar_url?: string | null } | null }) | null;
+  const myProfile = myProfileRaw
+    ? enrichMemberPhotos([myProfileRaw])[0]
+    : null;
 
   const allEventIds = ((allEventsRes.data ?? []) as Array<{ id: string }>).map((e) => e.id);
   const pastEvents = (pastEventsRes.data ?? []) as Array<{

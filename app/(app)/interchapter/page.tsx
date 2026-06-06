@@ -2,15 +2,15 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  ArrowRight, Calendar, CheckCircle, ChevronRight,
-  Lightbulb, MessageSquare, Plus, Share2, ThumbsUp, Zap,
+  ArrowRight, Calendar, ChevronRight,
+  Lightbulb, Plus, ThumbsUp, Zap,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { useOrg } from "@/hooks/use-org";
 import {
   Alert, Badge, Button, Card, EmptyState,
-  Modal, Input, PageHeader, Select, StatCard, Tabs, Textarea,
+  Modal, Input, PageHeader, Select, Tabs, Textarea,
 } from "@/components/ui";
 import { formatCurrency } from "@/lib/utils";
 import { AvailabilityMatcher, type AvailabilityEntry } from "@/components/interchapter/availability-matcher";
@@ -245,7 +245,6 @@ export default function InterchapterPage() {
   }
 
   const incoming = proposals.filter((p) => p.target_org_id === orgId && p.status === "pending");
-  const sent = proposals.filter((p) => p.proposing_org_id === orgId);
 
   const isGreek = orgType === "fraternity" || orgType === "sorority";
 
@@ -301,13 +300,6 @@ export default function InterchapterPage() {
       )}
 
       <InterchapterSummaryPanel orgId={orgId} />
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard title="Incoming" value={incoming.length} icon={<MessageSquare size={18} />} />
-        <StatCard title="Sent proposals" value={sent.length} icon={<Share2 size={18} />} />
-        <StatCard title="Community ideas" value={ideas.length} icon={<Lightbulb size={18} />} />
-        <StatCard title="Accepted" value={proposals.filter((p) => p.status === "accepted").length} deltaType="up" icon={<CheckCircle size={18} />} />
-      </div>
 
       <Tabs
         tabs={[

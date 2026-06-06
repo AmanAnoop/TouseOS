@@ -118,6 +118,8 @@ export async function POST(request: Request) {
     notifyViaSms,
     pointReward,
     pointRewardRecipient,
+    pointRewardOpen,
+    customRewardText,
   } = body;
   if (!orgId || !title?.trim()) {
     return NextResponse.json({ error: "orgId and title required" }, { status: 400 });
@@ -163,6 +165,12 @@ export async function POST(request: Request) {
   }
   if (pointRewardRecipient === "assignees" || pointRewardRecipient === "completer") {
     insertPayload.point_reward_recipient = pointRewardRecipient;
+  }
+  if (pointRewardOpen !== undefined) {
+    insertPayload.point_reward_open = Boolean(pointRewardOpen);
+  }
+  if (customRewardText !== undefined) {
+    insertPayload.custom_reward_text = customRewardText ? String(customRewardText).trim() : null;
   }
 
   const { data, error } = await insertTaskRow(supabase, insertPayload);
@@ -243,6 +251,14 @@ export async function PATCH(request: Request) {
   if (rest.pointRewardRecipient === "assignees" || rest.pointRewardRecipient === "completer") {
     updates.point_reward_recipient = rest.pointRewardRecipient;
     delete updates.pointRewardRecipient;
+  }
+  if (rest.pointRewardOpen !== undefined) {
+    updates.point_reward_open = Boolean(rest.pointRewardOpen);
+    delete updates.pointRewardOpen;
+  }
+  if (rest.customRewardText !== undefined) {
+    updates.custom_reward_text = rest.customRewardText ? String(rest.customRewardText).trim() : null;
+    delete updates.customRewardText;
   }
   if (status) {
     updates.status = status;

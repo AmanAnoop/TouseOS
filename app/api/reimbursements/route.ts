@@ -173,3 +173,43 @@ export async function PATCH(request: Request) {
 
   return NextResponse.json({ ...data, message: toastMessage });
 }
+
+export async function DELETE(request: Request) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id");
+  const orgId = searchParams.get("org_id");
+  if (!id || !orgId) return NextResponse.json({ error: "id and org_id required" }, { status: 400 });
+
+  const role = await membershipForOrg(supabase, user.id, orgId);
+  if (!canReviewReimbursements(role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { data: existing } = await supabase
+    .from("reimbursements")
+    .select("id, org_id, status")
+    .eq("id", id)
+    .eq("org_id", orgId)
+    .maybeSingle();
+
+  if (!existing) return NextResponse.json({ error: "Reimbursement not found" }, { status: 404 });
+
+  const { error } = await supabase.from("reimbursements").delete().eq("id", id).eq("org_id", orgId);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await supabase.from("audit_logs").insert({
+    org_id: orgId,
+    actor_id: user.id,
+    action: "reimbursement_deleted",
+    resource_type: "reimbursements",
+    resource_id: id,
+    metadata: { status: existing.status },
+  });
+
+  void triggerBudgetSyncForOrg(orgId, user.id);
+  return NextResponse.json({ success: true });
+}

@@ -5,6 +5,7 @@ import { Camera, Plus } from "lucide-react";
 import toast from "react-hot-toast";
 import { Badge, Button, Card, EmptyState, Modal, Select, Textarea } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
+import type { MemberProfile } from "@/types";
 
 interface PhotoRequest {
   id: string;
@@ -12,6 +13,7 @@ interface PhotoRequest {
   category: string;
   requester_name: string | null;
   album_id: string | null;
+  target_member_ids: string[];
   fulfillments: number;
   created_at: string;
 }
@@ -33,18 +35,21 @@ const CATEGORIES = [
 export function PhotoRequestsPanel({ orgId }: { orgId: string }) {
   const [requests, setRequests] = useState<PhotoRequest[]>([]);
   const [albums, setAlbums] = useState<PhotoAlbum[]>([]);
+  const [members, setMembers] = useState<MemberProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ description: "", category: "mixer", albumId: "" });
+  const [form, setForm] = useState({ description: "", category: "mixer", albumId: "", targetMemberIds: [] as string[] });
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [reqRes, albumRes] = await Promise.all([
+    const [reqRes, albumRes, memberRes] = await Promise.all([
       fetch(`/api/photo-requests?org_id=${orgId}`),
       fetch(`/api/photo-albums?org_id=${encodeURIComponent(orgId)}`),
+      fetch(`/api/members?org_id=${encodeURIComponent(orgId)}&scope=roster`),
     ]);
     if (reqRes.ok) setRequests(await reqRes.json());
     if (albumRes.ok) setAlbums(await albumRes.json());
+    if (memberRes.ok) setMembers(await memberRes.json());
     setLoading(false);
   }, [orgId]);
 
@@ -53,8 +58,22 @@ export function PhotoRequestsPanel({ orgId }: { orgId: string }) {
   }, [load]);
 
   const albumTitleById = new Map(albums.map((a) => [a.id, a.title]));
+  const memberNameById = new Map(members.map((m) => [m.id, m.full_name]));
+
+  function toggleMember(id: string) {
+    setForm((prev) => ({
+      ...prev,
+      targetMemberIds: prev.targetMemberIds.includes(id)
+        ? prev.targetMemberIds.filter((x) => x !== id)
+        : [...prev.targetMemberIds, id],
+    }));
+  }
 
   async function createRequest() {
+    if (form.targetMemberIds.length === 0) {
+      toast.error("Select at least one member to request photos from");
+      return;
+    }
     const res = await fetch("/api/photo-requests", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -63,6 +82,7 @@ export function PhotoRequestsPanel({ orgId }: { orgId: string }) {
         description: form.description,
         category: form.category,
         albumId: form.albumId || undefined,
+        targetMemberIds: form.targetMemberIds,
       }),
     });
     const data = await res.json();
@@ -70,9 +90,9 @@ export function PhotoRequestsPanel({ orgId }: { orgId: string }) {
       toast.error(data.error ?? "Could not create request");
       return;
     }
-    toast.success("Photo request sent to chapter");
+    toast.success("Photo request sent");
     setOpen(false);
-    setForm({ description: "", category: "mixer", albumId: "" });
+    setForm({ description: "", category: "mixer", albumId: "", targetMemberIds: [] });
     load();
   }
 
@@ -103,7 +123,7 @@ export function PhotoRequestsPanel({ orgId }: { orgId: string }) {
         <EmptyState
           icon={<Camera size={24} />}
           title="No photo requests"
-          description="Social chairs can ask members for specific shots after events."
+          description="Ask specific members for photos after events."
           action={<Button size="sm" onClick={() => setOpen(true)}>Create request</Button>}
         />
       ) : (
@@ -122,6 +142,11 @@ export function PhotoRequestsPanel({ orgId }: { orgId: string }) {
                     {r.album_id && albumTitleById.has(r.album_id)
                       ? ` · Album: ${albumTitleById.get(r.album_id)}`
                       : ""}
+                    {" · "}
+                    Requested from{" "}
+                    {(r.target_member_ids ?? []).length
+                      ? (r.target_member_ids ?? []).map((id) => memberNameById.get(id) ?? "Member").join(", ")
+                      : "chapter"}
                     {" · "}{r.fulfillments} upload{r.fulfillments !== 1 ? "s" : ""}
                   </p>
                 </div>
@@ -138,10 +163,13 @@ export function PhotoRequestsPanel({ orgId }: { orgId: string }) {
         open={open}
         onClose={() => setOpen(false)}
         title="Request photos from members"
+        size="lg"
         footer={
           <>
             <Button variant="secondary" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={createRequest} disabled={!form.description.trim()}>Post request</Button>
+            <Button onClick={createRequest} disabled={!form.description.trim() || form.targetMemberIds.length === 0}>
+              Send request
+            </Button>
           </>
         }
       >
@@ -151,15 +179,33 @@ export function PhotoRequestsPanel({ orgId }: { orgId: string }) {
             label="Target album (optional)"
             value={form.albumId}
             onChange={(e) => setForm({ ...form, albumId: e.target.value })}
-            placeholder="Any album / general request"
+            placeholder="No specific album"
             options={[
               { value: "", label: "No specific album" },
               ...albums.map((a) => ({ value: a.id, label: a.title })),
             ]}
           />
+          <div>
+            <p className="text-sm font-medium mb-2">Request from *</p>
+            <div className="max-h-48 overflow-y-auto rounded-lg border border-border divide-y divide-border">
+              {members.length === 0 ? (
+                <p className="text-xs text-muted-foreground p-3">No roster members loaded</p>
+              ) : members.map((m) => (
+                <label key={m.id} className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-surface-1">
+                  <input
+                    type="checkbox"
+                    checked={form.targetMemberIds.includes(m.id)}
+                    onChange={() => toggleMember(m.id)}
+                  />
+                  {m.full_name}
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">{form.targetMemberIds.length} selected</p>
+          </div>
           <Textarea
             label="What do you need?"
-            placeholder="Need 10+ candid photos from Saturday's mixer for Instagram carousel..."
+            placeholder="Need candid photos from Saturday's mixer for Instagram..."
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
             className="min-h-[100px]"

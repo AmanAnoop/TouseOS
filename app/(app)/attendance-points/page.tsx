@@ -28,6 +28,7 @@ import { PointsSystemOverview } from "@/components/points/points-system-overview
 import { DEFAULT_ELIGIBILITY_MIN, mergeRulesWithCatalog, type PointRule } from "@/lib/attendance-points";
 import { eventTypesForOrgType } from "@/lib/org-product";
 import { can, type RoleName } from "@/lib/permissions";
+import { filterRosterMembers } from "@/lib/member-filters";
 import { useOrg } from "@/hooks/use-org";
 import { formatDate } from "@/lib/utils";
 import type { MemberProfile } from "@/types";
@@ -66,7 +67,7 @@ export default function AttendancePointsPage() {
   const load = useCallback(async (oid: string) => {
     setLoading(true);
     const [mRes, pRes, rRes] = await Promise.all([
-      fetch(`/api/members?org_id=${encodeURIComponent(oid)}`),
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}&scope=roster`),
       fetch(`/api/member-points?org_id=${encodeURIComponent(oid)}`),
       fetch(`/api/attendance-point-rules?org_id=${encodeURIComponent(oid)}`),
     ]);
@@ -108,18 +109,27 @@ export default function AttendancePointsPage() {
     return m;
   }, [members]);
 
-  const leaderboard = useMemo(() => {
-    const q = leaderboardSearch.trim().toLowerCase();
-    return [...members]
+  const fullLeaderboard = useMemo(() => {
+    return filterRosterMembers(members)
       .map((mem) => {
         const pts = entries
           .filter((e) => e.member_id === mem.id)
           .reduce((s, e) => s + (e.entry_type === "deduction" ? -e.points : e.points), 0);
         return { ...mem, pts };
       })
-      .filter((mem) => !q || mem.full_name.toLowerCase().includes(q))
       .sort((a, b) => b.pts - a.pts);
-  }, [members, entries, leaderboardSearch]);
+  }, [members, entries]);
+
+  const leaderboard = useMemo(() => {
+    const q = leaderboardSearch.trim().toLowerCase();
+    return fullLeaderboard.filter((mem) => !q || mem.full_name.toLowerCase().includes(q));
+  }, [fullLeaderboard, leaderboardSearch]);
+
+  const rankByMemberId = useMemo(() => {
+    const m = new Map<string, number>();
+    fullLeaderboard.forEach((mem, i) => m.set(mem.id, i + 1));
+    return m;
+  }, [fullLeaderboard]);
 
   const eligibleCount = leaderboard.filter((m) => m.pts >= eligibilityMin).length;
   const activeRules = rules.filter((r) => r.points > 0).length;
@@ -262,6 +272,7 @@ export default function AttendancePointsPage() {
         <PointsSystemOverview
           rules={rules.filter((r) => r.points > 0).map((r) => ({ label: r.label ?? "Points", points: r.points }))}
           leaderboard={leaderboard}
+          rankByMemberId={rankByMemberId}
           entries={entries}
           eligibilityMin={eligibilityMin}
           currentMemberId={members.find((m) => m.user_id === userId)?.id ?? null}
