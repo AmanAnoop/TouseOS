@@ -65,6 +65,7 @@ export default function StandardsPage() {
   const [sanctionInput, setSanctionInput] = useState("");
   const [restorativeForm, setRestorativeForm] = useState({ action: "", dueDate: "" });
   const [editNotes, setEditNotes] = useState("");
+  const [appealNotes, setAppealNotes] = useState("");
 
   const [form, setForm] = useState({
     respondentId: "",
@@ -100,7 +101,10 @@ export default function StandardsPage() {
   }, [orgId, load]);
 
   useEffect(() => {
-    if (selected) setEditNotes(selected.notes ?? "");
+    if (selected) {
+      setEditNotes(selected.notes ?? "");
+      setAppealNotes("");
+    }
   }, [selected]);
 
   async function createCase() {
@@ -195,12 +199,35 @@ export default function StandardsPage() {
     patchCase({ restorativeActions: next });
   }
 
-  const filtered = cases.filter((c) =>
-    tab === "all" || c.status === tab || (tab === "open" && ["open", "hearing_scheduled"].includes(c.status)),
-  );
+  const filtered = cases.filter((c) => {
+    if (tab === "appeals") return c.status === "appealed";
+    if (tab === "all") return true;
+    if (tab === "open") return ["open", "hearing_scheduled"].includes(c.status);
+    return c.status === tab;
+  });
 
   const open = cases.filter((c) => ["open", "hearing_scheduled"].includes(c.status)).length;
+  const appealed = cases.filter((c) => c.status === "appealed").length;
   const resolved = cases.filter((c) => ["resolved", "closed"].includes(c.status)).length;
+
+  async function fileAppeal() {
+    if (!selected || !appealNotes.trim() || !orgId) return;
+    const notes = `${selected.notes ?? ""}\n\n[Appeal ${new Date().toLocaleDateString()}] ${appealNotes.trim()}`.trim();
+    const res = await fetch("/api/standards/cases", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ caseId: selected.id, orgId, status: "appealed", notes }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.error ?? "Appeal failed");
+      return;
+    }
+    setCases((prev) => prev.map((c) => (c.id === selected.id ? { ...c, ...data } : c)));
+    setSelected({ ...selected, ...data });
+    setAppealNotes("");
+    toast.success("Appeal recorded");
+  }
 
   return (
     <div className="space-y-5">
@@ -219,6 +246,7 @@ export default function StandardsPage() {
       <Tabs
         tabs={[
           { id: "open", label: "Open", count: open },
+          { id: "appeals", label: "Appeals", count: appealed },
           { id: "resolved", label: "Resolved" },
           { id: "all", label: "All", count: cases.length },
         ]}
@@ -327,7 +355,16 @@ export default function StandardsPage() {
               <Button onClick={() => updateStatus(selected.id, "resolved")}>Mark resolved</Button>
             )}
             {selected?.status === "resolved" && (
-              <Button variant="secondary" onClick={() => updateStatus(selected.id, "closed")}>Close case</Button>
+              <>
+                <Button variant="secondary" onClick={() => updateStatus(selected.id, "appealed")}>Record appeal</Button>
+                <Button variant="secondary" onClick={() => updateStatus(selected.id, "closed")}>Close case</Button>
+              </>
+            )}
+            {selected?.status === "appealed" && (
+              <>
+                <Button onClick={() => updateStatus(selected.id, "resolved")}>Uphold decision</Button>
+                <Button variant="secondary" onClick={() => updateStatus(selected.id, "open")}>Reopen case</Button>
+              </>
             )}
             <Button variant="secondary" onClick={() => setSelected(null)} className="ml-auto">Close</Button>
           </div>
@@ -398,6 +435,21 @@ export default function StandardsPage() {
               <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400 text-sm">
                 <AlertTriangle size={14} />
                 Hearing scheduled: {formatDate(selected.hearing_date)}
+              </div>
+            )}
+
+            {selected.status === "resolved" && (
+              <div className="border-t border-border pt-4 space-y-2">
+                <p className="text-xs font-semibold uppercase text-muted-foreground">File appeal</p>
+                <Textarea
+                  placeholder="Appeal rationale and requested outcome..."
+                  value={appealNotes}
+                  onChange={(e) => setAppealNotes(e.target.value)}
+                  className="min-h-[80px]"
+                />
+                <Button size="sm" variant="secondary" onClick={fileAppeal} disabled={!appealNotes.trim()}>
+                  Submit appeal
+                </Button>
               </div>
             )}
           </div>

@@ -16,6 +16,7 @@ import {
 } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
 import { useOrg } from "@/hooks/use-org";
+import { SocialCalendarGrid } from "@/components/social/social-calendar-grid";
 
 interface CalendarPost {
   id: string;
@@ -107,6 +108,21 @@ export default function SocialCalendarPage() {
     load(orgId);
   }
 
+  async function reschedulePost(postId: string, newDate: string) {
+    if (!orgId) return;
+    const res = await fetch("/api/social-calendar", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: postId, orgId, scheduledDate: newDate, status: "scheduled" }),
+    });
+    if (!res.ok) {
+      toast.error("Failed to reschedule");
+      return;
+    }
+    toast.success("Post rescheduled");
+    load(orgId);
+  }
+
   async function updateStatus(id: string, status: string) {
     if (!orgId) return;
     const res = await fetch("/api/social-calendar", {
@@ -155,6 +171,7 @@ export default function SocialCalendarPage() {
 
       <Tabs
         tabs={[
+          { id: "grid", label: "Month grid" },
           { id: "calendar", label: "Upcoming", count: upcoming.length },
           { id: "drafts", label: "Drafts", count: drafts.length },
           { id: "templates", label: "Caption templates" },
@@ -164,7 +181,12 @@ export default function SocialCalendarPage() {
         onChange={setTab}
       />
 
-      {tab === "templates" ? (
+      {tab === "grid" ? (
+        <SocialCalendarGrid
+          posts={posts.filter((p) => p.scheduled_date)}
+          onReschedule={reschedulePost}
+        />
+      ) : tab === "templates" ? (
         <div className="grid sm:grid-cols-2 gap-3">
           {CAPTION_TEMPLATES.map((tpl) => (
             <Card key={tpl.label} padding="sm" className="hover:border-greek-300 transition-colors">

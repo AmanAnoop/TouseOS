@@ -32,7 +32,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { orgId, partnerOrgName, title, captionDraft, scheduledDate } = await request.json();
+  const { orgId, partnerOrgName, partnerOrgId, title, captionDraft, scheduledDate } = await request.json();
   if (!orgId || !partnerOrgName || !title) {
     return NextResponse.json({ error: "orgId, partnerOrgName, and title required" }, { status: 400 });
   }
@@ -42,6 +42,7 @@ export async function POST(request: Request) {
     .insert({
       org_id: orgId,
       partner_org_name: partnerOrgName,
+      partner_org_id: partnerOrgId || null,
       title,
       caption_draft: captionDraft ?? null,
       scheduled_date: scheduledDate || null,
@@ -60,7 +61,7 @@ export async function PATCH(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id, orgId, status, captionDraft, scheduledDate, checklist } = await request.json();
+  const { id, orgId, status, captionDraft, scheduledDate, checklist, our_pr_approved, partner_pr_approved } = await request.json();
   if (!id || !orgId) return NextResponse.json({ error: "id and orgId required" }, { status: 400 });
 
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -68,6 +69,8 @@ export async function PATCH(request: Request) {
   if (captionDraft !== undefined) updates.caption_draft = captionDraft;
   if (scheduledDate !== undefined) updates.scheduled_date = scheduledDate;
   if (checklist !== undefined) updates.checklist = checklist;
+  if (our_pr_approved !== undefined) updates.our_pr_approved = Boolean(our_pr_approved);
+  if (partner_pr_approved !== undefined) updates.partner_pr_approved = Boolean(partner_pr_approved);
 
   const { data, error } = await supabase
     .from("collab_posts")

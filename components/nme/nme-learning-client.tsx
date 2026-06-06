@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { BookOpen, CheckCircle2, Lock } from "lucide-react";
+import { BookOpen, CheckCircle2, Download, Lock } from "lucide-react";
 import toast from "react-hot-toast";
 import { Badge, Button, Card, CardHeader, PageHeader, ProgressBar, StatCard } from "@/components/ui";
 import { NmeModuleModal, type QuizQuestion } from "@/components/nme/nme-module-modal";
+import { NmeModuleEditor } from "@/components/nme/nme-module-editor";
+import { usePermissions } from "@/hooks/use-permissions";
 
 interface Module {
   id: string;
@@ -17,6 +19,7 @@ interface Module {
 }
 
 export function NmeLearningClient({ orgId }: { orgId: string }) {
+  const { can } = usePermissions();
   const [modules, setModules] = useState<Module[]>([]);
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -84,6 +87,16 @@ export function NmeLearningClient({ orgId }: { orgId: string }) {
       </div>
       {required.length > 0 && (
         <ProgressBar value={Math.round((doneRequired / required.length) * 100)} label="Required modules complete" />
+      )}
+      {required.length > 0 && doneRequired >= required.length && (
+        <div className="flex justify-end">
+          <a href={`/api/nme/certificate?org_id=${encodeURIComponent(orgId)}`} target="_blank" rel="noopener noreferrer">
+            <Button size="sm" variant="secondary" icon={<Download size={14} />}>Download certificate</Button>
+          </a>
+        </div>
+      )}
+      {can("manage_nme") && (
+        <NmeModuleEditor orgId={orgId} modules={modules} onSaved={load} />
       )}
       <Card>
         <CardHeader title="Your modules" />

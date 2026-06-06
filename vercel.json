@@ -19,6 +19,14 @@
     {
       "path": "/api/cron/tasks-due-soon",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/recurring-tasks",
+      "schedule": "0 9 * * 1"
+    },
+    {
+      "path": "/api/cron/social-calendar-reminders",
+      "schedule": "0 10 * * *"
     }
   ]
 }

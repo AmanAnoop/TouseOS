@@ -60,8 +60,71 @@ export async function buildRosterReport(orgId: string, orgName: string): Promise
   return { rows, filename: `${orgName}-roster.csv` };
 }
 
+export async function buildDuesReport(orgId: string): Promise<ReportRow[]> {
+  const res = await fetch(`/api/payments?org_id=${encodeURIComponent(orgId)}`);
+  const data = res.ok ? await res.json() : [];
+  return (data as Array<Record<string, unknown>>).map((p) => ({
+    Member: String((p.member_profiles as Record<string, unknown>)?.full_name ?? "—"),
+    Email: String((p.member_profiles as Record<string, unknown>)?.email ?? "—"),
+    Amount: Number(p.amount),
+    Paid: Number(p.paid_amount ?? 0),
+    Status: String(p.status),
+    "Due Date": p.due_date ? String(p.due_date) : "",
+    "Paid At": p.paid_at ? String(p.paid_at) : "",
+  }));
+}
+
+export async function buildTasksReport(orgId: string): Promise<ReportRow[]> {
+  const res = await fetch(`/api/tasks?org_id=${encodeURIComponent(orgId)}`);
+  const data = res.ok ? await res.json() : [];
+  return (data as Array<Record<string, unknown>>).map((t) => ({
+    Title: String(t.title),
+    Status: String(t.status),
+    Priority: String(t.priority),
+    Assignee: String(t.assignee_name ?? ""),
+    "Due Date": t.due_date ? String(t.due_date) : "",
+  }));
+}
+
+export async function buildPnmReport(orgId: string): Promise<ReportRow[]> {
+  const res = await fetch(`/api/pnm?org_id=${encodeURIComponent(orgId)}`);
+  const data = res.ok ? await res.json() : [];
+  return (data as Array<Record<string, unknown>>).map((p) => ({
+    Name: String(p.full_name),
+    Email: String(p.email ?? ""),
+    Status: String(p.status),
+    "Class Year": String(p.class_year ?? ""),
+    Major: String(p.major ?? ""),
+    Hometown: String(p.hometown ?? ""),
+  }));
+}
+
+export async function buildBudgetReport(orgId: string): Promise<ReportRow[]> {
+  const res = await fetch(`/api/budget?org_id=${encodeURIComponent(orgId)}`);
+  const budgets = res.ok ? await res.json() : [];
+  const rows: ReportRow[] = [];
+  for (const b of budgets as Array<Record<string, unknown>>) {
+    for (const l of (b.budget_lines as Array<Record<string, unknown>>) ?? []) {
+      rows.push({
+        Budget: String(b.label),
+        Category: String(l.category),
+        Type: String(l.type),
+        Budgeted: Number(l.budgeted),
+        Actual: Number(l.actual),
+        Variance: Number(l.actual) - Number(l.budgeted),
+      });
+    }
+  }
+  return rows;
+}
+
 export const REPORT_META: Record<string, { title: string; description: string }> = {
   roster: { title: "Roster", description: "Active members with contact and status fields" },
   "unpaid-balances": { title: "Unpaid balances", description: "Pending, partial, and overdue payment records" },
   "nme-progress": { title: "NME progress", description: "Member education completion overview" },
+  dues: { title: "Dues", description: "All payment records with amounts and status" },
+  tasks: { title: "Tasks", description: "Open and completed tasks with assignees" },
+  pnm: { title: "PNM pipeline", description: "Recruitment leads and status" },
+  budget: { title: "Budget", description: "Budget lines with variance" },
+  "semester-rewind": { title: "Semester rewind", description: "Term summary metrics" },
 };

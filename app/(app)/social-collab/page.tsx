@@ -5,7 +5,7 @@ import { CheckCircle, Plus, Users } from "lucide-react";
 import toast from "react-hot-toast";
 import { useOrg } from "@/hooks/use-org";
 import {
-  Badge, Button, Card, EmptyState, Input, Modal, PageHeader, Textarea,
+  Badge, Button, Card, EmptyState, Input, Modal, PageHeader, Select, Textarea,
 } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
 
@@ -17,11 +17,19 @@ interface ChecklistItem {
 interface CollabPost {
   id: string;
   partner_org_name: string;
+  partner_org_id?: string | null;
   title: string;
   caption_draft: string | null;
   scheduled_date: string | null;
   status: string;
   checklist: ChecklistItem[];
+  our_pr_approved?: boolean;
+  partner_pr_approved?: boolean;
+}
+
+interface PartnerOrg {
+  id: string;
+  name: string;
 }
 
 export default function SocialCollabPage() {
@@ -29,7 +37,8 @@ export default function SocialCollabPage() {
   const [posts, setPosts] = useState<CollabPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ partnerOrgName: "", title: "", captionDraft: "", scheduledDate: "" });
+  const [partnerOrgs, setPartnerOrgs] = useState<PartnerOrg[]>([]);
+  const [form, setForm] = useState({ partnerOrgId: "", partnerOrgName: "", title: "", captionDraft: "", scheduledDate: "" });
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
@@ -40,7 +49,12 @@ export default function SocialCollabPage() {
   }, []);
 
   useEffect(() => {
-    if (orgId) load(orgId);
+    if (orgId) {
+      load(orgId);
+      fetch(`/api/interchapter/orgs?exclude_org_id=${encodeURIComponent(orgId)}`)
+        .then((r) => (r.ok ? r.json() : []))
+        .then((data) => setPartnerOrgs((data as PartnerOrg[]).map((o) => ({ id: o.id, name: o.name }))));
+    }
   }, [orgId, load]);
 
   async function createCollab() {
@@ -50,7 +64,8 @@ export default function SocialCollabPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         orgId,
-        partnerOrgName: form.partnerOrgName,
+        partnerOrgName: form.partnerOrgName || partnerOrgs.find((o) => o.id === form.partnerOrgId)?.name,
+        partnerOrgId: form.partnerOrgId || null,
         title: form.title,
         captionDraft: form.captionDraft,
         scheduledDate: form.scheduledDate || null,
@@ -63,7 +78,7 @@ export default function SocialCollabPage() {
     }
     toast.success("Collab post created");
     setOpen(false);
-    setForm({ partnerOrgName: "", title: "", captionDraft: "", scheduledDate: "" });
+    setForm({ partnerOrgId: "", partnerOrgName: "", title: "", captionDraft: "", scheduledDate: "" });
     load(orgId);
   }
 
@@ -78,6 +93,16 @@ export default function SocialCollabPage() {
       body: JSON.stringify({ id: post.id, orgId, checklist }),
     });
     if (res.ok) load(orgId);
+  }
+
+  async function toggleApproval(post: CollabPost, field: "our_pr_approved" | "partner_pr_approved") {
+    if (!orgId) return;
+    await fetch("/api/social/collab", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: post.id, orgId, [field]: !post[field] }),
+    });
+    load(orgId);
   }
 
   async function updateStatus(post: CollabPost, status: string) {
@@ -135,6 +160,22 @@ export default function SocialCollabPage() {
                   </label>
                 ))}
               </div>
+              <div className="flex flex-wrap gap-2 mb-3">
+                <button
+                  type="button"
+                  onClick={() => toggleApproval(post, "our_pr_approved")}
+                  className={`text-xs px-2 py-1 rounded-full border ${post.our_pr_approved ? "bg-green-50 border-green-300 text-green-700" : "border-border text-muted-foreground"}`}
+                >
+                  Our PR {post.our_pr_approved ? "✓" : "pending"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => toggleApproval(post, "partner_pr_approved")}
+                  className={`text-xs px-2 py-1 rounded-full border ${post.partner_pr_approved ? "bg-green-50 border-green-300 text-green-700" : "border-border text-muted-foreground"}`}
+                >
+                  Partner PR {post.partner_pr_approved ? "✓" : "pending"}
+                </button>
+              </div>
               <div className="flex gap-2 flex-wrap">
                 {post.status === "planning" && (
                   <Button size="sm" variant="secondary" onClick={() => updateStatus(post, "draft_ready")}>
@@ -164,7 +205,19 @@ export default function SocialCollabPage() {
         }
       >
         <div className="space-y-4">
-          <Input label="Partner chapter" value={form.partnerOrgName} onChange={(e) => setForm({ ...form, partnerOrgName: e.target.value })} placeholder="Alpha Phi" />
+          {partnerOrgs.length > 0 ? (
+            <Select
+              label="Partner chapter"
+              value={form.partnerOrgId}
+              onChange={(e) => {
+                const org = partnerOrgs.find((o) => o.id === e.target.value);
+                setForm({ ...form, partnerOrgId: e.target.value, partnerOrgName: org?.name ?? "" });
+              }}
+              options={[{ value: "", label: "Choose chapter..." }, ...partnerOrgs.map((o) => ({ value: o.id, label: o.name }))]}
+            />
+          ) : (
+            <Input label="Partner chapter" value={form.partnerOrgName} onChange={(e) => setForm({ ...form, partnerOrgName: e.target.value })} placeholder="Alpha Phi" />
+          )}
           <Input label="Post title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Spring mixer recap collab" />
           <Input label="Target date" type="date" value={form.scheduledDate} onChange={(e) => setForm({ ...form, scheduledDate: e.target.value })} />
           <Textarea label="Caption draft" value={form.captionDraft} onChange={(e) => setForm({ ...form, captionDraft: e.target.value })} className="min-h-[80px]" />

@@ -213,7 +213,12 @@ downloadCsv(`${orgName}-semester-rewind.csv`, [{
   const PREVIEW_REPORTS = [
     { id: "roster", label: "Roster preview", description: "Browse active members before exporting" },
     { id: "unpaid-balances", label: "Unpaid balances", description: "Pending and overdue payment records" },
+    { id: "dues", label: "Dues", description: "Full payment ledger" },
+    { id: "tasks", label: "Tasks", description: "Task status and assignees" },
+    { id: "budget", label: "Budget", description: "Budget vs actual variance" },
+    { id: "semester-rewind", label: "Semester rewind", description: "Term summary metrics" },
     { id: "nme-progress", label: "NME progress", description: "Required module completion by member" },
+    ...(isGreek ? [{ id: "pnm", label: "PNM pipeline", description: "Recruitment leads and status" }] : []),
   ];
 
   const REPORTS = {

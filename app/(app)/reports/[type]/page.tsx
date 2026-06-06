@@ -9,7 +9,11 @@ import { downloadCsv } from "@/lib/utils";
 import { useOrg } from "@/hooks/use-org";
 import {
   REPORT_META,
+  buildBudgetReport,
+  buildDuesReport,
+  buildPnmReport,
   buildRosterReport,
+  buildTasksReport,
   buildUnpaidBalancesReport,
   type ReportRow,
 } from "@/lib/report-builders";
@@ -22,12 +26,34 @@ async function loadReport(type: string, orgId: string, orgName: string): Promise
     }
     case "unpaid-balances":
       return buildUnpaidBalancesReport(orgId);
+    case "dues":
+      return buildDuesReport(orgId);
+    case "tasks":
+      return buildTasksReport(orgId);
+    case "pnm":
+      return buildPnmReport(orgId);
+    case "budget":
+      return buildBudgetReport(orgId);
+    case "semester-rewind": {
+      const res = await fetch(`/api/reports/semester-rewind?orgId=${encodeURIComponent(orgId)}`);
+      const data = res.ok ? await res.json() : { summary: {} };
+      const s = data.summary ?? {};
+      return [{
+        "Total Revenue": Number(s.totalRevenue ?? 0),
+        "Total Expenses": Number(s.totalExpenses ?? 0),
+        "Unpaid Balances": Number(s.unpaidBalances ?? 0),
+        "Avg Attendance %": Number(s.avgAttendance ?? 0),
+        "Events Hosted": Number(s.eventsHosted ?? 0),
+        "Task Completion %": Number(s.taskCompletion ?? 0),
+        "PNM Conversion %": s.pnmConversion != null ? Number(s.pnmConversion) : "N/A",
+      }];
+    }
     case "nme-progress": {
       const res = await fetch(`/api/nme/progress-report?org_id=${encodeURIComponent(orgId)}`);
       const data = res.ok ? await res.json() : { rows: [] };
       return (data.rows ?? []).map((r: Record<string, unknown>) => ({
-        Member: r.full_name,
-        Email: r.email,
+        Member: String(r.full_name),
+        Email: String(r.email),
         "Required done": `${r.required_complete}/${r.required_total}`,
         Complete: r.all_done ? "Yes" : "No",
       }));
