@@ -1,8 +1,11 @@
+import { hasItinerary } from "@/lib/itinerary-legs";
+
 import { assessMemberEligibility, type EligibilityIssue } from "@/lib/sports-eligibility";
 
 export interface TravelReadinessInput {
   trip: {
     itinerary: string | null;
+    itinerary_legs?: unknown;
     total_cost: number | null;
   };
   rosterCount: number;
@@ -52,7 +55,7 @@ export function computeTravelReadiness(input: TravelReadinessInput): TravelReadi
     {
       key: "itinerary",
       label: "Itinerary",
-      ok: Boolean(input.trip.itinerary?.trim()),
+      ok: hasItinerary(input.trip),
     },
     {
       key: "costs",

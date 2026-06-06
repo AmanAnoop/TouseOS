@@ -59,7 +59,7 @@ export async function GET(
 
   const roster = rosterRes.data ?? [];
   const readiness = computeTravelReadiness({
-    trip: { itinerary: trip.itinerary, total_cost: trip.total_cost },
+    trip: { itinerary: trip.itinerary, itinerary_legs: trip.itinerary_legs, total_cost: trip.total_cost },
     rosterCount: roster.length,
     confirmedCount: roster.filter((r) => r.confirmed).length,
     driversCount: roster.filter((r) => r.is_driver).length,
@@ -91,7 +91,7 @@ export async function PATCH(
   const { tripId } = await params;
   const body = await request.json();
   const {
-    orgId, status, itinerary, packingList,
+    orgId, status, itinerary, itineraryLegs, packingList,
     destination, venueName, address, departureLocation, meetingPoint,
   } = body;
   if (!orgId) return NextResponse.json({ error: "orgId required" }, { status: 400 });
@@ -118,6 +118,7 @@ export async function PATCH(
     .update({
       ...(status ? { status } : {}),
       ...(itinerary !== undefined ? { itinerary } : {}),
+      ...(itineraryLegs !== undefined ? { itinerary_legs: itineraryLegs } : {}),
       ...(packingList !== undefined ? { packing_list: packingList } : {}),
       ...(destination !== undefined ? { destination } : {}),
       ...(venueName !== undefined ? { venue_name: venueName } : {}),

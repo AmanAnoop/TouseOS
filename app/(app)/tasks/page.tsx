@@ -305,8 +305,8 @@ export default function TasksPage() {
           ) : (
             <div className="divide-y divide-border">
               {[...byStatus.in_progress, ...byStatus.todo, ...byStatus.done].map((task) => (
-                <div key={task.id} className="flex items-center gap-3 p-4 hover:bg-surface-1 transition-colors">
-                  <button onClick={() => updateStatus(task.id, task.status === "done" ? "todo" : "done")}>
+                <div key={task.id} className="flex items-center gap-3 p-4 hover:bg-surface-1 transition-colors cursor-pointer" onClick={() => setDetailTask(task)}>
+                  <button onClick={(e) => { e.stopPropagation(); updateStatus(task.id, task.status === "done" ? "todo" : "done"); }}>
                     {STATUS_ICON[task.status]}
                   </button>
                   <div className="flex-1 min-w-0">
@@ -332,7 +332,7 @@ export default function TasksPage() {
                       </span>
                     )}
                     <div className={`w-2 h-2 rounded-full ${PRIORITY_DOT[task.priority]}`} />
-                    <button onClick={() => openEdit(task)} className="text-muted-foreground hover:text-foreground">
+                    <button onClick={(e) => { e.stopPropagation(); openEdit(task); }} className="text-muted-foreground hover:text-foreground">
                       <MoreHorizontal size={14} />
                     </button>
                   </div>

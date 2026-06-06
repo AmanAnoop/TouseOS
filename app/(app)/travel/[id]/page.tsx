@@ -10,7 +10,9 @@ import {
 } from "@/components/ui";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { TripLocationPanel } from "@/components/travel/trip-location-panel";
+import { ItineraryLegsPanel } from "@/components/travel/itinerary-legs-panel";
 import { eligibilityIssueLabel } from "@/lib/sports-eligibility";
+import { legsFromTrip, serializeLegsToText, type ItineraryLeg } from "@/lib/itinerary-legs";
 import { can } from "@/lib/permissions";
 import { useOrg } from "@/hooks/use-org";
 
@@ -33,6 +35,8 @@ export default function TravelTripDetailPage() {
   const [subsidy, setSubsidy] = useState(0);
   const [costs, setCosts] = useState<Record<string, number>>({});
   const [addMemberId, setAddMemberId] = useState("");
+  const [itineraryLegs, setItineraryLegs] = useState<ItineraryLeg[]>([]);
+  const [savingItinerary, setSavingItinerary] = useState(false);
 
   const canManage = can(role, "manage_travel");
 
@@ -42,6 +46,8 @@ export default function TravelTripDetailPage() {
     const data = await res.json();
     if (res.ok) {
       setTrip(data.trip);
+      setItineraryLegs(legsFromTrip(data.trip ?? {}));
+      setSubsidy(Number(data.trip?.subsidy ?? 0));
       setReadiness(data.readiness);
       setRoster(data.roster ?? []);
       setAvailable(data.availableMembers ?? []);
@@ -76,6 +82,22 @@ export default function TravelTripDetailPage() {
       setCalcOpen(false);
       load(orgId);
     } else toast.error("Failed to save costs");
+  }
+
+  async function saveItinerary() {
+    if (!orgId) return;
+    setSavingItinerary(true);
+    const itinerary = serializeLegsToText(itineraryLegs);
+    const res = await fetch(`/api/sports/travel/${tripId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId, itinerary, itineraryLegs }),
+    });
+    setSavingItinerary(false);
+    if (res.ok) {
+      toast.success("Itinerary saved");
+      load(orgId);
+    } else toast.error("Failed to save itinerary");
   }
 
   async function rosterAction(memberId: string, action: string, extra?: Record<string, unknown>) {
@@ -256,12 +278,13 @@ export default function TravelTripDetailPage() {
         </Card>
       </div>
 
-      {Boolean(trip.itinerary) && (
-        <Card>
-          <CardHeader title="Itinerary" />
-          <p className="text-sm whitespace-pre-wrap">{String(trip.itinerary)}</p>
-        </Card>
-      )}
+      <ItineraryLegsPanel
+        legs={itineraryLegs}
+        canManage={canManage}
+        saving={savingItinerary}
+        onChange={setItineraryLegs}
+        onSave={canManage ? saveItinerary : undefined}
+      />
 
       <Modal open={calcOpen} onClose={() => setCalcOpen(false)} title="Save trip budget" size="lg"
         footer={<><Button variant="secondary" onClick={() => setCalcOpen(false)}>Cancel</Button><Button className="bg-sports-600 hover:bg-sports-700" onClick={saveCosts}>Save to trip</Button></>}

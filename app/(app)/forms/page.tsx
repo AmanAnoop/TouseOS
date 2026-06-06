@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { ClipboardList, Eye, FileEdit, Plus, ScanLine, Trash2 } from "lucide-react";
+import { Bell, ChevronDown, ChevronUp, ClipboardList, Download, Eye, FileEdit, Plus, ScanLine, Trash2 } from "lucide-react";
 import { FormScanPanel } from "@/components/forms/form-scan-panel";
 import { SignaturePad } from "@/components/forms/signature-pad";
 import type { ScannedFormDraft } from "@/lib/form-ai";
@@ -104,6 +104,7 @@ export default function FormsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [previewForm, setPreviewForm] = useState<FormTemplate | null>(null);
   const [responseTotal, setResponseTotal] = useState(0);
+  const [reminding, setReminding] = useState(false);
 
   const [newForm, setNewForm] = useState({
     title: "", type: "general", description: "",
@@ -144,6 +145,51 @@ export default function FormsPage() {
 
   function removeField(id: string) {
     setFields((prev) => prev.filter((f) => f.id !== id));
+  }
+
+  function moveField(id: string, direction: -1 | 1) {
+    setFields((prev) => {
+      const idx = prev.findIndex((f) => f.id === id);
+      if (idx < 0) return prev;
+      const next = idx + direction;
+      if (next < 0 || next >= prev.length) return prev;
+      const copy = [...prev];
+      [copy[idx], copy[next]] = [copy[next], copy[idx]];
+      return copy;
+    });
+  }
+
+  async function exportResponses(form: FormTemplate) {
+    if (!orgId) return;
+    const res = await fetch(
+      `/api/forms/responses?org_id=${encodeURIComponent(orgId)}&form_id=${encodeURIComponent(form.id)}&export=csv`,
+    );
+    if (!res.ok) {
+      toast.error("Export failed");
+      return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${form.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-responses.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Responses exported");
+  }
+
+  async function remindMissing(formId?: string) {
+    if (!orgId) return;
+    setReminding(true);
+    const res = await fetch("/api/forms/remind", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId, formId }),
+    });
+    const data = await res.json();
+    setReminding(false);
+    if (res.ok) toast.success(data.message ?? "Reminders sent");
+    else toast.error(data.error ?? "Reminder failed");
   }
 
   function applyScannedDraft(draft: ScannedFormDraft) {
@@ -221,7 +267,12 @@ export default function FormsPage() {
         title="Forms & Signatures"
         description="Build and manage waivers, consent forms, and required documents"
         action={
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            {required.length > 0 && (
+              <Button size="sm" variant="secondary" loading={reminding} icon={<Bell size={14} />} onClick={() => remindMissing()}>
+                Remind missing
+              </Button>
+            )}
             <Button size="sm" variant="secondary" icon={<ScanLine size={14} />} onClick={() => setTab("scan")}>
               Scan with AI
             </Button>
@@ -276,6 +327,14 @@ export default function FormsPage() {
                     </p>
                   </div>
                   <div className="flex gap-2 flex-shrink-0">
+                    <button onClick={() => exportResponses(form)} className="p-1.5 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-foreground" title="Export responses">
+                      <Download size={14} />
+                    </button>
+                    {form.is_required && (
+                      <button onClick={() => remindMissing(form.id)} className="p-1.5 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-foreground" title="Remind missing">
+                        <Bell size={14} />
+                      </button>
+                    )}
                     <Link href={`/forms/${form.id}/fill`} className="p-1.5 rounded-md hover:bg-greek-50 text-greek-600" title="Fill form">
                       <FileEdit size={14} />
                     </Link>
@@ -386,9 +445,17 @@ export default function FormsPage() {
                         <span className="text-sm">Required</span>
                       </label>
                     </div>
-                    <button onClick={() => removeField(field.id)} className="text-muted-foreground hover:text-red-500 mt-2">
-                      <Trash2 size={14} />
-                    </button>
+                    <div className="flex flex-col gap-1 mt-1">
+                      <button type="button" disabled={idx === 0} onClick={() => moveField(field.id, -1)} className="text-muted-foreground hover:text-foreground disabled:opacity-30">
+                        <ChevronUp size={14} />
+                      </button>
+                      <button type="button" disabled={idx === fields.length - 1} onClick={() => moveField(field.id, 1)} className="text-muted-foreground hover:text-foreground disabled:opacity-30">
+                        <ChevronDown size={14} />
+                      </button>
+                      <button type="button" onClick={() => removeField(field.id)} className="text-muted-foreground hover:text-red-500">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -403,7 +470,16 @@ export default function FormsPage() {
         onClose={() => setPreviewForm(null)}
         title={previewForm?.title ?? ""}
         size="md"
-        footer={<Button onClick={() => setPreviewForm(null)}>Close preview</Button>}
+        footer={
+          <div className="flex gap-2 w-full">
+            {previewForm && (
+              <Button variant="secondary" icon={<Download size={14} />} onClick={() => exportResponses(previewForm)}>
+                Export CSV
+              </Button>
+            )}
+            <Button onClick={() => setPreviewForm(null)} className="ml-auto">Close preview</Button>
+          </div>
+        }
       >
         {previewForm && (
           <div className="space-y-4">

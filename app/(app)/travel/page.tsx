@@ -9,7 +9,7 @@ import {
 import toast from "react-hot-toast";
 import {
   Badge, Button, Card, EmptyState, Input,
-  Modal, PageHeader, StatCard, Tabs,
+  Modal, PageHeader, Select, StatCard, Tabs,
 } from "@/components/ui";
 import { LocationFields, type LocationFieldValues } from "@/components/location/location-fields";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -41,6 +41,8 @@ export default function TravelPage() {
   const [playerCount, setPlayerCount] = useState(20);
   const [costs, setCosts] = useState<Record<string, number>>({});
   const [subsidy, setSubsidy] = useState(0);
+  const [calcTripId, setCalcTripId] = useState("");
+  const [savingCalc, setSavingCalc] = useState(false);
 
   const [form, setForm] = useState({
     title: "",
@@ -113,6 +115,32 @@ export default function TravelPage() {
   const totalCost = Object.values(costs).reduce((a, b) => a + b, 0);
   const netCost = totalCost - subsidy;
   const perPlayer = playerCount > 0 ? netCost / playerCount : 0;
+
+  async function saveCalculatorToTrip() {
+    if (!orgId || !calcTripId) {
+      toast.error("Select a trip to save the budget");
+      return;
+    }
+    setSavingCalc(true);
+    const lineItems = COST_CATEGORIES.map((cat) => ({
+      category: cat.key,
+      amount: costs[cat.key] || 0,
+    })).filter((l) => l.amount > 0);
+
+    const res = await fetch(`/api/sports/travel/${calcTripId}/costs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId, playerCount, subsidy, lineItems }),
+    });
+    setSavingCalc(false);
+    if (res.ok) {
+      toast.success("Trip budget saved");
+      setCalcOpen(false);
+      load(orgId);
+    } else {
+      toast.error((await res.json().catch(() => ({}))).error ?? "Failed to save budget");
+    }
+  }
 
   const upcoming = trips.filter((t) => new Date(t.departure_date) >= new Date());
   const past = trips.filter((t) => new Date(t.departure_date) < new Date());
@@ -205,9 +233,25 @@ export default function TravelPage() {
 
       {/* Trip cost calculator */}
       <Modal open={calcOpen} onClose={() => setCalcOpen(false)} title="Trip cost calculator" size="lg"
-        footer={<Button onClick={() => setCalcOpen(false)}>Done</Button>}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setCalcOpen(false)}>Close</Button>
+            <Button className="bg-sports-600 hover:bg-sports-700" loading={savingCalc} onClick={saveCalculatorToTrip} disabled={!calcTripId}>
+              Save to trip
+            </Button>
+          </>
+        }
       >
         <div className="space-y-4">
+          <Select
+            label="Save budget to trip"
+            value={calcTripId}
+            onChange={(e) => setCalcTripId(e.target.value)}
+            options={[
+              { value: "", label: "Select trip…" },
+              ...trips.map((t) => ({ value: t.id, label: t.title })),
+            ]}
+          />
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium">Number of players</label>
             <input type="number" className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" value={playerCount} onChange={(e) => setPlayerCount(parseInt(e.target.value) || 0)} />

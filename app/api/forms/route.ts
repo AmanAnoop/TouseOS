@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { syncFormsRequiredCount } from "@/lib/forms-required-sync";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
   }).select().single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (isRequired) await syncFormsRequiredCount(supabase, orgId);
   return NextResponse.json(data, { status: 201 });
 }
 
@@ -59,8 +61,12 @@ export async function PATCH(request: Request) {
   if (isRequired !== undefined) updates.is_required = isRequired;
   if (dueDate !== undefined) updates.due_date = dueDate || null;
 
+  const { data: existing } = await supabase.from("forms").select("org_id").eq("id", id).single();
   const { data, error } = await supabase.from("forms").update(updates).eq("id", id).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (existing?.org_id && isRequired !== undefined) {
+    await syncFormsRequiredCount(supabase, String(existing.org_id));
+  }
   return NextResponse.json(data);
 }
 
@@ -73,7 +79,11 @@ export async function DELETE(request: Request) {
   const id = searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
+  const { data: existing } = await supabase.from("forms").select("org_id, is_required").eq("id", id).single();
   const { error } = await supabase.from("forms").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (existing?.org_id && existing.is_required) {
+    await syncFormsRequiredCount(supabase, String(existing.org_id));
+  }
   return NextResponse.json({ success: true });
 }
