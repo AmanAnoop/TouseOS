@@ -32,7 +32,7 @@ export const metadata = { title: "Dashboard" };
 export default async function DashboardPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/onboarding");
 
   const activeMembership = await loadActiveMembershipServer(user.id);
   if (!activeMembership) redirect("/onboarding");

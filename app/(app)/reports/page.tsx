@@ -248,7 +248,7 @@ downloadCsv(`${orgName}-semester-rewind.csv`, [{
   const canViewReports = !permLoading && can("view_reports");
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Reports"
         description={`Export ${orgTypeLabel(orgType)} data as CSV`}

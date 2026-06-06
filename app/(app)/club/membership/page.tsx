@@ -79,7 +79,7 @@ export default function ClubMembershipPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Membership pipeline"
         description="Track applicants from info session through acceptance — built for clubs, not Greek recruitment"

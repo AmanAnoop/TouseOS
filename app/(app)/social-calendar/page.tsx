@@ -147,7 +147,7 @@ export default function SocialCalendarPage() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Social Media Calendar"
         description="Plan, draft, and schedule Instagram content"

@@ -22,6 +22,11 @@ Run these SQL files **in order** in the Supabase SQL Editor (or `psql` against y
 | 005 | `005_seed.sql` | **Deprecated** — no-op; demo chapter removed |
 | 033 | `033_remove_demo_org.sql` | Optional — deletes legacy demo org if present |
 | 034 | `034_finance_layer.sql` | Yes — Plaid connections, unified finance_transactions, finance_org_settings, Stripe webhook idempotency |
+| 040 | `040_feature_repairs.sql` | Yes — Greek travel tables, event poll RLS |
+| 041 | `041_injury_type.sql` | Yes — injury type on injury reports |
+| 042 | `042_repairs_metadata.sql` | Yes — governance/risk metadata columns |
+| 043 | `043_coaching_availability.sql` | Yes — coaching availability note type |
+| 044 | `044_greek_travel_finance.sql` | Yes — Greek travel locations, per-member cost, payment linkage, coaching member_id |
 
 After apply:
 

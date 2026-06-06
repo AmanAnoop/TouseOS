@@ -185,7 +185,7 @@ export function SportsTripDetail({ tripId }: SportsTripDetailProps) {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <Link href="/travel" className="inline-flex items-center gap-1 text-sm text-sports-600 hover:underline">
         <ArrowLeft size={14} />
         All trips

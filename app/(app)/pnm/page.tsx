@@ -150,7 +150,7 @@ export default function PnmPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="PNM Recruitment CRM"
         description={`${leads.length} potential new members · ${leads.filter((l) => l.communication_consent).length} opted in to SMS`}

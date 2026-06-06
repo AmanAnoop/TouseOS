@@ -86,7 +86,7 @@ export default function TransitionPage() {
   ];
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Officer Transition Binder"
         description="Institutional knowledge for seamless officer handoffs"
@@ -214,7 +214,7 @@ export default function TransitionPage() {
         }
       >
         {selectedBinder && (
-          <div className="space-y-5">
+          <div className="ds-page-stack">
             {[
               { label: "Responsibilities", value: selectedBinder.responsibilities },
               { label: "Lessons learned", value: selectedBinder.lessons_learned },

@@ -210,7 +210,7 @@ export default function AttendancePointsPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Points System"
         description="Configure event-type awards, track member standings, and manage eligibility"

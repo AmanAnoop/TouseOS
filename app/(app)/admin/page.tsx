@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 export default async function AdminPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/onboarding");
 
   // Check if owner/admin
   const activeMembership = await loadActiveMembershipServer(user.id);

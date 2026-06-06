@@ -86,7 +86,7 @@ export default function StudyHoursPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Study Hours"
         description="Track and verify member study sessions"

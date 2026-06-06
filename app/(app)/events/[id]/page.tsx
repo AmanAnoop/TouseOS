@@ -23,7 +23,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
   const { id } = await params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/onboarding");
 
   const [eventRes, rsvpRes, albumRes] = await Promise.all([
     supabase.from("events").select("*").eq("id", id).single(),

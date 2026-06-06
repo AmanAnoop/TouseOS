@@ -36,7 +36,7 @@ export default function PlatformAdminKeysPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <Link href="/platform-admin" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft size={14} />
         Platform admin

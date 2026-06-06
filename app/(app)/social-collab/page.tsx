@@ -117,7 +117,7 @@ export default function SocialCollabPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Collab post planner"
         description="Plan dual-chapter Instagram posts with a shared checklist and caption draft"

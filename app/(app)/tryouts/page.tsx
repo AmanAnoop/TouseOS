@@ -126,7 +126,7 @@ export default function TryoutsPage() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Tryout Management"
         description={`${tryouts.length} candidates · ${byStatus.accepted.length} accepted`}

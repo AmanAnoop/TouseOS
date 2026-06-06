@@ -27,7 +27,7 @@ export async function POST(request: Request) {
 
   const body = await request.json();
   const {
-    orgId, name, type, destination, departureLocation,
+    orgId, name, type, destination, departureLocation, venueName, address, meetingPoint,
     startDate, endDate, estimatedAttendees, visibility, templateId,
   } = body;
   if (!orgId || !name || !startDate) {
@@ -42,6 +42,9 @@ export async function POST(request: Request) {
       type: type || "other",
       destination: destination || null,
       departure_location: departureLocation || null,
+      venue_name: venueName || null,
+      address: address || null,
+      meeting_point: meetingPoint || null,
       start_date: startDate,
       end_date: endDate || startDate,
       estimated_attendees: estimatedAttendees ?? 0,

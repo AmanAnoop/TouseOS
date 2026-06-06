@@ -230,7 +230,7 @@ export default function StandardsPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Standards & Accountability"
         description="Manage standards cases with permission controls and audit logs"

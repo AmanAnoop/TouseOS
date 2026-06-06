@@ -158,7 +158,7 @@ export default function CommsPage() {
 
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Communications"
         description="Announcements, email blasts, and message templates"

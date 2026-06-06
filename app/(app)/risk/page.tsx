@@ -167,7 +167,7 @@ export default function RiskPage() {
   const pending = checklists.filter((c) => !c.approved).length;
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Risk Management"
         description="Event risk checklists, incident reports, and approval workflows"
