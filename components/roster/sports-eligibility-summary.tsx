@@ -75,7 +75,7 @@ export function SportsEligibilitySummary({ orgId }: { orgId: string }) {
 
   return (
     <Card padding="sm" className="border-sports-200 dark:border-sports-800 bg-sports-50/30 dark:bg-sports-950/20">
-      <p className="text-xs font-semibold text-sports-700 dark:text-sports-400 uppercase mb-2">SportsOS travel eligibility</p>
+      <p className="type-label" style={{ marginBottom: 8 }}>Travel eligibility</p>
       <p className="text-sm">
         <strong>{summary.eligible}</strong> players travel-ready · <strong>{summary.blocked}</strong> need attention
       </p>

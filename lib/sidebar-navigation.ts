@@ -124,7 +124,10 @@ function mapFeatureItem(href: string, label: string): SidebarNavItemDef {
   };
   return {
     href,
-    label: label.replace("Touse Social", "Photos & posts").replace("ExecLink", "Interchapter"),
+    label: label
+      .replace("Touse Social", "Photos & posts")
+      .replace("ExecLink", "Interchapter")
+      .replace("Social Calendar", "Social Media"),
     icon: iconMap[href] ?? "layers",
   };
 }

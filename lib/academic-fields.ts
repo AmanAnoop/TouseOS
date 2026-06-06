@@ -11,9 +11,13 @@ function buildClassYears(): Array<{ value: string; label: string }> {
 
 export const CLASS_YEAR_OPTIONS = buildClassYears();
 
+/** Curated list of 50 common US university majors — spec fallback when school list unavailable. */
 export const COMMON_MAJORS = [
   "Accounting",
   "Aerospace Engineering",
+  "Anthropology",
+  "Architecture",
+  "Biochemistry",
   "Biology",
   "Biomedical Engineering",
   "Business Administration",
@@ -21,20 +25,30 @@ export const COMMON_MAJORS = [
   "Chemistry",
   "Civil Engineering",
   "Communications",
+  "Computer Engineering",
   "Computer Science",
   "Criminal Justice",
+  "Data Science",
   "Economics",
   "Electrical Engineering",
   "English",
+  "Environmental Engineering",
   "Environmental Science",
   "Finance",
+  "Graphic Design",
   "History",
+  "Human Biology",
+  "Industrial Engineering",
   "Information Systems",
   "International Relations",
+  "Journalism",
   "Kinesiology",
+  "Management",
   "Marketing",
   "Mathematics",
   "Mechanical Engineering",
+  "Music",
+  "Neuroscience",
   "Nursing",
   "Philosophy",
   "Physics",
@@ -43,12 +57,17 @@ export const COMMON_MAJORS = [
   "Pre-Med",
   "Psychology",
   "Public Health",
+  "Public Policy",
+  "Social Work",
   "Sociology",
+  "Statistics",
+  "Supply Chain Management",
   "Undeclared",
 ] as const;
 
+export const MAJOR_COMBOBOX_OPTIONS = COMMON_MAJORS.map((m) => ({ value: m, label: m }));
+
 export const MAJOR_SELECT_OPTIONS = [
   { value: "", label: "Select major…" },
-  ...COMMON_MAJORS.map((m) => ({ value: m, label: m })),
-  { value: "__other__", label: "Other (type below)" },
+  ...MAJOR_COMBOBOX_OPTIONS,
 ];

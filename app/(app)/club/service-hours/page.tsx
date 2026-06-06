@@ -147,7 +147,7 @@ export default function ClubServiceHoursPage() {
   }
 
   if (!loading && orgType && !isClubOrg(orgType)) {
-    return <PageHeader title="Service hours" description="ClubOS feature for student organizations." />;
+    return <PageHeader title="Service hours" description="Log and verify volunteer hours for your organization." />;
   }
 
   return (

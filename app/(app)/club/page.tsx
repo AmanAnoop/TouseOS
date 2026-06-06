@@ -13,7 +13,7 @@ import { Calendar, DollarSign, HandHeart, Users, Zap } from "lucide-react";
 import type { Event, MemberProfile, Task } from "@/types";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "ClubOS Dashboard" };
+export const metadata = { title: "Organization Dashboard" };
 
 export default async function ClubDashboardPage() {
   const { orgId, role, userId } = await requireOrgProduct(["club"]);
@@ -54,7 +54,7 @@ export default async function ClubDashboardPage() {
             <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold">
               CL
             </div>
-            <span className="text-sm font-semibold text-primary uppercase tracking-wide">ClubOS</span>
+            <span className="text-sm font-semibold text-primary uppercase tracking-wide">TouseOS</span>
           </div>
           <h1 className="font-serif text-2xl font-semibold text-foreground">Organization Dashboard</h1>
           <p className="text-sm text-muted-foreground mt-1">Member view</p>
@@ -85,7 +85,7 @@ export default async function ClubDashboardPage() {
         </Card>
 
         <ProductHomeShortcuts
-          title="ClubOS modules"
+          title="Organization modules"
           product="club"
           links={[
             { href: "/club/service-hours", label: "Service hours" },
@@ -131,7 +131,7 @@ export default async function ClubDashboardPage() {
             <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold">
               CL
             </div>
-            <span className="text-sm font-semibold text-primary uppercase tracking-wide">ClubOS</span>
+            <span className="text-sm font-semibold text-primary uppercase tracking-wide">TouseOS</span>
           </div>
           <h1 className="font-serif text-2xl font-semibold text-foreground">Organization Dashboard</h1>
           <p className="text-sm text-muted-foreground mt-1">Officer view</p>
@@ -239,7 +239,7 @@ export default async function ClubDashboardPage() {
       </div>
 
       <ProductHomeShortcuts
-        title="ClubOS modules"
+        title="Organization modules"
         product="club"
         links={[
           { href: "/club/membership", label: "Membership" },

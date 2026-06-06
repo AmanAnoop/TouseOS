@@ -119,7 +119,7 @@ export default function ClubCommitteesPage() {
   });
 
   if (!loading && orgType && !isClubOrg(orgType)) {
-    return <PageHeader title="Committees" description="ClubOS feature for student organizations." />;
+    return <PageHeader title="Committees" description="Organize committees and assign members." />;
   }
 
   return (

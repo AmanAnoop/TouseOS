@@ -26,22 +26,34 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
-  const { voteId, option, action, orgId, title, description, options: optionsInput } = body;
+  const {
+    voteId,
+    option,
+    action,
+    orgId,
+    title,
+    options: optionsInput,
+    voterGroup,
+    deadline,
+  } = body;
 
   if (!voteId && orgId && title) {
     const opts = Array.isArray(optionsInput)
       ? optionsInput
       : String(optionsInput ?? "Yes, No, Abstain").split(",").map((s: string) => s.trim()).filter(Boolean);
+    const insert: Record<string, unknown> = {
+      org_id: orgId,
+      title,
+      description: null,
+      status: "open",
+      options: opts.length ? opts : ["Yes", "No"],
+      votes: {},
+      voter_group: voterGroup || "all_members",
+      deadline: deadline || null,
+    };
     const { data, error } = await supabase
       .from("governance_votes")
-      .insert({
-        org_id: orgId,
-        title,
-        description: description || null,
-        status: "open",
-        options: opts.length ? opts : ["Yes", "No", "Abstain"],
-        votes: {},
-      })
+      .insert(insert)
       .select()
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

@@ -11,7 +11,8 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { useUnreadNotifications } from "@/hooks/use-unread-notifications";
 import type { Organization, Profile } from "@/types";
-import { getProductId, productLabel, productHomePath } from "@/lib/org-product";
+import { getProductId, productHomePath } from "@/lib/org-product";
+import { userFacingProductName } from "@/lib/user-facing-product";
 import { homePathForOrgType } from "@/lib/resolve-home";
 import { buildSidebarNavigation } from "@/lib/sidebar-navigation";
 import { SidebarNavLink } from "@/components/layout/sidebar-nav-link";
@@ -114,7 +115,7 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
           >
             {product === "sports" ? "SP" : product === "club" ? "CL" : "TO"}
           </div>
-          <span style={{ fontSize: 14, fontWeight: 500 }}>{productLabel(product)}</span>
+          <span style={{ fontSize: 14, fontWeight: 500 }}>{userFacingProductName(product)}</span>
         </Link>
         {mobile && onClose && (
           <button
@@ -165,7 +166,7 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
               <p style={{ fontSize: 12, fontWeight: 500, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {org.name}
               </p>
-              <p style={{ fontSize: 11, margin: 0, opacity: 0.5 }}>{org.campus ?? productLabel(product)}</p>
+              <p style={{ fontSize: 11, margin: 0, opacity: 0.5 }}>{org.campus ?? userFacingProductName(product)}</p>
             </div>
             <ChevronDown
               size={14}

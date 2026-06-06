@@ -74,7 +74,7 @@ export default function ClubMembershipPage() {
 
   if (!loading && orgType && !isClubOrg(orgType)) {
     return (
-      <PageHeader title="Membership" description="ClubOS feature for student organizations only." />
+      <PageHeader title="Membership" description="Track applications and membership for your student organization." />
     );
   }
 

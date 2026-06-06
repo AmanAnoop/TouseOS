@@ -12,7 +12,7 @@ import { ChapterIdentityPicker, type ChapterIdentityValue } from "@/components/s
 import { AcademicProfileFields } from "@/components/profile/academic-profile-fields";
 import { OnboardingShell } from "@/components/onboarding/onboarding-shell";
 import { REGAL_PRIMARY, REGAL_SECONDARY } from "@/lib/regal-theme";
-import { getProductId, productLabel } from "@/lib/org-product";
+import { getProductId, userFacingOrgTypeLabel } from "@/lib/org-product";
 import { universitiesForSelect } from "@/lib/university-colors";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -36,13 +36,13 @@ const ORG_TYPES = [
   },
   {
     value: "club_sports",
-    label: productLabel("sports"),
+    label: userFacingOrgTypeLabel("club_sports"),
     description: "Club sports team or varsity program",
     Icon: Trophy,
   },
   {
     value: "general_org",
-    label: productLabel("club"),
+    label: userFacingOrgTypeLabel("general_org"),
     description: "Student clubs, societies, and campus organizations",
     Icon: GraduationCap,
   },

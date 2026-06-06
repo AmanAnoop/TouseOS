@@ -7,7 +7,6 @@ import {
   getProductId,
   isRouteAllowed,
   productHomePath,
-  productLabel,
 } from "@/lib/org-product";
 
 export function ProductRouteGuard({
@@ -26,7 +25,7 @@ export function ProductRouteGuard({
     if (!orgType || !pathname) return;
     if (isRouteAllowed(orgType, pathname, { hasGreekMembership })) return;
 
-    toast.error(`${productLabel(product)} organizations cannot access this page`);
+    toast.error("This page is not available for your organization type");
     router.replace(productHomePath(product));
   }, [orgType, pathname, product, router, hasGreekMembership]);
 

@@ -138,7 +138,7 @@ export function LocationFields({
         disabled={disabled}
         onSelect={({ address, venueName }) => {
           const patch: Partial<LocationFieldValues> = { address };
-          if (variant === "event") {
+          if (variant === "event" && venueName) {
             patch.venueName = venueName;
             patch.destination = venueName;
           } else if (venueName && !values.venueName) {
