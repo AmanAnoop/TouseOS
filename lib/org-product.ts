@@ -49,6 +49,7 @@ const GREEK_ONLY_PREFIXES = [
   "/social-calendar",
   "/social-collab",
   "/social-assets",
+  "/study-hours",
 ];
 
 const SPORTS_ONLY_PREFIXES = [
@@ -193,6 +194,7 @@ export const GREEK_FEATURE_NAV: NavItemDef[] = [
   { href: "/philanthropy", label: "Philanthropy", products: ["greek"] },
   { href: "/interchapter", label: "ExecLink", products: ["greek"] },
   { href: "/event-memories", label: "Memories", products: ["greek"] },
+  { href: "/study-hours", label: "Study Hours", products: ["greek"] },
 ];
 
 export const SPORTS_FEATURE_NAV: NavItemDef[] = [

@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { ClipboardList, Eye, FileEdit, Plus, ScanLine, Trash2 } from "lucide-react";
+import { Bell, ClipboardList, Download, Eye, FileEdit, Pencil, Plus, ScanLine, Trash2 } from "lucide-react";
+import { SortableFormFields, type FormFieldItem } from "@/components/forms/sortable-form-fields";
+import { FormCompletionGrid } from "@/components/forms/form-completion-grid";
 import { FormScanPanel } from "@/components/forms/form-scan-panel";
 import { SignaturePad } from "@/components/forms/signature-pad";
 import type { ScannedFormDraft } from "@/lib/form-ai";
@@ -34,17 +36,9 @@ interface FormField {
   required: boolean;
   options?: string[];
   placeholder?: string;
+  page?: number;
+  showWhen?: { fieldId: string; equals: string | boolean };
 }
-
-const FIELD_TYPES = [
-  { value: "text", label: "Short text" },
-  { value: "textarea", label: "Long text" },
-  { value: "select", label: "Dropdown" },
-  { value: "checkbox", label: "Checkbox" },
-  { value: "date", label: "Date" },
-  { value: "signature", label: "Signature" },
-  { value: "number", label: "Number" },
-];
 
 const FORM_TYPES = [
   { value: "waiver", label: "Waiver" },
@@ -104,12 +98,14 @@ export default function FormsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [previewForm, setPreviewForm] = useState<FormTemplate | null>(null);
   const [responseTotal, setResponseTotal] = useState(0);
+  const [reminding, setReminding] = useState(false);
 
   const [newForm, setNewForm] = useState({
     title: "", type: "general", description: "",
     isRequired: false, dueDate: "",
   });
   const [fields, setFields] = useState<FormField[]>([]);
+  const [editingFormId, setEditingFormId] = useState<string | null>(null);
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
@@ -138,12 +134,50 @@ export default function FormsPage() {
     }]);
   }
 
-  function updateField(id: string, updates: Partial<FormField>) {
-    setFields((prev) => prev.map((f) => f.id === id ? { ...f, ...updates } : f));
+  function openEditForm(form: FormTemplate) {
+    setEditingFormId(form.id);
+    setNewForm({
+      title: form.title,
+      type: form.type,
+      description: form.description ?? "",
+      isRequired: form.is_required,
+      dueDate: form.due_date?.slice(0, 10) ?? "",
+    });
+    setFields(form.fields);
+    setCreateOpen(true);
   }
 
-  function removeField(id: string) {
-    setFields((prev) => prev.filter((f) => f.id !== id));
+  async function exportResponses(form: FormTemplate) {
+    if (!orgId) return;
+    const res = await fetch(
+      `/api/forms/responses?org_id=${encodeURIComponent(orgId)}&form_id=${encodeURIComponent(form.id)}&export=csv`,
+    );
+    if (!res.ok) {
+      toast.error("Export failed");
+      return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${form.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-responses.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Responses exported");
+  }
+
+  async function remindMissing(formId?: string) {
+    if (!orgId) return;
+    setReminding(true);
+    const res = await fetch("/api/forms/remind", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId, formId }),
+    });
+    const data = await res.json();
+    setReminding(false);
+    if (res.ok) toast.success(data.message ?? "Reminders sent");
+    else toast.error(data.error ?? "Reminder failed");
   }
 
   function applyScannedDraft(draft: ScannedFormDraft) {
@@ -161,23 +195,26 @@ export default function FormsPage() {
 
   async function saveForm() {
     if (!orgId || !newForm.title || fields.length === 0) return;
+    const payload = {
+      orgId,
+      title: newForm.title,
+      type: newForm.type,
+      description: newForm.description,
+      fields,
+      isRequired: newForm.isRequired,
+      dueDate: newForm.dueDate,
+      ...(editingFormId ? { id: editingFormId } : {}),
+    };
     const res = await fetch("/api/forms", {
-      method: "POST",
+      method: editingFormId ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        orgId,
-        title: newForm.title,
-        type: newForm.type,
-        description: newForm.description,
-        fields,
-        isRequired: newForm.isRequired,
-        dueDate: newForm.dueDate,
-      }),
+      body: JSON.stringify(payload),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) { toast.error(data.error ?? "Failed to create form"); return; }
-    toast.success("Form created");
+    if (!res.ok) { toast.error(data.error ?? "Failed to save form"); return; }
+    toast.success(editingFormId ? "Form updated" : "Form created");
     setCreateOpen(false);
+    setEditingFormId(null);
     setNewForm({ title: "", type: "general", description: "", isRequired: false, dueDate: "" });
     setFields([]);
     load(orgId);
@@ -221,11 +258,16 @@ export default function FormsPage() {
         title="Forms & Signatures"
         description="Build and manage waivers, consent forms, and required documents"
         action={
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            {required.length > 0 && (
+              <Button size="sm" variant="secondary" loading={reminding} icon={<Bell size={14} />} onClick={() => remindMissing()}>
+                Remind missing
+              </Button>
+            )}
             <Button size="sm" variant="secondary" icon={<ScanLine size={14} />} onClick={() => setTab("scan")}>
               Scan with AI
             </Button>
-            <Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>
+            <Button size="sm" icon={<Plus size={14} />} onClick={() => { setEditingFormId(null); setFields([]); setCreateOpen(true); }}>
               Build form
             </Button>
           </div>
@@ -241,6 +283,7 @@ export default function FormsPage() {
       <Tabs
         tabs={[
           { id: "forms", label: "My forms", count: forms.length },
+          { id: "completion", label: "Completion" },
           { id: "scan", label: "Scan with AI" },
           { id: "templates", label: "Templates" },
         ]}
@@ -276,9 +319,20 @@ export default function FormsPage() {
                     </p>
                   </div>
                   <div className="flex gap-2 flex-shrink-0">
+                    <button onClick={() => exportResponses(form)} className="p-1.5 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-foreground" title="Export responses">
+                      <Download size={14} />
+                    </button>
+                    {form.is_required && (
+                      <button onClick={() => remindMissing(form.id)} className="p-1.5 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-foreground" title="Remind missing">
+                        <Bell size={14} />
+                      </button>
+                    )}
                     <Link href={`/forms/${form.id}/fill`} className="p-1.5 rounded-md hover:bg-greek-50 text-greek-600" title="Fill form">
                       <FileEdit size={14} />
                     </Link>
+                    <button onClick={() => openEditForm(form)} className="p-1.5 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-foreground" title="Edit form">
+                      <Pencil size={14} />
+                    </button>
                     <button onClick={() => setPreviewForm(form)} className="p-1.5 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-foreground">
                       <Eye size={14} />
                     </button>
@@ -292,6 +346,8 @@ export default function FormsPage() {
           </div>
         )
       )}
+
+      {tab === "completion" && orgId && <FormCompletionGrid orgId={orgId} />}
 
       {tab === "scan" && (
         <FormScanPanel
@@ -329,8 +385,8 @@ export default function FormsPage() {
       {/* Build form modal */}
       <Modal
         open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        title="Build form"
+        onClose={() => { setCreateOpen(false); setEditingFormId(null); }}
+        title={editingFormId ? "Edit form" : "Build form"}
         size="xl"
         footer={
           <>
@@ -352,48 +408,11 @@ export default function FormsPage() {
             </label>
           </div>
 
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold">Form fields</p>
-              <Button size="sm" variant="secondary" icon={<Plus size={12} />} onClick={addField}>Add field</Button>
-            </div>
-
-            {fields.length === 0 ? (
-              <div className="border-2 border-dashed border-border rounded-xl p-6 text-center">
-                <ClipboardList size={20} className="mx-auto text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">No fields yet. Add your first field.</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {fields.map((field, idx) => (
-                  <div key={field.id} className="flex items-start gap-2 p-3 rounded-lg border border-border bg-surface-1">
-                    <span className="text-xs text-muted-foreground mt-2 w-5 flex-shrink-0">{idx + 1}</span>
-                    <div className="flex-1 grid sm:grid-cols-3 gap-2">
-                      <Input
-                        placeholder="Field label"
-                        value={field.label}
-                        onChange={(e) => updateField(field.id, { label: e.target.value })}
-                      />
-                      <select
-                        className="h-9 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                        value={field.type}
-                        onChange={(e) => updateField(field.id, { type: e.target.value as FormField["type"] })}
-                      >
-                        {FIELD_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-                      </select>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" className="rounded" checked={field.required} onChange={(e) => updateField(field.id, { required: e.target.checked })} />
-                        <span className="text-sm">Required</span>
-                      </label>
-                    </div>
-                    <button onClick={() => removeField(field.id)} className="text-muted-foreground hover:text-red-500 mt-2">
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <SortableFormFields
+            fields={fields as FormFieldItem[]}
+            onChange={(next) => setFields(next as FormField[])}
+            onAdd={addField}
+          />
         </div>
       </Modal>
 
@@ -403,7 +422,16 @@ export default function FormsPage() {
         onClose={() => setPreviewForm(null)}
         title={previewForm?.title ?? ""}
         size="md"
-        footer={<Button onClick={() => setPreviewForm(null)}>Close preview</Button>}
+        footer={
+          <div className="flex gap-2 w-full">
+            {previewForm && (
+              <Button variant="secondary" icon={<Download size={14} />} onClick={() => exportResponses(previewForm)}>
+                Export CSV
+              </Button>
+            )}
+            <Button onClick={() => setPreviewForm(null)} className="ml-auto">Close preview</Button>
+          </div>
+        }
       >
         {previewForm && (
           <div className="space-y-4">

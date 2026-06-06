@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { can, type RoleName } from "@/lib/permissions";
 import { getProductId } from "@/lib/org-product";
+import { getPointsEligibilityMin } from "@/lib/attendance-points";
 import { computeTravelReadiness } from "@/lib/sports-travel-readiness";
 
 export async function GET(
@@ -38,12 +39,23 @@ export async function GET(
 
   if (error || !trip) return NextResponse.json({ error: "Trip not found" }, { status: 404 });
 
-  const [costsRes, rosterRes, membersRes, waiversRes] = await Promise.all([
+  const [costsRes, rosterRes, membersRes, waiversRes, pointsRes, pointsMin, tripChargeRes] = await Promise.all([
     supabase.from("sports_trip_costs").select("*").eq("trip_id", tripId),
     supabase.from("sports_travel_roster").select("*, member_profiles(id, full_name, membership_status, payment_status, attendance_rate, is_injured)").eq("trip_id", tripId),
     supabase.from("member_profiles").select("id, full_name, membership_status, payment_status, attendance_rate, is_injured").eq("org_id", orgId).eq("membership_status", "active"),
     supabase.from("sports_waivers").select("member_id, waiver_type, status").eq("org_id", orgId).eq("status", "completed"),
+    supabase.from("member_point_entries").select("member_id, points, entry_type").eq("org_id", orgId),
+    getPointsEligibilityMin(supabase, orgId),
+    supabase.from("payment_items").select("id").eq("org_id", orgId).eq("trip_id", tripId).maybeSingle(),
   ]);
+
+  const pointsByMember = new Map<string, number>();
+  for (const row of pointsRes.data ?? []) {
+    const mid = String(row.member_id);
+    const pts = Number(row.points ?? 0);
+    const delta = row.entry_type === "deduction" ? -pts : pts;
+    pointsByMember.set(mid, (pointsByMember.get(mid) ?? 0) + delta);
+  }
 
   const waiversByMember = new Map<string, string[]>();
   for (const w of waiversRes.data ?? []) {
@@ -58,12 +70,15 @@ export async function GET(
   }));
 
   const roster = rosterRes.data ?? [];
+  const rosterPaidCount = roster.filter((r) => String(r.payment_status ?? "") === "paid").length;
   const readiness = computeTravelReadiness({
-    trip: { itinerary: trip.itinerary, total_cost: trip.total_cost },
+    trip: { itinerary: trip.itinerary, itinerary_legs: trip.itinerary_legs, total_cost: trip.total_cost },
     rosterCount: roster.length,
     confirmedCount: roster.filter((r) => r.confirmed).length,
     driversCount: roster.filter((r) => r.is_driver).length,
     hotelAssignedCount: roster.filter((r) => r.hotel_assignment).length,
+    rosterPaidCount,
+    tripFeesPushed: Boolean(tripChargeRes.data?.id),
     members: members.map((mem) => ({
       id: String(mem.id),
       full_name: String(mem.full_name),
@@ -72,7 +87,9 @@ export async function GET(
       attendance_rate: Number(mem.attendance_rate ?? 0),
       is_injured: Boolean(mem.is_injured),
       completedWaiverTypes: waiversByMember.get(String(mem.id)) ?? [],
+      pointsTotal: pointsByMember.get(String(mem.id)) ?? 0,
     })),
+    pointsMin,
   });
 
   return NextResponse.json({
@@ -91,7 +108,7 @@ export async function PATCH(
   const { tripId } = await params;
   const body = await request.json();
   const {
-    orgId, status, itinerary, packingList,
+    orgId, status, itinerary, itineraryLegs, packingList, mealPlan, emergencyContacts,
     destination, venueName, address, departureLocation, meetingPoint,
   } = body;
   if (!orgId) return NextResponse.json({ error: "orgId required" }, { status: 400 });
@@ -118,7 +135,10 @@ export async function PATCH(
     .update({
       ...(status ? { status } : {}),
       ...(itinerary !== undefined ? { itinerary } : {}),
+      ...(itineraryLegs !== undefined ? { itinerary_legs: itineraryLegs } : {}),
       ...(packingList !== undefined ? { packing_list: packingList } : {}),
+      ...(mealPlan !== undefined ? { meal_plan: mealPlan } : {}),
+      ...(emergencyContacts !== undefined ? { emergency_contacts: emergencyContacts } : {}),
       ...(destination !== undefined ? { destination } : {}),
       ...(venueName !== undefined ? { venue_name: venueName } : {}),
       ...(address !== undefined ? { address } : {}),

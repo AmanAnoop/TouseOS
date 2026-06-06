@@ -148,6 +148,29 @@ export async function saveEligibilityMin(
   return {};
 }
 
+export async function sumMemberPoints(
+  supabase: SupabaseClient,
+  orgId: string,
+  memberId: string,
+): Promise<number> {
+  const { data } = await supabase
+    .from("member_point_entries")
+    .select("points, entry_type")
+    .eq("org_id", orgId)
+    .eq("member_id", memberId);
+
+  return (data ?? []).reduce((sum, row) => {
+    const pts = Number(row.points ?? 0);
+    return sum + (row.entry_type === "deduction" ? -pts : pts);
+  }, 0);
+}
+
+export async function getPointsEligibilityMin(supabase: SupabaseClient, orgId: string): Promise<number> {
+  const { data: org } = await supabase.from("organizations").select("settings").eq("id", orgId).single();
+  const settings = (org?.settings ?? {}) as Record<string, unknown>;
+  return Number(settings.points_eligibility_min ?? DEFAULT_ELIGIBILITY_MIN);
+}
+
 export async function awardCheckInPoints(params: {
   supabase: SupabaseClient;
   orgId: string;

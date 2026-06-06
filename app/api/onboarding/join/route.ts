@@ -53,8 +53,15 @@ export async function POST(request: Request) {
         membership_status: "active",
       });
     }
+    const { data: memberRow } = await service
+      .from("member_profiles")
+      .select("phone, major, hometown, emergency_contact_name")
+      .eq("org_id", org.id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    const needsProfile = !memberRow?.phone && !memberRow?.major && !memberRow?.hometown && !memberRow?.emergency_contact_name;
     const redirectTo = homePathForOrgType(org.type);
-    const res = NextResponse.json({ org, redirectTo });
+    const res = NextResponse.json({ org, redirectTo, needsProfile });
     res.headers.set("Set-Cookie", activeOrgCookieHeader(org.id));
     return res;
   }
@@ -66,8 +73,18 @@ export async function POST(request: Request) {
     const { data: orgRow } = await service.from("organizations").select("type").eq("id", orgId).single();
     orgType = orgRow?.type;
   }
+  let needsProfile = false;
+  if (orgId) {
+    const { data: memberRow } = await service
+      .from("member_profiles")
+      .select("phone, major, hometown, emergency_contact_name")
+      .eq("org_id", orgId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    needsProfile = !memberRow?.phone && !memberRow?.major && !memberRow?.hometown && !memberRow?.emergency_contact_name;
+  }
   const redirectTo = homePathForOrgType(orgType);
-  const res = NextResponse.json({ org: data, redirectTo });
+  const res = NextResponse.json({ org: data, redirectTo, needsProfile });
   if (orgId) res.headers.set("Set-Cookie", activeOrgCookieHeader(orgId));
   return res;
 }

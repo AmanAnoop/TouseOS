@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
+import { createNotification } from "@/lib/notifications";
 import { resolveAssignees, syncTaskAssignees } from "@/lib/task-assignee";
 import { notifyTaskAssigneesViaSms } from "@/lib/task-sms";
 import { insertTaskRow, updateTaskRow } from "@/lib/tasks-db";
@@ -118,6 +120,18 @@ export async function POST(request: Request) {
 
   if (resolved.length) {
     await syncTaskAssignees(supabase, data.id, resolved);
+    const service = await createServiceClient();
+    for (const assignee of resolved) {
+      if (!assignee.userId) continue;
+      await createNotification(service, {
+        userId: assignee.userId,
+        orgId,
+        type: "task_due",
+        title: "New task assigned",
+        body: data.title,
+        link: "/tasks",
+      });
+    }
   }
 
   let sms: Awaited<ReturnType<typeof notifyTaskAssigneesViaSms>> | undefined;

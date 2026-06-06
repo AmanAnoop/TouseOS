@@ -5,9 +5,8 @@ import {
   BookOpen, Calendar, DollarSign, FileText,
   Loader2, MessageSquare, Send, Sparkles, User, Zap,
 } from "lucide-react";
-import { Button
-
-, PageHeader } from "@/components/ui";
+import { Button, PageHeader } from "@/components/ui";
+import { useOrg } from "@/hooks/use-org";
 
 interface Message {
   role: "user" | "assistant";
@@ -26,6 +25,7 @@ const QUICK_PROMPTS = [
 ];
 
 export default function AiAssistantPage() {
+  const { orgId } = useOrg();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -43,7 +43,7 @@ export default function AiAssistantPage() {
       const res = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [...messages, userMsg] }),
+        body: JSON.stringify({ messages: [...messages, userMsg], orgId: orgId ?? undefined }),
       });
 
       if (!res.ok) {

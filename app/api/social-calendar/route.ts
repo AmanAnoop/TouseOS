@@ -70,9 +70,12 @@ export async function PATCH(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id, orgId, status } = await request.json();
-  if (!id || !orgId || !status) {
-    return NextResponse.json({ error: "id, orgId, and status required" }, { status: 400 });
+  const { id, orgId, status, scheduledDate } = await request.json();
+  if (!id || !orgId) {
+    return NextResponse.json({ error: "id and orgId required" }, { status: 400 });
+  }
+  if (!status && scheduledDate === undefined) {
+    return NextResponse.json({ error: "status or scheduledDate required" }, { status: 400 });
   }
 
   const role = await roleForOrg(supabase, user.id, orgId);
@@ -80,9 +83,13 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const updates: Record<string, unknown> = {};
+  if (status !== undefined) updates.status = status;
+  if (scheduledDate !== undefined) updates.scheduled_date = scheduledDate || null;
+
   const { data, error } = await supabase
     .from("social_calendar")
-    .update({ status })
+    .update(updates)
     .eq("id", id)
     .eq("org_id", orgId)
     .select()

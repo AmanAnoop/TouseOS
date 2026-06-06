@@ -63,6 +63,7 @@ export async function POST(
     .update({
       total_cost: net,
       cost_per_player: perPlayer,
+      subsidy: Number(subsidy || 0),
       updated_at: new Date().toISOString(),
     })
     .eq("id", tripId)

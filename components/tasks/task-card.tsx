@@ -21,13 +21,14 @@ export const STATUS_ICON: Record<TaskStatus, React.ReactNode> = {
 };
 
 interface TaskCardProps {
-  task: Task;
+  task: Task & { assignees?: Array<{ assignee_name?: string | null }> };
   onStatusChange: (id: string, status: TaskStatus) => void;
   onEdit: (task: Task) => void;
   onSelect?: (task: Task) => void;
 }
 
 export function TaskCard({ task, onStatusChange, onEdit, onSelect }: TaskCardProps) {
+  const assigneeCount = task.assignees?.length ?? 0;
   const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== "done";
 
   return (
@@ -70,7 +71,9 @@ export function TaskCard({ task, onStatusChange, onEdit, onSelect }: TaskCardPro
           <div className={`w-1.5 h-1.5 rounded-full ${PRIORITY_DOT[task.priority]}`} />
           {task.assignee_name && (
             <span className="text-xs text-muted-foreground flex items-center gap-0.5">
-              <User size={10} />{task.assignee_name.split(" ")[0]}
+              <User size={10} />
+              {task.assignee_name.split(" ")[0]}
+              {assigneeCount > 1 && <span>+{assigneeCount - 1}</span>}
             </span>
           )}
           {task.tags?.slice(0, 2).map((tag) => (

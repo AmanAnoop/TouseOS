@@ -16,6 +16,7 @@ import { PrComplianceChecklist } from "@/components/social/pr-compliance-checkli
 import { ActivePhotoPrompts } from "@/components/social/active-photo-prompts";
 import { PrComplianceHistory } from "@/components/social/pr-compliance-history";
 import { useOrg } from "@/hooks/use-org";
+import { formatDate } from "@/lib/utils";
 
 const APPROVAL_COLOR = {
   pending: "yellow",
@@ -41,6 +42,7 @@ function SocialPageContent() {
   const [generatedCaption, setGeneratedCaption] = useState("");
   const [generatingCaption, setGeneratingCaption] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const loadAlbums = useCallback(async (oid: string) => {
@@ -308,32 +310,34 @@ function SocialPageContent() {
           ) : mainTab === "albums" && albums.length === 0 ? (
             <EmptyState icon={<ImageIcon size={24} aria-hidden />} title="No photo albums" description="Create an album for your next event." />
           ) : mainTab === "albums" ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className="space-y-2">
               {albums.map((album) => (
                 <button
                   key={album.id}
                   onClick={() => { setSelectedAlbum(album); setTab("photos"); }}
-                  className="aspect-video relative rounded-xl overflow-hidden bg-greek-100 dark:bg-greek-950/30 hover:scale-105 transition-transform text-left"
+                  className="w-full flex items-center gap-3 p-2 rounded-xl border border-border bg-card hover:border-greek-300 hover:bg-surface-1 transition-colors text-left"
                 >
-                  {album.cover_url ? (
-                    <NextImage
-                      src={album.cover_url}
-                      alt={album.title}
-                      fill
-                      unoptimized
-                      className="object-cover"
-                      sizes="(max-width: 640px) 50vw, 25vw"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center text-greek-400">
-                      <ImageIcon size={24} aria-hidden />
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                  <div className="absolute bottom-0 left-0 right-0 p-3">
-                    <p className="text-white text-sm font-semibold truncate">{album.title}</p>
-                    {album.is_public && <Badge label="Public" color="green" className="mt-1" />}
+                  <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-greek-100 dark:bg-greek-950/30 flex-shrink-0">
+                    {album.cover_url ? (
+                      <NextImage
+                        src={album.cover_url}
+                        alt={album.title}
+                        fill
+                        unoptimized
+                        className="object-cover"
+                        sizes="56px"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center text-greek-400">
+                        <ImageIcon size={18} aria-hidden />
+                      </div>
+                    )}
                   </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-foreground truncate">{album.title}</p>
+                    <p className="text-xs text-muted-foreground">{formatDate(album.created_at)}</p>
+                  </div>
+                  {album.is_public && <Badge label="Public" color="green" />}
                 </button>
               ))}
             </div>
@@ -368,6 +372,19 @@ function SocialPageContent() {
           ) : tab === "pending" ? (
             <PhotoApprovalGrid photos={pendingPhotos} onApprove={approvePhoto} />
           ) : (
+            <div
+              className={`rounded-xl border-2 border-dashed p-3 transition-colors ${dragOver ? "border-greek-500 bg-greek-50/50 dark:bg-greek-950/20" : "border-transparent"}`}
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOver(false);
+                if (e.dataTransfer.files?.length) uploadPhotos(e.dataTransfer.files);
+              }}
+            >
+              {dragOver && (
+                <p className="text-center text-sm text-greek-600 font-medium py-2 mb-2">Drop photos to upload</p>
+              )}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {(tab === "photos" ? photos : approvedPhotos).map((photo) => (
                 <div key={photo.id} className="relative group">
@@ -423,6 +440,7 @@ function SocialPageContent() {
                   </div>
                 </div>
               ))}
+            </div>
             </div>
           )}
         </>

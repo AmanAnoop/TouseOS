@@ -24,6 +24,7 @@ const TYPE_ICON: Record<string, string> = {
   reimbursement_status: "💵",
   photo_approval: "📸",
   interchapter_proposal: "🤝",
+  social_calendar: "📅",
   travel_alert: "✈️",
   waiver_missing: "📄",
   officer_handoff: "🔑",

@@ -8,12 +8,13 @@ import {
 import toast from "react-hot-toast";
 import { useOrg } from "@/hooks/use-org";
 import { Button, Card, EmptyState, Input, Modal,
-  PageHeader, Select, Skeleton, StatCard, Tabs, Textarea,
+  PageHeader, Select, StatCard, Tabs, Textarea,
 } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
 import type { Task, TaskStatus, TaskPriority } from "@/types";
-import { TaskCard, STATUS_ICON, PRIORITY_DOT } from "@/components/tasks/task-card";
+import { STATUS_ICON, PRIORITY_DOT } from "@/components/tasks/task-card";
 import { TaskDetailPanel } from "@/components/tasks/task-detail-panel";
+import { TaskKanbanBoard } from "@/components/tasks/task-kanban-board";
 
 export default function TasksPage() {
   const { orgId, userId, loading: orgLoading } = useOrg();
@@ -251,48 +252,14 @@ export default function TasksPage() {
       />
 
       {tab === "board" ? (
-        /* Kanban board */
-        <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 scrollbar-hide">
-          {columns.map((col) => (
-            <div key={col.id} className="flex-shrink-0 w-72">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  {STATUS_ICON[col.id]}
-                  <span className="text-sm font-semibold text-foreground">{col.label}</span>
-                  <span className="text-xs bg-surface-2 rounded-full px-2 py-0.5 text-muted-foreground">{col.tasks.length}</span>
-                </div>
-                {col.id === "todo" && (
-                  <button onClick={() => { setEditTask(null); setCreateOpen(true); }} className="text-muted-foreground hover:text-foreground">
-                    <Plus size={16} />
-                  </button>
-                )}
-              </div>
-              <div className="space-y-2">
-                {(loading || orgLoading)
-                  ? Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="ds-card" style={{ padding: 14 }}>
-                      <Skeleton style={{ height: 14, width: "70%", marginBottom: 10 }} />
-                      <Skeleton style={{ height: 10, width: "45%" }} />
-                    </div>
-                  ))
-                  : col.tasks.map((task) => (
-                    <TaskCard
-                      key={task.id}
-                      task={task}
-                      onStatusChange={updateStatus}
-                      onEdit={openEdit}
-                      onSelect={setDetailTask}
-                    />
-                  ))}
-                {!loading && col.tasks.length === 0 && col.id !== "done" && (
-                  <div className="border-2 border-dashed border-border rounded-xl p-4 text-center text-xs text-muted-foreground">
-                    No {col.label.toLowerCase()} tasks
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+        <TaskKanbanBoard
+          columns={columns}
+          loading={loading || orgLoading}
+          onStatusChange={updateStatus}
+          onEdit={openEdit}
+          onSelect={setDetailTask}
+          onAdd={() => { setEditTask(null); setCreateOpen(true); }}
+        />
       ) : (
         /* List view */
         <Card padding="none">
@@ -305,8 +272,8 @@ export default function TasksPage() {
           ) : (
             <div className="divide-y divide-border">
               {[...byStatus.in_progress, ...byStatus.todo, ...byStatus.done].map((task) => (
-                <div key={task.id} className="flex items-center gap-3 p-4 hover:bg-surface-1 transition-colors">
-                  <button onClick={() => updateStatus(task.id, task.status === "done" ? "todo" : "done")}>
+                <div key={task.id} className="flex items-center gap-3 p-4 hover:bg-surface-1 transition-colors cursor-pointer" onClick={() => setDetailTask(task)}>
+                  <button onClick={(e) => { e.stopPropagation(); updateStatus(task.id, task.status === "done" ? "todo" : "done"); }}>
                     {STATUS_ICON[task.status]}
                   </button>
                   <div className="flex-1 min-w-0">
@@ -332,7 +299,7 @@ export default function TasksPage() {
                       </span>
                     )}
                     <div className={`w-2 h-2 rounded-full ${PRIORITY_DOT[task.priority]}`} />
-                    <button onClick={() => openEdit(task)} className="text-muted-foreground hover:text-foreground">
+                    <button onClick={(e) => { e.stopPropagation(); openEdit(task); }} className="text-muted-foreground hover:text-foreground">
                       <MoreHorizontal size={14} />
                     </button>
                   </div>

@@ -1,14 +1,19 @@
+import { hasItinerary } from "@/lib/itinerary-legs";
+
 import { assessMemberEligibility, type EligibilityIssue } from "@/lib/sports-eligibility";
 
 export interface TravelReadinessInput {
   trip: {
     itinerary: string | null;
+    itinerary_legs?: unknown;
     total_cost: number | null;
   };
   rosterCount: number;
   confirmedCount: number;
   driversCount: number;
   hotelAssignedCount: number;
+  rosterPaidCount?: number;
+  tripFeesPushed?: boolean;
   members: Array<{
     id: string;
     full_name: string;
@@ -17,7 +22,9 @@ export interface TravelReadinessInput {
     attendance_rate: number;
     is_injured?: boolean;
     completedWaiverTypes: string[];
+    pointsTotal?: number;
   }>;
+  pointsMin?: number;
 }
 
 export interface TravelReadinessResult {
@@ -36,8 +43,10 @@ export function computeTravelReadiness(input: TravelReadinessInput): TravelReadi
           attendanceRate: Number(m.attendance_rate ?? 0),
           isInjured: m.is_injured,
           completedWaiverTypes: m.completedWaiverTypes,
+          pointsTotal: m.pointsTotal,
+          pointsMin: input.pointsMin,
         },
-        { requireTravelWaiver: true },
+        { requireTravelWaiver: true, requirePoints: input.pointsMin != null && input.pointsMin > 0 },
       );
       return eligible ? null : { memberId: m.id, name: m.full_name, issues };
     })
@@ -52,7 +61,7 @@ export function computeTravelReadiness(input: TravelReadinessInput): TravelReadi
     {
       key: "itinerary",
       label: "Itinerary",
-      ok: Boolean(input.trip.itinerary?.trim()),
+      ok: hasItinerary(input.trip),
     },
     {
       key: "costs",
@@ -89,6 +98,14 @@ export function computeTravelReadiness(input: TravelReadinessInput): TravelReadi
       label: "Hotel assignments",
       ok: input.hotelAssignedCount > 0 || input.rosterCount === 0,
       detail: `${input.hotelAssignedCount} assigned`,
+    },
+    {
+      key: "fees",
+      label: "Trip fees collected",
+      ok: !input.tripFeesPushed || input.rosterCount === 0 || (input.rosterPaidCount ?? 0) >= input.rosterCount,
+      detail: input.tripFeesPushed
+        ? `${input.rosterPaidCount ?? 0}/${input.rosterCount} paid`
+        : "Push charges after saving budget",
     },
   ];
 

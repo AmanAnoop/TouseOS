@@ -17,12 +17,63 @@ export async function GET(request: Request) {
   if (formIds.length === 0) return NextResponse.json({ counts: {}, total: 0 });
 
   if (formId) {
+    const exportCsv = searchParams.get("export") === "csv";
+
+    const { data: form } = await supabase
+      .from("forms")
+      .select("id, title, fields")
+      .eq("id", formId)
+      .eq("org_id", orgId)
+      .single();
+
+    if (!form) return NextResponse.json({ error: "Form not found" }, { status: 404 });
+
     const { data, error } = await supabase
       .from("form_responses")
-      .select("form_id, member_id, submitted_at")
+      .select("form_id, member_id, responses, signature, submitted_at, member_profiles(full_name, email)")
       .eq("form_id", formId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ responses: data ?? [] });
+
+    if (!exportCsv) {
+      return NextResponse.json({ responses: data ?? [] });
+    }
+
+    const fields = (form.fields as Array<{ id: string; label: string }>) ?? [];
+    const header = ["member_name", "email", "submitted_at", ...fields.map((f) => f.label), "signature"];
+    const rows = (data ?? []).map((row) => {
+      const mp = row.member_profiles as { full_name?: string; email?: string } | null;
+      const responses = (row.responses ?? {}) as Record<string, unknown>;
+      return [
+        mp?.full_name ?? "",
+        mp?.email ?? "",
+        row.submitted_at ?? "",
+        ...fields.map((f) => {
+          const v = responses[f.id] ?? responses[f.label];
+          if (typeof v === "boolean") return v ? "yes" : "no";
+          return v == null ? "" : String(v);
+        }),
+        row.signature ?? "",
+      ];
+    });
+
+    const csv = [
+      header.join(","),
+      ...rows.map((r) =>
+        r.map((cell) => {
+          const str = String(cell);
+          return str.includes(",") || str.includes('"') || str.includes("\n")
+            ? `"${str.replace(/"/g, '""')}"`
+            : str;
+        }).join(","),
+      ),
+    ].join("\n");
+
+    return new NextResponse(csv, {
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="form-responses-${formId.slice(0, 8)}.csv"`,
+      },
+    });
   }
 
   const { data, error } = await supabase.from("form_responses").select("form_id").in("form_id", formIds);
