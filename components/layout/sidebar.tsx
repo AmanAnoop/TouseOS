@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, LogOut, Plus, Settings, X } from "lucide-react";
+import { ChevronDown, LogOut, PanelLeft, Plus, Settings, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { Avatar } from "@/components/ui";
@@ -16,7 +16,15 @@ import { userFacingProductName } from "@/lib/user-facing-product";
 import { homePathForOrgType } from "@/lib/resolve-home";
 import { buildSidebarNavigation } from "@/lib/sidebar-navigation";
 import { SidebarNavLink } from "@/components/layout/sidebar-nav-link";
+import { SidebarEditorModal } from "@/components/layout/sidebar-editor-modal";
 import { pickReadableTextColor } from "@/lib/color-utils";
+import {
+  applySidebarPreferences,
+  EMPTY_SIDEBAR_PRODUCT_PREFS,
+  getProductSidebarPrefs,
+  type SidebarProductPreferences,
+} from "@/lib/sidebar-preferences";
+import { SIDEBAR_PREFS_UPDATED_EVENT } from "@/components/layout/sidebar-editor-panel";
 
 interface SidebarProps {
   org: Organization | null;
@@ -34,6 +42,8 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
   const [orgOpen, setOrgOpen] = useState(false);
   const [platformAdmin, setPlatformAdmin] = useState(false);
   const [universityAdmin, setUniversityAdmin] = useState(false);
+  const [sidebarPrefs, setSidebarPrefs] = useState<SidebarProductPreferences | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
   const { count: unreadCount } = useUnreadNotifications();
   const supabase = createClient();
 
@@ -42,7 +52,7 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
     (o) => o.type === "fraternity" || o.type === "sorority",
   );
 
-  const sections = useMemo(
+  const defaultSections = useMemo(
     () =>
       buildSidebarNavigation(product, {
         unreadCount,
@@ -51,6 +61,28 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
         universityAdmin,
       }),
     [product, unreadCount, hasGreekMembership, platformAdmin, universityAdmin],
+  );
+
+  const sections = useMemo(
+    () => applySidebarPreferences(defaultSections, sidebarPrefs, product),
+    [defaultSections, sidebarPrefs, product],
+  );
+
+  const loadSidebarPrefs = useMemo(
+    () => async () => {
+      try {
+        const res = await fetch(`/api/account/sidebar?product=${encodeURIComponent(product)}`);
+        if (!res.ok) {
+          setSidebarPrefs({ ...EMPTY_SIDEBAR_PRODUCT_PREFS });
+          return;
+        }
+        const data = await res.json();
+        setSidebarPrefs(getProductSidebarPrefs(data.all ?? {}, product));
+      } catch {
+        setSidebarPrefs({ ...EMPTY_SIDEBAR_PRODUCT_PREFS });
+      }
+    },
+    [product],
   );
 
   useEffect(() => {
@@ -63,6 +95,21 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
       .then((d) => setUniversityAdmin(Boolean(d.ok)))
       .catch(() => setUniversityAdmin(false));
   }, []);
+
+  useEffect(() => {
+    loadSidebarPrefs();
+  }, [loadSidebarPrefs]);
+
+  useEffect(() => {
+    function onPrefsUpdated(event: Event) {
+      const detail = (event as CustomEvent<{ product?: string }>).detail;
+      if (!detail?.product || detail.product === product) {
+        loadSidebarPrefs();
+      }
+    }
+    window.addEventListener(SIDEBAR_PREFS_UPDATED_EVENT, onPrefsUpdated);
+    return () => window.removeEventListener(SIDEBAR_PREFS_UPDATED_EVENT, onPrefsUpdated);
+  }, [product, loadSidebarPrefs]);
 
   async function switchOrg(target: Organization) {
     if (target.id === org?.id || switchingOrg) return;
@@ -269,8 +316,17 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
           className="ds-btn ds-btn-ghost ds-btn-icon"
           iconSize={16}
         />
+        <button
+          type="button"
+          onClick={() => setEditorOpen(true)}
+          className="ds-btn ds-btn-ghost ds-btn-icon"
+          style={{ color: "rgba(247,246,243,0.65)" }}
+          aria-label="Customize sidebar"
+        >
+          <PanelLeft size={16} />
+        </button>
         <Link
-          href="/settings"
+          href="/settings?tab=navigation"
           className="ds-btn ds-btn-ghost ds-btn-icon"
           style={{ color: "rgba(247,246,243,0.65)" }}
           aria-label="Settings"
@@ -307,6 +363,14 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
           <LogOut size={16} />
         </button>
       </div>
+
+      <SidebarEditorModal
+        open={editorOpen}
+        onClose={() => setEditorOpen(false)}
+        product={product}
+        unreadCount={unreadCount}
+        hasGreekMembership={hasGreekMembership}
+      />
     </aside>
   );
 }

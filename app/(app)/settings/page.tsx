@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { LogOut, Shield } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
@@ -15,12 +16,17 @@ import { InviteCodeCard } from "@/components/settings/invite-code-card";
 import { MemberRolesPanel, type OrgMemberWithProfile } from "@/components/settings/member-roles-panel";
 import { IntegrationsHub } from "@/components/integrations/integrations-hub";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { SidebarEditorPanel } from "@/components/layout/sidebar-editor-panel";
+import { getProductId } from "@/lib/org-product";
+import { useUnreadNotifications } from "@/hooks/use-unread-notifications";
 
 export default function SettingsPage() {
   const supabase = createClient();
   const router = useRouter();
-  const { orgId, role: myRole } = useOrg();
-  const [tab, setTab] = useState("profile");
+  const searchParams = useSearchParams();
+  const { orgId, role: myRole, orgType } = useOrg();
+  const { count: unreadCount } = useUnreadNotifications();
+  const [tab, setTab] = useState(() => searchParams.get("tab") ?? "profile");
   const [org, setOrg] = useState<Record<string, unknown> | null>(null);
   const [members, setMembers] = useState<OrgMemberWithProfile[]>([]);
   const [saving, setSaving] = useState(false);
@@ -30,6 +36,11 @@ export default function SettingsPage() {
     privacy: "private", primaryColor: "#004225", secondaryColor: "#0B1F3A",
     universityId: "", greekAffiliationId: "",
   });
+
+  useEffect(() => {
+    const requestedTab = searchParams.get("tab");
+    if (requestedTab) setTab(requestedTab);
+  }, [searchParams]);
 
   useEffect(() => {
     if (!orgId) return;
@@ -57,6 +68,7 @@ export default function SettingsPage() {
 
   const isAdmin = ["owner", "president", "advisor"].includes(String(myRole));
   const activeMembers = members.filter((m) => m.status !== "removed");
+  const product = orgType ? getProductId(orgType) : "greek";
 
   async function saveOrgProfile() {
     if (!orgId) return;
@@ -180,6 +192,7 @@ export default function SettingsPage() {
         tabs={[
           { id: "profile", label: "Organization" },
           { id: "members", label: "Members", count: activeMembers.length },
+          { id: "navigation", label: "Navigation" },
           { id: "integrations", label: "Integrations" },
           { id: "danger", label: "Danger zone" },
         ]}
@@ -223,6 +236,12 @@ export default function SettingsPage() {
           onRemove={removeMember}
           onInvite={sendInvite}
         />
+      )}
+
+      {tab === "navigation" && (
+        <div className="ds-page-stack max-w-3xl">
+          <SidebarEditorPanel product={product} unreadCount={unreadCount} />
+        </div>
       )}
 
       {tab === "integrations" && (
