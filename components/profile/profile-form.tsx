@@ -2,6 +2,7 @@
 
 import { ExternalLink, Lock, Save } from "lucide-react";
 import { Button, Card, CardHeader, Input, Textarea } from "@/components/ui";
+import { AcademicProfileFields } from "@/components/profile/academic-profile-fields";
 
 const PROFILE_INTERESTS = [
   "Sports", "Music", "Art", "Photography", "Travel", "Cooking", "Gaming", "Reading",
@@ -43,10 +44,14 @@ export function ProfileForm({ form, saving, onChange, onToggleInterest, onSave }
           <Input label="Preferred name" placeholder="Alex" value={form.preferredName} onChange={(e) => onChange({ preferredName: e.target.value })} />
           <Input label="Pronouns" placeholder="she/her, he/him, they/them..." value={form.pronouns} onChange={(e) => onChange({ pronouns: e.target.value })} />
           <Input label="Phone" type="tel" placeholder="+1 (555) 000-0000" value={form.phone} onChange={(e) => onChange({ phone: e.target.value })} />
-          <Input label="Class year" placeholder="2026" value={form.classYear} onChange={(e) => onChange({ classYear: e.target.value })} />
-          <Input label="Graduation year" type="number" placeholder="2026" value={form.graduationYear} onChange={(e) => onChange({ graduationYear: e.target.value })} />
-          <Input label="Major" placeholder="Business, CS, Biology..." value={form.major} onChange={(e) => onChange({ major: e.target.value })} />
-          <Input label="Hometown" placeholder="Austin, TX" value={form.hometown} onChange={(e) => onChange({ hometown: e.target.value })} className="sm:col-span-2" />
+          <Input label="Graduation year" type="number" placeholder="2026" value={form.graduationYear} onChange={(e) => onChange({ graduationYear: e.target.value })} className="sm:col-span-2" />
+          <div className="sm:col-span-2">
+            <AcademicProfileFields
+              layout="grid"
+              values={{ classYear: form.classYear, major: form.major, hometown: form.hometown }}
+              onChange={(updates) => onChange(updates)}
+            />
+          </div>
         </div>
       </Card>
 
