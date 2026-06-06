@@ -18,6 +18,8 @@ interface ChapterIdentityPickerProps {
   orgType: string;
   value: ChapterIdentityValue;
   disabled?: boolean;
+  /** When true, manual color picks persist across university/org changes. */
+  colorsLocked?: boolean;
   onChange: (next: ChapterIdentityValue) => void;
 }
 
@@ -25,6 +27,7 @@ export function ChapterIdentityPicker({
   orgType,
   value,
   disabled,
+  colorsLocked = false,
   onChange,
 }: ChapterIdentityPickerProps) {
   const product = getProductId(orgType);
@@ -61,20 +64,31 @@ export function ChapterIdentityPicker({
     });
 
     const universityChanged = next.universityId !== undefined;
+    const greekChanged = next.greekAffiliationId !== undefined;
     const colorsTouched = next.primaryColor !== undefined || next.secondaryColor !== undefined;
+
+    let primary = merged.primaryColor || resolved.orgPrimary;
+    let secondary = merged.secondaryColor || resolved.orgSecondary;
+
+    if (!colorsLocked && !colorsTouched) {
+      if (campusOnly && universityChanged && merged.universityId && merged.universityId !== "custom-campus") {
+        primary = resolved.campusPrimary;
+        secondary = resolved.campusSecondary;
+      } else if (isGreek && greekChanged && greekOrg && greekOrg.id !== "custom") {
+        primary = resolved.orgPrimary;
+        secondary = resolved.orgSecondary;
+      } else if (isGreek && universityChanged && merged.universityId && merged.universityId !== "custom-campus") {
+        secondary = resolved.campusSecondary;
+      }
+    } else if (colorsTouched) {
+      primary = merged.primaryColor || resolved.orgPrimary;
+      secondary = merged.secondaryColor || resolved.orgSecondary;
+    }
 
     const out: ChapterIdentityValue = {
       ...merged,
-      primaryColor: colorsTouched
-        ? (merged.primaryColor || resolved.orgPrimary)
-        : universityChanged && merged.universityId && merged.universityId !== "custom-campus"
-          ? resolved.campusPrimary
-          : (merged.primaryColor || resolved.orgPrimary),
-      secondaryColor: colorsTouched
-        ? (merged.secondaryColor || resolved.orgSecondary)
-        : universityChanged && merged.universityId && merged.universityId !== "custom-campus"
-          ? resolved.campusSecondary
-          : (merged.secondaryColor || (campusOnly ? resolved.campusSecondary : resolved.orgSecondary)),
+      primaryColor: primary,
+      secondaryColor: secondary,
     };
 
     applyChapterTheme({
@@ -89,12 +103,18 @@ export function ChapterIdentityPicker({
   }
 
   return (
-    <div className="space-y-4 rounded-xl border border-border bg-surface-1 p-4">
+    <div
+      className="ds-card"
+      style={{
+        display: "flex", flexDirection: "column", gap: 16,
+        padding: "20px 24px", background: "var(--color-bg-raised)",
+      }}
+    >
       <div>
-        <h3 className="text-sm font-semibold text-foreground">Brand colors</h3>
-        <p className="text-xs text-muted-foreground mt-1">
+        <h3 className="type-h3" style={{ margin: 0 }}>Brand colors</h3>
+        <p className="type-small" style={{ color: "var(--color-text-muted)", margin: "4px 0 0" }}>
           {campusOnly
-            ? "Choose your club or team colors. They apply across navigation, buttons, and accents."
+            ? "Choose your team or club colors. They apply across navigation, buttons, and accents."
             : "Chapter colors for actions and navigation; campus colors for headers and accents."}
         </p>
       </div>
@@ -126,40 +146,69 @@ export function ChapterIdentityPicker({
         />
       )}
 
-      <div className="grid sm:grid-cols-2 gap-3">
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
         {!campusOnly && (
-          <div className="p-3 rounded-lg border border-border bg-card">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Organization</p>
-            <div className="flex gap-2">
-              <span className="h-8 flex-1 rounded-md border border-border" style={{ background: preview.orgPrimary }} />
-              <span className="h-8 flex-1 rounded-md border border-border" style={{ background: preview.orgSecondary }} />
+          <div
+            className="ds-card"
+            style={{ padding: 12, background: "var(--color-bg)" }}
+          >
+            <p className="type-label" style={{ margin: "0 0 8px" }}>Organization</p>
+            <div style={{ display: "flex", gap: 8 }}>
+              <span
+                style={{
+                  height: 32, flex: 1, borderRadius: 6,
+                  border: "1px solid var(--color-border)", background: preview.orgPrimary,
+                }}
+              />
+              <span
+                style={{
+                  height: 32, flex: 1, borderRadius: 6,
+                  border: "1px solid var(--color-border)", background: preview.orgSecondary,
+                }}
+              />
             </div>
-            <p className="text-[10px] font-mono text-muted-foreground mt-2 truncate">
+            <p className="type-small" style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-muted)", margin: "8px 0 0" }}>
               {preview.orgPrimary}
             </p>
           </div>
         )}
-        <div className={`p-3 rounded-lg border border-border bg-card ${campusOnly ? "sm:col-span-2" : ""}`}>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
+        <div
+          className="ds-card"
+          style={{ padding: 12, background: "var(--color-bg)", gridColumn: campusOnly ? "1 / -1" : undefined }}
+        >
+          <p className="type-label" style={{ margin: "0 0 8px" }}>
             {campusOnly ? "Team / club colors" : "Campus"}
           </p>
-          <div className="flex gap-2">
-            <span className="h-8 flex-1 rounded-md border border-border" style={{ background: preview.campusPrimary }} />
-            <span className="h-8 flex-1 rounded-md border border-border" style={{ background: preview.campusSecondary }} />
+          <div style={{ display: "flex", gap: 8 }}>
+            <span
+              style={{
+                height: 32, flex: 1, borderRadius: 6,
+                border: "1px solid var(--color-border)", background: preview.campusPrimary,
+              }}
+            />
+            <span
+              style={{
+                height: 32, flex: 1, borderRadius: 6,
+                border: "1px solid var(--color-border)", background: preview.campusSecondary,
+              }}
+            />
           </div>
-          <p className="text-[10px] font-mono text-muted-foreground mt-2 truncate">
+          <p className="type-small" style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-muted)", margin: "8px 0 0" }}>
             {preview.campusPrimary}
           </p>
         </div>
       </div>
 
-      {(campusOnly || (value.greekAffiliationId === "custom" && isGreek)) && (
-        <div className="grid sm:grid-cols-2 gap-3">
-          <label className="text-sm font-medium text-foreground">
+      {(campusOnly || (value.greekAffiliationId === "custom" && isGreek) || colorsLocked) && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
+          <label className="type-body" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {campusOnly ? "Primary color" : "Custom org primary"}
             <input
               type="color"
-              className="mt-1 h-10 w-full rounded-lg border border-border cursor-pointer"
+              style={{
+                height: 44, width: "100%", borderRadius: 6,
+                border: "1px solid var(--color-border)", cursor: "pointer",
+              }}
               value={value.primaryColor}
               disabled={disabled}
               onChange={(e) => emit({
@@ -168,11 +217,14 @@ export function ChapterIdentityPicker({
               })}
             />
           </label>
-          <label className="text-sm font-medium text-foreground">
+          <label className="type-body" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {campusOnly ? "Secondary color" : "Custom org secondary"}
             <input
               type="color"
-              className="mt-1 h-10 w-full rounded-lg border border-border cursor-pointer"
+              style={{
+                height: 44, width: "100%", borderRadius: 6,
+                border: "1px solid var(--color-border)", cursor: "pointer",
+              }}
               value={value.secondaryColor}
               disabled={disabled}
               onChange={(e) => emit({
@@ -185,8 +237,8 @@ export function ChapterIdentityPicker({
       )}
 
       {campusOnly && (
-        <p className="text-xs text-muted-foreground">
-          Select a university to start from preset colors, or set primary and secondary directly. Save organization settings to apply.
+        <p className="type-small" style={{ color: "var(--color-text-muted)", margin: 0 }}>
+          Select a university to start from preset colors, or set primary and secondary directly.
         </p>
       )}
     </div>

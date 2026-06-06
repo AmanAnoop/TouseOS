@@ -60,7 +60,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
         </Link>
       </div>
 
-      {/* Cover image + title card (Partiful-style) */}
+      {/* Cover image + title card */}
       <div className="rounded-2xl overflow-hidden border border-border shadow-card-lg">
         {/* Hero */}
         <div

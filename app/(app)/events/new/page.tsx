@@ -141,7 +141,7 @@ export default function NewEventPage() {
         />
       </div>
 
-      {/* Event page customization (Partiful-style) */}
+      {/* Event page customization */}
       <div className="space-y-4">
         <h3 className="text-sm font-semibold text-foreground flex items-center gap-2"><ImageIcon size={15} aria-hidden />Event page</h3>
         <div className="grid sm:grid-cols-2 gap-3">

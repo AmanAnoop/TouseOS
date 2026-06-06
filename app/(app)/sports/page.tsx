@@ -17,7 +17,7 @@ import {
 import type { Event, MemberProfile, Task } from "@/types";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "SportsOS Dashboard" };
+export const metadata = { title: "Team Dashboard" };
 
 export default async function SportsPage() {
   const { orgId, role, userId } = await requireOrgProduct(["sports"]);
@@ -61,9 +61,8 @@ export default async function SportsPage() {
             <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
               <Trophy size={14} className="text-primary-foreground" />
             </div>
-            <span className="text-sm font-semibold text-primary uppercase tracking-wide">SportsOS</span>
           </div>
-          <h1 className="font-serif text-2xl font-semibold text-foreground">Team Dashboard</h1>
+          <h1 className="type-h1" style={{ margin: 0 }}>Team Dashboard</h1>
           <p className="text-sm text-muted-foreground mt-1">Player view · See your schedule, waivers, and tasks</p>
         </div>
 
@@ -176,9 +175,8 @@ export default async function SportsPage() {
             <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
               <Trophy size={14} className="text-primary-foreground" />
             </div>
-            <span className="text-sm font-semibold text-primary uppercase tracking-wide">SportsOS</span>
           </div>
-          <h1 className="font-serif text-2xl font-semibold text-foreground">Team Dashboard</h1>
+          <h1 className="type-h1" style={{ margin: 0 }}>Team Dashboard</h1>
           <p className="text-sm text-muted-foreground mt-1">Officer view</p>
           {university && (
             <p className="text-sm text-muted-foreground mt-1">

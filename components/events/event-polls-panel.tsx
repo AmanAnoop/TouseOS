@@ -96,7 +96,7 @@ export function EventPollsPanel({
     <Card>
       <CardHeader
         title="Event polls"
-        description="Quick preference polls for your chapter (Partiful-style)"
+        description="Quick preference polls for your chapter"
         action={
           canManage ? (
             <Button size="sm" icon={<Plus size={12} />} onClick={() => setOpen(true)}>
