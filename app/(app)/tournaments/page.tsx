@@ -33,7 +33,7 @@ export default async function TournamentsPage() {
   const past = eventList.filter((e) => new Date(String(e.starts_at)) < new Date());
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Tournament & League Management"
         description="Schedules, results, brackets, and roster submissions"
@@ -62,7 +62,7 @@ export default async function TournamentsPage() {
           }
         />
       ) : (
-        <div className="space-y-5">
+        <div className="ds-page-stack">
           {upcoming.length > 0 && (
             <Card>
               <CardHeader title="Upcoming schedule" icon={<Calendar size={16} />} />

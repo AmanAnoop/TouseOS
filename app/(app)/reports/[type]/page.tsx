@@ -92,7 +92,7 @@ export default function ReportDetailPage() {
   const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <Link href="/reports" className="inline-flex items-center gap-1 text-sm text-greek-600 hover:underline">
         <ArrowLeft size={14} /> All reports
       </Link>

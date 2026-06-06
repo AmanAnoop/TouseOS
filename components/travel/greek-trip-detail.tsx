@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft, Calendar, CheckSquare, DollarSign, FileText, MapPin, Send, Upload, Users,
+  ArrowLeft, Calendar, CheckSquare, CreditCard, DollarSign, FileText, MapPin, Send, Upload, Users,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
@@ -31,12 +31,16 @@ export function GreekTripDetail({ tripId }: GreekTripDetailProps) {
   const [rsvpFilter, setRsvpFilter] = useState("all");
   const [addMemberId, setAddMemberId] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [pushOpen, setPushOpen] = useState(false);
+  const [pushing, setPushing] = useState(false);
+  const [chargeDueDate, setChargeDueDate] = useState("");
   const [budgetForm, setBudgetForm] = useState({ category: "transportation", description: "", estCost: "" });
   const [legForm, setLegForm] = useState({
     day: "1", legType: "transportation", title: "", location: "", startTime: "", endTime: "", notes: "",
   });
 
   const canManage = can(role, "manage_travel") || can(role, "edit_roster");
+  const canPushCharges = canManage || can(role, "manage_payments");
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
@@ -237,6 +241,46 @@ export function GreekTripDetail({ tripId }: GreekTripDetailProps) {
     }
   }
 
+  const perMemberCost = Number(trip?.cost_per_member ?? 0)
+    || (attending > 0 ? totalBudget / attending : 0);
+
+  async function syncTripBudget() {
+    if (!orgId || !trip) return;
+    await fetch(`/api/greek/travel/${tripId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        totalBudget,
+        costPerMember: attending > 0 ? totalBudget / attending : 0,
+      }),
+    });
+  }
+
+  async function pushCharges() {
+    if (!orgId) return;
+    setPushing(true);
+    await syncTripBudget();
+    const res = await fetch(`/api/greek/travel/${tripId}/charges`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        dueDate: chargeDueDate || undefined,
+        amountPerMember: perMemberCost,
+      }),
+    });
+    const data = await res.json();
+    setPushing(false);
+    if (res.ok) {
+      toast.success(data.message ?? "Charges pushed");
+      setPushOpen(false);
+      load(orgId);
+    } else {
+      toast.error(data.error ?? "Failed to push charges");
+    }
+  }
+
   function exportRosterCsv() {
     downloadCsv("trip-roster.csv", rsvps.map((r) => {
       const m = r.member as { full_name?: string } | undefined;
@@ -269,6 +313,11 @@ export function GreekTripDetail({ tripId }: GreekTripDetailProps) {
               <Button variant="secondary" size="sm" icon={<Send size={14} />} onClick={shareAnnouncement}>
                 Share with chapter
               </Button>
+              {canPushCharges && perMemberCost > 0 && attending > 0 && (
+                <Button size="sm" icon={<CreditCard size={14} />} onClick={() => setPushOpen(true)}>
+                  Push dues
+                </Button>
+              )}
               <Select
                 value={String(trip.status)}
                 onChange={async (e) => {
@@ -320,7 +369,10 @@ export function GreekTripDetail({ tripId }: GreekTripDetailProps) {
             <CardHeader title="Trip details" icon={<MapPin size={16} />} />
             <p className="type-body" style={{ margin: 0 }}>
               <strong>Destination:</strong> {String(trip.destination || "TBD")}<br />
+              {Boolean(trip.venue_name) && <><strong>Venue:</strong> {String(trip.venue_name)}<br /></>}
+              {Boolean(trip.address) && <><strong>Address:</strong> {String(trip.address)}<br /></>}
               <strong>Departure:</strong> {String(trip.departure_location || "TBD")}<br />
+              {Boolean(trip.meeting_point) && <><strong>Meet-up:</strong> {String(trip.meeting_point)}<br /></>}
               <strong>Estimated attendees:</strong> {String(trip.estimated_attendees ?? 0)}
             </p>
           </Card>
@@ -619,6 +671,31 @@ export function GreekTripDetail({ tripId }: GreekTripDetailProps) {
             <Input label="End time" value={legForm.endTime} onChange={(e) => setLegForm({ ...legForm, endTime: e.target.value })} placeholder="10:00 AM" />
           </div>
           <Input label="Notes" value={legForm.notes} onChange={(e) => setLegForm({ ...legForm, notes: e.target.value })} />
+        </div>
+      </Modal>
+
+      <Modal
+        open={pushOpen}
+        onClose={() => setPushOpen(false)}
+        title="Push travel charges"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setPushOpen(false)}>Cancel</Button>
+            <Button loading={pushing} onClick={pushCharges}>Push to Payments</Button>
+          </>
+        }
+      >
+        <div className="ds-page-stack" style={{ gap: 12 }}>
+          <p className="type-body" style={{ margin: 0 }}>
+            Charge <strong>{attending}</strong> attending member(s) at{" "}
+            <strong>{formatCurrency(perMemberCost)}</strong> each.
+          </p>
+          <Input
+            label="Due date"
+            type="date"
+            value={chargeDueDate}
+            onChange={(e) => setChargeDueDate(e.target.value)}
+          />
         </div>
       </Modal>
     </div>

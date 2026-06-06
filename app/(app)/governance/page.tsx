@@ -166,7 +166,7 @@ export default function GovernancePage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Governance & Meetings"
         description="Agendas, minutes, quorum tracking, and chapter votes"

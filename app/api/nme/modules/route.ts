@@ -62,7 +62,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { orgId, title, description, content, isRequired, orderIndex } = await request.json();
+  const { orgId, title, description, content, isRequired, orderIndex, quizQuestions } = await request.json();
   if (!orgId || !title) return NextResponse.json({ error: "orgId and title required" }, { status: 400 });
 
   const { data: membership } = await supabase
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
     content: content || null,
     is_required: isRequired ?? true,
     order_index: orderIndex ?? 0,
-    quiz_questions: [],
+    quiz_questions: Array.isArray(quizQuestions) ? quizQuestions : [],
   }).select().single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -97,7 +97,7 @@ export async function PATCH(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id, orgId, title, description, content, isRequired, orderIndex } = await request.json();
+  const { id, orgId, title, description, content, isRequired, orderIndex, quizQuestions } = await request.json();
   if (!id || !orgId) return NextResponse.json({ error: "id and orgId required" }, { status: 400 });
 
   const { data: membership } = await supabase
@@ -119,6 +119,7 @@ export async function PATCH(request: Request) {
   if (content !== undefined) updates.content = content || null;
   if (isRequired !== undefined) updates.is_required = Boolean(isRequired);
   if (orderIndex !== undefined) updates.order_index = Number(orderIndex);
+  if (quizQuestions !== undefined) updates.quiz_questions = quizQuestions;
 
   const { data, error } = await supabase
     .from("nme_modules")

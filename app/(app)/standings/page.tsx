@@ -57,7 +57,7 @@ export default function StandingsPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="League Standings"
         description="Track wins, losses, and game results"

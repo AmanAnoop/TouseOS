@@ -93,7 +93,7 @@ export default function EngagementPage() {
 
   if (!loading && orgType && !isGreekOrg(orgType)) {
     return (
-      <div className="space-y-5">
+      <div className="ds-page-stack">
         <PageHeader title="Brotherhood & Sisterhood Engagement" description="Greek chapter feature" />
         <p className="text-sm text-muted-foreground">Engagement tracking is available for fraternity and sorority organizations.</p>
       </div>
@@ -101,7 +101,7 @@ export default function EngagementPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title={`${orgLabel} Engagement`}
         description="Track bonding event participation and semester goals"

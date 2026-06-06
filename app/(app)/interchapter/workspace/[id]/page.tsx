@@ -89,7 +89,7 @@ export default function SharedWorkspacePage() {
   const tasksDone = ws.shared_tasks.filter((t) => t.done).length;
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <Link href="/interchapter" className="inline-flex items-center gap-1 text-sm text-greek-600 hover:underline">
         <ArrowLeft size={14} /> Back to ExecLink
       </Link>

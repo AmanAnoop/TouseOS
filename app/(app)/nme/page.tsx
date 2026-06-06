@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function NmePage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/onboarding");
 
   const membership = await loadActiveMembershipServer(user.id);
   if (!membership) redirect("/onboarding");

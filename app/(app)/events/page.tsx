@@ -64,7 +64,7 @@ export default function EventsPage() {
   );
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Events"
         description="Manage chapter events, RSVP, and check-in"

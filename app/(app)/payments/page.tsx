@@ -149,7 +149,7 @@ export default function PaymentsPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Dues & Payments"
         description="Track collections, create charges, and send reminders"

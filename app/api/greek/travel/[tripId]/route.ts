@@ -52,7 +52,10 @@ export async function PATCH(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { tripId } = await params;
-  const { orgId, status, name, type, destination, departureLocation, startDate, endDate, estimatedAttendees, visibility } = await request.json();
+  const {
+    orgId, status, name, type, destination, departureLocation, venueName, address, meetingPoint,
+    startDate, endDate, estimatedAttendees, visibility, costPerMember, totalBudget,
+  } = await request.json();
   if (!orgId) return NextResponse.json({ error: "orgId required" }, { status: 400 });
 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -61,6 +64,11 @@ export async function PATCH(
   if (type) patch.type = type;
   if (destination !== undefined) patch.destination = destination;
   if (departureLocation !== undefined) patch.departure_location = departureLocation;
+  if (venueName !== undefined) patch.venue_name = venueName;
+  if (address !== undefined) patch.address = address;
+  if (meetingPoint !== undefined) patch.meeting_point = meetingPoint;
+  if (costPerMember !== undefined) patch.cost_per_member = costPerMember;
+  if (totalBudget !== undefined) patch.total_budget = totalBudget;
   if (startDate) patch.start_date = startDate;
   if (endDate) patch.end_date = endDate;
   if (estimatedAttendees !== undefined) patch.estimated_attendees = estimatedAttendees;

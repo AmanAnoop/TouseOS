@@ -14,7 +14,7 @@ import {
 import { LocationFields, type LocationFieldValues } from "@/components/location/location-fields";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
-  starterChecklist, travelProductFromOrgType, tripTypesForProduct,
+  BUDGET_CATEGORIES, starterChecklist, travelProductFromOrgType, tripTypesForProduct,
 } from "@/lib/travel-config";
 import { useOrg } from "@/hooks/use-org";
 import type { SportsTravelTrip } from "@/types";
@@ -109,6 +109,9 @@ export function TravelListPage() {
           type: greekForm.type,
           destination: greekForm.location.destination || greekForm.destination,
           departureLocation: greekForm.location.departureLocation || greekForm.departureLocation,
+          venueName: greekForm.location.venueName || undefined,
+          address: greekForm.location.address || undefined,
+          meetingPoint: greekForm.location.meetingPoint || undefined,
           startDate: greekForm.startDate,
           endDate: greekForm.endDate || greekForm.startDate,
           estimatedAttendees: parseInt(greekForm.estimatedAttendees) || 0,
@@ -172,11 +175,9 @@ export function TravelListPage() {
         description={`${upcoming.length} upcoming trips`}
         action={
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {!isGreek && (
-              <Button variant="secondary" size="sm" icon={<Calculator size={14} />} onClick={() => setCalcOpen(true)}>
-                Trip calculator
-              </Button>
-            )}
+            <Button variant="secondary" size="sm" icon={<Calculator size={14} />} onClick={() => setCalcOpen(true)}>
+              Trip calculator
+            </Button>
             <Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>New trip</Button>
           </div>
         }
@@ -336,13 +337,32 @@ export function TravelListPage() {
         )}
       </Modal>
 
-      {!isGreek && (
-        <Modal open={calcOpen} onClose={() => setCalcOpen(false)} title="Trip cost calculator" size="lg"
-          footer={<Button onClick={() => setCalcOpen(false)}>Done</Button>}
-        >
-          <div className="ds-page-stack" style={{ gap: 12 }}>
-            <Input label="Number of players" type="number" value={String(playerCount)} onChange={(e) => setPlayerCount(parseInt(e.target.value) || 0)} />
-            {SPORTS_COST_CATEGORIES.map((cat) => (
+      <Modal open={calcOpen} onClose={() => setCalcOpen(false)} title="Trip cost calculator" size="lg"
+        footer={<Button onClick={() => setCalcOpen(false)}>Done</Button>}
+      >
+        <div className="ds-page-stack" style={{ gap: 12 }}>
+          <Input
+            label={isGreek ? "Number of attendees" : "Number of players"}
+            type="number"
+            value={String(playerCount)}
+            onChange={(e) => setPlayerCount(parseInt(e.target.value) || 0)}
+          />
+          {isGreek ? (
+            BUDGET_CATEGORIES.map((cat) => (
+              <div key={cat.value} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <span className="type-small" style={{ width: 160 }}>{cat.label}</span>
+                <input
+                  type="number"
+                  className="ds-input"
+                  style={{ flex: 1 }}
+                  placeholder="0"
+                  value={costs[cat.value] || ""}
+                  onChange={(e) => setCosts({ ...costs, [cat.value]: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+            ))
+          ) : (
+            SPORTS_COST_CATEGORIES.map((cat) => (
               <div key={cat.key} style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <span className="type-small" style={{ width: 160, display: "flex", alignItems: "center", gap: 8 }}>{cat.icon}{cat.label}</span>
                 <input
@@ -354,15 +374,17 @@ export function TravelListPage() {
                   onChange={(e) => setCosts({ ...costs, [cat.key]: parseFloat(e.target.value) || 0 })}
                 />
               </div>
-            ))}
-            <Input label="Team subsidy ($)" type="number" value={String(subsidy)} onChange={(e) => setSubsidy(parseFloat(e.target.value) || 0)} />
-            <div className="ds-card" style={{ padding: 16 }}>
-              <p className="type-body" style={{ margin: "0 0 4px" }}>Per player ({playerCount}): <strong>{formatCurrency(perPlayer)}</strong></p>
-              <p className="type-small" style={{ margin: 0, color: "var(--color-text-muted)" }}>Net cost: {formatCurrency(netCost)}</p>
-            </div>
+            ))
+          )}
+          <Input label={isGreek ? "Chapter subsidy ($)" : "Team subsidy ($)"} type="number" value={String(subsidy)} onChange={(e) => setSubsidy(parseFloat(e.target.value) || 0)} />
+          <div className="ds-card" style={{ padding: 16 }}>
+            <p className="type-body" style={{ margin: "0 0 4px" }}>
+              Per {isGreek ? "member" : "player"} ({playerCount}): <strong>{formatCurrency(perPlayer)}</strong>
+            </p>
+            <p className="type-small" style={{ margin: 0, color: "var(--color-text-muted)" }}>Net cost: {formatCurrency(netCost)}</p>
           </div>
-        </Modal>
-      )}
+        </div>
+      </Modal>
     </div>
   );
 }

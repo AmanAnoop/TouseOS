@@ -139,7 +139,7 @@ export default function DocumentsPage() {
   ];
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Documents"
         description={`${docs.length} document${docs.length !== 1 ? "s" : ""} stored`}

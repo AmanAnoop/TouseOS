@@ -4,7 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import { BarChart2, Plus, Target, Trophy, Users } from "lucide-react";
 import toast from "react-hot-toast";
 import { useOrg } from "@/hooks/use-org";
-import { PRACTICE_BLOCKS } from "@/lib/coaching-config";
+import {
+  AVAILABILITY_STATUSES,
+  PRACTICE_BLOCKS,
+  availabilityColor,
+} from "@/lib/coaching-config";
 import {
   Button, Card, CardHeader, EmptyState, Modal,
   PageHeader, StatCard, Textarea,
@@ -31,6 +35,7 @@ export default function CoachesPage() {
   const [goals, setGoals] = useState<Array<{ id: string; content: string }>>([]);
   const [goalInput, setGoalInput] = useState("");
   const [saving, setSaving] = useState(false);
+  const [availability, setAvailability] = useState<Record<string, string>>({});
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
@@ -52,8 +57,13 @@ export default function CoachesPage() {
     } else {
       setPlayers([]);
     }
-    const notes = notesRes as Array<{ id: string; note_type: string; content: string }>;
+    const notes = notesRes as Array<{ id: string; note_type: string; content: string; member_id?: string | null }>;
     setGoals(notes.filter((n) => n.note_type === "goal").map((n) => ({ id: n.id, content: n.content })));
+    const availMap: Record<string, string> = {};
+    notes.filter((n) => n.note_type === "availability" && n.member_id).forEach((n) => {
+      availMap[String(n.member_id)] = n.content;
+    });
+    setAvailability(availMap);
     const practice = notes.find((n) => n.note_type === "practice");
     const game = notes.find((n) => n.note_type === "game");
     if (practice) setPracticeNotes(practice.content);
@@ -82,12 +92,27 @@ export default function CoachesPage() {
     load(orgId);
   }
 
+  async function setPlayerAvailability(memberId: string, status: string) {
+    if (!orgId) return;
+    const res = await fetch("/api/coaching", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId, noteType: "availability", memberId, status }),
+    });
+    if (!res.ok) {
+      toast.error("Failed to update availability");
+      return;
+    }
+    setAvailability((prev) => ({ ...prev, [memberId]: status }));
+    toast.success("Availability updated");
+  }
+
   const positions = [...new Set(players.map((p) => p.position).filter(Boolean))];
   const avgAttendance = players.length > 0 ? Math.round(players.reduce((s, p) => s + p.attendance_rate, 0) / players.length) : 0;
   const injured = players.filter((p) => p.is_injured);
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Coaching & Captain Tools"
         description="Lineup planning, depth charts, and player development"
@@ -105,6 +130,39 @@ export default function CoachesPage() {
         <StatCard title="Injured" value={injured.length} deltaType={injured.length > 0 ? "down" : "neutral"} icon={<Trophy size={18} />} />
         <StatCard title="Positions" value={positions.length} icon={<Target size={18} />} />
       </div>
+
+      <Card>
+        <CardHeader title="Player availability" description="Game-week status for travel and lineup planning" />
+        {players.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No active players on roster.</p>
+        ) : (
+          <div className="space-y-2">
+            {players.map((player) => {
+              const status = availability[player.id] ?? "available";
+              const color = availabilityColor(status);
+              return (
+                <div key={player.id} className="flex flex-wrap items-center gap-2 p-2 rounded-lg border border-border">
+                  <p className="text-sm font-medium flex-1 min-w-[120px]">{player.full_name}</p>
+                  {player.position && <span className="text-xs text-muted-foreground">{player.position}</span>}
+                  <div className="flex gap-1 flex-wrap">
+                    {AVAILABILITY_STATUSES.map((s) => (
+                      <Button
+                        key={s.value}
+                        size="sm"
+                        variant={status === s.value ? "primary" : "secondary"}
+                        className={status === s.value && color === "green" ? "bg-green-600 hover:bg-green-700" : status === s.value && color === "red" ? "bg-red-600 hover:bg-red-700" : status === s.value && color === "yellow" ? "bg-yellow-600 hover:bg-yellow-700" : ""}
+                        onClick={() => setPlayerAvailability(player.id, s.value)}
+                      >
+                        {s.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
 
       {/* Team goals */}
       <Card>

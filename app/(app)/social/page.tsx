@@ -231,7 +231,7 @@ function SocialPageContent() {
   const pendingPhotos = photos.filter((p) => p.status === "pending");
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Touse Social"
         description="Event albums, photo approval, and Instagram content packs"

@@ -122,7 +122,7 @@ export default function AlumniPage() {
   const topClasses = [...new Set(alumni.map((a) => a.graduation_year).filter(Boolean))].sort((a, b) => (b ?? 0) - (a ?? 0)).slice(0, 5);
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Alumni / Alumnae CRM"
         description={`${alumni.length} alumni in database · ${mentors.length} mentorship volunteers`}

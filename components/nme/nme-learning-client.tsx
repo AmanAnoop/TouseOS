@@ -95,9 +95,16 @@ export function NmeLearningClient({ orgId }: { orgId: string }) {
           </a>
         </div>
       )}
-      {can("manage_nme") && (
-        <NmeModuleEditor orgId={orgId} modules={modules} onSaved={load} />
-      )}
+        {can("manage_nme") && (
+          <NmeModuleEditor
+            orgId={orgId}
+            modules={modules.map((m) => ({
+              ...m,
+              quiz_questions: m.quiz_questions,
+            }))}
+            onSaved={load}
+          />
+        )}
       <Card>
         <CardHeader title="Your modules" />
         {loading ? (

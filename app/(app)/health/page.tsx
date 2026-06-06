@@ -58,7 +58,7 @@ export default function HealthPage() {
     : [];
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Organization Health Score"
         description="Weighted score from live dues, attendance, compliance, budget, and engagement — empty areas are excluded, not counted as 100%"

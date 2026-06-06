@@ -453,7 +453,7 @@ export default function BudgetPage() {
 
   if (!loading && !canViewBudget) {
     return (
-      <div className="space-y-5">
+      <div className="ds-page-stack">
         <PageHeader title="Budget & Finance" description="Restricted" />
         <Alert type="warning" title="Access restricted" description="You need treasurer or officer budget permissions to view this page." />
       </div>
@@ -461,7 +461,7 @@ export default function BudgetPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       {/* Budget alerts computed client-side from lines */}
       <PageHeader
         title="Budget & Finance"

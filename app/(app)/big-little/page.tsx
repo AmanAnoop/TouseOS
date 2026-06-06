@@ -148,7 +148,7 @@ export default function BigLittlePage() {
   );
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Big / Little Matching"
         description={`${confirmed} pending reveals · ${revealed} revealed · ${unmatched} unmatched`}

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { GripVertical, Plus, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { Button, Card, CardHeader, Input, Modal, Textarea } from "@/components/ui";
+import type { QuizQuestion } from "@/components/nme/nme-module-modal";
 
 interface ModuleRow {
   id: string;
@@ -12,7 +13,14 @@ interface ModuleRow {
   content: string | null;
   is_required: boolean;
   order_index: number;
+  quiz_questions?: QuizQuestion[];
 }
+
+const emptyQuestion = (): QuizQuestion => ({
+  question: "",
+  options: ["", "", "", ""],
+  correctIndex: 0,
+});
 
 export function NmeModuleEditor({
   orgId,
@@ -31,6 +39,7 @@ export function NmeModuleEditor({
     content: "",
     isRequired: true,
     orderIndex: 0,
+    quizQuestions: [] as QuizQuestion[],
   });
 
   function openCreate() {
@@ -41,6 +50,7 @@ export function NmeModuleEditor({
       content: "",
       isRequired: true,
       orderIndex: modules.length,
+      quizQuestions: [],
     });
     setOpen(true);
   }
@@ -53,12 +63,44 @@ export function NmeModuleEditor({
       content: mod.content ?? "",
       isRequired: mod.is_required,
       orderIndex: mod.order_index,
+      quizQuestions: (mod.quiz_questions ?? []).map((q) => ({
+        question: q.question,
+        options: [...q.options],
+        correctIndex: q.correctIndex,
+      })),
     });
     setOpen(true);
   }
 
+  function updateQuestion(idx: number, patch: Partial<QuizQuestion>) {
+    setForm((f) => ({
+      ...f,
+      quizQuestions: f.quizQuestions.map((q, i) => (i === idx ? { ...q, ...patch } : q)),
+    }));
+  }
+
+  function updateOption(qIdx: number, oIdx: number, value: string) {
+    setForm((f) => ({
+      ...f,
+      quizQuestions: f.quizQuestions.map((q, i) => {
+        if (i !== qIdx) return q;
+        const options = [...q.options];
+        options[oIdx] = value;
+        return { ...q, options };
+      }),
+    }));
+  }
+
   async function save() {
     if (!form.title.trim()) return;
+    const quizQuestions = form.quizQuestions
+      .filter((q) => q.question.trim() && q.options.some((o) => o.trim()))
+      .map((q) => ({
+        question: q.question.trim(),
+        options: q.options.map((o) => o.trim()).filter(Boolean),
+        correctIndex: Math.min(q.correctIndex, q.options.filter((o) => o.trim()).length - 1),
+      }));
+
     const payload = {
       orgId,
       title: form.title.trim(),
@@ -66,6 +108,7 @@ export function NmeModuleEditor({
       content: form.content || null,
       isRequired: form.isRequired,
       orderIndex: form.orderIndex,
+      quizQuestions,
       ...(editing ? { id: editing.id } : {}),
     };
     const res = await fetch("/api/nme/modules", {
@@ -113,6 +156,7 @@ export function NmeModuleEditor({
                 <p className="font-medium text-sm">{mod.title}</p>
                 <p className="text-xs text-muted-foreground">
                   {mod.is_required ? "Required" : "Optional"} · Order {mod.order_index}
+                  {(mod.quiz_questions?.length ?? 0) > 0 ? ` · ${mod.quiz_questions!.length} quiz Q` : ""}
                 </p>
               </div>
               <Button size="sm" variant="secondary" onClick={() => openEdit(mod)}>Edit</Button>
@@ -128,6 +172,7 @@ export function NmeModuleEditor({
         open={open}
         onClose={() => setOpen(false)}
         title={editing ? "Edit module" : "New module"}
+        size="lg"
         footer={
           <>
             <Button variant="secondary" onClick={() => setOpen(false)}>Cancel</Button>
@@ -144,6 +189,57 @@ export function NmeModuleEditor({
             <input type="checkbox" checked={form.isRequired} onChange={(e) => setForm({ ...form, isRequired: e.target.checked })} />
             Required for all new members
           </label>
+
+          <div className="border-t border-border pt-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold">Quiz questions</p>
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={<Plus size={12} />}
+                onClick={() => setForm({ ...form, quizQuestions: [...form.quizQuestions, emptyQuestion()] })}
+              >
+                Add question
+              </Button>
+            </div>
+            {form.quizQuestions.map((q, qi) => (
+              <div key={qi} className="p-3 rounded-lg border border-border space-y-2">
+                <div className="flex gap-2">
+                  <Input
+                    label={`Question ${qi + 1}`}
+                    value={q.question}
+                    onChange={(e) => updateQuestion(qi, { question: e.target.value })}
+                  />
+                  <button
+                    type="button"
+                    className="self-end p-2 text-muted-foreground hover:text-red-500"
+                    onClick={() => setForm({
+                      ...form,
+                      quizQuestions: form.quizQuestions.filter((_, i) => i !== qi),
+                    })}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+                {q.options.map((opt, oi) => (
+                  <div key={oi} className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name={`correct-${qi}`}
+                      checked={q.correctIndex === oi}
+                      onChange={() => updateQuestion(qi, { correctIndex: oi })}
+                    />
+                    <input
+                      className="flex-1 h-9 rounded-lg border border-border px-3 text-sm"
+                      placeholder={`Option ${oi + 1}`}
+                      value={opt}
+                      onChange={(e) => updateOption(qi, oi, e.target.value)}
+                    />
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
       </Modal>
     </Card>

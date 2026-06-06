@@ -21,7 +21,7 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
   const { id } = await params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/onboarding");
   const viewerMembership = await loadActiveMembershipServer(user.id);
   if (!viewerMembership) redirect("/onboarding");
 

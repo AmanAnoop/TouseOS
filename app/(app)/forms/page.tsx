@@ -253,7 +253,7 @@ export default function FormsPage() {
   const required = forms.filter((f) => f.is_required);
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Forms & Signatures"
         description="Build and manage waivers, consent forms, and required documents"

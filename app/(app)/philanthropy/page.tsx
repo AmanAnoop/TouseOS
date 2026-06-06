@@ -73,7 +73,7 @@ export default function PhilanthropyPage() {
   const activeCampaigns = campaigns.filter((c) => c.is_active);
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Philanthropy & Fundraising"
         description={`${campaigns.length} campaigns · ${formatCurrency(totalRaised)} raised total`}
