@@ -25,7 +25,8 @@ export type SidebarIconKey =
   | "graduation"
   | "sparkles"
   | "bar-chart"
-  | "layers";
+  | "layers"
+  | "plane";
 
 export interface SidebarNavItemDef {
   href: string;
@@ -111,7 +112,8 @@ function mapFeatureItem(href: string, label: string): SidebarNavItemDef {
     "/standings": "bar-chart",
     "/yearbook": "book",
     "/waivers": "shield",
-    "/travel": "building",
+    "/travel": "plane",
+    "/travel/templates": "plane",
     "/equipment": "warehouse",
     "/injuries": "clipboard",
     "/coaches": "trophy",
@@ -133,7 +135,7 @@ function greekFeatureSections(
 ): SidebarSectionDef[] {
   const recruitment = ["/pnm", "/big-little", "/nme"];
   const social = ["/social", "/social-calendar", "/social-collab", "/social-assets", "/event-memories"];
-  const chapter = ["/risk", "/standards", "/housing", "/engagement", "/attendance-points", "/study-hours"];
+  const chapter = ["/travel", "/travel/templates", "/risk", "/standards", "/housing", "/engagement", "/attendance-points", "/study-hours"];
   const community = ["/alumni", "/philanthropy", "/interchapter"];
 
   const pick = (hrefs: string[]) =>
@@ -155,7 +157,7 @@ function sportsFeatureSections(
   items: Array<{ href: string; label: string }>,
 ): SidebarSectionDef[] {
   const team = ["/tryouts", "/tournaments", "/standings", "/coaches", "/injuries"];
-  const ops = ["/waivers", "/travel", "/equipment"];
+  const ops = ["/waivers", "/travel", "/travel/templates", "/equipment"];
   const other = items.filter(
     (i) => !team.includes(i.href) && !ops.includes(i.href) && i.href !== "/sports",
   );

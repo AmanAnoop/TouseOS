@@ -11,9 +11,5 @@ export default async function CreateOrgPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/onboarding/create-org");
 
-  return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-      <OnboardingWizard mode="create" allowBackToDashboard />
-    </div>
-  );
+  return <OnboardingWizard mode="create" allowBackToDashboard />;
 }

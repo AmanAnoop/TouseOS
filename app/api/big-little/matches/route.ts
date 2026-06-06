@@ -44,6 +44,9 @@ export async function POST(request: Request) {
   if (!orgId || !bigId || !littleId) {
     return NextResponse.json({ error: "orgId, bigId, and littleId required" }, { status: 400 });
   }
+  if (bigId === littleId) {
+    return NextResponse.json({ error: "A member cannot be matched with themselves" }, { status: 400 });
+  }
 
   const role = await roleForOrg(supabase, user.id, orgId);
   if (!can(role, "edit_roster") && !can(role, "manage_recruitment")) {
