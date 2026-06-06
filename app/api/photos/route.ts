@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { attachPhotoDisplayUrls } from "@/lib/photo-access";
 import { createClient } from "@/lib/supabase/server";
 import { createNotification } from "@/lib/notifications";
+import { getMemberRole } from "@/lib/api-org-role";
+import {
+  canUploadPhotos,
+  getOrgPhotoPermissions,
+  initialInstagramReady,
+  initialPhotoStatus,
+} from "@/lib/photo-permissions";
 
 async function withDisplayUrls<T extends { url?: string | null; storage_path?: string | null }>(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -53,9 +60,17 @@ export async function POST(request: Request) {
 
   const { orgId, albumId, url, storagePath, caption } = await request.json();
 
-  if (!storagePath) {
-    return NextResponse.json({ error: "storagePath required" }, { status: 400 });
+  if (!storagePath || !orgId) {
+    return NextResponse.json({ error: "storagePath and orgId required" }, { status: 400 });
   }
+
+  const role = await getMemberRole(supabase, user.id, String(orgId));
+  const perms = await getOrgPhotoPermissions(supabase, String(orgId));
+  if (!role || !canUploadPhotos(role, perms)) {
+    return NextResponse.json({ error: "Your chapter restricts photo uploads to officers or the PR team" }, { status: 403 });
+  }
+
+  const status = initialPhotoStatus(perms);
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -73,7 +88,10 @@ export async function POST(request: Request) {
     url: resolvedUrl,
     storage_path: storagePath,
     caption: caption ?? null,
-    status: "pending",
+    status,
+    is_instagram_ready: initialInstagramReady(perms, status),
+    approved_by: status === "approved" ? user.id : null,
+    approved_at: status === "approved" ? new Date().toISOString() : null,
   }).select().single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -87,17 +105,26 @@ export async function PATCH(request: Request) {
 
   const { photoId, status, isInstagramReady, isOfficerOnly, doNotPost, alcoholFlagged } = await request.json();
 
+  const { data: before } = await supabase.from("photos").select("status, uploaded_by, org_id, caption").eq("id", photoId).single();
+  const perms = before?.org_id
+    ? await getOrgPhotoPermissions(supabase, String(before.org_id))
+    : null;
+
   const updates: Record<string, unknown> = {};
   if (status !== undefined) {
     updates.status = status;
-    if (status === "approved") { updates.approved_by = user.id; updates.approved_at = new Date().toISOString(); }
+    if (status === "approved") {
+      updates.approved_by = user.id;
+      updates.approved_at = new Date().toISOString();
+      if (isInstagramReady === undefined && perms?.auto_instagram_ready) {
+        updates.is_instagram_ready = true;
+      }
+    }
   }
   if (isInstagramReady !== undefined) updates.is_instagram_ready = isInstagramReady;
   if (isOfficerOnly !== undefined) updates.is_officer_only = isOfficerOnly;
   if (doNotPost !== undefined) updates.do_not_post = doNotPost;
   if (alcoholFlagged !== undefined) updates.alcohol_flagged = alcoholFlagged;
-
-  const { data: before } = await supabase.from("photos").select("status, uploaded_by, org_id, caption").eq("id", photoId).single();
 
   const { data, error } = await supabase.from("photos").update(updates).eq("id", photoId).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

@@ -79,7 +79,7 @@ export default function DocumentsPage() {
     const q = query.toLowerCase();
     const matchesQuery = !q || d.title.toLowerCase().includes(q) || d.category.toLowerCase().includes(q);
     const matchesTab = tab === "all" || d.category === tab;
-    const matchesFolder = !folderId || (d as Document & { folder_id?: string }).folder_id === folderId;
+    const matchesFolder = !folderId || d.folder_id === folderId;
     return matchesQuery && matchesTab && matchesFolder;
   });
 

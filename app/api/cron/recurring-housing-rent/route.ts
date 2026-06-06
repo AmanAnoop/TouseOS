@@ -37,12 +37,10 @@ export async function GET(request: Request) {
     const rentCfg = (settings.housing_rent ?? {}) as Record<string, unknown>;
     if (!rentCfg.recurring_enabled) continue;
 
-    const dueDay = Number(rentCfg.due_day ?? 1);
-    if (dueDay !== dayOfMonth) continue;
-
     const result = await createHousingRentCharges(supabase, String(org.id), {
       dueDate,
       monthLabel,
+      filterDueDay: dayOfMonth,
     });
 
     if (result.created > 0 || result.skipped > 0) {

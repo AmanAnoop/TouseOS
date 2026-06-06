@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getOrgPhotoPermissions } from "@/lib/photo-permissions";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -39,6 +40,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "orgId and title required" }, { status: 400 });
   }
 
+  const perms = await getOrgPhotoPermissions(supabase, orgId);
+
   const { data, error } = await supabase
     .from("photo_albums")
     .insert({
@@ -46,6 +49,8 @@ export async function POST(request: Request) {
       title,
       event_id: eventId || null,
       created_by: user.id,
+      is_public: !perms.officer_only_albums,
+      allow_member_upload: perms.who_can_upload === "all_members",
     })
     .select()
     .single();

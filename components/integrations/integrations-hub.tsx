@@ -106,24 +106,6 @@ export function IntegrationsHub({ orgId, stripeAccountId, role }: IntegrationsHu
 
       <IntegrationKeysStatusPanel role={role} />
 
-      <Card padding="sm">
-        <p className="font-semibold text-sm text-foreground mb-2">Other services</p>
-        <div className="space-y-2">
-          {rows.filter((r) => r.id !== "stripe" && r.id !== "twilio").map((row) => (
-            <div key={row.id} className="flex items-center justify-between gap-2 text-sm">
-              <span className="text-foreground capitalize">{row.id}</span>
-              <Badge
-                label={row.live ? "Live" : row.configured ? "Partial" : "Off"}
-                color={row.live ? "green" : row.configured ? "yellow" : "gray"}
-              />
-            </div>
-          ))}
-          <p className="text-xs text-muted-foreground pt-2">
-            See <code className="font-mono text-xs">.env.example</code> for Resend and OpenAI keys.
-          </p>
-        </div>
-      </Card>
-
       <p className="text-xs text-muted-foreground">
         <Link href="/settings?tab=integrations" className="underline">
           Settings → Integrations

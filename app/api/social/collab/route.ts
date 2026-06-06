@@ -54,6 +54,19 @@ export async function POST(request: Request) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (scheduledDate) {
+    await supabase.from("social_calendar").insert({
+      org_id: orgId,
+      title,
+      caption: captionDraft ?? null,
+      scheduled_date: scheduledDate,
+      post_type: "carousel",
+      status: "draft",
+      photo_ids: Array.isArray(photoIds) ? photoIds : [],
+    });
+  }
+
   return NextResponse.json(data, { status: 201 });
 }
 
@@ -83,5 +96,31 @@ export async function PATCH(request: Request) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (scheduledDate !== undefined && data.scheduled_date) {
+    const { data: existing } = await supabase
+      .from("social_calendar")
+      .select("id")
+      .eq("org_id", orgId)
+      .eq("title", data.title)
+      .maybeSingle();
+
+    const calendarPayload = {
+      org_id: orgId,
+      title: data.title,
+      caption: data.caption_draft,
+      scheduled_date: data.scheduled_date,
+      post_type: "carousel",
+      status: "draft",
+      photo_ids: data.photo_ids ?? [],
+    };
+
+    if (existing?.id) {
+      await supabase.from("social_calendar").update(calendarPayload).eq("id", existing.id);
+    } else {
+      await supabase.from("social_calendar").insert(calendarPayload);
+    }
+  }
+
   return NextResponse.json(data);
 }

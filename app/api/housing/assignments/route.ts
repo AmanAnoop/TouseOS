@@ -38,6 +38,40 @@ export async function POST(request: Request) {
   return NextResponse.json(data, { status: 201 });
 }
 
+export async function PATCH(request: Request) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id, orgId, rentDueDay } = await request.json();
+  if (!id || !orgId) return NextResponse.json({ error: "id and orgId required" }, { status: 400 });
+
+  const day = rentDueDay === null || rentDueDay === ""
+    ? null
+    : Math.min(28, Math.max(1, Number(rentDueDay)));
+
+  const { data: assignment } = await supabase
+    .from("housing_assignments")
+    .select("id, room_id, housing_rooms(org_id)")
+    .eq("id", id)
+    .single();
+
+  const room = assignment?.housing_rooms as { org_id?: string } | null;
+  if (!assignment || String(room?.org_id) !== String(orgId)) {
+    return NextResponse.json({ error: "Assignment not found" }, { status: 404 });
+  }
+
+  const { data, error } = await supabase
+    .from("housing_assignments")
+    .update({ rent_due_day: day })
+    .eq("id", id)
+    .select("*, member_profiles(full_name)")
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data);
+}
+
 export async function DELETE(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

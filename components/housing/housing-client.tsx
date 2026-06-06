@@ -23,6 +23,7 @@ interface Assignment {
   id: string;
   room_id: string;
   member_id: string;
+  rent_due_day: number | null;
   member_profiles: { full_name: string } | null;
 }
 
@@ -271,6 +272,25 @@ export function HousingClient() {
     load(orgId);
   }
 
+  async function updateRentDueDay(assignmentId: string, rentDueDay: string) {
+    if (!orgId) return;
+    const res = await fetch("/api/housing/assignments", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: assignmentId,
+        orgId,
+        rentDueDay: rentDueDay === "" ? null : Number(rentDueDay),
+      }),
+    });
+    if (!res.ok) {
+      toast.error("Could not update due day");
+      return;
+    }
+    toast.success("Rent due day updated");
+    load(orgId);
+  }
+
   async function deleteContact(id: string) {
     if (!orgId || !confirm("Remove this contact?")) return;
     const res = await fetch(`/api/housing/contacts?id=${id}&org_id=${encodeURIComponent(orgId)}`, { method: "DELETE" });
@@ -443,7 +463,22 @@ export function HousingClient() {
                       <p className="text-xs font-medium text-greek-600">{formatCurrency(Number(room.monthly_rent))}/mo</p>
                     )}
                     {occ.map((a) => (
-                      <p key={a.id} className="text-xs truncate mt-1">{a.member_profiles?.full_name}</p>
+                      <div key={a.id} className="mt-1 space-y-1">
+                        <p className="text-xs truncate">{a.member_profiles?.full_name}</p>
+                        {canManageHousing && (
+                          <select
+                            className="w-full text-[10px] border border-border rounded px-1 py-0.5 bg-background"
+                            value={a.rent_due_day ?? ""}
+                            onChange={(e) => updateRentDueDay(a.id, e.target.value)}
+                            aria-label={`Rent due day for ${a.member_profiles?.full_name}`}
+                          >
+                            <option value="">Org default due day</option>
+                            {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
+                              <option key={d} value={d}>Due on the {d}{d === 1 ? "st" : d === 2 ? "nd" : d === 3 ? "rd" : "th"}</option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
                     ))}
                     {!full && canManageHousing && (
                       <Button

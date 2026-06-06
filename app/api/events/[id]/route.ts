@@ -62,6 +62,7 @@ export async function PATCH(
   if (body.alcohol !== undefined) updates.alcohol = body.alcohol;
   if (body.budgetAmount !== undefined) updates.budget_amount = body.budgetAmount;
   if (body.isPrivate !== undefined) updates.is_private = body.isPrivate;
+  if (body.coverImageUrl !== undefined) updates.cover_image_url = body.coverImageUrl;
 
   if (Object.keys(updates).length <= 1) {
     return NextResponse.json({ error: "No updates" }, { status: 400 });

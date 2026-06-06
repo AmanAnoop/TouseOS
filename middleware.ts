@@ -28,8 +28,11 @@ function isPublicPath(pathname: string): boolean {
     pathname.startsWith("/join/") ||
     pathname.startsWith("/donate/") ||
     pathname.startsWith("/f/") ||
+    pathname.startsWith("/pnm-event/") ||
     pathname.startsWith("/api/forms/share") ||
     pathname.startsWith("/api/forms/responses/public") ||
+    pathname.startsWith("/api/events/pnm-invite") ||
+    pathname.startsWith("/api/events/pnm-rsvp") ||
     pathname.startsWith("/onboarding") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||

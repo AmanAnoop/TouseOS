@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { Shuffle } from "lucide-react";
 import { Button, Input, Modal, Select, Textarea } from "@/components/ui";
@@ -35,6 +35,7 @@ export function RiskAssessmentWizard({
   });
   const [checklist, setChecklist] = useState<Record<string, string | boolean>>({
     licensedBartender: false,
+    policyAcknowledged: false,
     soberMonitors: "",
     wristbands: false,
     lastDrinkCutoff: "",
@@ -45,11 +46,32 @@ export function RiskAssessmentWizard({
     emergencyPhone: "",
     nearestHospital: "",
     firstAidKit: false,
+    securityPlan: false,
+    foodWaterPlan: false,
+    guestRatioConfirmed: false,
   });
   const [monitorIds, setMonitorIds] = useState<string[]>([]);
+  const [guestStats, setGuestStats] = useState<{ members: number; guests: number; ratioOk: boolean } | null>(null);
 
   const attendance = parseInt(ctx.expectedAttendance, 10) || 0;
   const recommendedMonitors = requiredSoberMonitors(attendance);
+
+  useEffect(() => {
+    if (!ctx.eventId || !orgId) {
+      setGuestStats(null);
+      return;
+    }
+    fetch(`/api/events/guest-stats?org_id=${encodeURIComponent(orgId)}&event_id=${encodeURIComponent(ctx.eventId)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data) {
+          setGuestStats({ members: data.members, guests: data.guests, ratioOk: data.ratioOk });
+          if (data.guests > 0) {
+            setCtx((c) => ({ ...c, expectedAttendance: String(data.members + data.guests) }));
+          }
+        }
+      });
+  }, [ctx.eventId, orgId]);
 
   function randomizeMonitors() {
     const pool = members.filter((m) => !monitorIds.includes(m.id));
@@ -78,23 +100,29 @@ export function RiskAssessmentWizard({
       eventDate: "", indoor: true, alcohol: false,
     });
     setChecklist({
-      licensedBartender: false, soberMonitors: "", wristbands: false, lastDrinkCutoff: "",
-      transportPlan: "", weatherChecked: false, rainPlan: "", emergencyName: "",
-      emergencyPhone: "", nearestHospital: "", firstAidKit: false,
+      licensedBartender: false, policyAcknowledged: false, soberMonitors: "", wristbands: false,
+      lastDrinkCutoff: "", transportPlan: "", weatherChecked: false, rainPlan: "", emergencyName: "",
+      emergencyPhone: "", nearestHospital: "", firstAidKit: false, securityPlan: false,
+      foodWaterPlan: false, guestRatioConfirmed: false,
     });
     setMonitorIds([]);
+    setGuestStats(null);
   }
 
   async function submit() {
+    const guestRatioOk = guestStats
+      ? guestStats.ratioOk && Boolean(checklist.guestRatioConfirmed)
+      : Boolean(checklist.guestRatioConfirmed);
+
     const items = {
-      alcohol_policy: Boolean(checklist.licensedBartender),
+      alcohol_policy: Boolean(checklist.licensedBartender && checklist.policyAcknowledged),
       sober_monitors_assigned: monitorIds.length >= recommendedMonitors,
-      guest_ratio_checked: true,
+      guest_ratio_checked: guestRatioOk,
       venue_contract_uploaded: false,
       transportation_plan: Boolean(checklist.transportPlan),
-      security_plan: true,
+      security_plan: Boolean(checklist.securityPlan),
       emergency_plan: Boolean(checklist.emergencyName && checklist.emergencyPhone),
-      food_water_plan: true,
+      food_water_plan: Boolean(checklist.foodWaterPlan),
     };
     const res = await fetch("/api/risk/checklists", {
       method: "POST",
@@ -178,6 +206,10 @@ export function RiskAssessmentWizard({
                 <input type="checkbox" checked={Boolean(checklist.licensedBartender)} onChange={(e) => setChecklist({ ...checklist, licensedBartender: e.target.checked })} />
                 Licensed bartender confirmed
               </label>
+              <label className="type-small" style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                <input type="checkbox" checked={Boolean(checklist.policyAcknowledged)} onChange={(e) => setChecklist({ ...checklist, policyAcknowledged: e.target.checked })} />
+                Chapter alcohol policy reviewed and acknowledged
+              </label>
               <Input label="Sober monitors assigned (count)" type="number" value={String(checklist.soberMonitors)} onChange={(e) => setChecklist({ ...checklist, soberMonitors: e.target.value })} />
               <label className="type-small" style={{ display: "flex", gap: 8, marginTop: 8 }}>
                 <input type="checkbox" checked={Boolean(checklist.wristbands)} onChange={(e) => setChecklist({ ...checklist, wristbands: e.target.checked })} />
@@ -197,6 +229,30 @@ export function RiskAssessmentWizard({
               <Textarea label="Rain contingency plan" value={String(checklist.rainPlan)} onChange={(e) => setChecklist({ ...checklist, rainPlan: e.target.value })} />
             </div>
           )}
+          {guestStats && guestStats.guests > 0 && (
+            <div className="ds-card" style={{ padding: 16 }}>
+              <p className="type-h3" style={{ marginBottom: 8 }}>Guest ratio</p>
+              <p className="type-small" style={{ marginBottom: 8 }}>
+                {guestStats.members} members · {guestStats.guests} guests
+                {guestStats.ratioOk ? " — ratio OK (3:1+)" : " — below 3:1 member-to-guest ratio"}
+              </p>
+              <label className="type-small" style={{ display: "flex", gap: 8 }}>
+                <input type="checkbox" checked={Boolean(checklist.guestRatioConfirmed)} onChange={(e) => setChecklist({ ...checklist, guestRatioConfirmed: e.target.checked })} />
+                Guest list and ratio verified
+              </label>
+            </div>
+          )}
+          <div className="ds-card" style={{ padding: 16 }}>
+            <p className="type-h3" style={{ marginBottom: 12 }}>Security & hospitality</p>
+            <label className="type-small" style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+              <input type="checkbox" checked={Boolean(checklist.securityPlan)} onChange={(e) => setChecklist({ ...checklist, securityPlan: e.target.checked })} />
+              Security / door team plan documented
+            </label>
+            <label className="type-small" style={{ display: "flex", gap: 8 }}>
+              <input type="checkbox" checked={Boolean(checklist.foodWaterPlan)} onChange={(e) => setChecklist({ ...checklist, foodWaterPlan: e.target.checked })} />
+              Food and water available for duration of event
+            </label>
+          </div>
           {attendance > 100 && (
             <div className="ds-card" style={{ padding: 16 }}>
               <p className="type-h3">Crowd management</p>

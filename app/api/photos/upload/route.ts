@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getMemberRole } from "@/lib/api-org-role";
+import { canUploadPhotos, getOrgPhotoPermissions } from "@/lib/photo-permissions";
 
 const MAX_BYTES = 12 * 1024 * 1024;
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
@@ -29,6 +31,12 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   if (!member) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const role = await getMemberRole(supabase, user.id, orgId);
+  const perms = await getOrgPhotoPermissions(supabase, orgId);
+  if (!role || !canUploadPhotos(role, perms)) {
+    return NextResponse.json({ error: "Your chapter restricts photo uploads to officers or the PR team" }, { status: 403 });
+  }
 
   const mime = file.type || "image/jpeg";
   if (!ALLOWED.has(mime)) {

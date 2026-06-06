@@ -118,18 +118,14 @@ function SocialPageContent() {
       body: JSON.stringify({
         photoId: id,
         status,
-        ...(status === "approved" ? { isInstagramReady: true } : {}),
       }),
     });
     if (!res.ok) {
       toast.error((await res.json().catch(() => ({}))).error ?? "Update failed");
       return;
     }
-    setPhotos((prev) => prev.map((p) => p.id === id ? {
-      ...p,
-      status: status as Photo["status"],
-      ...(status === "approved" ? { is_instagram_ready: true } : {}),
-    } : p));
+    const updated = await res.json();
+    setPhotos((prev) => prev.map((p) => p.id === id ? { ...p, ...updated } as Photo : p));
     toast.success(`Photo marked as ${status.replace("_", " ")}`);
   }
 

@@ -25,14 +25,43 @@ export async function GET(request: Request) {
   const orgId = new URL(request.url).searchParams.get("org_id");
   if (!orgId) return NextResponse.json({ error: "org_id required" }, { status: 400 });
 
-  const { data, error } = await supabase
-    .from("social_calendar")
-    .select("*")
-    .eq("org_id", orgId)
-    .order("scheduled_date", { ascending: true, nullsFirst: false });
+  const [{ data, error }, { data: collabs }] = await Promise.all([
+    supabase
+      .from("social_calendar")
+      .select("*")
+      .eq("org_id", orgId)
+      .order("scheduled_date", { ascending: true, nullsFirst: false }),
+    supabase
+      .from("collab_posts")
+      .select("id, title, caption_draft, scheduled_date, status, partner_org_name, photo_ids")
+      .eq("org_id", orgId)
+      .not("scheduled_date", "is", null)
+      .order("scheduled_date", { ascending: true }),
+  ]);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data ?? []);
+
+  const calendarRows = (data ?? []).map((row) => ({ ...row, source: "calendar" as const }));
+  const collabRows = (collabs ?? [])
+    .filter((c) => !calendarRows.some((r) => r.title === c.title && r.scheduled_date === c.scheduled_date))
+    .map((c) => ({
+      id: `collab-${c.id}`,
+      org_id: orgId,
+      title: `${c.title} (collab · ${c.partner_org_name})`,
+      caption: c.caption_draft,
+      scheduled_date: c.scheduled_date,
+      post_type: "carousel",
+      status: c.status === "posted" ? "posted" : "draft",
+      photo_ids: c.photo_ids ?? [],
+      source: "collab" as const,
+      collab_id: c.id,
+    }));
+
+  return NextResponse.json([...calendarRows, ...collabRows].sort((a, b) => {
+    const da = a.scheduled_date ? new Date(String(a.scheduled_date)).getTime() : 0;
+    const db = b.scheduled_date ? new Date(String(b.scheduled_date)).getTime() : 0;
+    return da - db;
+  }));
 }
 
 export async function POST(request: Request) {
