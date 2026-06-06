@@ -15,6 +15,7 @@ import { can } from "@/lib/permissions";
 import EventRsvpButton from "./rsvp-button";
 import { EventDetailActions } from "@/components/events/event-detail-actions";
 import { EventPollsPanel } from "@/components/events/event-polls-panel";
+import { EventQrCard } from "@/components/events/event-qr-card";
 
 export const dynamic = "force-dynamic";
 
@@ -264,6 +265,8 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
               </div>
             </Card>
           )}
+
+          <EventQrCard eventId={id} eventTitle={String(event.title)} />
         </div>
       </div>
     </div>

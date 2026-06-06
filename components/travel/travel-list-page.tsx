@@ -62,7 +62,7 @@ export function TravelListPage() {
   const [subsidy, setSubsidy] = useState(0);
 
   const [sportsForm, setSportsForm] = useState({
-    title: "", departureDate: "", returnDate: "", itinerary: "",
+    title: "", type: "away_game", departureDate: "", returnDate: "", itinerary: "",
     location: { destination: "", venueName: "", address: "", departureLocation: "", meetingPoint: "" } as LocationFieldValues,
   });
 
@@ -323,8 +323,8 @@ export function TravelListPage() {
             <Input label="Trip title *" value={sportsForm.title} onChange={(e) => setSportsForm({ ...sportsForm, title: e.target.value })} placeholder="State Championships – Columbus" />
             <Select
               label="Trip type"
-              value={greekForm.type}
-              onChange={(e) => setGreekForm({ ...greekForm, type: e.target.value })}
+              value={sportsForm.type ?? "away_game"}
+              onChange={(e) => setSportsForm({ ...sportsForm, type: e.target.value })}
               options={tripTypesForProduct("sports").map((t) => ({ value: t.value, label: t.label }))}
             />
             <LocationFields variant="travel" orgId={orgId ?? undefined} values={sportsForm.location} onChange={(patch) => setSportsForm({ ...sportsForm, location: { ...sportsForm.location, ...patch } })} />

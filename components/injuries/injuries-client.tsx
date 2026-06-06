@@ -8,6 +8,7 @@ import {
   PageHeader, Select, StatCard, Textarea,
 } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
+import { INJURY_TYPES, INJURY_SEVERITY, guidanceForInjuryType } from "@/lib/injury-guidance";
 import { useOrg } from "@/hooks/use-org";
 import type { RoleName } from "@/lib/permissions";
 
@@ -35,7 +36,7 @@ export function InjuriesClient() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     memberId: "", incidentDate: new Date().toISOString().slice(0, 10),
-    context: "practice", bodyArea: "", severity: "minor", description: "",
+    context: "practice", injuryType: "muscle_strain", bodyArea: "", severity: "mild", description: "",
   });
 
   const load = useCallback(async (oid: string) => {
@@ -101,8 +102,9 @@ export function InjuriesClient() {
   const active = injuries.filter((i) => !i.is_cleared);
   const cleared = injuries.filter((i) => i.is_cleared);
   const SEVERITY_COLOR: Record<string, "green" | "yellow" | "orange" | "red" | "gray"> = {
-    minor: "green", moderate: "yellow", severe: "orange", critical: "red",
+    mild: "green", minor: "green", moderate: "yellow", severe: "orange", critical: "red",
   };
+  const guidance = guidanceForInjuryType(form.injuryType);
 
   return (
     <div className="space-y-5">
@@ -143,9 +145,14 @@ export function InjuriesClient() {
           <Select label="Player" value={form.memberId} onChange={(e) => setForm({ ...form, memberId: e.target.value })} options={[{ value: "", label: "Select" }, ...members.map((m) => ({ value: m.id, label: m.full_name }))]} />
           <Input label="Incident date" type="date" value={form.incidentDate} onChange={(e) => setForm({ ...form, incidentDate: e.target.value })} />
           <Select label="Context" value={form.context} onChange={(e) => setForm({ ...form, context: e.target.value })} options={["practice", "game", "tournament", "other"].map((v) => ({ value: v, label: v }))} />
-          <Input label="Body area" value={form.bodyArea} onChange={(e) => setForm({ ...form, bodyArea: e.target.value })} placeholder="Knee, ankle…" />
-          <Select label="Severity" value={form.severity} onChange={(e) => setForm({ ...form, severity: e.target.value })} options={["minor", "moderate", "severe", "critical"].map((v) => ({ value: v, label: v }))} />
-          <Textarea label="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={4} />
+          <Select label="Injury type" value={form.injuryType} onChange={(e) => setForm({ ...form, injuryType: e.target.value })} options={INJURY_TYPES.map((t) => ({ value: t.value, label: t.label }))} />
+          <Input label="Body part affected" value={form.bodyArea} onChange={(e) => setForm({ ...form, bodyArea: e.target.value })} placeholder="Knee, ankle…" />
+          <Select label="Severity" value={form.severity} onChange={(e) => setForm({ ...form, severity: e.target.value })} options={INJURY_SEVERITY.map((s) => ({ value: s.value, label: s.label }))} />
+          <div className="p-3 rounded-lg border border-border bg-surface-2">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">What to do</p>
+            <p className="text-sm text-foreground">{guidance}</p>
+          </div>
+          <Textarea label="Additional notes" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} />
         </div>
       </Modal>
     </div>

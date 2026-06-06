@@ -140,8 +140,12 @@ export default function BigLittlePage() {
   const revealed = matches.filter((m) => m.status === "revealed").length;
   const unmatched = members.filter((m) => m.membership_status === "active" && !matches.find((match) => match.big_id === m.id || match.little_id === m.id)).length;
 
-  const bigOptions = members.filter((m) => !matches.find((match) => match.big_id === m.id));
-  const littleOptions = members.filter((m) => !matches.find((match) => match.little_id === m.id));
+  const bigOptions = members.filter((m) =>
+    m.id !== selectedLittle && !matches.find((match) => match.big_id === m.id),
+  );
+  const littleOptions = members.filter((m) =>
+    m.id !== selectedBig && !matches.find((match) => match.little_id === m.id),
+  );
 
   return (
     <div className="space-y-5">
@@ -263,7 +267,7 @@ export default function BigLittlePage() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setMatchOpen(false)}>Cancel</Button>
-            <Button onClick={createMatch} disabled={!selectedBig || !selectedLittle}>Create match</Button>
+            <Button onClick={createMatch} disabled={!selectedBig || !selectedLittle || selectedBig === selectedLittle}>Create match</Button>
           </>
         }
       >
@@ -282,7 +286,10 @@ export default function BigLittlePage() {
               {littleOptions.map((m) => <option key={m.id} value={m.id}>{m.full_name} ({m.class_year ?? "—"})</option>)}
             </select>
           </div>
-          {selectedBig && selectedLittle && (
+          {selectedBig && selectedLittle && selectedBig === selectedLittle && (
+            <p className="text-sm text-red-600">A member cannot be matched with themselves.</p>
+          )}
+          {selectedBig && selectedLittle && selectedBig !== selectedLittle && (
             <div className="p-3 bg-greek-50 dark:bg-greek-950/30 rounded-lg">
               <p className="text-sm font-semibold text-greek-700">
                 Compatibility: {computeMatchScore(
