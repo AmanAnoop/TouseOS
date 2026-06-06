@@ -13,10 +13,12 @@ import type { Announcement } from "@/types";
 import { AnnouncementFeed, COMMS_AUDIENCES } from "@/components/comms/announcement-feed";
 import { ScheduledMessagesPanel } from "@/components/comms/scheduled-messages-panel";
 import { CommsAnalyticsPanel } from "@/components/comms/comms-analytics-panel";
+import { can } from "@/lib/permissions";
 import { useOrg } from "@/hooks/use-org";
 
 export default function CommsPage() {
-  const { orgId } = useOrg();
+  const { orgId, role } = useOrg();
+  const canManageComms = can(role, "send_mass_texts");
   const [tab, setTab] = useState("announcements");
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -201,7 +203,14 @@ export default function CommsPage() {
       {tab === "announcements" && (
         <>
           <SearchInput value={query} onChange={setQuery} placeholder="Search announcements..." />
-          <AnnouncementFeed announcements={announcements} loading={loading} query={query} />
+          <AnnouncementFeed
+            announcements={announcements}
+            loading={loading}
+            query={query}
+            orgId={orgId ?? undefined}
+            canDelete={canManageComms}
+            onDeleted={() => orgId && loadAnnouncements(orgId)}
+          />
         </>
       )}
 

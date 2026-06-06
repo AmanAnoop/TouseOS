@@ -15,6 +15,7 @@ import {
   Image as ImageIcon,
   Layers,
   MessageSquare,
+  Plane,
   Settings,
   Shield,
   Sparkles,
@@ -49,6 +50,7 @@ const MAP: Record<SidebarIconKey, React.ReactNode> = {
   sparkles: <Sparkles size={18} strokeWidth={1.75} />,
   "bar-chart": <BarChart3 size={18} strokeWidth={1.75} />,
   layers: <Layers size={18} strokeWidth={1.75} />,
+  plane: <Plane size={18} strokeWidth={1.75} />,
 };
 
 export function sidebarIcon(key: SidebarIconKey): React.ReactNode {

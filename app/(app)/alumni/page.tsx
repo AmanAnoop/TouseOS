@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import Papa from "papaparse";
 import {
-  Download, Mail, MapPin, Plus, Briefcase,
+  Download, Mail, MapPin, Plus, Briefcase, Upload,
   GraduationCap, Heart, Users,
 } from "lucide-react";
 import { useOrg } from "@/hooks/use-org";
@@ -24,11 +25,40 @@ export default function AlumniPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [selected, setSelected] = useState<AlumniProfile | null>(null);
 
+  const [importing, setImporting] = useState(false);
+  const importRef = useRef<HTMLInputElement>(null);
+
   const [form, setForm] = useState({
     fullName: "", email: "", phone: "", graduationYear: "",
     pledgeClass: "", city: "", state: "", careerField: "",
     employer: "", mentorshipInterest: false, contactPreference: "email",
   });
+
+  async function handleCsvImport(file: File) {
+    if (!orgId) return;
+    setImporting(true);
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const res = await fetch("/api/alumni/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orgId, rows: results.data }),
+        });
+        setImporting(false);
+        if (res.ok) {
+          const { imported } = await res.json();
+          toast.success(`Imported ${imported} alumni`);
+          load(orgId);
+        } else {
+          const err = await res.json();
+          toast.error(err.error ?? "Import failed");
+        }
+      },
+      error: () => { setImporting(false); toast.error("Could not parse CSV"); },
+    });
+  }
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
@@ -91,6 +121,8 @@ export default function AlumniPage() {
         description={`${alumni.length} alumni in database · ${mentors.length} mentorship volunteers`}
         action={
           <div className="flex gap-2">
+            <input ref={importRef} type="file" accept=".csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCsvImport(f); e.target.value = ""; }} />
+            <Button variant="secondary" size="sm" icon={<Upload size={14} />} loading={importing} onClick={() => importRef.current?.click()}>Import CSV</Button>
             <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={() => downloadCsv("alumni.csv", alumni.map((a) => ({ Name: a.full_name, Email: a.email ?? "", "Grad Year": a.graduation_year ?? "", City: a.city ?? "", "Career Field": a.career_field ?? "", Employer: a.employer ?? "" })))}>Export</Button>
             <Button size="sm" icon={<Plus size={14} />} onClick={() => setAddOpen(true)}>Add alumni</Button>
           </div>

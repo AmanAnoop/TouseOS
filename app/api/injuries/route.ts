@@ -19,6 +19,7 @@ export async function POST(request: Request) {
   const {
     orgId, memberId, incidentDate, context, bodyArea, severity,
     description, actionTaken, trainerReferred, returnToPlayDate,
+    injuryType, guidance,
   } = body;
 
   const { data: membership } = await supabase
@@ -39,9 +40,10 @@ export async function POST(request: Request) {
     incident_date: incidentDate,
     context: context ?? "practice",
     body_area: bodyArea,
-    severity: severity ?? "minor",
+    severity: severity === "mild" ? "minor" : (severity ?? "minor"),
     description: description ?? "",
-    action_taken: actionTaken || null,
+    action_taken: actionTaken || guidance || null,
+    injury_type: injuryType || null,
     trainer_referred: Boolean(trainerReferred),
     return_to_play_date: returnToPlayDate || null,
     is_cleared: false,

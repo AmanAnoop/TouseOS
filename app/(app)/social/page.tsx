@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import NextImage from "next/image";
-import { CheckCircle, Download, Flag, Image as ImageIcon, Plus, Star, Upload, X } from "lucide-react";
+import { Calendar, CheckCircle, Download, Flag, Image as ImageIcon, Plus, Star, Upload, X } from "lucide-react";
+import { formatDate } from "@/lib/utils";
 import toast from "react-hot-toast";
 import {
   Badge, Button, EmptyState,
@@ -41,6 +42,7 @@ function SocialPageContent() {
   const [generatedCaption, setGeneratedCaption] = useState("");
   const [generatingCaption, setGeneratingCaption] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const loadAlbums = useCallback(async (oid: string) => {
@@ -308,31 +310,39 @@ function SocialPageContent() {
           ) : mainTab === "albums" && albums.length === 0 ? (
             <EmptyState icon={<ImageIcon size={24} aria-hidden />} title="No photo albums" description="Create an album for your next event." />
           ) : mainTab === "albums" ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className="space-y-2">
               {albums.map((album) => (
                 <button
                   key={album.id}
                   onClick={() => { setSelectedAlbum(album); setTab("photos"); }}
-                  className="aspect-video relative rounded-xl overflow-hidden bg-greek-100 dark:bg-greek-950/30 hover:scale-105 transition-transform text-left"
+                  className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-greek-300 hover:bg-surface-1 transition-colors text-left"
                 >
-                  {album.cover_url ? (
-                    <NextImage
-                      src={album.cover_url}
-                      alt={album.title}
-                      fill
-                      unoptimized
-                      className="object-cover"
-                      sizes="(max-width: 640px) 50vw, 25vw"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center text-greek-400">
-                      <ImageIcon size={24} aria-hidden />
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                  <div className="absolute bottom-0 left-0 right-0 p-3">
-                    <p className="text-white text-sm font-semibold truncate">{album.title}</p>
-                    {album.is_public && <Badge label="Public" color="green" className="mt-1" />}
+                  <div className="w-14 h-14 rounded-lg overflow-hidden bg-greek-100 dark:bg-greek-950/30 flex-shrink-0 relative">
+                    {album.cover_url ? (
+                      <NextImage
+                        src={album.cover_url}
+                        alt={album.title}
+                        fill
+                        unoptimized
+                        className="object-cover"
+                        sizes="56px"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center text-greek-400">
+                        <ImageIcon size={20} aria-hidden />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate">{album.title}</p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                      <Calendar size={10} />
+                      {formatDate(album.created_at)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {album.is_public && <Badge label="Public" color="green" />}
+                    {album.allow_member_upload && <Badge label="Member upload" color="blue" />}
                   </div>
                 </button>
               ))}
@@ -347,6 +357,20 @@ function SocialPageContent() {
           >
             ← Back to albums
           </button>
+
+          <div
+            className={`border-2 border-dashed rounded-xl p-4 text-center transition-colors ${dragOver ? "border-greek-400 bg-greek-50/50 dark:bg-greek-950/20" : "border-border"}`}
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOver(false);
+              if (e.dataTransfer.files.length) uploadPhotos(e.dataTransfer.files);
+            }}
+          >
+            <Upload size={18} className="mx-auto text-muted-foreground mb-1" />
+            <p className="text-xs text-muted-foreground">Drop photos here or use Upload photos</p>
+          </div>
 
           <Tabs
             tabs={[

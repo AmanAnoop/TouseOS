@@ -239,6 +239,8 @@ export function HousingClient() {
   }
 
   const totalCapacity = rooms.reduce((s, r) => s + (r.capacity ?? 1), 0);
+  const occupiedBeds = assignments.length;
+  const occupancyPct = totalCapacity > 0 ? Math.round((occupiedBeds / totalCapacity) * 100) : 0;
   const totalRent = rooms.reduce((s, r) => s + (r.monthly_rent ? Number(r.monthly_rent) : 0), 0);
   const openMaintenance = maintenance.filter((m) => m.status === "open").length;
 
@@ -290,9 +292,10 @@ export function HousingClient() {
         }
       />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <StatCard title="Total rooms" value={rooms.length} icon={<Home size={18} />} />
         <StatCard title="Capacity" value={totalCapacity} icon={<Users size={18} />} />
+        <StatCard title="Occupied" value={`${occupiedBeds}/${totalCapacity}`} deltaType={occupancyPct >= 90 ? "up" : "neutral"} icon={<Users size={18} />} />
         <StatCard title="Monthly rent" value={totalRent > 0 ? formatCurrency(totalRent) : "—"} icon={<Building size={18} />} />
         <StatCard title="Open maintenance" value={openMaintenance} deltaType={openMaintenance > 0 ? "down" : "neutral"} icon={<Hammer size={18} />} />
       </div>

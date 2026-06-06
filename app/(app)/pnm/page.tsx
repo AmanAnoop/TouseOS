@@ -6,8 +6,11 @@ import toast from "react-hot-toast";
 import { useOrg } from "@/hooks/use-org";
 import {
   Avatar, Badge, Button, Card, EmptyState, Modal,
-  CardHeader, Input, PageHeader, SearchInput, Tabs,
+  CardHeader, Input, PageHeader, SearchInput, Select, Tabs,
 } from "@/components/ui";
+import { AddressAutocomplete } from "@/components/location/address-autocomplete";
+import { MajorSelect } from "@/components/profile/major-select";
+import { CLASS_YEARS } from "@/lib/school-majors";
 import { formatDate } from "@/lib/utils";
 import type { PnmLead, PnmStatus } from "@/types";
 import { PnmVotingPanel } from "@/components/pnm/voting-panel";
@@ -339,9 +342,22 @@ export default function PnmPage() {
             <Input label="Email" type="email" value={newLead.email} onChange={(e) => setNewLead({ ...newLead, email: e.target.value })} placeholder="jane@college.edu" />
             <Input label="Phone (optional)" type="tel" value={newLead.phone} onChange={(e) => setNewLead({ ...newLead, phone: e.target.value })} placeholder="+1 (555) 000-0000" />
             <Input label="Instagram handle (optional)" value={newLead.instagramHandle} onChange={(e) => setNewLead({ ...newLead, instagramHandle: e.target.value })} placeholder="@janesmithh" />
-            <Input label="Class year" value={newLead.classYear} onChange={(e) => setNewLead({ ...newLead, classYear: e.target.value })} placeholder="2027" />
-            <Input label="Major" value={newLead.major} onChange={(e) => setNewLead({ ...newLead, major: e.target.value })} placeholder="Business" />
-            <Input label="Hometown" value={newLead.hometown} onChange={(e) => setNewLead({ ...newLead, hometown: e.target.value })} placeholder="Austin, TX" />
+            <Select
+              label="Class year"
+              value={newLead.classYear}
+              onChange={(e) => setNewLead({ ...newLead, classYear: e.target.value })}
+              placeholder="Select class year"
+              options={CLASS_YEARS.map((y) => ({ value: y.value, label: y.label }))}
+            />
+            <MajorSelect value={newLead.major} onChange={(major) => setNewLead({ ...newLead, major })} />
+            <div className="col-span-2">
+              <AddressAutocomplete
+                label="Hometown"
+                value={newLead.hometown}
+                placeholder="Start typing hometown…"
+                onSelect={(place) => setNewLead({ ...newLead, hometown: place.address || place.venueName })}
+              />
+            </div>
             <Input label="Referral source" value={newLead.referralSource} onChange={(e) => setNewLead({ ...newLead, referralSource: e.target.value })} placeholder="Active member name" />
           </div>
           <Input label="Active member connection" value={newLead.activeMemberConnection} onChange={(e) => setNewLead({ ...newLead, activeMemberConnection: e.target.value })} placeholder="Who knows this PNM?" />

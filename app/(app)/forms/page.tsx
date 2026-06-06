@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { ClipboardList, Eye, FileEdit, Plus, ScanLine, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, ClipboardList, Eye, FileEdit, Plus, ScanLine, Trash2 } from "lucide-react";
 import { FormScanPanel } from "@/components/forms/form-scan-panel";
 import { SignaturePad } from "@/components/forms/signature-pad";
 import type { ScannedFormDraft } from "@/lib/form-ai";
@@ -144,6 +144,18 @@ export default function FormsPage() {
 
   function removeField(id: string) {
     setFields((prev) => prev.filter((f) => f.id !== id));
+  }
+
+  function moveField(id: string, direction: -1 | 1) {
+    setFields((prev) => {
+      const idx = prev.findIndex((f) => f.id === id);
+      if (idx < 0) return prev;
+      const next = idx + direction;
+      if (next < 0 || next >= prev.length) return prev;
+      const copy = [...prev];
+      [copy[idx], copy[next]] = [copy[next], copy[idx]];
+      return copy;
+    });
   }
 
   function applyScannedDraft(draft: ScannedFormDraft) {
@@ -367,7 +379,27 @@ export default function FormsPage() {
               <div className="space-y-2">
                 {fields.map((field, idx) => (
                   <div key={field.id} className="flex items-start gap-2 p-3 rounded-lg border border-border bg-surface-1">
-                    <span className="text-xs text-muted-foreground mt-2 w-5 flex-shrink-0">{idx + 1}</span>
+                    <div className="flex flex-col gap-0.5 flex-shrink-0 mt-1">
+                      <span className="text-xs text-muted-foreground w-5 text-center">{idx + 1}</span>
+                      <button
+                        type="button"
+                        disabled={idx === 0}
+                        onClick={() => moveField(field.id, -1)}
+                        className="p-0.5 rounded hover:bg-surface-2 disabled:opacity-30 text-muted-foreground"
+                        aria-label="Move field up"
+                      >
+                        <ChevronUp size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={idx === fields.length - 1}
+                        onClick={() => moveField(field.id, 1)}
+                        className="p-0.5 rounded hover:bg-surface-2 disabled:opacity-30 text-muted-foreground"
+                        aria-label="Move field down"
+                      >
+                        <ChevronDown size={14} />
+                      </button>
+                    </div>
                     <div className="flex-1 grid sm:grid-cols-3 gap-2">
                       <Input
                         placeholder="Field label"

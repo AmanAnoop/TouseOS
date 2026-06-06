@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Brush, Copy, ExternalLink, Image as ImageIcon, Link, Palette, Plus, Trash2 } from "lucide-react";
+import { Brush, Copy, ExternalLink, Image as ImageIcon, Link, Palette, Plus, Trash2, Upload } from "lucide-react";
 import toast from "react-hot-toast";
 import {
   Badge,
@@ -70,7 +70,9 @@ export function SocialAssetsClient({ orgId, org }: { orgId: string; org: OrgBran
   const [assets, setAssets] = useState<SocialAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [saveOpen, setSaveOpen] = useState(false);
-  const [form, setForm] = useState({ title: "", assetType: "template", content: "" });
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [form, setForm] = useState({ title: "", assetType: "template", content: "", fileUrl: "" });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -84,6 +86,23 @@ export function SocialAssetsClient({ orgId, org }: { orgId: string; org: OrgBran
     load();
   }, [load]);
 
+  async function uploadFile(file: File) {
+    setUploading(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("org_id", orgId);
+    const res = await fetch("/api/social-assets/upload", { method: "POST", body: fd });
+    setUploading(false);
+    if (!res.ok) {
+      toast.error((await res.json()).error ?? "Upload failed");
+      return null;
+    }
+    const data = await res.json() as { fileUrl: string; filename: string };
+    setForm((f) => ({ ...f, fileUrl: data.fileUrl, title: f.title || data.filename }));
+    toast.success("File uploaded");
+    return data.fileUrl;
+  }
+
   async function saveAsset() {
     if (!form.title.trim()) return;
     const res = await fetch("/api/social-assets", {
@@ -94,6 +113,7 @@ export function SocialAssetsClient({ orgId, org }: { orgId: string; org: OrgBran
         title: form.title,
         assetType: form.assetType,
         content: form.content,
+        fileUrl: form.fileUrl || null,
       }),
     });
     const data = await res.json();
@@ -103,7 +123,7 @@ export function SocialAssetsClient({ orgId, org }: { orgId: string; org: OrgBran
     }
     toast.success("Saved to library");
     setSaveOpen(false);
-    setForm({ title: "", assetType: "template", content: "" });
+    setForm({ title: "", assetType: "template", content: "", fileUrl: "" });
     load();
   }
 
@@ -212,6 +232,44 @@ export function SocialAssetsClient({ orgId, org }: { orgId: string; org: OrgBran
 
       {tab === "library" && (
         <div className="space-y-4">
+          <div
+            className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${dragOver ? "border-greek-400 bg-greek-50/50 dark:bg-greek-950/20" : "border-border"}`}
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={async (e) => {
+              e.preventDefault();
+              setDragOver(false);
+              const file = e.dataTransfer.files[0];
+              if (file) {
+                await uploadFile(file);
+                setSaveOpen(true);
+              }
+            }}
+          >
+            <Upload size={24} className="mx-auto text-muted-foreground mb-2" />
+            <p className="text-sm font-medium">Drop images or PDFs here</p>
+            <p className="text-xs text-muted-foreground mt-1">JPG, PNG, GIF, WebP, PDF — max 15 MB</p>
+            <Button
+              size="sm"
+              variant="secondary"
+              loading={uploading}
+              className="mt-3"
+              onClick={() => document.getElementById("social-asset-file-input")?.click()}
+            >
+              Browse files
+            </Button>
+            <input
+              id="social-asset-file-input"
+              type="file"
+              accept="image/*,application/pdf"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (file) { await uploadFile(file); setSaveOpen(true); }
+                e.target.value = "";
+              }}
+            />
+          </div>
           <div className="flex justify-end">
             <Button size="sm" icon={<Plus size={14} />} onClick={() => setSaveOpen(true)}>
               Add to library
@@ -298,6 +356,9 @@ export function SocialAssetsClient({ orgId, org }: { orgId: string; org: OrgBran
           <Input label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
           <Select label="Type" value={form.assetType} onChange={(e) => setForm({ ...form, assetType: e.target.value })} options={ASSET_TYPES} />
           <Textarea label="Content" value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} className="min-h-[120px]" placeholder="Caption, story script, or notes..." />
+          {form.fileUrl && (
+            <p className="text-xs text-green-600">File attached — will save with this asset</p>
+          )}
         </div>
       </Modal>
     </div>

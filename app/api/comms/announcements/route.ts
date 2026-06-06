@@ -84,3 +84,48 @@ export async function POST(request: Request) {
 
   return NextResponse.json(data, { status: 201 });
 }
+
+export async function DELETE(request: Request) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id");
+  const orgId = searchParams.get("org_id");
+  if (!id || !orgId) {
+    return NextResponse.json({ error: "id and org_id required" }, { status: 400 });
+  }
+
+  const { data: membership } = await supabase
+    .from("org_members")
+    .select("role")
+    .eq("org_id", orgId)
+    .eq("user_id", user.id)
+    .neq("status", "removed")
+    .maybeSingle();
+
+  const role = String(membership?.role ?? "general_member") as RoleName;
+  const isOfficer = OFFICER_ROLES.includes(role) || can(role, "send_mass_texts");
+  if (!isOfficer) {
+    return NextResponse.json({ error: "Officer access required" }, { status: 403 });
+  }
+
+  const { error } = await supabase
+    .from("announcements")
+    .delete()
+    .eq("id", id)
+    .eq("org_id", orgId);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await supabase.from("audit_logs").insert({
+    org_id: orgId,
+    actor_id: user.id,
+    action: "announcement_deleted",
+    resource_type: "announcements",
+    resource_id: id,
+  });
+
+  return NextResponse.json({ ok: true });
+}

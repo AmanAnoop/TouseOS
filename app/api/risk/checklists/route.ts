@@ -41,7 +41,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
-  const { orgId, eventId, items, riskScore, notes } = body;
+  const { orgId, eventId, items, riskScore, notes, metadata } = body;
   if (!orgId || !items) {
     return NextResponse.json({ error: "orgId and items required" }, { status: 400 });
   }
@@ -57,6 +57,7 @@ export async function POST(request: Request) {
     ...items,
     risk_score: riskScore ?? null,
     notes: notes || null,
+    metadata: metadata ?? {},
   }).select().single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -68,7 +69,7 @@ export async function PATCH(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id, orgId, approved } = await request.json();
+  const { id, orgId, approved, items, riskScore, metadata } = await request.json();
   if (!id || !orgId) return NextResponse.json({ error: "id and orgId required" }, { status: 400 });
 
   const role = await roleForOrg(supabase, user.id, orgId);
@@ -78,6 +79,9 @@ export async function PATCH(request: Request) {
 
   const updates: Record<string, unknown> = {};
   if (approved !== undefined) updates.approved = approved;
+  if (items) Object.assign(updates, items);
+  if (riskScore !== undefined) updates.risk_score = riskScore;
+  if (metadata !== undefined) updates.metadata = metadata;
 
   const { data, error } = await supabase
     .from("risk_checklists")

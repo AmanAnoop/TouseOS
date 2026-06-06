@@ -1,23 +1,46 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
-import { Building, ChevronRight, Users } from "lucide-react";
+import {
+  Building2, ChevronRight, GraduationCap, Trophy, Users, UsersRound,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { Button, Card, Input } from "@/components/ui";
+import { Button, Input } from "@/components/ui";
 import { ChapterIdentityPicker, type ChapterIdentityValue } from "@/components/settings/chapter-identity-picker";
+import { OnboardingShell } from "@/components/onboarding/onboarding-shell";
 import { REGAL_PRIMARY, REGAL_SECONDARY } from "@/lib/regal-theme";
+import { getProductId } from "@/lib/org-product";
 
 const ORG_TYPES = [
-  { value: "fraternity", label: "Fraternity", description: "Greek-letter fraternity", icon: "🏛️" },
-  { value: "sorority", label: "Sorority", description: "Greek-letter sorority", icon: "🌸" },
-  { value: "club_sports", label: "Club Sports", description: "Club sports team (SportsOS)", icon: "🏆" },
-  { value: "general_org", label: "Student Organization", description: "Clubs, societies & campus orgs (ClubOS)", icon: "🎓" },
-];
+  {
+    value: "fraternity",
+    label: "Fraternity / Men's Spirit Org",
+    description: "Greek-letter fraternity or men's spirit organization",
+    Icon: Building2,
+  },
+  {
+    value: "sorority",
+    label: "Sorority / Women's Spirit Org",
+    description: "Greek-letter sorority or women's spirit organization",
+    Icon: UsersRound,
+  },
+  {
+    value: "club_sports",
+    label: "Sports",
+    description: "Club sports team or varsity program",
+    Icon: Trophy,
+  },
+  {
+    value: "general_org",
+    label: "Club",
+    description: "Student clubs, societies, and campus organizations",
+    Icon: GraduationCap,
+  },
+] as const;
 
 interface OnboardingWizardProps {
-  /** welcome = first-time flow; create = add another org */
   mode?: "welcome" | "create";
   allowBackToDashboard?: boolean;
 }
@@ -31,12 +54,26 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
   const [form, setForm] = useState({
     name: "", campus: "", councilOrLeague: "", contactEmail: "",
   });
+  const colorsLocked = useRef(false);
   const [identity, setIdentity] = useState<ChapterIdentityValue>({
     universityId: "",
     greekAffiliationId: "",
     primaryColor: REGAL_PRIMARY,
     secondaryColor: REGAL_SECONDARY,
   });
+
+  const product = orgType ? getProductId(orgType) : "greek";
+  const isGreek = orgType === "fraternity" || orgType === "sorority";
+  const namePlaceholder = isGreek
+    ? "Phi Kappa Tau — Epsilon Alpha"
+    : product === "sports"
+      ? "Texas A&M Rugby"
+      : "Campus Photography Club";
+
+  function handleIdentityChange(next: ChapterIdentityValue) {
+    colorsLocked.current = true;
+    setIdentity(next);
+  }
 
   async function createOrg() {
     if (!orgType || !form.name.trim()) {
@@ -102,77 +139,122 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
     router.refresh();
   }
 
+  const shellTitle =
+    step === 1 ? "Welcome to TouseOS"
+      : step === 2 ? (mode === "create" ? "Add another organization" : "Choose your org type")
+        : step === 3 ? "Set up your workspace"
+          : "Join with invite code";
+
+  const shellSubtitle =
+    step === 1 ? "Create your chapter or join with an invite code from your officers."
+      : step === 2 ? "Select the type that best describes your organization."
+        : step === 3 ? "Name your org, pick your campus, and set brand colors."
+          : "Enter the code shared by an officer.";
+
   return (
-    <div className="w-full max-w-lg">
-      {allowBackToDashboard && (
-        <Link href="/home" className="text-sm text-muted-foreground hover:text-foreground mb-4 inline-block">
+    <OnboardingShell title={shellTitle} subtitle={shellSubtitle}>
+      {allowBackToDashboard && step === 1 && (
+        <Link
+          href="/home"
+          className="type-small"
+          style={{ color: "var(--color-text-muted)", marginBottom: 16, display: "inline-block" }}
+        >
           ← Back to home
         </Link>
       )}
 
       {step === 1 && (
-        <div className="space-y-4">
-          <div>
-            <h1 className="text-2xl font-bold">Welcome to TouseOS</h1>
-            <p className="text-muted-foreground mt-1">Create your chapter or join with an invite code from your officers.</p>
-          </div>
-          <Card className="cursor-pointer hover:border-greek-400 transition-colors" onClick={() => setStep(2)}>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-greek-50 flex items-center justify-center">
-                <Building size={20} className="text-greek-600" />
+        <div className="ds-page-stack" style={{ gap: 16 }}>
+          <button type="button" className="ds-card ds-card-interactive" style={{ cursor: "pointer", width: "100%", textAlign: "left" }} onClick={() => setStep(2)}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span
+                style={{
+                  width: 44, height: 44, borderRadius: 8,
+                  background: "color-mix(in srgb, var(--color-org-primary) 12%, transparent)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}
+              >
+                <Building2 size={20} style={{ color: "var(--color-org-primary)" }} />
+              </span>
+              <div style={{ flex: 1 }}>
+                <p className="type-body" style={{ fontWeight: 500, margin: 0 }}>Create a new organization</p>
+                <p className="type-small" style={{ color: "var(--color-text-muted)", margin: "4px 0 0" }}>
+                  Set up your chapter or team workspace
+                </p>
               </div>
-              <div className="flex-1">
-                <p className="font-semibold">Create a new organization</p>
-                <p className="text-sm text-muted-foreground">Set up your chapter or team workspace</p>
-              </div>
-              <ChevronRight size={16} className="text-muted-foreground" />
+              <ChevronRight size={16} style={{ color: "var(--color-text-muted)" }} />
             </div>
-          </Card>
-          <Card className="cursor-pointer hover:border-greek-400 transition-colors" onClick={() => setStep(4)}>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-                <Users size={20} className="text-blue-600" />
+          </button>
+
+          <button type="button" className="ds-card ds-card-interactive" style={{ cursor: "pointer", width: "100%", textAlign: "left" }} onClick={() => setStep(4)}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span
+                style={{
+                  width: 44, height: 44, borderRadius: 8,
+                  background: "color-mix(in srgb, var(--color-school-accent) 12%, transparent)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}
+              >
+                <Users size={20} style={{ color: "var(--color-school-accent)" }} />
+              </span>
+              <div style={{ flex: 1 }}>
+                <p className="type-body" style={{ fontWeight: 500, margin: 0 }}>Join with invite code</p>
+                <p className="type-small" style={{ color: "var(--color-text-muted)", margin: "4px 0 0" }}>
+                  Enter the code from your officer
+                </p>
               </div>
-              <div className="flex-1">
-                <p className="font-semibold">Join with invite code</p>
-                <p className="text-sm text-muted-foreground">Enter the code from your officer</p>
-              </div>
-              <ChevronRight size={16} className="text-muted-foreground" />
+              <ChevronRight size={16} style={{ color: "var(--color-text-muted)" }} />
             </div>
-          </Card>
+          </button>
         </div>
       )}
 
       {step === 2 && (
-        <div className="space-y-4">
-          <h2 className="text-xl font-bold">
-            {mode === "create" ? "Add another organization" : "What type of organization?"}
-          </h2>
+        <div className="ds-page-stack" style={{ gap: 12 }}>
           {mode === "create" && (
-            <p className="text-sm text-muted-foreground">
-              Each org is a separate workspace (Greek chapter, sports team, or student club).
+            <p className="type-small" style={{ color: "var(--color-text-muted)", margin: 0 }}>
+              Each org is a separate workspace — Greek chapter, sports team, or student club.
             </p>
           )}
-          <div className="space-y-2">
-            {ORG_TYPES.map((type) => (
-              <button
-                key={type.value}
-                type="button"
-                onClick={() => { setOrgType(type.value); setStep(3); }}
-                className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-border hover:border-greek-300 text-left"
+          {ORG_TYPES.map((type) => (
+            <button
+              key={type.value}
+              type="button"
+              onClick={() => { setOrgType(type.value); setStep(3); }}
+              className="ds-card"
+              style={{
+                width: "100%", display: "flex", alignItems: "center", gap: 12,
+                padding: "16px 20px", textAlign: "left", cursor: "pointer",
+                minHeight: 44, background: "var(--color-bg-raised)",
+              }}
+            >
+              <span
+                style={{
+                  width: 44, height: 44, borderRadius: 8, flexShrink: 0,
+                  background: "color-mix(in srgb, var(--color-org-primary) 10%, transparent)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}
               >
-                <span className="text-2xl">{type.icon}</span>
-                <div>
-                  <p className="font-semibold">{type.label}</p>
-                  <p className="text-sm text-muted-foreground">{type.description}</p>
-                </div>
-              </button>
-            ))}
-          </div>
+                <type.Icon size={20} style={{ color: "var(--color-org-primary)" }} />
+              </span>
+              <div>
+                <p className="type-body" style={{ fontWeight: 500, margin: 0 }}>{type.label}</p>
+                <p className="type-small" style={{ color: "var(--color-text-muted)", margin: "4px 0 0" }}>
+                  {type.description}
+                </p>
+              </div>
+            </button>
+          ))}
           {mode === "welcome" ? (
-            <Button variant="secondary" onClick={() => setStep(1)} className="w-full">Back</Button>
+            <Button variant="secondary" onClick={() => setStep(1)} style={{ width: "100%", minHeight: 44 }}>
+              Back
+            </Button>
           ) : (
-            <Link href="/dashboard" className="block text-center text-sm text-muted-foreground hover:underline">
+            <Link
+              href="/home"
+              className="type-small"
+              style={{ display: "block", textAlign: "center", color: "var(--color-text-muted)" }}
+            >
               Cancel
             </Link>
           )}
@@ -180,22 +262,42 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
       )}
 
       {step === 3 && (
-        <div className="space-y-4">
-          <h2 className="text-xl font-bold">Set up your workspace</h2>
-          <Input label="Organization name *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Beta Theta Pi – Alpha Epsilon" />
-          <Input label="Campus" value={form.campus} onChange={(e) => setForm({ ...form, campus: e.target.value })} />
-          <Input label="Council / league" value={form.councilOrLeague} onChange={(e) => setForm({ ...form, councilOrLeague: e.target.value })} />
-          <Input label="Contact email" type="email" value={form.contactEmail} onChange={(e) => setForm({ ...form, contactEmail: e.target.value })} />
+        <div className="ds-page-stack" style={{ gap: 16 }}>
+          <Input
+            label="Organization name *"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            placeholder={namePlaceholder}
+          />
           {orgType && (
             <ChapterIdentityPicker
               orgType={orgType}
               value={identity}
-              onChange={setIdentity}
+              onChange={handleIdentityChange}
+              colorsLocked={colorsLocked.current}
             />
           )}
-          <div className="flex gap-2">
-            <Button variant="secondary" onClick={() => setStep(2)} className="flex-1">Back</Button>
-            <Button onClick={createOrg} loading={loading} disabled={!form.name.trim()} className="flex-1">
+          <Input
+            label="Council / league"
+            value={form.councilOrLeague}
+            onChange={(e) => setForm({ ...form, councilOrLeague: e.target.value })}
+          />
+          <Input
+            label="Contact email"
+            type="email"
+            value={form.contactEmail}
+            onChange={(e) => setForm({ ...form, contactEmail: e.target.value })}
+          />
+          <div style={{ display: "flex", gap: 8 }}>
+            <Button variant="secondary" onClick={() => setStep(2)} style={{ flex: 1, minHeight: 44 }}>
+              Back
+            </Button>
+            <Button
+              onClick={createOrg}
+              loading={loading}
+              disabled={!form.name.trim()}
+              style={{ flex: 1, minHeight: 44 }}
+            >
               Create
             </Button>
           </div>
@@ -203,15 +305,23 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
       )}
 
       {step === 4 && (
-        <div className="space-y-4">
-          <h2 className="text-xl font-bold">Join with invite code</h2>
-          <Input label="Invite code" value={inviteCode} onChange={(e) => setInviteCode(e.target.value.toUpperCase())} placeholder="ABCD1234" />
-          <div className="flex gap-2">
-            <Button variant="secondary" onClick={() => setStep(1)} className="flex-1">Back</Button>
-            <Button onClick={joinByCode} loading={loading} className="flex-1">Join</Button>
+        <div className="ds-page-stack" style={{ gap: 16 }}>
+          <Input
+            label="Invite code"
+            value={inviteCode}
+            onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+            placeholder="ABCD1234"
+          />
+          <div style={{ display: "flex", gap: 8 }}>
+            <Button variant="secondary" onClick={() => setStep(1)} style={{ flex: 1, minHeight: 44 }}>
+              Back
+            </Button>
+            <Button onClick={joinByCode} loading={loading} style={{ flex: 1, minHeight: 44 }}>
+              Join
+            </Button>
           </div>
         </div>
       )}
-    </div>
+    </OnboardingShell>
   );
 }
