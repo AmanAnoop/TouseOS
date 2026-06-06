@@ -24,7 +24,15 @@ interface CalendarPost {
   post_type: string;
   status: string;
   platform: string[];
+  photo_ids: string[];
   created_at: string;
+}
+
+interface ChapterPhoto {
+  id: string;
+  url: string;
+  caption: string | null;
+  uploader_name: string | null;
 }
 
 const POST_TYPES = [
@@ -51,9 +59,11 @@ export default function SocialCalendarPage() {
   const [view, setView] = useState<"month" | "week" | "list">("month");
   const [tab, setTab] = useState("calendar");
   const [createOpen, setCreateOpen] = useState(false);
+  const [photos, setPhotos] = useState<ChapterPhoto[]>([]);
   const [form, setForm] = useState({
     title: "", caption: "", scheduledDate: "",
     postType: "feed", status: "draft",
+    photoIds: [] as string[],
   });
 
   const load = useCallback(async (oid: string) => {
@@ -66,6 +76,13 @@ export default function SocialCalendarPage() {
   useEffect(() => {
     if (orgId) load(orgId);
   }, [orgId, load]);
+
+  useEffect(() => {
+    if (!orgId) return;
+    fetch(`/api/photos?org_id=${encodeURIComponent(orgId)}&limit=60`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setPhotos((data as ChapterPhoto[]).filter((p) => p.url)));
+  }, [orgId]);
 
   useEffect(() => {
     const title = searchParams.get("title");
@@ -93,6 +110,7 @@ export default function SocialCalendarPage() {
         scheduledDate: form.scheduledDate,
         postType: form.postType,
         status: form.status,
+        photoIds: form.photoIds,
       }),
     });
     if (!res.ok) {
@@ -102,7 +120,7 @@ export default function SocialCalendarPage() {
     }
     toast.success("Post scheduled!");
     setCreateOpen(false);
-    setForm({ title: "", caption: "", scheduledDate: "", postType: "feed", status: "draft" });
+    setForm({ title: "", caption: "", scheduledDate: "", postType: "feed", status: "draft", photoIds: [] });
     load(orgId);
   }
 
@@ -180,6 +198,9 @@ export default function SocialCalendarPage() {
               <Badge label={post.status} color={STATUS_COLOR[post.status] as "green"} />
             </div>
             {post.caption && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{post.caption}</p>}
+            {post.photo_ids?.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-0.5">{post.photo_ids.length} linked photo{post.photo_ids.length !== 1 ? "s" : ""}</p>
+            )}
             {post.scheduled_date && (
               <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
                 <Calendar size={11} />
@@ -354,6 +375,35 @@ export default function SocialCalendarPage() {
           <p className="text-xs text-muted-foreground">
             {form.caption.length}/2200 characters · TIP: Captions over 125 chars get cut off in feed view.
           </p>
+          {photos.length > 0 && (
+            <div>
+              <p className="text-sm font-medium mb-2">Link photos from chapter library</p>
+              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-48 overflow-y-auto">
+                {photos.map((photo) => {
+                  const selected = form.photoIds.includes(photo.id);
+                  return (
+                    <button
+                      key={photo.id}
+                      type="button"
+                      onClick={() => setForm((f) => ({
+                        ...f,
+                        photoIds: selected
+                          ? f.photoIds.filter((id) => id !== photo.id)
+                          : [...f.photoIds, photo.id],
+                      }))}
+                      className={`relative aspect-square rounded-lg overflow-hidden border-2 ${selected ? "border-pink-500" : "border-transparent"}`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={photo.url} alt={photo.caption ?? "Chapter photo"} className="w-full h-full object-cover" />
+                    </button>
+                  );
+                })}
+              </div>
+              {form.photoIds.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-2">{form.photoIds.length} photo{form.photoIds.length !== 1 ? "s" : ""} selected</p>
+              )}
+            </div>
+          )}
         </div>
       </Modal>
     </div>

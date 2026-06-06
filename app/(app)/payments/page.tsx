@@ -28,6 +28,12 @@ export default function PaymentsPage() {
   const [payments, setPayments] = useState<PaymentWithMember[]>([]);
   const [members, setMembers] = useState<MemberProfile[]>([]);
   const [planCount, setPlanCount] = useState(0);
+  const [paymentPlans, setPaymentPlans] = useState<Array<{
+    payment_id: string;
+    installments: number;
+    schedule: Array<{ due_date?: string; status?: string }>;
+    payments?: { member_id?: string | null } | null;
+  }>>([]);
   const [loading, setLoading] = useState(true);
   const [myMemberId, setMyMemberId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -53,7 +59,9 @@ export default function PaymentsPage() {
     if (memberRes.ok) setMembers((await memberRes.json()) as MemberProfile[]);
     if (plansRes.ok) {
       const plans = await plansRes.json();
-      setPlanCount(Array.isArray(plans) ? plans.length : 0);
+      const list = Array.isArray(plans) ? plans : [];
+      setPlanCount(list.length);
+      setPaymentPlans(list);
     }
     setLoading(false);
   }, []);
@@ -204,7 +212,7 @@ export default function PaymentsPage() {
               <PaymentList payments={[]} loading />
             ) : (
               <MemberDuesTable
-                rows={buildMemberDuesRows(members, visiblePayments)}
+                rows={buildMemberDuesRows(members, visiblePayments, paymentPlans)}
                 onSelectMember={(memberId) => {
                   const payment = visiblePayments.find((p) => p.member_id === memberId);
                   if (payment) setSelectedPayment(payment);

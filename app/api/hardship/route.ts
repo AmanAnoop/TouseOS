@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { can, type RoleName } from "@/lib/permissions";
+import { tagsWithType } from "@/lib/task-config";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
     description: `Member: ${memberName}\nRequested arrangement: ${arrangement}\nAmount: $${requestedAmount ?? "—"}\nReason: ${reason}\n\n${additionalContext ?? ""}`,
     priority: "high",
     status: "todo",
-    tags: ["hardship", "dues", "treasurer"],
+    tags: tagsWithType(["hardship", "dues", "treasurer"], "financial"),
   });
 
   await supabase.from("audit_logs").insert({

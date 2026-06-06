@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import { Shuffle } from "lucide-react";
 import { Button, Input, Modal, Select, Textarea } from "@/components/ui";
 import { AddressAutocomplete } from "@/components/location/address-autocomplete";
 import { requiredSoberMonitors } from "@/lib/risk-config";
@@ -49,6 +50,17 @@ export function RiskAssessmentWizard({
 
   const attendance = parseInt(ctx.expectedAttendance, 10) || 0;
   const recommendedMonitors = requiredSoberMonitors(attendance);
+
+  function randomizeMonitors() {
+    const pool = members.filter((m) => !monitorIds.includes(m.id));
+    const needed = Math.max(0, recommendedMonitors - monitorIds.length);
+    if (needed === 0 || pool.length === 0) return;
+
+    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    const picked = shuffled.slice(0, Math.min(needed, shuffled.length)).map((m) => m.id);
+    setMonitorIds((prev) => [...prev, ...picked]);
+    toast.success(`Assigned ${picked.length} sober monitor${picked.length !== 1 ? "s" : ""} at random`);
+  }
 
   const completionPct = useMemo(() => {
     const keys = Object.keys(checklist);
@@ -210,10 +222,22 @@ export function RiskAssessmentWizard({
 
       {step === 3 && (
         <div className="ds-page-stack" style={{ gap: 12 }}>
-          <p className="type-body">
-            Based on expected attendance of <strong>{attendance}</strong>, we recommend{" "}
-            <strong>{recommendedMonitors}</strong> sober monitor{recommendedMonitors !== 1 ? "s" : ""}.
-          </p>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <p className="type-body">
+              Based on expected attendance of <strong>{attendance}</strong>, we recommend{" "}
+              <strong>{recommendedMonitors}</strong> sober monitor{recommendedMonitors !== 1 ? "s" : ""}.
+              {" "}({monitorIds.length} selected)
+            </p>
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={<Shuffle size={14} />}
+              onClick={randomizeMonitors}
+              disabled={monitorIds.length >= recommendedMonitors || members.length === 0}
+            >
+              Randomize
+            </Button>
+          </div>
           <div className="ds-page-stack" style={{ gap: 8 }}>
             {members.slice(0, 20).map((m) => (
               <label key={m.id} className="type-small" style={{ display: "flex", gap: 8, alignItems: "center", minHeight: 36 }}>

@@ -6,7 +6,7 @@ import NextImage from "next/image";
 import { CheckCircle, Download, Flag, Image as ImageIcon, Plus, Star, Upload, X } from "lucide-react";
 import toast from "react-hot-toast";
 import {
-  Badge, Button, EmptyState,
+  Badge, Button, EmptyState, Input,
   Modal, PageHeader, Tabs,
 } from "@/components/ui";
 import type { Photo, PhotoAlbum } from "@/types";
@@ -44,6 +44,9 @@ function SocialPageContent() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [albumOpen, setAlbumOpen] = useState(false);
+  const [albumTitle, setAlbumTitle] = useState("");
+  const [creatingAlbum, setCreatingAlbum] = useState(false);
 
   const loadAlbums = useCallback(async (oid: string) => {
     setLoading(true);
@@ -230,6 +233,28 @@ function SocialPageContent() {
   const approvedPhotos = photos.filter((p) => p.is_instagram_ready);
   const pendingPhotos = photos.filter((p) => p.status === "pending");
 
+  async function createAlbum() {
+    if (!orgId || !albumTitle.trim()) return;
+    setCreatingAlbum(true);
+    const res = await fetch("/api/photo-albums", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId, title: albumTitle.trim() }),
+    });
+    setCreatingAlbum(false);
+    if (!res.ok) {
+      toast.error((await res.json().catch(() => ({}))).error ?? "Could not create album");
+      return;
+    }
+    const data = (await res.json()) as PhotoAlbum;
+    toast.success("Album created");
+    setAlbumOpen(false);
+    setAlbumTitle("");
+    loadAlbums(orgId);
+    setSelectedAlbum(data);
+    setTab("photos");
+  }
+
   return (
     <div className="ds-page-stack">
       <PageHeader
@@ -246,22 +271,7 @@ function SocialPageContent() {
               </Button>
             </div>
           ) : (
-            <Button size="sm" className="officer-touch" icon={<Plus size={14} />} onClick={async () => {
-              if (!orgId) return;
-              const title = prompt("Album title?");
-              if (!title) return;
-              const res = await fetch("/api/photo-albums", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ orgId, title }),
-              });
-              if (res.ok) {
-                const data = (await res.json()) as PhotoAlbum;
-                loadAlbums(orgId);
-                setSelectedAlbum(data);
-                setTab("photos");
-              }
-            }}>
+            <Button size="sm" className="officer-touch" icon={<Plus size={14} />} onClick={() => setAlbumOpen(true)}>
               New album
             </Button>
           )
@@ -514,6 +524,26 @@ function SocialPageContent() {
             />
           )}
         </div>
+      </Modal>
+
+      <Modal
+        open={albumOpen}
+        onClose={() => { setAlbumOpen(false); setAlbumTitle(""); }}
+        title="New photo album"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => { setAlbumOpen(false); setAlbumTitle(""); }}>Cancel</Button>
+            <Button loading={creatingAlbum} onClick={createAlbum} disabled={!albumTitle.trim()}>Create album</Button>
+          </>
+        }
+      >
+        <Input
+          label="Album title"
+          placeholder="Spring formal 2026"
+          value={albumTitle}
+          onChange={(e) => setAlbumTitle(e.target.value)}
+          autoFocus
+        />
       </Modal>
     </div>
   );

@@ -11,8 +11,14 @@ interface PhotoRequest {
   description: string;
   category: string;
   requester_name: string | null;
+  album_id: string | null;
   fulfillments: number;
   created_at: string;
+}
+
+interface PhotoAlbum {
+  id: string;
+  title: string;
 }
 
 const CATEGORIES = [
@@ -26,15 +32,19 @@ const CATEGORIES = [
 
 export function PhotoRequestsPanel({ orgId }: { orgId: string }) {
   const [requests, setRequests] = useState<PhotoRequest[]>([]);
+  const [albums, setAlbums] = useState<PhotoAlbum[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ description: "", category: "mixer" });
+  const [form, setForm] = useState({ description: "", category: "mixer", albumId: "" });
 
   const load = useCallback(async () => {
     setLoading(true);
-    const res = await fetch(`/api/photo-requests?org_id=${orgId}`);
-    const data = await res.json();
-    if (res.ok) setRequests(data);
+    const [reqRes, albumRes] = await Promise.all([
+      fetch(`/api/photo-requests?org_id=${orgId}`),
+      fetch(`/api/photo-albums?org_id=${encodeURIComponent(orgId)}`),
+    ]);
+    if (reqRes.ok) setRequests(await reqRes.json());
+    if (albumRes.ok) setAlbums(await albumRes.json());
     setLoading(false);
   }, [orgId]);
 
@@ -42,11 +52,18 @@ export function PhotoRequestsPanel({ orgId }: { orgId: string }) {
     load();
   }, [load]);
 
+  const albumTitleById = new Map(albums.map((a) => [a.id, a.title]));
+
   async function createRequest() {
     const res = await fetch("/api/photo-requests", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orgId, description: form.description, category: form.category }),
+      body: JSON.stringify({
+        orgId,
+        description: form.description,
+        category: form.category,
+        albumId: form.albumId || undefined,
+      }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -55,7 +72,7 @@ export function PhotoRequestsPanel({ orgId }: { orgId: string }) {
     }
     toast.success("Photo request sent to chapter");
     setOpen(false);
-    setForm({ description: "", category: "mixer" });
+    setForm({ description: "", category: "mixer", albumId: "" });
     load();
   }
 
@@ -101,7 +118,11 @@ export function PhotoRequestsPanel({ orgId }: { orgId: string }) {
                   </div>
                   <p className="text-sm mt-1">{r.description}</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    By {r.requester_name ?? "Officer"} · {r.fulfillments} upload{r.fulfillments !== 1 ? "s" : ""}
+                    By {r.requester_name ?? "Officer"}
+                    {r.album_id && albumTitleById.has(r.album_id)
+                      ? ` · Album: ${albumTitleById.get(r.album_id)}`
+                      : ""}
+                    {" · "}{r.fulfillments} upload{r.fulfillments !== 1 ? "s" : ""}
                   </p>
                 </div>
                 <Button size="sm" variant="secondary" onClick={() => bumpFulfillment(r.id, r.fulfillments)}>
@@ -126,6 +147,16 @@ export function PhotoRequestsPanel({ orgId }: { orgId: string }) {
       >
         <div className="space-y-4">
           <Select label="Category" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} options={CATEGORIES} />
+          <Select
+            label="Target album (optional)"
+            value={form.albumId}
+            onChange={(e) => setForm({ ...form, albumId: e.target.value })}
+            placeholder="Any album / general request"
+            options={[
+              { value: "", label: "No specific album" },
+              ...albums.map((a) => ({ value: a.id, label: a.title })),
+            ]}
+          />
           <Textarea
             label="What do you need?"
             placeholder="Need 10+ candid photos from Saturday's mixer for Instagram carousel..."

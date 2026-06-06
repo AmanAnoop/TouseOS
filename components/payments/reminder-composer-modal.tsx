@@ -28,6 +28,8 @@ export function ReminderComposerModal({
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [memberSearch, setMemberSearch] = useState("");
   const [sendVia, setSendVia] = useState<"in_app" | "email" | "both">("both");
+  const [includeHardship, setIncludeHardship] = useState(true);
+  const [includePaymentPlans, setIncludePaymentPlans] = useState(true);
   const [loading, setLoading] = useState(false);
 
   const unpaid = useMemo(
@@ -82,6 +84,8 @@ export function ReminderComposerModal({
           ? selectedMemberIds
           : undefined,
         sendVia,
+        includeHardship,
+        includePaymentPlans,
       }),
     });
     setLoading(false);
@@ -187,6 +191,28 @@ export function ReminderComposerModal({
           rows={5}
           style={{ minHeight: 120 }}
         />
+
+        <div className="ds-field">
+          <span className="type-label">Exclude from reminders</span>
+          <div className="ds-page-stack" style={{ gap: 8 }}>
+            <label className="type-small" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input
+                type="checkbox"
+                checked={!includeHardship}
+                onChange={(e) => setIncludeHardship(!e.target.checked)}
+              />
+              Members with approved hardship requests
+            </label>
+            <label className="type-small" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input
+                type="checkbox"
+                checked={!includePaymentPlans}
+                onChange={(e) => setIncludePaymentPlans(!e.target.checked)}
+              />
+              Members on active payment plans
+            </label>
+          </div>
+        </div>
 
         <div className="ds-field">
           <span className="type-label">Send via</span>

@@ -4,6 +4,7 @@ import {
   CheckCircle2, Circle, Clock, MoreHorizontal, User,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
+import { taskTypeFromTags, taskTypeLabel } from "@/lib/task-config";
 import type { Task, TaskPriority, TaskStatus } from "@/types";
 
 export const PRIORITY_DOT: Record<TaskPriority, string> = {
@@ -30,6 +31,7 @@ interface TaskCardProps {
 export function TaskCard({ task, onStatusChange, onEdit, onSelect }: TaskCardProps) {
   const assigneeCount = task.assignees?.length ?? 0;
   const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== "done";
+  const taskType = taskTypeFromTags(task.tags);
 
   return (
     <div
@@ -67,8 +69,9 @@ export function TaskCard({ task, onStatusChange, onEdit, onSelect }: TaskCardPro
       )}
 
       <div className="flex items-center justify-between mt-2.5 ml-6">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <div className={`w-1.5 h-1.5 rounded-full ${PRIORITY_DOT[task.priority]}`} />
+          <span className="text-[10px] bg-greek-50 text-greek-700 rounded-full px-1.5">{taskTypeLabel(taskType)}</span>
           {task.assignee_name && (
             <span className="text-xs text-muted-foreground flex items-center gap-0.5">
               <User size={10} />

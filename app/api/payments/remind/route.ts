@@ -53,13 +53,30 @@ export async function POST(request: Request) {
   }
 
   if (!includePaymentPlans) {
-    const { data: planMembers } = await supabase
-      .from("payment_plans")
-      .select("member_id")
+    const { data: orgPayments } = await supabase
+      .from("payments")
+      .select("id, member_id")
       .eq("org_id", orgId)
-      .eq("status", "active");
-    const planIds = new Set((planMembers ?? []).map((p) => p.member_id));
-    filtered = filtered.filter((p) => !planIds.has(p.member_id));
+      .in("status", ["pending", "overdue", "partial"]);
+
+    const orgPaymentIds = (orgPayments ?? []).map((p) => p.id);
+    const memberByPaymentId = new Map(
+      (orgPayments ?? []).map((p) => [p.id, p.member_id as string]),
+    );
+
+    if (orgPaymentIds.length > 0) {
+      const { data: plans } = await supabase
+        .from("payment_plans")
+        .select("payment_id")
+        .in("payment_id", orgPaymentIds);
+
+      const planMemberIds = new Set(
+        (plans ?? [])
+          .map((plan) => memberByPaymentId.get(plan.payment_id))
+          .filter((id): id is string => Boolean(id)),
+      );
+      filtered = filtered.filter((p) => !planMemberIds.has(p.member_id));
+    }
   }
 
   const reminded = filtered.length;

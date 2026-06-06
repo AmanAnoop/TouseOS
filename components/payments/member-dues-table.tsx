@@ -6,6 +6,11 @@ import { formatCurrency } from "@/lib/utils";
 import type { MemberProfile } from "@/types";
 import type { PaymentWithMember } from "@/components/payments/payment-list";
 
+export interface PaymentPlanSummary {
+  installments: number;
+  nextDueDate: string | null;
+}
+
 export interface MemberDuesRow {
   member: MemberProfile;
   amountDue: number;
@@ -13,12 +18,33 @@ export interface MemberDuesRow {
   balance: number;
   status: "paid" | "pending" | "overdue" | "partial";
   lastActivity: string | null;
+  paymentPlan: PaymentPlanSummary | null;
+}
+
+interface PlanInput {
+  payment_id: string;
+  installments: number;
+  schedule: Array<{ due_date?: string; status?: string }>;
+  payments?: { member_id?: string | null } | null;
 }
 
 export function buildMemberDuesRows(
   members: MemberProfile[],
   payments: PaymentWithMember[],
+  plans: PlanInput[] = [],
 ): MemberDuesRow[] {
+  const planByMemberId = new Map<string, PaymentPlanSummary>();
+  for (const plan of plans) {
+    const memberId = plan.payments?.member_id;
+    if (!memberId) continue;
+    const schedule = plan.schedule ?? [];
+    const pending = schedule.filter((s) => s.status !== "paid");
+    const nextDue = pending[0]?.due_date ?? schedule[0]?.due_date ?? null;
+    planByMemberId.set(memberId, {
+      installments: plan.installments,
+      nextDueDate: nextDue,
+    });
+  }
   const rows = new Map<string, MemberDuesRow>();
 
   for (const m of members) {
@@ -30,6 +56,7 @@ export function buildMemberDuesRows(
       balance: 0,
       status: "paid",
       lastActivity: null,
+      paymentPlan: planByMemberId.get(m.id) ?? null,
     });
   }
 
@@ -96,6 +123,7 @@ export function MemberDuesTable({ rows, onSelectMember }: MemberDuesTableProps) 
             <th className="ds-td-num">Amount paid</th>
             <th className="ds-td-num">Balance</th>
             <th>Status</th>
+            <th>Payment plan</th>
             <th>Last activity</th>
             <th>Actions</th>
           </tr>
@@ -113,6 +141,18 @@ export function MemberDuesTable({ rows, onSelectMember }: MemberDuesTableProps) 
               <td className="ds-td-num" style={{ fontFamily: "var(--font-mono)", fontSize: 13 }}>{formatCurrency(row.balance)}</td>
               <td>
                 <Badge label={row.status} color={statusColor(row.status)} />
+              </td>
+              <td className="type-small" style={{ color: "var(--color-text-secondary)" }}>
+                {row.paymentPlan ? (
+                  <span>
+                    {row.paymentPlan.installments} installments
+                    {row.paymentPlan.nextDueDate
+                      ? ` · next ${new Date(row.paymentPlan.nextDueDate).toLocaleDateString()}`
+                      : ""}
+                  </span>
+                ) : (
+                  "—"
+                )}
               </td>
               <td className="type-small" style={{ color: "var(--color-text-secondary)" }}>
                 {row.lastActivity
