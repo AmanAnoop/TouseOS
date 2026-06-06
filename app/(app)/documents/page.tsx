@@ -157,8 +157,10 @@ export default function DocumentsPage() {
     setUploading(false);
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
+      if (stored?.path) {
+        await supabase.storage.from("documents").remove([stored.path]);
+      }
       setUploadError(data.error ?? "Failed to save document");
-      setUploading(false);
       return;
     }
     toast.success("Document saved");

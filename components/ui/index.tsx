@@ -1,5 +1,4 @@
 import * as React from "react";
-import NextImage from "next/image";
 import { cn } from "@/lib/utils";
 
 /* ── Button ─────────────────────────────────────────────── */
@@ -263,12 +262,12 @@ export function Avatar({ name, src, size = "md", className, variant = "default" 
 
   if (src) {
     return (
-      <NextImage
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
         src={src}
         alt={name.trim() || "User avatar"}
         width={px}
         height={px}
-        unoptimized
         className={cn(className)}
         style={{ width: px, height: px, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
       />
@@ -693,7 +692,7 @@ const modalMax: Record<string, string> = {
   sm: "400px",
   md: "520px",
   lg: "640px",
-  xl: "720px",
+  xl: "960px",
 };
 
 export function Modal({ open, onClose, title, description, children, footer, size = "md" }: ModalProps) {

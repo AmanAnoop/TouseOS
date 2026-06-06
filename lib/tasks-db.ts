@@ -7,6 +7,8 @@ export const OPTIONAL_TASK_COLUMNS = [
   "attachment_urls",
   "point_reward",
   "point_reward_recipient",
+  "point_reward_open",
+  "custom_reward_text",
   "completed_by",
 ] as const;
 

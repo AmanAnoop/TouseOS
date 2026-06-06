@@ -806,7 +806,11 @@
   .ds-table td.ds-td-num {
     font-family: var(--font-mono);
     font-size: 13px;
-    text-align: right;
+    text-align: center;
+  }
+
+  .ds-table th.ds-td-num {
+    text-align: center;
   }
 
   /* Mobile: stack table rows as cards (375px+) */
@@ -1462,9 +1466,10 @@
 
   .forms-builder-shell {
     display: grid;
-    grid-template-columns: minmax(220px, 35%) 1fr;
+    grid-template-columns: minmax(240px, 280px) 1fr;
     gap: 24px;
     align-items: start;
+    min-width: 0;
   }
 
   @media (max-width: 768px) {

@@ -60,74 +60,83 @@ function SortableFieldRow({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`flex items-start gap-2 p-3 rounded-lg border border-border bg-surface-1 ${isDragging ? "opacity-60 shadow-lg" : ""}`}
+      className={`p-4 rounded-lg border border-border bg-surface-1 ${isDragging ? "opacity-60 shadow-lg" : ""}`}
     >
-      <button
-        type="button"
-        className="mt-2 text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing"
-        {...attributes}
-        {...listeners}
-        aria-label="Drag to reorder"
-      >
-        <GripVertical size={14} />
-      </button>
-      <span className="text-xs text-muted-foreground mt-2 w-5 flex-shrink-0">{index + 1}</span>
-      <div className="flex-1 space-y-2">
-        <div className="grid sm:grid-cols-3 gap-2">
+      <div className="flex items-start gap-2">
+        <button
+          type="button"
+          className="mt-2 text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing flex-shrink-0"
+          {...attributes}
+          {...listeners}
+          aria-label="Drag to reorder"
+        >
+          <GripVertical size={14} />
+        </button>
+        <span className="text-xs text-muted-foreground mt-2 w-5 flex-shrink-0">{index + 1}</span>
+        <div className="flex-1 min-w-0 space-y-3">
           <Input
-            placeholder="Field label"
+            label="Question label"
+            placeholder="What should members see and answer?"
             value={field.label}
             onChange={(e) => onUpdate(field.id, { label: e.target.value })}
           />
-          <select
-            className="h-9 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            value={field.type}
-            onChange={(e) => onUpdate(field.id, { type: e.target.value as FormFieldItem["type"] })}
-          >
-            {FIELD_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-          </select>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" className="rounded" checked={field.required} onChange={(e) => onUpdate(field.id, { required: e.target.checked })} />
-            <span className="text-sm">Required</span>
-          </label>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium">Field type</label>
+              <select
+                className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                value={field.type}
+                onChange={(e) => onUpdate(field.id, { type: e.target.value as FormFieldItem["type"] })}
+              >
+                {FIELD_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer mt-6 sm:mt-8">
+              <input type="checkbox" className="rounded" checked={field.required} onChange={(e) => onUpdate(field.id, { required: e.target.checked })} />
+              <span className="text-sm">Required</span>
+            </label>
+          </div>
+          {field.type === "select" && (
+            <Input
+              label="Options (comma-separated)"
+              placeholder="Option A, Option B, Option C"
+              value={(field.options ?? []).join(", ")}
+              onChange={(e) => onUpdate(field.id, {
+                options: e.target.value.split(",").map((s) => s.trim()).filter(Boolean),
+              })}
+            />
+          )}
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Input
+              label="Page"
+              type="number"
+              min={1}
+              value={String(field.page ?? 1)}
+              onChange={(e) => onUpdate(field.id, { page: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+            />
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium">Visibility</label>
+              <select
+                className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                value={field.showWhen?.fieldId ?? ""}
+                onChange={(e) => {
+                  const fieldId = e.target.value;
+                  if (!fieldId) onUpdate(field.id, { showWhen: undefined });
+                  else onUpdate(field.id, { showWhen: { fieldId, equals: true } });
+                }}
+              >
+                <option value="">Always visible</option>
+                {allFields.filter((f) => f.id !== field.id).map((f) => (
+                  <option key={f.id} value={f.id}>Show when &quot;{f.label || "field"}&quot; is checked</option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
-        {field.type === "select" && (
-          <Input
-            label="Options (comma-separated)"
-            placeholder="Option A, Option B, Option C"
-            value={(field.options ?? []).join(", ")}
-            onChange={(e) => onUpdate(field.id, {
-              options: e.target.value.split(",").map((s) => s.trim()).filter(Boolean),
-            })}
-          />
-        )}
-        <div className="grid sm:grid-cols-2 gap-2">
-          <Input
-            label="Page"
-            type="number"
-            min={1}
-            value={String(field.page ?? 1)}
-            onChange={(e) => onUpdate(field.id, { page: Math.max(1, parseInt(e.target.value, 10) || 1) })}
-          />
-          <select
-            className="h-9 rounded-lg border border-border bg-background px-3 text-sm mt-5"
-            value={field.showWhen?.fieldId ?? ""}
-            onChange={(e) => {
-              const fieldId = e.target.value;
-              if (!fieldId) onUpdate(field.id, { showWhen: undefined });
-              else onUpdate(field.id, { showWhen: { fieldId, equals: true } });
-            }}
-          >
-            <option value="">Always visible</option>
-            {allFields.filter((f) => f.id !== field.id).map((f) => (
-              <option key={f.id} value={f.id}>Show when &quot;{f.label || "field"}&quot; is checked</option>
-            ))}
-          </select>
-        </div>
+        <button type="button" onClick={() => onRemove(field.id)} className="mt-2 text-muted-foreground hover:text-red-500 flex-shrink-0">
+          <Trash2 size={14} />
+        </button>
       </div>
-      <button type="button" onClick={() => onRemove(field.id)} className="mt-2 text-muted-foreground hover:text-red-500">
-        <Trash2 size={14} />
-      </button>
     </div>
   );
 }
@@ -176,7 +185,7 @@ export function SortableFormFields({
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy}>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {fields.map((field, idx) => (
                 <SortableFieldRow
                   key={field.id}

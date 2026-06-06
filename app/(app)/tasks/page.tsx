@@ -33,6 +33,7 @@ export default function TasksPage() {
     taskType: "administrative" as TaskTypeValue,
     title: "", description: "", priority: "medium" as TaskPriority, isRecurring: false,
     dueDate: "", assigneeName: "", tags: "", pointReward: "0", pointRewardRecipient: "completer" as "completer" | "assignees",
+    pointRewardOpen: false, customRewardText: "",
   });
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [notifyViaSms, setNotifyViaSms] = useState(false);
@@ -78,7 +79,7 @@ export default function TasksPage() {
   useEffect(() => {
     if (!orgId) return;
     load(orgId);
-    fetch(`/api/members?org_id=${encodeURIComponent(orgId)}`)
+    fetch(`/api/members?org_id=${encodeURIComponent(orgId)}&scope=roster`)
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => {
         const opts = (data as Array<{ id: string; full_name: string; preferred_name?: string | null }>).map((m) => ({
@@ -128,6 +129,8 @@ export default function TasksPage() {
           is_recurring: form.isRecurring,
           pointReward: parseInt(form.pointReward, 10) || 0,
           pointRewardRecipient: form.pointRewardRecipient,
+          pointRewardOpen: form.pointRewardOpen,
+          customRewardText: form.customRewardText || null,
           notifyViaSms: notifyViaSms && selectedMemberIds.length > 0,
         }),
       });
@@ -151,6 +154,8 @@ export default function TasksPage() {
           isRecurring: form.isRecurring,
           pointReward: parseInt(form.pointReward, 10) || 0,
           pointRewardRecipient: form.pointRewardRecipient,
+          pointRewardOpen: form.pointRewardOpen,
+          customRewardText: form.customRewardText || null,
           notifyViaSms: notifyViaSms && selectedMemberIds.length > 0,
         }),
       });
@@ -163,7 +168,7 @@ export default function TasksPage() {
 
     setCreateOpen(false);
     setEditTask(null);
-    setForm({ taskType: "administrative", title: "", description: "", priority: "medium", isRecurring: false, dueDate: "", assigneeName: "", tags: "", pointReward: "0", pointRewardRecipient: "completer" });
+    setForm({ taskType: "administrative", title: "", description: "", priority: "medium", isRecurring: false, dueDate: "", assigneeName: "", tags: "", pointReward: "0", pointRewardRecipient: "completer", pointRewardOpen: false, customRewardText: "" });
     setSelectedMemberIds([]);
     setNotifyViaSms(false);
     load(orgId);
@@ -207,6 +212,8 @@ export default function TasksPage() {
       tags: (task.tags ?? []).filter((t) => !t.startsWith("type:")).join(", "),
       pointReward: String((task as Task & { point_reward?: number }).point_reward ?? 0),
       pointRewardRecipient: ((task as Task & { point_reward_recipient?: string }).point_reward_recipient === "assignees" ? "assignees" : "completer"),
+      pointRewardOpen: Boolean((task as Task & { point_reward_open?: boolean }).point_reward_open),
+      customRewardText: String((task as Task & { custom_reward_text?: string }).custom_reward_text ?? ""),
     });
     setSelectedMemberIds(
       assignees.map((a) => a.member_id).filter((id): id is string => Boolean(id)),
@@ -437,14 +444,28 @@ export default function TasksPage() {
             value={form.pointReward}
             onChange={(e) => setForm({ ...form, pointReward: e.target.value })}
           />
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.pointRewardOpen}
+              onChange={(e) => setForm({ ...form, pointRewardOpen: e.target.checked })}
+            />
+            <span className="text-sm">Open to all members (anyone can complete for reward)</span>
+          </label>
+          <Input
+            label="Custom reward (optional)"
+            placeholder="e.g. Free formal ticket, chapter merch..."
+            value={form.customRewardText}
+            onChange={(e) => setForm({ ...form, customRewardText: e.target.value })}
+          />
           {Number(form.pointReward) > 0 && (
             <Select
               label="Award points to"
               value={form.pointRewardRecipient}
               onChange={(e) => setForm({ ...form, pointRewardRecipient: e.target.value as "completer" | "assignees" })}
               options={[
-                { value: "completer", label: "Whoever marks the task done (even if unassigned)" },
-                { value: "assignees", label: "Assigned members when task is completed" },
+                { value: "completer", label: "Whoever marks the task done (recommended)" },
+                { value: "assignees", label: "Assigned members only when completed" },
               ]}
             />
           )}

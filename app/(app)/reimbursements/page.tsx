@@ -152,6 +152,23 @@ export default function ReimbursementsPage() {
     load(orgId);
   }
 
+  async function deleteReimbursement(id: string) {
+    if (!orgId || !confirm("Delete this reimbursement? This cannot be undone.")) return;
+    setActionLoading(true);
+    const res = await fetch(`/api/reimbursements?id=${encodeURIComponent(id)}&org_id=${encodeURIComponent(orgId)}`, {
+      method: "DELETE",
+    });
+    setActionLoading(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast.error((data as { error?: string }).error ?? "Delete failed");
+      return;
+    }
+    toast.success("Reimbursement deleted");
+    setSelected(null);
+    load(orgId);
+  }
+
   async function updateStatus(
     id: string,
     status: string,
@@ -344,6 +361,9 @@ export default function ReimbursementsPage() {
             )}
             {canReview && selected?.status === "approved" && (
               <Button loading={actionLoading} onClick={() => updateStatus(selected.id, "paid")} icon={<DollarSign size={14} />}>Mark as paid</Button>
+            )}
+            {canReview && (
+              <Button variant="danger" loading={actionLoading} onClick={() => deleteReimbursement(selected!.id)} icon={<XCircle size={14} />}>Delete</Button>
             )}
             <Button variant="secondary" onClick={() => { setSelected(null); setRejectNotes(""); }} className="ml-auto">Close</Button>
           </div>

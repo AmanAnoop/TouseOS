@@ -91,7 +91,7 @@ export default function BudgetPage() {
       fetch(`/api/payments?org_id=${encodeURIComponent(oid)}`),
       fetch(`/api/reimbursements?org_id=${encodeURIComponent(oid)}`),
       fetch(`/api/events?org_id=${encodeURIComponent(oid)}`),
-      fetch(`/api/members?org_id=${encodeURIComponent(oid)}`),
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}&scope=roster`),
     ]);
     if (budgetRes.ok) {
       const data = normalizeBudgetList(await budgetRes.json());

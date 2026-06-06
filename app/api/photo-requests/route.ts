@@ -24,9 +24,15 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { orgId, description, category, albumId } = await request.json();
+  const { orgId, description, category, albumId, targetMemberIds } = await request.json();
   if (!orgId || !description || !category) {
     return NextResponse.json({ error: "orgId, description, and category required" }, { status: 400 });
+  }
+  const targets = Array.isArray(targetMemberIds)
+    ? targetMemberIds.map(String).filter(Boolean)
+    : [];
+  if (targets.length === 0) {
+    return NextResponse.json({ error: "Select at least one member to request photos from" }, { status: 400 });
   }
 
   const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", user.id).single();
@@ -38,6 +44,7 @@ export async function POST(request: Request) {
       requested_by: user.id,
       requester_name: profile?.full_name ?? "Officer",
       album_id: albumId || null,
+      target_member_ids: targets,
       description,
       category,
     })

@@ -27,7 +27,15 @@ export async function GET(request: Request) {
 
   const { data, error } = await supabase
     .from("big_little_matches")
-    .select("*, big:big_id(full_name, profile_photo_url, major, interests), little:little_id(full_name, profile_photo_url, major, interests)")
+    .select(`
+      *,
+      big:member_profiles!big_little_matches_big_id_fkey(
+        id, full_name, profile_photo_url, major, interests, class_year
+      ),
+      little:member_profiles!big_little_matches_little_id_fkey(
+        id, full_name, profile_photo_url, major, interests, class_year
+      )
+    `)
     .eq("org_id", orgId)
     .order("created_at", { ascending: false });
 

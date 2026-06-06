@@ -16,6 +16,7 @@ interface PointEntry {
 interface PointsSystemOverviewProps {
   rules: Array<{ label: string; points: number }>;
   leaderboard: Array<MemberProfile & { pts: number }>;
+  rankByMemberId?: Map<string, number>;
   entries: PointEntry[];
   eligibilityMin: number;
   currentMemberId?: string | null;
@@ -25,6 +26,7 @@ const RANK_BORDER = ["#B8952A", "#9CA3AF", "#A16207"];
 
 export function PointsSystemOverview({
   leaderboard,
+  rankByMemberId,
   entries,
   eligibilityMin,
   currentMemberId,
@@ -33,7 +35,7 @@ export function PointsSystemOverview({
     ? leaderboard.find((m) => m.id === currentMemberId)
     : undefined;
   const myRank = currentMemberId
-    ? leaderboard.findIndex((m) => m.id === currentMemberId) + 1
+    ? (rankByMemberId?.get(currentMemberId) ?? leaderboard.findIndex((m) => m.id === currentMemberId) + 1)
     : 0;
   const myEvents = currentMemberId
     ? entries.filter((e) => e.member_id === currentMemberId).slice(0, 8)
@@ -58,12 +60,16 @@ export function PointsSystemOverview({
                   </tr>
                 </thead>
                 <tbody>
-                  {leaderboard.slice(0, 15).map((m, i) => (
+                  {leaderboard.slice(0, 15).map((m) => {
+                    const rank = rankByMemberId?.get(m.id) ?? 0;
+                    return (
                     <tr
                       key={m.id}
-                      style={i < 3 ? { borderLeft: `3px solid ${RANK_BORDER[i]}` } : undefined}
+                      style={rank > 0 && rank <= 3 ? { borderLeft: `3px solid ${RANK_BORDER[rank - 1]}` } : undefined}
                     >
-                      <td className="ds-td-num" style={{ fontFamily: "var(--font-mono)" }}>{i + 1}</td>
+                      <td className="ds-td-num" style={{ fontFamily: "var(--font-mono)" }}>
+                        {rank || "—"}
+                      </td>
                       <td>
                         <div className="ds-member-identity">
                           <Avatar name={m.full_name} src={m.profile_photo_url} size="sm" />
@@ -78,7 +84,8 @@ export function PointsSystemOverview({
                         />
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

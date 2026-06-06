@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Papa from "papaparse";
 import {
-  Download, Upload, UserPlus,
+  Download, Mail, Upload, UserPlus,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
@@ -37,6 +37,8 @@ const PAYMENT_OPTIONS = [
 export default function RosterPage() {
   const { orgId, orgType, role: myRole, loading: orgLoading } = useOrg();
   const [members, setMembers] = useState<MemberProfile[]>([]);
+  const [invitedMembers, setInvitedMembers] = useState<MemberProfile[]>([]);
+  const [rosterTab, setRosterTab] = useState<"roster" | "invited">("roster");
   const [loading, setLoading] = useState(true);
 
   const [query, setQuery] = useState("");
@@ -57,11 +59,17 @@ export default function RosterPage() {
 
   const loadMembers = useCallback(async (oid: string) => {
     setLoading(true);
-    const res = await fetch(`/api/members?org_id=${encodeURIComponent(oid)}`);
-    if (res.ok) {
-      setMembers((await res.json()) as MemberProfile[]);
+    const [rosterRes, invitedRes] = await Promise.all([
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}&scope=roster&include_payments=1`),
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}&scope=invited`),
+    ]);
+    if (rosterRes.ok) {
+      setMembers((await rosterRes.json()) as MemberProfile[]);
     } else {
       toast.error("Failed to load roster");
+    }
+    if (invitedRes.ok) {
+      setInvitedMembers((await invitedRes.json()) as MemberProfile[]);
     }
     setLoading(false);
   }, []);
@@ -200,10 +208,10 @@ export default function RosterPage() {
     <div className="ds-page-stack">
       <PageHeader
         title={isSportsOrg(orgType) ? "Team Roster" : "Member Roster"}
-        description={`${members.length} members`}
+        description={`${members.length} members${invitedMembers.length ? ` · ${invitedMembers.length} invited` : ""}`}
         breadcrumb={isSportsOrg(orgType) ? "Team" : "Organization"}
         action={
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button variant="secondary" size="sm" icon={<Upload size={14} />} onClick={() => importRef.current?.click()} loading={importing}>Import CSV</Button>
             <input ref={importRef} type="file" accept=".csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCsvImport(f); e.target.value = ""; }} />
             <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={exportRoster}>
@@ -212,8 +220,8 @@ export default function RosterPage() {
             <Button size="sm" variant="secondary" icon={<UserPlus size={14} />} onClick={() => setMassInviteOpen(true)}>
               Mass invite
             </Button>
-            <Button size="sm" icon={<UserPlus size={14} />} onClick={() => setInviteOpen(true)}>
-              Invite
+            <Button size="sm" variant="secondary" icon={<Mail size={14} />} onClick={() => setInviteOpen(true)}>
+              Invite member
             </Button>
           </div>
         }
@@ -222,7 +230,25 @@ export default function RosterPage() {
       {orgId && isSportsOrg(orgType) && <SportsEligibilitySummary orgId={orgId} />}
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-3 items-center">
+        <div className="flex gap-1 p-1 rounded-lg bg-surface-1 border border-border">
+          <button
+            type="button"
+            className={`px-3 py-1.5 text-sm rounded-md ${rosterTab === "roster" ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}
+            onClick={() => setRosterTab("roster")}
+          >
+            Roster ({members.length})
+          </button>
+          <button
+            type="button"
+            className={`px-3 py-1.5 text-sm rounded-md ${rosterTab === "invited" ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}
+            onClick={() => setRosterTab("invited")}
+          >
+            Invited ({invitedMembers.length})
+          </button>
+        </div>
+        {rosterTab === "roster" && (
+          <>
         <SearchInput
           value={query}
           onChange={setQuery}
@@ -245,12 +271,20 @@ export default function RosterPage() {
         >
           {PAYMENT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
+          </>
+        )}
       </div>
 
-      {!loading && filtered.length === 0 ? (
+      {rosterTab === "invited" ? (
+        !loading && invitedMembers.length === 0 ? (
+          <EmptyState icon={<Mail size={20} />} title="No pending invites" description="Invited members appear here until they join." />
+        ) : (
+          <MemberTable members={invitedMembers} loading={loading} showPayment={false} showInviteMeta />
+        )
+      ) : !loading && filtered.length === 0 ? (
         <EmptyState icon={<UserPlus size={20} />} title="No members found" description="Try adjusting your filters." />
       ) : (
-        <MemberTable members={filtered} loading={loading} showPayment={showPayment} />
+        <MemberTable members={filtered} loading={loading} showPayment={showPayment} showDuesDetail={showPayment} />
       )}
 
       {/* Invite modal */}

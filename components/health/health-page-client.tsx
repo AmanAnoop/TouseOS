@@ -5,7 +5,7 @@ import { Heart, RefreshCw, TrendingUp } from "lucide-react";
 import {
   Alert, Badge, Button, Card, CardHeader, PageHeader, ProgressBar, StatCard,
 } from "@/components/ui";
-import { HEALTH_SCORE_DRIVERS, healthScoreLabel, type HealthMetricKey } from "@/lib/health-score";
+import { healthScoreLabel, type HealthMetricKey } from "@/lib/health-score";
 
 interface MetricMeta {
   score: number;
@@ -73,7 +73,7 @@ export function HealthPageClient({ orgId, initial }: HealthPageClientProps) {
   return (
     <div className="ds-page-stack">
       <PageHeader
-        title="Organization Health Score"
+        title="Health Score"
         action={
           <Button size="sm" variant="secondary" icon={<RefreshCw size={14} />} onClick={refresh} loading={refreshing}>
             Refresh
@@ -92,15 +92,6 @@ export function HealthPageClient({ orgId, initial }: HealthPageClientProps) {
           description="Add members, dues charges, events, or a budget to generate a meaningful health score."
         />
       )}
-
-      <Card padding="sm">
-        <CardHeader title="What drives your score" />
-        <ul className="space-y-2" style={{ margin: 0, paddingLeft: 20 }}>
-          {HEALTH_SCORE_DRIVERS.map((line) => (
-            <li key={line} className="type-small" style={{ color: "var(--color-text-secondary)" }}>{line}</li>
-          ))}
-        </ul>
-      </Card>
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
         <StatCard
