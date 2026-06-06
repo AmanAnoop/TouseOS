@@ -9,17 +9,20 @@ export async function GET(request: Request) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const q = new URL(request.url).searchParams.get("q")?.trim().toLowerCase() ?? "";
-  const excludeOrgId = new URL(request.url).searchParams.get("exclude_org_id");
+  const params = new URL(request.url).searchParams;
+  const q = params.get("q")?.trim().toLowerCase() ?? "";
+  const excludeOrgId = params.get("exclude_org_id");
+  const kind = params.get("kind");
 
   let query = supabase
     .from("organizations")
     .select("id, name, type, campus")
     .in("type", ["fraternity", "sorority"])
     .order("name")
-    .limit(40);
+    .limit(80);
 
   if (excludeOrgId) query = query.neq("id", excludeOrgId);
+  if (kind === "fraternity" || kind === "sorority") query = query.eq("type", kind);
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

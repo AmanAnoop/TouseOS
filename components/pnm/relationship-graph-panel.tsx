@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import toast from "react-hot-toast";
 import { GitBranch, Plus, Trash2, User } from "lucide-react";
 import {
@@ -141,9 +140,9 @@ export function RelationshipGraphPanel({ orgId, pnm, members }: RelationshipGrap
       {followUp?.member_profiles && (
         <div className="mb-4 p-3 rounded-lg bg-greek-50 dark:bg-greek-950/30 border border-greek-200 dark:border-greek-800">
           <p className="text-xs text-muted-foreground mb-1">Follow-up owner</p>
-          <Link href={`/roster/${followUp.member_profiles.id}`} className="text-sm font-medium text-greek-700 dark:text-greek-300 hover:underline">
+          <p className="text-sm font-medium text-greek-700 dark:text-greek-300">
             {followUp.member_profiles.full_name}
-          </Link>
+          </p>
         </div>
       )}
 

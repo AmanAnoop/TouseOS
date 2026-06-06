@@ -79,6 +79,29 @@ export async function POST(request: Request) {
   return NextResponse.json(data, { status: 201 });
 }
 
+export async function PATCH(request: Request) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id, orgId, folderId } = await request.json();
+  if (!id || !orgId) return NextResponse.json({ error: "id and orgId required" }, { status: 400 });
+
+  const role = await getMemberRole(supabase, user.id, String(orgId));
+  if (!role) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const { data, error } = await supabase
+    .from("documents")
+    .update({ folder_id: folderId ?? null })
+    .eq("id", id)
+    .eq("org_id", orgId)
+    .select()
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data);
+}
+
 export async function DELETE(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

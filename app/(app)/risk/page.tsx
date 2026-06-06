@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { AlertTriangle, CheckCircle2, Plus, Shield } from "lucide-react";
+import { AlertTriangle, Calendar, CheckCircle2, Plus, Shield } from "lucide-react";
 import toast from "react-hot-toast";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useOrg } from "@/hooks/use-org";
@@ -198,6 +198,44 @@ export default function RiskPage() {
         <StatCard title="Pending approval" value={pending} deltaType={pending > 0 ? "down" : "neutral"} icon={<AlertTriangle size={18} />} />
         <StatCard title="High risk events" value={checklists.filter((c) => (c.risk_score ?? 0) < 60).length} icon={<AlertTriangle size={18} />} />
       </div>
+
+      {events.length > 0 && (
+        <Card>
+          <CardHeader
+            title="Live event dashboard"
+            description="Upcoming events — link checklists before doors open"
+            icon={<Calendar size={16} />}
+          />
+          <div className="space-y-2">
+            {events.slice(0, 6).map((ev) => {
+              const linked = checklists.find((c) => c.event_id === ev.id);
+              const score = linked?.risk_score ?? 0;
+              const { label, color } = riskLabel(score);
+              return (
+                <div key={ev.id} className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{ev.title}</p>
+                    <p className="text-xs text-muted-foreground">{formatDate(ev.starts_at)}</p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {linked ? (
+                      <>
+                        <Badge label={label} color={color} />
+                        <Badge label={linked.approved ? "Approved" : "Pending"} color={linked.approved ? "green" : "yellow"} />
+                      </>
+                    ) : (
+                      <Badge label="No checklist" color="red" />
+                    )}
+                    <Button size="sm" variant="secondary" onClick={() => { setSelectedEventId(ev.id); setCreateOpen(true); }}>
+                      {linked ? "Update" : "Add checklist"}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       {pending > 0 && (
         <Alert type="warning" title={`${pending} risk checklist${pending > 1 ? "s" : ""} pending approval`} description="Review and approve before the event." />

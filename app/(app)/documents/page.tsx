@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  Download, Folder, Upload,
+  Download, Folder, FolderPlus, Upload,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
@@ -31,6 +31,10 @@ export default function DocumentsPage() {
   const [docs, setDocs] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("all");
+  const [folderId, setFolderId] = useState<string | null>(null);
+  const [folders, setFolders] = useState<Array<{ id: string; name: string }>>([]);
+  const [folderOpen, setFolderOpen] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
   const [query, setQuery] = useState("");
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -38,12 +42,17 @@ export default function DocumentsPage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [uploadForm, setUploadForm] = useState({
-    title: "", category: "General", isPrivate: false,
+    title: "", category: "General", isPrivate: false, folderId: "",
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [versionDoc, setVersionDoc] = useState<Document | null>(null);
 
   const canManageDocs = !permLoading && can("manage_documents");
+
+  const loadFolders = useCallback(async (oid: string) => {
+    const res = await fetch(`/api/document-folders?org_id=${encodeURIComponent(oid)}`);
+    if (res.ok) setFolders(await res.json());
+  }, []);
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
@@ -56,8 +65,9 @@ export default function DocumentsPage() {
     }
     const data = await res.json();
     setDocs((data ?? []) as Document[]);
+    await loadFolders(oid);
     setLoading(false);
-  }, []);
+  }, [loadFolders]);
 
   useEffect(() => {
     if (orgId) load(orgId);
@@ -69,8 +79,41 @@ export default function DocumentsPage() {
     const q = query.toLowerCase();
     const matchesQuery = !q || d.title.toLowerCase().includes(q) || d.category.toLowerCase().includes(q);
     const matchesTab = tab === "all" || d.category === tab;
-    return matchesQuery && matchesTab;
+    const matchesFolder = !folderId || (d as Document & { folder_id?: string }).folder_id === folderId;
+    return matchesQuery && matchesTab && matchesFolder;
   });
+
+  async function createFolder() {
+    if (!orgId || !newFolderName.trim()) return;
+    const res = await fetch("/api/document-folders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId, name: newFolderName.trim() }),
+    });
+    if (!res.ok) {
+      toast.error((await res.json()).error ?? "Failed");
+      return;
+    }
+    toast.success("Folder created");
+    setFolderOpen(false);
+    setNewFolderName("");
+    loadFolders(orgId);
+  }
+
+  async function moveToFolder(docId: string, targetFolderId: string | null) {
+    if (!orgId) return;
+    const res = await fetch("/api/documents", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: docId, orgId, folderId: targetFolderId }),
+    });
+    if (!res.ok) {
+      toast.error("Could not move document");
+      return;
+    }
+    toast.success("Document moved");
+    load(orgId);
+  }
 
   async function uploadDocument() {
     if (!orgId || !userId || !selectedFile || !uploadForm.title) return;
@@ -107,6 +150,7 @@ export default function DocumentsPage() {
         fileSizeBytes: selectedFile.size,
         mimeType: selectedFile.type,
         isPrivate: uploadForm.isPrivate,
+        folderId: uploadForm.folderId || folderId || null,
       }),
     });
 
@@ -121,7 +165,7 @@ export default function DocumentsPage() {
     setUploadError(null);
     setUploadOpen(false);
     setSelectedFile(null);
-    setUploadForm({ title: "", category: "General", isPrivate: false });
+    setUploadForm({ title: "", category: "General", isPrivate: false, folderId: "" });
     load(orgId);
   }
 
@@ -162,11 +206,36 @@ export default function DocumentsPage() {
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={exportList}>Export list</Button>
             {canManageDocs && (
-              <Button size="sm" icon={<Upload size={14} />} onClick={() => setUploadOpen(true)}>Upload</Button>
+              <>
+                <Button variant="secondary" size="sm" icon={<FolderPlus size={14} />} onClick={() => setFolderOpen(true)}>New folder</Button>
+                <Button size="sm" icon={<Upload size={14} />} onClick={() => setUploadOpen(true)}>Upload</Button>
+              </>
             )}
           </div>
         }
       />
+
+      {folders.length > 0 && (
+        <div className="flex gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setFolderId(null)}
+            className={`text-xs px-3 py-1.5 rounded-full border ${!folderId ? "bg-greek-100 border-greek-300 text-greek-800" : "border-border text-muted-foreground"}`}
+          >
+            All folders
+          </button>
+          {folders.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => setFolderId(f.id)}
+              className={`text-xs px-3 py-1.5 rounded-full border flex items-center gap-1 ${folderId === f.id ? "bg-greek-100 border-greek-300 text-greek-800" : "border-border text-muted-foreground"}`}
+            >
+              <Folder size={12} /> {f.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="overflow-x-auto scrollbar-hide">
         <Tabs tabs={tabItems.slice(0, 8)} active={tab} onChange={setTab} />
@@ -188,6 +257,8 @@ export default function DocumentsPage() {
       ) : (
         <DocumentTable
           docs={filtered}
+          folders={folders}
+          onMoveFolder={canManageDocs ? moveToFolder : undefined}
           onDownload={async (doc) => {
             if (doc.url) window.open(doc.url, "_blank");
             else if (doc.storage_path) {
@@ -248,6 +319,18 @@ export default function DocumentsPage() {
             options={CATEGORIES.map((c) => ({ value: c, label: c }))}
           />
 
+          {folders.length > 0 && (
+            <Select
+              label="Folder"
+              value={uploadForm.folderId || folderId || ""}
+              onChange={(e) => setUploadForm({ ...uploadForm, folderId: e.target.value })}
+              options={[
+                { value: "", label: "No folder" },
+                ...folders.map((f) => ({ value: f.id, label: f.name })),
+              ]}
+            />
+          )}
+
           {uploadError && (
             <p className="type-small" style={{ color: "var(--color-error)" }} role="alert">{uploadError}</p>
           )}
@@ -259,6 +342,20 @@ export default function DocumentsPage() {
             </div>
           </label>
         </div>
+      </Modal>
+
+      <Modal
+        open={folderOpen}
+        onClose={() => setFolderOpen(false)}
+        title="New folder"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setFolderOpen(false)}>Cancel</Button>
+            <Button onClick={createFolder} disabled={!newFolderName.trim()}>Create</Button>
+          </>
+        }
+      >
+        <Input label="Folder name" value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} placeholder="Risk & compliance" />
       </Modal>
 
       {versionDoc && orgId && userId && (

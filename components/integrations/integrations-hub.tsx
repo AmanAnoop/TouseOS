@@ -6,6 +6,7 @@ import { Alert, Badge, Card } from "@/components/ui";
 import { StripeIntegrationCard } from "@/components/integrations/stripe-integration-card";
 import { TwilioIntegrationCard } from "@/components/integrations/twilio-integration-card";
 import { BankConnectCard } from "@/components/finance/bank-connect-card";
+import { IntegrationKeysStatusPanel } from "@/components/integrations/integration-keys-status-panel";
 import { isFinanceOfficerRole } from "@/lib/finance-access";
 import { can, type RoleName } from "@/lib/permissions";
 
@@ -102,6 +103,8 @@ export function IntegrationsHub({ orgId, stripeAccountId, role }: IntegrationsHu
           canTest={canTestSms}
         />
       ) : null}
+
+      <IntegrationKeysStatusPanel role={role} />
 
       <Card padding="sm">
         <p className="font-semibold text-sm text-foreground mb-2">Other services</p>

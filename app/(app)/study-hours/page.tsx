@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { BookOpen, CheckCircle2, Plus } from "lucide-react";
+import { BookOpen, CheckCircle2, Plus, Trophy, Flame } from "lucide-react";
 import toast from "react-hot-toast";
 import { useOrg } from "@/hooks/use-org";
 import { usePermissions } from "@/hooks/use-permissions";
 import {
-  Badge, Button, Card, EmptyState, Input, Modal, PageHeader, Select, StatCard,
+  Badge, Button, Card, CardHeader, EmptyState, Input, Modal, PageHeader, ProgressBar, Select, StatCard,
 } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
 
@@ -48,6 +48,28 @@ export default function StudyHoursPage() {
 
   const totalHours = rows.reduce((s, r) => s + Number(r.hours), 0);
   const verifiedHours = rows.filter((r) => r.verified_at).reduce((s, r) => s + Number(r.hours), 0);
+  const weeklyGoal = 10;
+
+  const byMember = rows.reduce<Record<string, { name: string; hours: number; verified: number; sessions: number }>>((acc, r) => {
+    const id = r.member_profiles?.full_name ?? "unknown";
+    if (!acc[id]) acc[id] = { name: id, hours: 0, verified: 0, sessions: 0 };
+    acc[id].hours += Number(r.hours);
+    acc[id].sessions += 1;
+    if (r.verified_at) acc[id].verified += Number(r.hours);
+    return acc;
+  }, {});
+
+  const leaderboard = Object.values(byMember)
+    .sort((a, b) => b.verified - a.verified || b.hours - a.hours)
+    .slice(0, 8);
+
+  const topStreak = leaderboard[0];
+  const badges = [
+    { label: "10h club", earned: verifiedHours >= 10 },
+    { label: "25h scholar", earned: verifiedHours >= 25 },
+    { label: "50h legend", earned: verifiedHours >= 50 },
+    { label: "Verified streak", earned: rows.filter((r) => r.verified_at).length >= 5 },
+  ];
 
   async function logHours() {
     if (!orgId || !form.memberId || !form.sessionDate) return;
@@ -95,11 +117,36 @@ export default function StudyHoursPage() {
         }
       />
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard title="Total logged" value={totalHours.toFixed(1)} icon={<BookOpen size={16} />} />
         <StatCard title="Verified" value={verifiedHours.toFixed(1)} icon={<CheckCircle2 size={16} />} />
         <StatCard title="Sessions" value={rows.length} />
+        <StatCard title="Chapter goal" value={`${Math.min(100, Math.round((verifiedHours / weeklyGoal) * 100))}%`} icon={<Flame size={16} />} />
       </div>
+
+      <Card padding="sm">
+        <CardHeader title="Weekly chapter goal" description={`${verifiedHours.toFixed(1)} / ${weeklyGoal} verified hours`} icon={<Trophy size={16} />} />
+        <ProgressBar value={Math.min(100, (verifiedHours / weeklyGoal) * 100)} color="green" />
+        <div className="flex flex-wrap gap-2 mt-3">
+          {badges.map((b) => (
+            <Badge key={b.label} label={b.label} color={b.earned ? "green" : "gray"} />
+          ))}
+        </div>
+      </Card>
+
+      {leaderboard.length > 0 && (
+        <Card padding="sm">
+          <CardHeader title="Leaderboard" description={topStreak ? `${topStreak.name} leads with ${topStreak.verified.toFixed(1)} verified hours` : undefined} icon={<Trophy size={16} />} />
+          <div className="space-y-2">
+            {leaderboard.map((m, i) => (
+              <div key={m.name} className="flex items-center justify-between text-sm p-2 rounded-lg bg-surface-1">
+                <span className="font-medium">#{i + 1} {m.name}</span>
+                <span className="text-muted-foreground">{m.verified.toFixed(1)}h verified · {m.sessions} sessions</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {rows.length === 0 ? (
         <EmptyState icon={<BookOpen size={24} />} title="No study hours yet" action={<Button size="sm" onClick={() => setOpen(true)}>Log first session</Button>} />

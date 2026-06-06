@@ -6,9 +6,10 @@ import { CheckCircle, Download, Image as ImageIcon, Plus, Users } from "lucide-r
 import toast from "react-hot-toast";
 import { useOrg } from "@/hooks/use-org";
 import {
-  Badge, Button, Card, EmptyState, Input, Modal, PageHeader, Select, Textarea,
+  Badge, Button, Card, EmptyState, Input, Modal, PageHeader, Textarea,
 } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
+import { GreekChapterPicker } from "@/components/interchapter/greek-chapter-picker";
 
 interface ChecklistItem {
   item: string;
@@ -309,15 +310,16 @@ export default function SocialCollabPage() {
         }
       >
         <div className="space-y-4">
-          {partnerOrgs.length > 0 ? (
-            <Select
-              label="Partner chapter"
+          {orgId ? (
+            <GreekChapterPicker
+              orgId={orgId}
               value={form.partnerOrgId}
-              onChange={(e) => {
-                const org = partnerOrgs.find((o) => o.id === e.target.value);
-                setForm({ ...form, partnerOrgId: e.target.value, partnerOrgName: org?.name ?? "" });
-              }}
-              options={[{ value: "", label: "Choose chapter..." }, ...partnerOrgs.map((o) => ({ value: o.id, label: o.name }))]}
+              label="Partner chapter"
+              onChange={(id, org) => setForm({
+                ...form,
+                partnerOrgId: id,
+                partnerOrgName: org?.name ?? partnerOrgs.find((o) => o.id === id)?.name ?? form.partnerOrgName,
+              })}
             />
           ) : (
             <Input label="Partner chapter" value={form.partnerOrgName} onChange={(e) => setForm({ ...form, partnerOrgName: e.target.value })} placeholder="Alpha Phi" />

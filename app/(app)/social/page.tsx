@@ -16,6 +16,7 @@ import { PrComplianceChecklist } from "@/components/social/pr-compliance-checkli
 import { ActivePhotoPrompts } from "@/components/social/active-photo-prompts";
 import { PrComplianceHistory } from "@/components/social/pr-compliance-history";
 import { useOrg } from "@/hooks/use-org";
+import { PhotoPermissionsPanel } from "@/components/social/photo-permissions-panel";
 import { formatDate } from "@/lib/utils";
 
 const APPROVAL_COLOR = {
@@ -34,9 +35,9 @@ function SocialPageContent() {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("albums");
-  const [mainTab, setMainTab] = useState<"albums" | "requests" | "compliance">("albums");
+  const [mainTab, setMainTab] = useState<"albums" | "requests" | "compliance" | "permissions">("albums");
   const [deepLinkReady, setDeepLinkReady] = useState(false);
-  const { orgId } = useOrg();
+  const { orgId, role } = useOrg();
   const [contentPackOpen, setContentPackOpen] = useState(false);
   const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
   const [generatedCaption, setGeneratedCaption] = useState("");
@@ -114,13 +115,21 @@ function SocialPageContent() {
     const res = await fetch("/api/photos", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ photoId: id, status }),
+      body: JSON.stringify({
+        photoId: id,
+        status,
+        ...(status === "approved" ? { isInstagramReady: true } : {}),
+      }),
     });
     if (!res.ok) {
       toast.error((await res.json().catch(() => ({}))).error ?? "Update failed");
       return;
     }
-    setPhotos((prev) => prev.map((p) => p.id === id ? { ...p, status: status as Photo["status"] } : p));
+    setPhotos((prev) => prev.map((p) => p.id === id ? {
+      ...p,
+      status: status as Photo["status"],
+      ...(status === "approved" ? { is_instagram_ready: true } : {}),
+    } : p));
     toast.success(`Photo marked as ${status.replace("_", " ")}`);
   }
 
@@ -302,12 +311,15 @@ function SocialPageContent() {
               { id: "albums", label: "Albums" },
               { id: "requests", label: "Photo requests" },
               { id: "compliance", label: "PR compliance" },
+              { id: "permissions", label: "Permissions" },
             ]}
             active={mainTab}
-            onChange={(id) => setMainTab(id as "albums" | "requests" | "compliance")}
+            onChange={(id) => setMainTab(id as "albums" | "requests" | "compliance" | "permissions")}
           />
 
-          {mainTab === "compliance" && orgId ? (
+          {mainTab === "permissions" && orgId ? (
+            <PhotoPermissionsPanel orgId={orgId} role={role} />
+          ) : mainTab === "compliance" && orgId ? (
             <PrComplianceHistory orgId={orgId} />
           ) : mainTab === "requests" && orgId ? (
             <PhotoRequestsPanel orgId={orgId} />

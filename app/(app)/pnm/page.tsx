@@ -18,6 +18,7 @@ import { RecruitmentLinksPanel } from "@/components/pnm/recruitment-links-panel"
 import { RecruitmentAnalyticsPanel } from "@/components/pnm/recruitment-analytics-panel";
 import { PnmLeadAutofillFields } from "@/components/pnm/pnm-lead-autofill-fields";
 import { PnmEventsTab } from "@/components/pnm/pnm-events-tab";
+import { PnmConnectionsTab } from "@/components/pnm/pnm-connections-tab";
 
 const PIPELINE_STAGES: PnmStatus[] = [
   "lead","contacted","invited","attended","interested",
@@ -188,6 +189,7 @@ export default function PnmPage() {
           { id: "list", label: "List view" },
           { id: "analytics", label: "Analytics" },
           { id: "matcher", label: "Rush matcher" },
+          { id: "connections", label: "Connections" },
           { id: "recruitment", label: "Recruitment links" },
           { id: "voting", label: "Voting" },
           { id: "events", label: "Events" },
@@ -393,6 +395,10 @@ export default function PnmPage() {
 
       {tab === "recruitment" && (
         <RecruitmentLinksPanel orgName={orgName} inviteCode={inviteCode} />
+      )}
+
+      {tab === "connections" && orgId && (
+        <PnmConnectionsTab orgId={orgId} leads={leads} />
       )}
 
       {tab === "matcher" && orgId && (
