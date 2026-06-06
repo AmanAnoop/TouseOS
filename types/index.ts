@@ -347,6 +347,7 @@ export interface Document {
   category: string;
   storage_path: string;
   url: string;
+  folder_id: string | null;
   file_size_bytes: number | null;
   mime_type: string | null;
   is_private: boolean;

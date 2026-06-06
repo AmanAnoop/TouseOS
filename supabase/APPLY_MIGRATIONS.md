@@ -27,6 +27,10 @@ Run these SQL files **in order** in the Supabase SQL Editor (or `psql` against y
 | 042 | `042_repairs_metadata.sql` | Yes — governance/risk metadata columns |
 | 043 | `043_coaching_availability.sql` | Yes — coaching availability note type |
 | 044 | `044_greek_travel_finance.sql` | Yes — Greek travel locations, per-member cost, payment linkage, coaching member_id |
+| 045–049 | `045` … `049` | Yes — sidebar prefs, wave 2 features, engagement, etc. (apply in numeric order) |
+| 050 | `050_sidebar_prefs.sql` | Yes — editable sidebar preferences |
+| 051 | `051_chapter_os_fixes.sql` | Yes — task points, document folders, hardship RLS, standards panel |
+| 052 | `052_chapter_os_wave3.sql` | Yes — document folder RLS, per-member housing rent due day |
 
 After apply:
 

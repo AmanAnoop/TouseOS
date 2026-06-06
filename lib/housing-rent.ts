@@ -8,12 +8,30 @@ export interface RentChargeResult {
   message: string;
 }
 
-/** Create monthly rent payment charges for all active housing assignments. */
+interface RentChargeOptions {
+  dueDate?: string;
+  monthLabel?: string;
+  actorId?: string | null;
+  /** When set, only charge assignments whose due day matches (cron). */
+  filterDueDay?: number;
+}
+
+/** Create monthly rent payment charges for active housing assignments. */
 export async function createHousingRentCharges(
   supabase: SupabaseClient,
   orgId: string,
-  options: { dueDate?: string; monthLabel?: string; actorId?: string | null } = {},
+  options: RentChargeOptions = {},
 ): Promise<RentChargeResult> {
+  const { data: org } = await supabase
+    .from("organizations")
+    .select("settings")
+    .eq("id", orgId)
+    .maybeSingle();
+
+  const settings = (org?.settings ?? {}) as Record<string, unknown>;
+  const rentCfg = (settings.housing_rent ?? {}) as Record<string, unknown>;
+  const orgDueDay = Number(rentCfg.due_day ?? 1);
+
   const { data: rooms } = await supabase
     .from("housing_rooms")
     .select("id, room_number, monthly_rent")
@@ -27,7 +45,7 @@ export async function createHousingRentCharges(
 
   const { data: assignments } = await supabase
     .from("housing_assignments")
-    .select("id, member_id, room_id")
+    .select("id, member_id, room_id, rent_due_day")
     .in("room_id", roomIds)
     .is("move_out", null);
 
@@ -67,6 +85,11 @@ export async function createHousingRentCharges(
   const errors: string[] = [];
 
   for (const a of assignments) {
+    const memberDueDay = a.rent_due_day != null ? Number(a.rent_due_day) : orgDueDay;
+    if (options.filterDueDay != null && memberDueDay !== options.filterDueDay) {
+      continue;
+    }
+
     const room = roomById.get(a.room_id);
     const rent = Number(room?.monthly_rent ?? 0);
     if (rent <= 0 || !a.member_id) continue;
@@ -76,6 +99,12 @@ export async function createHousingRentCharges(
       continue;
     }
 
+    const assignmentDue = new Date(due);
+    if (options.filterDueDay != null) {
+      assignmentDue.setDate(memberDueDay);
+    }
+    const dueForMember = assignmentDue.toISOString().slice(0, 10);
+
     const title = `Rent — Room ${room?.room_number ?? "?"} ${periodSuffix}`;
 
     const { data: item, error: itemErr } = await supabase.from("payment_items").insert({
@@ -83,7 +112,7 @@ export async function createHousingRentCharges(
       title,
       category: "housing",
       amount: rent,
-      due_date: due,
+      due_date: dueForMember,
     }).select("id").single();
 
     if (itemErr || !item) {
@@ -98,7 +127,7 @@ export async function createHousingRentCharges(
       amount: rent,
       paid_amount: 0,
       status: "pending",
-      due_date: due,
+      due_date: dueForMember,
     });
 
     if (payErr) errors.push(payErr.message);
@@ -116,7 +145,10 @@ export async function createHousingRentCharges(
       resource_type: "housing_rooms",
       metadata: { created, skipped, due, label, errors: errors.length },
     });
-    void triggerBudgetSyncForOrg(orgId, options.actorId);
+  }
+
+  if (created > 0) {
+    void triggerBudgetSyncForOrg(orgId, options.actorId ?? undefined);
   }
 
   const allSkipped = skipped > 0 && created === 0 && errors.length === 0;
@@ -124,7 +156,9 @@ export async function createHousingRentCharges(
     ? `Created ${created} rent charge(s) for ${label}.${skipped > 0 ? ` Skipped ${skipped} already billed.` : ""}`
     : allSkipped
       ? `Rent for ${label} was already posted for all assigned members.`
-      : "No charges created";
+      : options.filterDueDay != null
+        ? `No assignments due on day ${options.filterDueDay}.`
+        : "No charges created";
 
   return { created, skipped, failed: errors.length, message };
 }

@@ -60,7 +60,7 @@ export function DocumentTable({ docs, folders, onMoveFolder, onDownload, onDelet
                 <td>
                   <select
                     className="text-xs border border-border rounded px-2 py-1 bg-background"
-                    value={(doc as Document & { folder_id?: string }).folder_id ?? ""}
+                    value={doc.folder_id ?? ""}
                     onChange={(e) => onMoveFolder(doc.id, e.target.value || null)}
                   >
                     <option value="">No folder</option>
