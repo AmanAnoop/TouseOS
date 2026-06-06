@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Calculator, CheckCircle2, Users } from "lucide-react";
+import { ArrowLeft, Calculator, CheckCircle2, CreditCard, Users } from "lucide-react";
 import toast from "react-hot-toast";
 import {
   Badge, Button, Card, CardHeader, EmptyState, Input, Modal, PageHeader, ProgressBar, Select,
@@ -19,22 +19,35 @@ const COST_CATEGORIES = [
   "referee_fees", "food", "equipment_transport", "uniforms", "emergency_reserve",
 ];
 
+const PAYMENT_STATUS_COLOR: Record<string, "green" | "yellow" | "red" | "gray" | "blue"> = {
+  paid: "green",
+  pending: "yellow",
+  overdue: "red",
+  partial: "blue",
+  waived: "gray",
+};
+
 export default function TravelTripDetailPage() {
   const params = useParams();
   const tripId = String(params.id);
-  const { orgId, role } = useOrg();
+  const { orgId, role, userId } = useOrg();
   const [loading, setLoading] = useState(true);
   const [trip, setTrip] = useState<Record<string, unknown> | null>(null);
   const [readiness, setReadiness] = useState<Record<string, unknown> | null>(null);
   const [roster, setRoster] = useState<Array<Record<string, unknown>>>([]);
   const [available, setAvailable] = useState<Array<Record<string, unknown>>>([]);
+  const [myMemberId, setMyMemberId] = useState<string | null>(null);
   const [calcOpen, setCalcOpen] = useState(false);
+  const [pushOpen, setPushOpen] = useState(false);
+  const [pushing, setPushing] = useState(false);
+  const [chargeDueDate, setChargeDueDate] = useState("");
   const [playerCount, setPlayerCount] = useState(20);
   const [subsidy, setSubsidy] = useState(0);
   const [costs, setCosts] = useState<Record<string, number>>({});
   const [addMemberId, setAddMemberId] = useState("");
 
   const canManage = can(role, "manage_travel");
+  const canPushCharges = canManage || can(role, "manage_payments");
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
@@ -51,13 +64,28 @@ export default function TravelTripDetailPage() {
       }
       setCosts(existing);
       setPlayerCount(Math.max(1, (data.roster ?? []).length || 20));
+      if (data.trip?.departure_date) {
+        setChargeDueDate(String(data.trip.departure_date));
+      }
     }
     setLoading(false);
   }, [tripId]);
 
   useEffect(() => {
-    if (orgId) load(orgId);
+    if (!orgId) return;
+    load(orgId);
   }, [orgId, load]);
+
+  useEffect(() => {
+    if (!orgId || !userId) return;
+    (async () => {
+      const res = await fetch(`/api/members?org_id=${encodeURIComponent(orgId)}`);
+      if (!res.ok) return;
+      const members = await res.json() as Array<{ id: string; user_id?: string }>;
+      const mine = members.find((m) => m.user_id === userId);
+      if (mine) setMyMemberId(mine.id);
+    })();
+  }, [orgId, userId]);
 
   async function saveCosts() {
     if (!orgId) return;
@@ -78,6 +106,25 @@ export default function TravelTripDetailPage() {
     } else toast.error("Failed to save costs");
   }
 
+  async function pushCharges() {
+    if (!orgId) return;
+    setPushing(true);
+    const res = await fetch(`/api/sports/travel/${tripId}/charges`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId, dueDate: chargeDueDate || undefined }),
+    });
+    const data = await res.json();
+    setPushing(false);
+    if (res.ok) {
+      toast.success(data.message ?? "Charges pushed");
+      setPushOpen(false);
+      load(orgId);
+    } else {
+      toast.error(data.error ?? "Failed to push charges");
+    }
+  }
+
   async function rosterAction(memberId: string, action: string, extra?: Record<string, unknown>) {
     if (!orgId) return;
     const res = await fetch(`/api/sports/travel/${tripId}/roster`, {
@@ -94,9 +141,15 @@ export default function TravelTripDetailPage() {
   const totalCost = Object.values(costs).reduce((a, b) => a + b, 0);
   const netCost = totalCost - subsidy;
   const perPlayer = playerCount > 0 ? netCost / playerCount : 0;
+  const savedPerPlayer = Number(trip?.cost_per_player ?? 0);
   const readinessScore = Number((readiness as { score?: number })?.score ?? 0);
   const checks = ((readiness as { checks?: Array<{ label: string; ok: boolean; detail?: string }> })?.checks) ?? [];
   const ineligible = ((readiness as { ineligiblePlayers?: Array<{ name: string; issues: string[] }> })?.ineligiblePlayers) ?? [];
+
+  const myRosterRow = useMemo(
+    () => roster.find((r) => String((r.member_profiles as { id?: string })?.id) === myMemberId),
+    [roster, myMemberId],
+  );
 
   if (loading) {
     return <div className="h-64 rounded-xl bg-surface-2 animate-pulse" />;
@@ -124,6 +177,11 @@ export default function TravelTripDetailPage() {
               <Button variant="secondary" size="sm" className="officer-touch" icon={<Calculator size={14} />} onClick={() => setCalcOpen(true)}>
                 Trip calculator
               </Button>
+              {canPushCharges && savedPerPlayer > 0 && (
+                <Button size="sm" className="officer-touch bg-sports-600 hover:bg-sports-700" icon={<CreditCard size={14} />} onClick={() => setPushOpen(true)}>
+                  Push dues
+                </Button>
+              )}
               <Select
                 value={String(trip.status)}
                 onChange={async (e) => {
@@ -145,6 +203,27 @@ export default function TravelTripDetailPage() {
           ) : undefined
         }
       />
+
+      {!canManage && savedPerPlayer > 0 && (
+        <Card className="border-sports-200 bg-sports-50/50 dark:bg-sports-950/20">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Your trip cost</p>
+              <p className="text-2xl font-bold text-sports-700 dark:text-sports-400">{formatCurrency(savedPerPlayer)}</p>
+              {myRosterRow && (
+                <Badge
+                  label={`Fee: ${String(myRosterRow.payment_status ?? "not charged")}`}
+                  color={PAYMENT_STATUS_COLOR[String(myRosterRow.payment_status ?? "pending")] ?? "gray"}
+                  className="mt-2"
+                />
+              )}
+            </div>
+            <Link href="/payments" className="text-sm text-sports-600 hover:underline font-medium">
+              View & pay in Payments →
+            </Link>
+          </div>
+        </Card>
+      )}
 
       {orgId && (
         <TripLocationPanel
@@ -171,7 +250,7 @@ export default function TravelTripDetailPage() {
 
       <div className="grid lg:grid-cols-2 gap-5">
         <Card>
-          <CardHeader title="Travel roster" icon={<Users size={16} />} />
+          <CardHeader title={canManage ? "Travel roster" : "Who's going"} icon={<Users size={16} />} />
           {canManage && (
             <div className="flex gap-2 mb-3">
               <Select
@@ -193,34 +272,52 @@ export default function TravelTripDetailPage() {
             <div className="space-y-2">
               {roster.map((r) => {
                 const mp = r.member_profiles as Record<string, unknown> | null;
+                const memberId = String(mp?.id ?? "");
                 const name = String(mp?.full_name ?? "Player");
+                const isMe = memberId === myMemberId;
+                const payStatus = String(r.payment_status ?? "");
                 return (
-                  <div key={String(r.id)} className="p-2 rounded-lg border border-border space-y-2">
+                  <div
+                    key={String(r.id)}
+                    className={`p-2 rounded-lg border space-y-2 ${isMe ? "border-sports-400 bg-sports-50/40 dark:bg-sports-950/20" : "border-border"}`}
+                  >
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-medium">{name}</p>
-                      <div className="flex gap-1">
+                      <p className="text-sm font-medium">
+                        {name}
+                        {isMe && <span className="text-xs text-sports-600 ml-1">(you)</span>}
+                      </p>
+                      <div className="flex gap-1 flex-wrap justify-end">
                         <Badge label={Boolean(r.confirmed) ? "Confirmed" : "Pending"} color={Boolean(r.confirmed) ? "green" : "yellow"} />
                         {Boolean(r.is_driver) && <Badge label="Driver" color="blue" />}
+                        {payStatus && payStatus !== "null" && (
+                          <Badge
+                            label={payStatus.replace("_", " ")}
+                            color={PAYMENT_STATUS_COLOR[payStatus] ?? "gray"}
+                          />
+                        )}
                       </div>
                     </div>
+                    {!canManage && Boolean(r.hotel_assignment) && (
+                      <p className="text-xs text-muted-foreground">Room: {String(r.hotel_assignment)}</p>
+                    )}
                     {canManage && (
                       <div className="grid grid-cols-2 gap-2">
                         <Input
                           placeholder="Hotel room"
                           defaultValue={String(r.hotel_assignment ?? "")}
-                          onBlur={(e) => rosterAction(String(mp?.id), "update", { hotelAssignment: e.target.value })}
+                          onBlur={(e) => rosterAction(memberId, "update", { hotelAssignment: e.target.value })}
                         />
                         <Button
                           variant="secondary"
                           size="sm"
-                          onClick={() => rosterAction(String(mp?.id), "update", { confirmed: !Boolean(r.confirmed) })}
+                          onClick={() => rosterAction(memberId, "update", { confirmed: !Boolean(r.confirmed) })}
                         >
                           {Boolean(r.confirmed) ? "Unconfirm" : "Confirm"}
                         </Button>
                       </div>
                     )}
                     {canManage && (
-                      <Button variant="secondary" size="sm" onClick={() => rosterAction(String(mp?.id), "remove")}>
+                      <Button variant="secondary" size="sm" onClick={() => rosterAction(memberId, "remove")}>
                         Remove
                       </Button>
                     )}
@@ -232,18 +329,24 @@ export default function TravelTripDetailPage() {
         </Card>
 
         <Card>
-          <CardHeader title="Eligibility alerts" />
-          {ineligible.length === 0 ? (
-            <p className="text-sm text-muted-foreground">All active players meet travel requirements.</p>
+          <CardHeader title={canManage ? "Eligibility alerts" : "Trip budget"} />
+          {canManage ? (
+            ineligible.length === 0 ? (
+              <p className="text-sm text-muted-foreground">All active players meet travel requirements.</p>
+            ) : (
+              <ul className="space-y-2">
+                {ineligible.map((p) => (
+                  <li key={p.name} className="text-sm p-2 rounded-lg bg-amber-50 dark:bg-amber-950/20">
+                    <span className="font-medium">{p.name}</span>
+                    <span className="text-muted-foreground"> — {p.issues.map((i) => eligibilityIssueLabel(i as never)).join(", ")}</span>
+                  </li>
+                ))}
+              </ul>
+            )
           ) : (
-            <ul className="space-y-2">
-              {ineligible.map((p) => (
-                <li key={p.name} className="text-sm p-2 rounded-lg bg-amber-50 dark:bg-amber-950/20">
-                  <span className="font-medium">{p.name}</span>
-                  <span className="text-muted-foreground"> — {p.issues.map((i) => eligibilityIssueLabel(i as never)).join(", ")}</span>
-                </li>
-              ))}
-            </ul>
+            <p className="text-sm text-muted-foreground">
+              Trip budget is managed by your travel coordinator. Your share is shown above when charges are posted.
+            </p>
           )}
           {trip.total_cost != null && (
             <div className="mt-4 p-3 rounded-lg bg-sports-50 dark:bg-sports-950/20">
@@ -260,6 +363,13 @@ export default function TravelTripDetailPage() {
         <Card>
           <CardHeader title="Itinerary" />
           <p className="text-sm whitespace-pre-wrap">{String(trip.itinerary)}</p>
+        </Card>
+      )}
+
+      {Boolean(trip.packing_list) && !canManage && (
+        <Card>
+          <CardHeader title="Packing list" />
+          <p className="text-sm whitespace-pre-wrap">{String(trip.packing_list)}</p>
         </Card>
       )}
 
@@ -284,6 +394,33 @@ export default function TravelTripDetailPage() {
             <p>Net: <strong>{formatCurrency(netCost)}</strong></p>
             <p>Per player: <strong>{formatCurrency(perPlayer)}</strong></p>
           </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={pushOpen}
+        onClose={() => setPushOpen(false)}
+        title="Push travel charges"
+        description={`Create pending payment records for all ${roster.length} roster player(s) at ${formatCurrency(savedPerPlayer)} each.`}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setPushOpen(false)}>Cancel</Button>
+            <Button className="bg-sports-600 hover:bg-sports-700" loading={pushing} onClick={pushCharges}>
+              Push to payments
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <Input
+            label="Due date"
+            type="date"
+            value={chargeDueDate}
+            onChange={(e) => setChargeDueDate(e.target.value)}
+          />
+          <p className="text-sm text-muted-foreground">
+            Players who were already charged for this trip will be skipped. Charges appear under Payments with category Travel.
+          </p>
         </div>
       </Modal>
     </div>

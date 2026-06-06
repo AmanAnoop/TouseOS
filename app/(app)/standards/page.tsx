@@ -9,6 +9,7 @@ import {
 } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
 import { useOrg } from "@/hooks/use-org";
+import { usePermissions } from "@/hooks/use-permissions";
 
 interface RestorativeAction {
   action: string;
@@ -27,6 +28,8 @@ interface StandardsCase {
   restorative_actions: RestorativeAction[];
   hearing_date: string | null;
   resolved_at: string | null;
+  appealed_at: string | null;
+  appeal_notes: string | null;
   notes: string | null;
   created_at: string;
 }
@@ -59,12 +62,15 @@ export default function StandardsPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const { orgId } = useOrg();
+  const { can: canPerm } = usePermissions();
+  const canManage = canPerm("manage_standards");
   const [tab, setTab] = useState("open");
   const [createOpen, setCreateOpen] = useState(false);
   const [selected, setSelected] = useState<StandardsCase | null>(null);
   const [sanctionInput, setSanctionInput] = useState("");
   const [restorativeForm, setRestorativeForm] = useState({ action: "", dueDate: "" });
   const [editNotes, setEditNotes] = useState("");
+  const [appealNotes, setAppealNotes] = useState("");
 
   const [form, setForm] = useState({
     respondentId: "",
@@ -100,7 +106,10 @@ export default function StandardsPage() {
   }, [orgId, load]);
 
   useEffect(() => {
-    if (selected) setEditNotes(selected.notes ?? "");
+    if (selected) {
+      setEditNotes(selected.notes ?? "");
+      setAppealNotes(selected.appeal_notes ?? "");
+    }
   }, [selected]);
 
   async function createCase() {
@@ -195,11 +204,16 @@ export default function StandardsPage() {
     patchCase({ restorativeActions: next });
   }
 
-  const filtered = cases.filter((c) =>
-    tab === "all" || c.status === tab || (tab === "open" && ["open", "hearing_scheduled"].includes(c.status)),
-  );
+  const filtered = cases.filter((c) => {
+    if (tab === "all") return true;
+    if (tab === "open") return ["open", "hearing_scheduled"].includes(c.status);
+    if (tab === "appealed") return c.status === "appealed";
+    if (tab === "resolved") return ["resolved", "closed"].includes(c.status);
+    return c.status === tab;
+  });
 
   const open = cases.filter((c) => ["open", "hearing_scheduled"].includes(c.status)).length;
+  const appealed = cases.filter((c) => c.status === "appealed").length;
   const resolved = cases.filter((c) => ["resolved", "closed"].includes(c.status)).length;
 
   return (
@@ -207,7 +221,7 @@ export default function StandardsPage() {
       <PageHeader
         title="Standards & Accountability"
         description="Manage standards cases with permission controls and audit logs"
-        action={<Button size="sm" className="officer-touch" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>New case</Button>}
+        action={canManage ? <Button size="sm" className="officer-touch" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>New case</Button> : undefined}
       />
 
       <div className="grid grid-cols-3 gap-3">
@@ -219,6 +233,7 @@ export default function StandardsPage() {
       <Tabs
         tabs={[
           { id: "open", label: "Open", count: open },
+          { id: "appealed", label: "Appeals", count: appealed },
           { id: "resolved", label: "Resolved" },
           { id: "all", label: "All", count: cases.length },
         ]}
@@ -232,7 +247,7 @@ export default function StandardsPage() {
         <EmptyState
           icon={<Scale size={24} />}
           title={tab === "open" ? "No open cases" : "No cases found"}
-          action={tab === "open" ? <Button size="sm" onClick={() => setCreateOpen(true)}>Create case</Button> : undefined}
+          action={tab === "open" && canManage ? <Button size="sm" onClick={() => setCreateOpen(true)}>Create case</Button> : undefined}
         />
       ) : (
         <div className="space-y-3">
@@ -317,17 +332,29 @@ export default function StandardsPage() {
         size="lg"
         footer={
           <div className="flex gap-2 flex-wrap w-full">
-            {selected?.status === "open" && (
+            {selected?.status === "open" && canManage && (
               <>
                 <Button variant="secondary" onClick={() => updateStatus(selected.id, "hearing_scheduled")}>Schedule hearing</Button>
                 <Button onClick={() => updateStatus(selected.id, "resolved")}>Mark resolved</Button>
               </>
             )}
-            {selected?.status === "hearing_scheduled" && (
-              <Button onClick={() => updateStatus(selected.id, "resolved")}>Mark resolved</Button>
+            {selected?.status === "hearing_scheduled" && canManage && (
+              <>
+                <Button onClick={() => updateStatus(selected.id, "resolved")}>Mark resolved</Button>
+                <Button variant="secondary" onClick={() => updateStatus(selected.id, "appealed")}>Mark appealed</Button>
+              </>
             )}
-            {selected?.status === "resolved" && (
-              <Button variant="secondary" onClick={() => updateStatus(selected.id, "closed")}>Close case</Button>
+            {selected?.status === "resolved" && canManage && (
+              <>
+                <Button variant="secondary" onClick={() => updateStatus(selected.id, "appealed")}>Mark appealed</Button>
+                <Button variant="secondary" onClick={() => updateStatus(selected.id, "closed")}>Close case</Button>
+              </>
+            )}
+            {selected?.status === "appealed" && canManage && (
+              <>
+                <Button onClick={() => updateStatus(selected.id, "resolved")}>Uphold decision</Button>
+                <Button variant="secondary" onClick={() => updateStatus(selected.id, "closed")}>Overturn & close</Button>
+              </>
             )}
             <Button variant="secondary" onClick={() => setSelected(null)} className="ml-auto">Close</Button>
           </div>
@@ -344,25 +371,53 @@ export default function StandardsPage() {
               <p className="text-sm text-foreground whitespace-pre-wrap">{selected.description}</p>
             </div>
 
+            {selected.status === "appealed" && (
+              <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-950/20 border border-orange-200">
+                <p className="text-xs font-semibold uppercase tracking-wide text-orange-700 mb-1">Appeal in progress</p>
+                {selected.appealed_at && (
+                  <p className="text-xs text-muted-foreground mb-2">Filed {formatDate(selected.appealed_at)}</p>
+                )}
+                <Textarea
+                  label="Appeal notes"
+                  value={appealNotes}
+                  onChange={(e) => setAppealNotes(e.target.value)}
+                  onBlur={() => {
+                    if (appealNotes !== (selected.appeal_notes ?? "")) {
+                      patchCase({ appealNotes });
+                    }
+                  }}
+                  placeholder="Respondent arguments, hearing notes, board decision..."
+                  className="min-h-[80px]"
+                  disabled={!canManage}
+                />
+              </div>
+            )}
+
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold mb-2">Sanctions</p>
               <div className="flex flex-wrap gap-2 mb-2">
                 {(selected.sanctions ?? []).map((s) => (
-                  <button key={s} type="button" onClick={() => removeSanction(s)} className="inline-flex">
-                    <Badge label={`${s} ×`} color="red" />
-                  </button>
+                  canManage ? (
+                    <button key={s} type="button" onClick={() => removeSanction(s)} className="inline-flex">
+                      <Badge label={`${s} ×`} color="red" />
+                    </button>
+                  ) : (
+                    <Badge key={s} label={s} color="red" />
+                  )
                 ))}
               </div>
-              <div className="flex gap-2 flex-wrap">
-                <Select
-                  value={sanctionInput}
-                  onChange={(e) => setSanctionInput(e.target.value)}
-                  options={[{ value: "", label: "Add sanction..." }, ...SANCTION_OPTIONS.map((s) => ({ value: s, label: s }))]}
-                />
-                <Button size="sm" variant="secondary" onClick={() => addSanction(sanctionInput)} disabled={!sanctionInput}>
-                  Add
-                </Button>
-              </div>
+              {canManage && (
+                <div className="flex gap-2 flex-wrap">
+                  <Select
+                    value={sanctionInput}
+                    onChange={(e) => setSanctionInput(e.target.value)}
+                    options={[{ value: "", label: "Add sanction..." }, ...SANCTION_OPTIONS.map((s) => ({ value: s, label: s }))]}
+                  />
+                  <Button size="sm" variant="secondary" onClick={() => addSanction(sanctionInput)} disabled={!sanctionInput}>
+                    Add
+                  </Button>
+                </div>
+              )}
             </div>
 
             <div>

@@ -16,6 +16,7 @@ import { RushMatchPanel } from "@/components/pnm/rush-match-panel";
 import { RelationshipGraphPanel } from "@/components/pnm/relationship-graph-panel";
 import { RecruitmentLinksPanel } from "@/components/pnm/recruitment-links-panel";
 import { RecruitmentAnalyticsPanel } from "@/components/pnm/recruitment-analytics-panel";
+import { AcademicProfileFields } from "@/components/profile/academic-profile-fields";
 
 const PIPELINE_STAGES: PnmStatus[] = [
   "lead","contacted","invited","attended","interested",
@@ -339,9 +340,12 @@ export default function PnmPage() {
             <Input label="Email" type="email" value={newLead.email} onChange={(e) => setNewLead({ ...newLead, email: e.target.value })} placeholder="jane@college.edu" />
             <Input label="Phone (optional)" type="tel" value={newLead.phone} onChange={(e) => setNewLead({ ...newLead, phone: e.target.value })} placeholder="+1 (555) 000-0000" />
             <Input label="Instagram handle (optional)" value={newLead.instagramHandle} onChange={(e) => setNewLead({ ...newLead, instagramHandle: e.target.value })} placeholder="@janesmithh" />
-            <Input label="Class year" value={newLead.classYear} onChange={(e) => setNewLead({ ...newLead, classYear: e.target.value })} placeholder="2027" />
-            <Input label="Major" value={newLead.major} onChange={(e) => setNewLead({ ...newLead, major: e.target.value })} placeholder="Business" />
-            <Input label="Hometown" value={newLead.hometown} onChange={(e) => setNewLead({ ...newLead, hometown: e.target.value })} placeholder="Austin, TX" />
+            <div className="col-span-2">
+              <AcademicProfileFields
+                values={{ classYear: newLead.classYear, major: newLead.major, hometown: newLead.hometown }}
+                onChange={(updates) => setNewLead({ ...newLead, ...updates })}
+              />
+            </div>
             <Input label="Referral source" value={newLead.referralSource} onChange={(e) => setNewLead({ ...newLead, referralSource: e.target.value })} placeholder="Active member name" />
           </div>
           <Input label="Active member connection" value={newLead.activeMemberConnection} onChange={(e) => setNewLead({ ...newLead, activeMemberConnection: e.target.value })} placeholder="Who knows this PNM?" />
