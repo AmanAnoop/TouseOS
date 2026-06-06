@@ -19,6 +19,8 @@ interface ChapterIdentityPickerProps {
   value: ChapterIdentityValue;
   disabled?: boolean;
   /** When true, manual color picks persist across university/org changes. */
+  colorsManuallySet?: boolean;
+  /** @deprecated Use colorsManuallySet */
   colorsLocked?: boolean;
   onManualColorChange?: () => void;
   onChange: (next: ChapterIdentityValue) => void;
@@ -28,10 +30,12 @@ export function ChapterIdentityPicker({
   orgType,
   value,
   disabled,
+  colorsManuallySet = false,
   colorsLocked = false,
   onManualColorChange,
   onChange,
 }: ChapterIdentityPickerProps) {
+  const manualColors = colorsManuallySet || colorsLocked;
   const product = getProductId(orgType);
   const isGreek = orgType === "fraternity" || orgType === "sorority";
   const isSports = product === "sports";
@@ -72,7 +76,7 @@ export function ChapterIdentityPicker({
     let primary = merged.primaryColor || resolved.orgPrimary;
     let secondary = merged.secondaryColor || resolved.orgSecondary;
 
-    if (!colorsLocked && !colorsTouched) {
+    if (!manualColors && !colorsTouched) {
       if (campusOnly && universityChanged && merged.universityId && merged.universityId !== "custom-campus") {
         primary = resolved.campusPrimary;
         secondary = resolved.campusSecondary;
@@ -201,7 +205,7 @@ export function ChapterIdentityPicker({
         </div>
       </div>
 
-      {(campusOnly || (value.greekAffiliationId === "custom" && isGreek) || colorsLocked) && (
+      {(campusOnly || (value.greekAffiliationId === "custom" && isGreek) || manualColors) && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
           <label className="type-body" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {campusOnly ? "Primary color" : "Custom org primary"}

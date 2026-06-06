@@ -15,6 +15,7 @@ import {
   computeRiskScore,
   riskLabel,
 } from "@/lib/risk-config";
+import { RiskAssessmentWizard } from "@/components/risk/risk-assessment-wizard";
 
 interface RiskChecklist {
   id: string;
@@ -40,7 +41,9 @@ export default function RiskPage() {
   const [loading, setLoading] = useState(true);
   const { orgId } = useOrg();
   const [createOpen, setCreateOpen] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [events, setEvents] = useState<Array<{ id: string; title: string; starts_at: string }>>([]);
+  const [members, setMembers] = useState<Array<{ id: string; full_name: string }>>([]);
 
   const [newChecklist, setNewChecklist] = useState<Record<string, boolean>>({
     alcohol_policy: false,
@@ -66,7 +69,7 @@ export default function RiskPage() {
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
-    const [ckRes, evRes, incRes] = await Promise.all([
+    const [ckRes, evRes, incRes, memRes] = await Promise.all([
       fetch(`/api/risk/checklists?org_id=${encodeURIComponent(oid)}`),
       fetch(`/api/events?org_id=${encodeURIComponent(oid)}`).then(async (r) => {
         if (!r.ok) return { data: [] };
@@ -80,10 +83,16 @@ export default function RiskPage() {
         };
       }),
       fetch(`/api/incidents?org_id=${oid}`).then((r) => (r.ok ? r.json() : [])),
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}`).then((r) => (r.ok ? r.json() : [])),
     ]);
     setChecklists(ckRes.ok ? ((await ckRes.json()) as RiskChecklist[]) : []);
     setEvents((evRes.data ?? []) as Array<{ id: string; title: string; starts_at: string }>);
     setIncidents(Array.isArray(incRes) ? incRes : []);
+    setMembers(
+      (Array.isArray(memRes) ? memRes : [])
+        .filter((m: { membership_status?: string }) => m.membership_status === "active")
+        .map((m: { id: string; full_name: string }) => ({ id: m.id, full_name: m.full_name })),
+    );
     setLoading(false);
   }, []);
 
@@ -172,9 +181,14 @@ export default function RiskPage() {
         title="Risk Management"
         description="Event risk checklists, incident reports, and approval workflows"
         action={
-          <Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)} disabled={permLoading || !can("manage_incidents")}>
-            New risk checklist
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="secondary" onClick={() => setWizardOpen(true)} disabled={permLoading || !can("manage_incidents")}>
+              Risk assessment
+            </Button>
+            <Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)} disabled={permLoading || !can("manage_incidents")}>
+              Quick checklist
+            </Button>
+          </div>
         }
       />
 
@@ -396,6 +410,17 @@ export default function RiskPage() {
           </div>
         </div>
       </Modal>
+
+      {orgId && (
+        <RiskAssessmentWizard
+          open={wizardOpen}
+          onClose={() => setWizardOpen(false)}
+          orgId={orgId}
+          events={events}
+          members={members}
+          onSubmitted={() => load(orgId)}
+        />
+      )}
     </div>
   );
 }

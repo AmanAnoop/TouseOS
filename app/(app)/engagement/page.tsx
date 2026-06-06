@@ -114,6 +114,7 @@ export default function EngagementPage() {
           events={events}
           semesterGoal={SEMESTER_GOAL}
           orgLabel={orgLabel}
+          orgType={orgType ?? "fraternity"}
         />
       )}
     </div>

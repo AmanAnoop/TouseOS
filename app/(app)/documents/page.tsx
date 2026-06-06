@@ -12,7 +12,8 @@ import {
 } from "@/components/ui";
 import { formatDate, downloadCsv } from "@/lib/utils";
 import type { Document } from "@/types";
-import { DocumentCard, formatBytes } from "@/components/documents/document-card";
+import { formatBytes } from "@/components/documents/document-card";
+import { DocumentTable } from "@/components/documents/document-table";
 import { DocumentVersionHistory } from "@/components/documents/document-version-history";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useOrg } from "@/hooks/use-org";
@@ -33,6 +34,7 @@ export default function DocumentsPage() {
   const [query, setQuery] = useState("");
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [uploadForm, setUploadForm] = useState({
@@ -73,14 +75,22 @@ export default function DocumentsPage() {
   async function uploadDocument() {
     if (!orgId || !userId || !selectedFile || !uploadForm.title) return;
     setUploading(true);
+    setUploadError(null);
 
     const path = `${orgId}/${Date.now()}-${selectedFile.name}`;
-    const { data: stored, error: uploadError } = await supabase.storage
-      .from("documents")
-      .upload(path, selectedFile, { upsert: false });
-
-    if (uploadError) {
-      toast.error(uploadError.message);
+    let stored: { path: string } | null = null;
+    try {
+      const { data, error: storageErr } = await supabase.storage
+        .from("documents")
+        .upload(path, selectedFile, { upsert: false });
+      if (storageErr) {
+        setUploadError(storageErr.message);
+        setUploading(false);
+        return;
+      }
+      stored = data;
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed");
       setUploading(false);
       return;
     }
@@ -92,7 +102,7 @@ export default function DocumentsPage() {
         orgId,
         title: uploadForm.title,
         category: uploadForm.category,
-        storagePath: stored.path,
+        storagePath: stored!.path,
         url: null,
         fileSizeBytes: selectedFile.size,
         mimeType: selectedFile.type,
@@ -102,8 +112,13 @@ export default function DocumentsPage() {
 
     setUploading(false);
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) { toast.error(data.error ?? "Failed to save document"); return; }
-    toast.success("Document uploaded");
+    if (!res.ok) {
+      setUploadError(data.error ?? "Failed to save document");
+      setUploading(false);
+      return;
+    }
+    toast.success("Document saved");
+    setUploadError(null);
     setUploadOpen(false);
     setSelectedFile(null);
     setUploadForm({ title: "", category: "General", isPrivate: false });
@@ -171,17 +186,17 @@ export default function DocumentsPage() {
           action={canManageDocs ? <Button size="sm" icon={<Upload size={14} />} onClick={() => setUploadOpen(true)}>Upload document</Button> : undefined}
         />
       ) : (
-        <div className="grid sm:grid-cols-2 gap-3">
-          {filtered.map((doc) => (
-            <DocumentCard
-              key={doc.id}
-              doc={doc}
-              orgId={orgId!}
-              onDelete={canManageDocs ? deleteDocument : undefined}
-              onViewVersions={setVersionDoc}
-            />
-          ))}
-        </div>
+        <DocumentTable
+          docs={filtered}
+          onDownload={async (doc) => {
+            if (doc.url) window.open(doc.url, "_blank");
+            else if (doc.storage_path) {
+              const { data } = await supabase.storage.from("documents").createSignedUrl(doc.storage_path, 3600);
+              if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+            }
+          }}
+          onDelete={canManageDocs ? deleteDocument : undefined}
+        />
       )}
 
       {/* Upload modal */}
@@ -233,6 +248,9 @@ export default function DocumentsPage() {
             options={CATEGORIES.map((c) => ({ value: c, label: c }))}
           />
 
+          {uploadError && (
+            <p className="type-small" style={{ color: "var(--color-error)" }} role="alert">{uploadError}</p>
+          )}
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" className="rounded" checked={uploadForm.isPrivate} onChange={(e) => setUploadForm({ ...uploadForm, isPrivate: e.target.checked })} />
             <div>

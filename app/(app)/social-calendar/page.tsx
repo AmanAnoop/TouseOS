@@ -3,10 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import {
-  Calendar, CheckCircle, Clock
-,
-  Instagram, Plus
-,
+  Calendar, CheckCircle, Clock, Film, Image as ImageIcon, Instagram, LayoutGrid, List, Plus, Circle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
@@ -31,10 +28,10 @@ interface CalendarPost {
 }
 
 const POST_TYPES = [
-  { value: "feed", label: "📸 Feed post", icon: "📸" },
-  { value: "story", label: "⭕ Story", icon: "⭕" },
-  { value: "reel", label: "🎬 Reel", icon: "🎬" },
-  { value: "carousel", label: "🖼️ Carousel", icon: "🖼️" },
+  { value: "feed", label: "Feed post", Icon: ImageIcon },
+  { value: "story", label: "Story", Icon: Circle },
+  { value: "reel", label: "Reel", Icon: Film },
+  { value: "carousel", label: "Carousel", Icon: LayoutGrid },
 ];
 
 const CAPTION_TEMPLATES = [
@@ -51,6 +48,7 @@ export default function SocialCalendarPage() {
   const searchParams = useSearchParams();
   const [posts, setPosts] = useState<CalendarPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<"month" | "week" | "list">("month");
   const [tab, setTab] = useState("calendar");
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState({
@@ -146,6 +144,62 @@ export default function SocialCalendarPage() {
     draft: "gray", scheduled: "blue", posted: "green", cancelled: "red",
   };
 
+  function postTypeIcon(postType: string) {
+    const t = POST_TYPES.find((x) => x.value === postType);
+    if (!t) return <ImageIcon size={16} aria-hidden />;
+    const Icon = t.Icon;
+    return <Icon size={16} />;
+  }
+
+  const weekStart = new Date();
+  weekStart.setHours(0, 0, 0, 0);
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 7);
+
+  const weekPosts = posts.filter((p) => {
+    if (!p.scheduled_date) return false;
+    const d = new Date(p.scheduled_date);
+    return d >= weekStart && d < weekEnd;
+  });
+
+  const listPosts = [...posts]
+    .filter((p) => p.scheduled_date)
+    .sort((a, b) => new Date(a.scheduled_date!).getTime() - new Date(b.scheduled_date!).getTime());
+
+  function renderPostRow(post: CalendarPost) {
+    return (
+      <Card key={post.id} padding="sm">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center text-white flex-shrink-0">
+            {postTypeIcon(post.post_type)}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="font-medium text-sm">{post.title}</p>
+              <Badge label={post.status} color={STATUS_COLOR[post.status] as "green"} />
+            </div>
+            {post.caption && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{post.caption}</p>}
+            {post.scheduled_date && (
+              <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                <Calendar size={11} />
+                {formatDate(post.scheduled_date)}
+              </div>
+            )}
+          </div>
+          <div className="flex gap-1 flex-shrink-0">
+            {post.status === "draft" && (
+              <Button size="sm" variant="secondary" icon={<Clock size={12} />} onClick={() => updateStatus(post.id, "scheduled")}>Schedule</Button>
+            )}
+            {post.status === "scheduled" && (
+              <Button size="sm" icon={<CheckCircle size={12} />} onClick={() => updateStatus(post.id, "posted")}>Posted</Button>
+            )}
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
   return (
     <div className="ds-page-stack">
       <PageHeader
@@ -169,9 +223,28 @@ export default function SocialCalendarPage() {
         </Card>
       </div>
 
+      <div className="ds-segment" role="tablist" aria-label="Calendar view">
+        {([
+          { id: "month" as const, label: "Month", icon: Calendar },
+          { id: "week" as const, label: "Week", icon: LayoutGrid },
+          { id: "list" as const, label: "List", icon: List },
+        ]).map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={view === id}
+            className={view === id ? "ds-segment-active" : ""}
+            onClick={() => setView(id)}
+          >
+            <Icon size={14} aria-hidden />
+            {label}
+          </button>
+        ))}
+      </div>
+
       <Tabs
         tabs={[
-          { id: "grid", label: "Month grid" },
           { id: "calendar", label: "Upcoming", count: upcoming.length },
           { id: "drafts", label: "Drafts", count: drafts.length },
           { id: "templates", label: "Caption templates" },
@@ -181,11 +254,27 @@ export default function SocialCalendarPage() {
         onChange={setTab}
       />
 
-      {tab === "grid" ? (
+      {view === "month" && tab === "calendar" ? (
         <SocialCalendarGrid
           posts={posts.filter((p) => p.scheduled_date)}
           onReschedule={reschedulePost}
         />
+      ) : view === "week" && tab === "calendar" ? (
+        loading ? (
+          <div className="space-y-2">{[1, 2, 3].map((i) => <Card key={i} className="h-16 animate-pulse bg-surface-2 border-0">&nbsp;</Card>)}</div>
+        ) : weekPosts.length === 0 ? (
+          <EmptyState icon={<Calendar size={24} />} title="No posts this week" action={<Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>Schedule post</Button>} />
+        ) : (
+          <div className="space-y-2">{weekPosts.map(renderPostRow)}</div>
+        )
+      ) : view === "list" && tab === "calendar" ? (
+        loading ? (
+          <div className="space-y-2">{[1, 2, 3].map((i) => <Card key={i} className="h-16 animate-pulse bg-surface-2 border-0">&nbsp;</Card>)}</div>
+        ) : listPosts.length === 0 ? (
+          <EmptyState icon={<List size={24} />} title="No scheduled posts" action={<Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>Schedule post</Button>} />
+        ) : (
+          <div className="space-y-2">{listPosts.map(renderPostRow)}</div>
+        )
       ) : tab === "templates" ? (
         <div className="grid sm:grid-cols-2 gap-3">
           {CAPTION_TEMPLATES.map((tpl) => (
@@ -220,36 +309,7 @@ export default function SocialCalendarPage() {
         />
       ) : (
         <div className="space-y-2">
-          {(tab === "calendar" ? upcoming : tab === "drafts" ? drafts : posted).map((post) => (
-            <Card key={post.id} padding="sm">
-              <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center text-white text-base flex-shrink-0">
-                  {POST_TYPES.find((t) => t.value === post.post_type)?.icon ?? "📸"}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-medium text-sm">{post.title}</p>
-                    <Badge label={post.status} color={STATUS_COLOR[post.status] as "green"} />
-                  </div>
-                  {post.caption && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{post.caption}</p>}
-                  {post.scheduled_date && (
-                    <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                      <Calendar size={11} />
-                      {formatDate(post.scheduled_date)}
-                    </div>
-                  )}
-                </div>
-                <div className="flex gap-1 flex-shrink-0">
-                  {post.status === "draft" && (
-                    <Button size="sm" variant="secondary" icon={<Clock size={12} />} onClick={() => updateStatus(post.id, "scheduled")}>Schedule</Button>
-                  )}
-                  {post.status === "scheduled" && (
-                    <Button size="sm" icon={<CheckCircle size={12} />} onClick={() => updateStatus(post.id, "posted")}>Posted</Button>
-                  )}
-                </div>
-              </div>
-            </Card>
-          ))}
+          {(tab === "calendar" ? upcoming : tab === "drafts" ? drafts : posted).map(renderPostRow)}
         </div>
       )}
 
@@ -271,11 +331,15 @@ export default function SocialCalendarPage() {
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium">Post type</label>
               <div className="flex gap-2 flex-wrap">
-                {POST_TYPES.map((t) => (
-                  <button key={t.value} onClick={() => setForm({ ...form, postType: t.value })} className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm border transition-colors ${form.postType === t.value ? "bg-pink-500 text-white border-pink-500" : "border-border text-muted-foreground hover:border-pink-400"}`}>
-                    {t.icon} {t.label.split(" ")[1]}
-                  </button>
-                ))}
+                {POST_TYPES.map((t) => {
+                  const Icon = t.Icon;
+                  return (
+                    <button key={t.value} type="button" onClick={() => setForm({ ...form, postType: t.value })} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border transition-colors ${form.postType === t.value ? "bg-pink-500 text-white border-pink-500" : "border-border text-muted-foreground hover:border-pink-400"}`}>
+                      <Icon size={14} aria-hidden />
+                      {t.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
             <Input label="Scheduled date" type="date" value={form.scheduledDate} onChange={(e) => setForm({ ...form, scheduledDate: e.target.value })} />

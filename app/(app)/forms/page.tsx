@@ -395,24 +395,30 @@ export default function FormsPage() {
           </>
         }
       >
-        <div className="space-y-4">
-          <div className="grid sm:grid-cols-2 gap-3">
-            <Input label="Form title *" value={newForm.title} onChange={(e) => setNewForm({ ...newForm, title: e.target.value })} placeholder="Anti-Hazing Acknowledgement" />
-            <Select label="Form type" value={newForm.type} onChange={(e) => setNewForm({ ...newForm, type: e.target.value })} options={FORM_TYPES} />
+        <div className="forms-builder-shell">
+          <aside className="forms-builder-settings">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Form settings</p>
+            <div className="space-y-3">
+              <Input label="Form title *" value={newForm.title} onChange={(e) => setNewForm({ ...newForm, title: e.target.value })} placeholder="Anti-Hazing Acknowledgement" />
+              <Select label="Form type" value={newForm.type} onChange={(e) => setNewForm({ ...newForm, type: e.target.value })} options={FORM_TYPES} />
+              <Input label="Due date (optional)" type="date" value={newForm.dueDate} onChange={(e) => setNewForm({ ...newForm, dueDate: e.target.value })} />
+              <label className="flex items-center gap-2 cursor-pointer min-h-[44px]">
+                <input type="checkbox" className="rounded" checked={newForm.isRequired} onChange={(e) => setNewForm({ ...newForm, isRequired: e.target.checked })} />
+                <span className="text-sm">Required for all members</span>
+              </label>
+              <p className="text-xs text-muted-foreground pt-2 border-t border-border">
+                {fields.length} field{fields.length !== 1 ? "s" : ""} · Drag to reorder on the right
+              </p>
+            </div>
+          </aside>
+          <div className="forms-builder-fields">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Questions</p>
+            <SortableFormFields
+              fields={fields as FormFieldItem[]}
+              onChange={(next) => setFields(next as FormField[])}
+              onAdd={addField}
+            />
           </div>
-          <div className="grid sm:grid-cols-2 gap-3">
-            <Input label="Due date (optional)" type="date" value={newForm.dueDate} onChange={(e) => setNewForm({ ...newForm, dueDate: e.target.value })} />
-            <label className="flex items-center gap-2 cursor-pointer mt-6">
-              <input type="checkbox" className="rounded" checked={newForm.isRequired} onChange={(e) => setNewForm({ ...newForm, isRequired: e.target.checked })} />
-              <span className="text-sm">Required for all members</span>
-            </label>
-          </div>
-
-          <SortableFormFields
-            fields={fields as FormFieldItem[]}
-            onChange={(next) => setFields(next as FormField[])}
-            onAdd={addField}
-          />
         </div>
       </Modal>
 

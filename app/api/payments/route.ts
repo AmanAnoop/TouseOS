@@ -86,5 +86,15 @@ export async function GET(request: Request) {
     .order("due_date");
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const sanitized = (data ?? []).map((row) => {
+    const due = row.due_date ? String(row.due_date).slice(0, 10) : null;
+    if (!due || today <= due) {
+      return { ...row, late_fee: 0 };
+    }
+    return row;
+  });
+
+  return NextResponse.json(sanitized);
 }

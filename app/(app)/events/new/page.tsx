@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Calendar, ChevronLeft, DollarSign, Image as ImageIcon, Users } from "lucide-react";
 import toast from "react-hot-toast";
 import { useOrg } from "@/hooks/use-org";
@@ -12,6 +12,7 @@ import { eventTypesForOrgType } from "@/lib/org-product";
 
 export default function NewEventPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { orgId, orgType } = useOrg();
   const [saving, setSaving] = useState(false);
 
@@ -42,6 +43,21 @@ export default function NewEventPage() {
   });
 
   const eventTypes = eventTypesForOrgType(orgType || "general_org");
+
+  useEffect(() => {
+    const type = searchParams.get("type");
+    const inviteOnly = searchParams.get("invite_only");
+    const types = eventTypesForOrgType(orgType || "general_org");
+    if (type) {
+      const normalized = type === "brotherhood" ? "brotherhood" : type;
+      if (types.some((t) => t.value === normalized)) {
+        setForm((f) => ({ ...f, type: normalized }));
+      }
+    }
+    if (inviteOnly === "true" || inviteOnly === "1") {
+      setForm((f) => ({ ...f, isPrivate: true }));
+    }
+  }, [searchParams, orgType]);
 
   async function createEvent() {
     if (!orgId || !form.title || !form.startsAt) return;

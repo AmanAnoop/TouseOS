@@ -62,7 +62,7 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
   const [form, setForm] = useState({
     name: "", campus: "", councilOrLeague: "", contactEmail: "",
   });
-  const [colorsLocked, setColorsLocked] = useState(false);
+  const [colorsManuallySet, setColorsManuallySet] = useState(false);
   const [identity, setIdentity] = useState<ChapterIdentityValue>({
     universityId: "",
     greekAffiliationId: "",
@@ -373,8 +373,8 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
               orgType={orgType}
               value={identity}
               onChange={handleIdentityChange}
-              colorsLocked={colorsLocked}
-              onManualColorChange={() => setColorsLocked(true)}
+              colorsManuallySet={colorsManuallySet}
+              onManualColorChange={() => setColorsManuallySet(true)}
             />
           )}
           <Input
