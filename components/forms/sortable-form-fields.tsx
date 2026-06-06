@@ -27,6 +27,8 @@ export interface FormFieldItem {
   required: boolean;
   options?: string[];
   placeholder?: string;
+  page?: number;
+  showWhen?: { fieldId: string; equals: string | boolean };
 }
 
 const FIELD_TYPES = [
@@ -42,11 +44,13 @@ const FIELD_TYPES = [
 function SortableFieldRow({
   field,
   index,
+  allFields,
   onUpdate,
   onRemove,
 }: {
   field: FormFieldItem;
   index: number;
+  allFields: FormFieldItem[];
   onUpdate: (id: string, updates: Partial<FormFieldItem>) => void;
   onRemove: (id: string) => void;
 }) {
@@ -97,6 +101,29 @@ function SortableFieldRow({
             })}
           />
         )}
+        <div className="grid sm:grid-cols-2 gap-2">
+          <Input
+            label="Page"
+            type="number"
+            min={1}
+            value={String(field.page ?? 1)}
+            onChange={(e) => onUpdate(field.id, { page: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+          />
+          <select
+            className="h-9 rounded-lg border border-border bg-background px-3 text-sm mt-5"
+            value={field.showWhen?.fieldId ?? ""}
+            onChange={(e) => {
+              const fieldId = e.target.value;
+              if (!fieldId) onUpdate(field.id, { showWhen: undefined });
+              else onUpdate(field.id, { showWhen: { fieldId, equals: true } });
+            }}
+          >
+            <option value="">Always visible</option>
+            {allFields.filter((f) => f.id !== field.id).map((f) => (
+              <option key={f.id} value={f.id}>Show when &quot;{f.label || "field"}&quot; is checked</option>
+            ))}
+          </select>
+        </div>
       </div>
       <button type="button" onClick={() => onRemove(field.id)} className="mt-2 text-muted-foreground hover:text-red-500">
         <Trash2 size={14} />
@@ -155,6 +182,7 @@ export function SortableFormFields({
                   key={field.id}
                   field={field}
                   index={idx}
+                  allFields={fields}
                   onUpdate={updateField}
                   onRemove={removeField}
                 />

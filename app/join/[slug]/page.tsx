@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button, Card, Input } from "@/components/ui";
+import { AcademicProfileFields } from "@/components/profile/academic-profile-fields";
 import { Heart, CheckCircle2 } from "lucide-react";
 
 export default function PnmInterestFormPage() {
@@ -145,11 +146,10 @@ export default function PnmInterestFormPage() {
               <Input label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="you@college.edu" />
               <Input label="Phone" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+1 (555) 000-0000" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Input label="Class year" value={form.classYear} onChange={(e) => setForm({ ...form, classYear: e.target.value })} placeholder="2027" />
-              <Input label="Major" value={form.major} onChange={(e) => setForm({ ...form, major: e.target.value })} placeholder="Business, CS..." />
-            </div>
-            <Input label="Hometown" value={form.hometown} onChange={(e) => setForm({ ...form, hometown: e.target.value })} placeholder="Austin, TX" />
+            <AcademicProfileFields
+              values={{ classYear: form.classYear, major: form.major, hometown: form.hometown }}
+              onChange={(updates) => setForm({ ...form, ...updates })}
+            />
             <Input label="Instagram handle (optional)" value={form.instagramHandle} onChange={(e) => setForm({ ...form, instagramHandle: e.target.value })} placeholder="@yourusername" />
             <Input
               label="Interests (optional)"

@@ -105,6 +105,7 @@ function mapFeatureItem(href: string, label: string): SidebarNavItemDef {
     "/philanthropy": "building",
     "/interchapter": "message",
     "/event-memories": "calendar",
+    "/study-hours": "book",
     "/tryouts": "trophy",
     "/tournaments": "trophy",
     "/standings": "bar-chart",
@@ -132,7 +133,7 @@ function greekFeatureSections(
 ): SidebarSectionDef[] {
   const recruitment = ["/pnm", "/big-little", "/nme"];
   const social = ["/social", "/social-calendar", "/social-collab", "/social-assets", "/event-memories"];
-  const chapter = ["/risk", "/standards", "/housing", "/engagement", "/attendance-points"];
+  const chapter = ["/risk", "/standards", "/housing", "/engagement", "/attendance-points", "/study-hours"];
   const community = ["/alumni", "/philanthropy", "/interchapter"];
 
   const pick = (hrefs: string[]) =>

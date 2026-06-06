@@ -36,6 +36,8 @@ interface FormField {
   required: boolean;
   options?: string[];
   placeholder?: string;
+  page?: number;
+  showWhen?: { fieldId: string; equals: string | boolean };
 }
 
 const FORM_TYPES = [

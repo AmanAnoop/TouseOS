@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { attachPhotoDisplayUrls } from "@/lib/photo-access";
 import { createClient } from "@/lib/supabase/server";
+import { createNotification } from "@/lib/notifications";
 
 async function withDisplayUrls<T extends { url?: string | null; storage_path?: string | null }>(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -87,8 +88,26 @@ export async function PATCH(request: Request) {
   if (doNotPost !== undefined) updates.do_not_post = doNotPost;
   if (alcoholFlagged !== undefined) updates.alcohol_flagged = alcoholFlagged;
 
+  const { data: before } = await supabase.from("photos").select("status, uploaded_by, org_id, caption").eq("id", photoId).single();
+
   const { data, error } = await supabase.from("photos").update(updates).eq("id", photoId).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (
+    status === "approved"
+    && before?.status !== "approved"
+    && before?.uploaded_by
+    && before.uploaded_by !== user.id
+  ) {
+    await createNotification(supabase, {
+      userId: String(before.uploaded_by),
+      orgId: String(before.org_id),
+      type: "photo_approval",
+      title: "Photo approved",
+      body: before.caption ? `"${before.caption}" was approved for posting.` : "Your photo was approved for posting.",
+      link: "/social",
+    });
+  }
 
   return NextResponse.json(data);
 }

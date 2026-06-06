@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAnthropicClient, ANTHROPIC_DEFAULT_MODEL, isAnthropicConfigured } from "@/lib/anthropic";
+import { buildAiOrgContext } from "@/lib/ai-org-context";
 
 const rateLimit = new Map<string, { count: number; resetAt: number }>();
 const MAX_PER_MINUTE = 12;
@@ -36,17 +37,9 @@ export async function POST(request: Request) {
   const orgId = body.orgId as string | undefined;
   const task = body.task as string | undefined;
 
-  let documentContext = "";
+  let orgContext = "";
   if (orgId) {
-    const { data: docs } = await supabase
-      .from("documents")
-      .select("title, category")
-      .eq("org_id", orgId)
-      .limit(20);
-    if (docs?.length) {
-      documentContext = "\n\nOrg documents: "
-        + docs.map((d: { title: string; category: string }) => `${d.title} (${d.category})`).join(", ");
-    }
+    orgContext = await buildAiOrgContext(supabase, orgId);
   }
 
   if (!isAnthropicConfigured()) {
@@ -69,7 +62,7 @@ export async function POST(request: Request) {
     const result = await client.messages.create({
       model: ANTHROPIC_DEFAULT_MODEL,
       max_tokens: 1500,
-      system: SYSTEM_PROMPT + documentContext,
+      system: SYSTEM_PROMPT + orgContext,
       messages: [{ role: "user", content: userContent }],
     });
 

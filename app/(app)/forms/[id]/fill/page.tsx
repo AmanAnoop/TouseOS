@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, ClipboardList } from "lucide-react";
 import toast from "react-hot-toast";
 import { SignaturePad } from "@/components/forms/signature-pad";
 import { Button, Card, PageHeader } from "@/components/ui";
+import { groupFieldsByPage, isFieldVisible } from "@/lib/form-conditions";
 
 interface FormField {
   id: string;
@@ -15,6 +16,8 @@ interface FormField {
   required: boolean;
   options?: string[];
   placeholder?: string;
+  page?: number;
+  showWhen?: { fieldId: string; equals: string | boolean };
 }
 
 interface FormTemplate {
@@ -35,6 +38,7 @@ export default function FillFormPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/forms/${formId}`);
@@ -56,6 +60,22 @@ export default function FillFormPage() {
     load();
   }, [load]);
 
+  const visibleFields = useMemo(() => {
+    if (!form) return [];
+    return form.fields.filter((field) => isFieldVisible(field, answers));
+  }, [form, answers]);
+
+  const pages = useMemo(() => {
+    const grouped = groupFieldsByPage(visibleFields);
+    return Array.from(grouped.keys()).sort((a, b) => a - b);
+  }, [visibleFields]);
+
+  const totalPages = pages.length || 1;
+  const pageFields = useMemo(
+    () => visibleFields.filter((f) => (f.page ?? 1) === (pages[currentPage - 1] ?? 1)),
+    [visibleFields, pages, currentPage],
+  );
+
   function setAnswer(fieldId: string, value: string | boolean) {
     setAnswers((prev) => ({ ...prev, [fieldId]: value }));
   }
@@ -71,24 +91,29 @@ export default function FillFormPage() {
     return undefined;
   }
 
-  async function submit() {
-    if (!form) return;
-    for (const field of form.fields) {
+  function validateFields(fields: FormField[]): boolean {
+    for (const field of fields) {
       if (!field.required) continue;
       if (field.type === "signature") {
         const sig = answers[field.id];
         if (typeof sig !== "string" || !sig.startsWith("data:image")) {
           toast.error(`Please sign: ${field.label}`);
-          return;
+          return false;
         }
         continue;
       }
       const val = answers[field.id];
       if (val === undefined || val === "" || val === false) {
         toast.error(`Please complete: ${field.label}`);
-        return;
+        return false;
       }
     }
+    return true;
+  }
+
+  async function submit() {
+    if (!form) return;
+    if (!validateFields(visibleFields)) return;
 
     const signature = primarySignature();
 
@@ -112,6 +137,12 @@ export default function FillFormPage() {
     toast.success("Form submitted successfully");
     router.push("/forms");
     router.refresh();
+  }
+
+  function nextPage() {
+    if (!validateFields(pageFields)) return;
+    if (currentPage < totalPages) setCurrentPage((p) => p + 1);
+    else void submit();
   }
 
   if (loading) {
@@ -151,8 +182,14 @@ export default function FillFormPage() {
         description={form.description ?? "Complete all required fields and submit."}
       />
 
+      {totalPages > 1 && (
+        <p className="text-sm text-muted-foreground">
+          Page {currentPage} of {totalPages}
+        </p>
+      )}
+
       <Card className="space-y-4">
-        {form.fields.map((field) => (
+        {pageFields.map((field) => (
           <div key={field.id} className="flex flex-col gap-1.5">
             <label className="text-sm font-medium">
               {field.label}
@@ -202,9 +239,21 @@ export default function FillFormPage() {
             )}
           </div>
         ))}
-        <Button className="w-full" loading={submitting} onClick={submit} icon={<ClipboardList size={14} />}>
-          Submit form
-        </Button>
+        <div className="flex gap-2">
+          {currentPage > 1 && (
+            <Button variant="secondary" onClick={() => setCurrentPage((p) => p - 1)}>
+              Back
+            </Button>
+          )}
+          <Button
+            className="flex-1"
+            loading={submitting}
+            onClick={nextPage}
+            icon={<ClipboardList size={14} />}
+          >
+            {currentPage < totalPages ? "Next page" : "Submit form"}
+          </Button>
+        </div>
       </Card>
     </div>
   );

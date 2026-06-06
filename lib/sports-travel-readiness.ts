@@ -12,6 +12,8 @@ export interface TravelReadinessInput {
   confirmedCount: number;
   driversCount: number;
   hotelAssignedCount: number;
+  rosterPaidCount?: number;
+  tripFeesPushed?: boolean;
   members: Array<{
     id: string;
     full_name: string;
@@ -96,6 +98,14 @@ export function computeTravelReadiness(input: TravelReadinessInput): TravelReadi
       label: "Hotel assignments",
       ok: input.hotelAssignedCount > 0 || input.rosterCount === 0,
       detail: `${input.hotelAssignedCount} assigned`,
+    },
+    {
+      key: "fees",
+      label: "Trip fees collected",
+      ok: !input.tripFeesPushed || input.rosterCount === 0 || (input.rosterPaidCount ?? 0) >= input.rosterCount,
+      detail: input.tripFeesPushed
+        ? `${input.rosterPaidCount ?? 0}/${input.rosterCount} paid`
+        : "Push charges after saving budget",
     },
   ];
 

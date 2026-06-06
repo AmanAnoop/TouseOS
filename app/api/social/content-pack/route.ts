@@ -38,7 +38,7 @@ export async function POST(request: Request) {
 
   const { data: photos, error } = await supabase
     .from("photos")
-    .select("id, storage_path, url, caption")
+    .select("id, storage_path, url, caption, is_instagram_ready")
     .eq("org_id", orgId)
     .in("id", photoIds);
 
@@ -56,6 +56,15 @@ export async function POST(request: Request) {
     ``,
     `PHOTOS (${photos.length}):`,
   ];
+
+  const carouselOrder = photos
+    .filter((p) => p.is_instagram_ready !== false)
+    .map((p, i) => ({
+      position: i + 1,
+      photoId: p.id,
+      caption: p.caption ?? "",
+      instagramReady: Boolean(p.is_instagram_ready),
+    }));
 
   let index = 0;
   for (const photo of photos) {
@@ -77,6 +86,13 @@ export async function POST(request: Request) {
   manifest.push("", "PR: Review for alcohol, non-members, consent, and chapter guidelines before posting.");
   zip.file("README.txt", manifest.join("\n"));
   zip.file("caption.txt", caption || "");
+  zip.file("post-order.json", JSON.stringify({
+    albumTitle: albumTitle ?? "Chapter photos",
+    generatedAt: new Date().toISOString(),
+    caption: caption || "",
+    carousel: carouselOrder,
+    note: "Post in carousel order. Only photos marked Instagram-ready are included in the carousel array.",
+  }, null, 2));
 
   const zipBlob = await zip.generateAsync({ type: "nodebuffer" });
   const filename = `content-pack-${(albumTitle ?? "album").toLowerCase().replace(/[^a-z0-9]+/g, "-")}.zip`;

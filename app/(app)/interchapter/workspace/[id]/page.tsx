@@ -65,6 +65,8 @@ export default function SharedWorkspacePage() {
       load();
     }
     init();
+    const interval = setInterval(load, 12_000);
+    return () => clearInterval(interval);
   }, [supabase, load]);
 
   async function patch(body: Record<string, unknown>) {

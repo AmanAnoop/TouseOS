@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { Button, Card, Input } from "@/components/ui";
 import { ChapterIdentityPicker, type ChapterIdentityValue } from "@/components/settings/chapter-identity-picker";
+import { AcademicProfileFields } from "@/components/profile/academic-profile-fields";
 import { REGAL_PRIMARY, REGAL_SECONDARY } from "@/lib/regal-theme";
 
 const ORG_TYPES = [
@@ -254,11 +255,10 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
           <h2 className="text-xl font-bold">Complete your profile</h2>
           <p className="text-sm text-muted-foreground">Help your officers reach you and keep chapter records up to date.</p>
           <Input label="Phone" value={profileForm.phone} onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })} placeholder="(555) 123-4567" />
-          <div className="grid sm:grid-cols-2 gap-3">
-            <Input label="Class year" value={profileForm.classYear} onChange={(e) => setProfileForm({ ...profileForm, classYear: e.target.value })} placeholder="Sophomore" />
-            <Input label="Major" value={profileForm.major} onChange={(e) => setProfileForm({ ...profileForm, major: e.target.value })} placeholder="Business" />
-          </div>
-          <Input label="Hometown" value={profileForm.hometown} onChange={(e) => setProfileForm({ ...profileForm, hometown: e.target.value })} placeholder="Austin, TX" />
+          <AcademicProfileFields
+            values={{ classYear: profileForm.classYear, major: profileForm.major, hometown: profileForm.hometown }}
+            onChange={(updates) => setProfileForm({ ...profileForm, ...updates })}
+          />
           <Input label="Emergency contact name" value={profileForm.emergencyContactName} onChange={(e) => setProfileForm({ ...profileForm, emergencyContactName: e.target.value })} />
           <Input label="Emergency contact phone" value={profileForm.emergencyContactPhone} onChange={(e) => setProfileForm({ ...profileForm, emergencyContactPhone: e.target.value })} />
           <div className="flex gap-2">
