@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { loadActiveMembership } from "@/lib/active-org-membership";
+import { useActiveOrgContext } from "@/components/providers/active-org-provider";
 import type { RoleName } from "@/lib/permissions";
 
 interface OrgContext {
@@ -15,16 +16,17 @@ interface OrgContext {
   refresh: () => Promise<void>;
 }
 
-export function useOrg(): OrgContext {
-  const supabase = createClient();
+function useOrgFallback(enabled: boolean): OrgContext {
+  const supabase = useMemo(() => createClient(), []);
   const [orgId, setOrgId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [orgType, setOrgType] = useState("");
   const [orgName, setOrgName] = useState("");
   const [role, setRole] = useState<RoleName>("general_member");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(enabled);
 
   const refresh = useCallback(async () => {
+    if (!enabled) return;
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -48,11 +50,22 @@ export function useOrg(): OrgContext {
       setOrgName("");
     }
     setLoading(false);
-  }, [supabase]);
+  }, [supabase, enabled]);
 
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
     refresh();
-  }, [refresh]);
+  }, [refresh, enabled]);
 
   return { orgId, userId, role, orgType, orgName, loading, refresh };
+}
+
+export function useOrg(): OrgContext {
+  const fromProvider = useActiveOrgContext();
+  const fallback = useOrgFallback(!fromProvider);
+  if (fromProvider) return fromProvider;
+  return fallback;
 }
