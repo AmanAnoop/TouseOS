@@ -304,19 +304,35 @@ export function SportsTripDetail({ tripId }: SportsTripDetailProps) {
                       </div>
                     </div>
                     {canManage && (
-                      <div className="grid grid-cols-2 gap-2">
-                        <Input
-                          placeholder="Hotel room"
-                          defaultValue={String(r.hotel_assignment ?? "")}
-                          onBlur={(e) => rosterAction(String(mp?.id), "update", { hotelAssignment: e.target.value })}
-                        />
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => rosterAction(String(mp?.id), "update", { confirmed: !Boolean(r.confirmed) })}
-                        >
-                          {Boolean(r.confirmed) ? "Unconfirm" : "Confirm"}
-                        </Button>
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <Input
+                            placeholder="Hotel room"
+                            defaultValue={String(r.hotel_assignment ?? "")}
+                            onBlur={(e) => rosterAction(String(mp?.id), "update", { hotelAssignment: e.target.value })}
+                          />
+                          <Input
+                            placeholder="Carpool group"
+                            defaultValue={String(r.carpool_assignment ?? "")}
+                            onBlur={(e) => rosterAction(String(mp?.id), "update", { carpoolAssignment: e.target.value })}
+                          />
+                        </div>
+                        <div className="flex gap-2 flex-wrap">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => rosterAction(String(mp?.id), "update", { isDriver: !Boolean(r.is_driver) })}
+                          >
+                            {Boolean(r.is_driver) ? "Remove driver" : "Mark driver"}
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => rosterAction(String(mp?.id), "update", { confirmed: !Boolean(r.confirmed) })}
+                          >
+                            {Boolean(r.confirmed) ? "Unconfirm" : "Confirm"}
+                          </Button>
+                        </div>
                       </div>
                     )}
                     {canManage && (

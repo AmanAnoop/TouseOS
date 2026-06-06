@@ -121,7 +121,7 @@ export function FormResponsesPanel({
       ) : loading ? (
         <Card className="h-32 animate-pulse bg-surface-2 border-0">&nbsp;</Card>
       ) : responses.length === 0 ? (
-        <EmptyState title="No responses yet" description="Share the form link with members to collect answers." />
+        <EmptyState title="No responses yet" description="Copy the public or member fill link from the form list to collect answers." />
       ) : (
         <>
           <p className="text-sm text-muted-foreground">

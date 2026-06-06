@@ -197,7 +197,7 @@ function SocialPageContent() {
     const fallbackTemplates = [
       `What a night ✨ ${albumTitle} was everything. So grateful for this chapter 💚 #GreekLife #Brotherhood`,
       `The best people 🤍 ${albumTitle} forever in our hearts. Tag someone who was there!`,
-      `Memories that last a lifetime 📸 #ChapterLife #TouseGreek`,
+      `Memories that last a lifetime 📸 #ChapterLife #GreekLife`,
     ];
 
     setGeneratingCaption(true);
@@ -258,7 +258,7 @@ function SocialPageContent() {
   return (
     <div className="ds-page-stack">
       <PageHeader
-        title="Touse Social"
+        title="Photos & posts"
         description="Event albums, photo approval, and Instagram content packs"
         action={
           selectedAlbum ? (

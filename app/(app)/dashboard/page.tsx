@@ -317,13 +317,13 @@ export default async function DashboardPage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
               { href: "/pnm", label: "PNM Recruitment" },
-              { href: "/social", label: "Touse Social" },
+              { href: "/social", label: "Photos & posts" },
               { href: "/risk", label: "Risk" },
               { href: "/nme", label: "New Members" },
               { href: "/standards", label: "Standards" },
               { href: "/alumni", label: "Alumni CRM" },
               { href: "/philanthropy", label: "Philanthropy" },
-              { href: "/interchapter", label: "ExecLink" },
+              { href: "/interchapter", label: "Interchapter" },
             ].map((link) => (
               <Link key={link.href} href={link.href} className="text-sm font-medium text-greek-600 hover:underline p-2 rounded-lg hover:bg-surface-1">
                 {link.label} →

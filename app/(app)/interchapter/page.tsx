@@ -66,6 +66,8 @@ export default function InterchapterPage() {
   const [targetOrgSearch, setTargetOrgSearch] = useState("");
   const [greekOrgs, setGreekOrgs] = useState<Array<{ id: string; name: string; campus: string | null }>>([]);
 
+  const [proposedDates, setProposedDates] = useState<string[]>([""]);
+
   const [proposalForm, setProposalForm] = useState({
     targetOrgId: "", eventName: "", eventType: "mixer",
     estimatedAttendance: "", themeIdeas: "", venueIdeas: "",
@@ -169,7 +171,7 @@ export default function InterchapterPage() {
         alcohol: proposalForm.alcohol,
         riskLevel: proposalForm.riskLevel,
         philanthropyBeneficiary: proposalForm.philanthropyBeneficiary,
-        proposedDates: [],
+        proposedDates: proposedDates.filter((d) => d.trim()).map((date) => ({ date })),
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -179,6 +181,7 @@ export default function InterchapterPage() {
     }
     toast.success("Proposal sent!");
     setProposeOpen(false);
+    setProposedDates([""]);
     load(orgId);
   }
 
@@ -263,8 +266,8 @@ export default function InterchapterPage() {
   if (!isGreek) {
     return (
       <div className="ds-page-stack">
-        <PageHeader title="ExecLink" description="Interchapter coordination for Greek organizations" />
-        <Alert type="info" title="ExecLink is for Greek organizations" description="This feature is available for fraternities and sororities to coordinate events with other chapters." />
+        <PageHeader title="Interchapter" description="Interchapter coordination for Greek organizations" />
+        <Alert type="info" title="Interchapter is for Greek organizations" description="This feature is available for fraternities and sororities to coordinate events with other chapters." />
       </div>
     );
   }
@@ -272,8 +275,8 @@ export default function InterchapterPage() {
   return (
     <div className="ds-page-stack">
       <PageHeader
-        breadcrumb="ExecLink"
-        title="Touse Exchange"
+        breadcrumb="Interchapter"
+        title="Chapter exchange"
         description="Coordinate mixers, philanthropy, and events with other chapters"
         action={
           <div className="flex flex-wrap gap-2">
@@ -450,6 +453,28 @@ export default function InterchapterPage() {
           <Input label="Theme ideas" placeholder="80s night, black and white..." value={proposalForm.themeIdeas} onChange={(e) => setProposalForm({ ...proposalForm, themeIdeas: e.target.value })} />
           <Input label="Venue ideas" placeholder="Local venue names..." value={proposalForm.venueIdeas} onChange={(e) => setProposalForm({ ...proposalForm, venueIdeas: e.target.value })} />
           <Input label="Philanthropy beneficiary (optional)" value={proposalForm.philanthropyBeneficiary} onChange={(e) => setProposalForm({ ...proposalForm, philanthropyBeneficiary: e.target.value })} />
+          <div>
+            <p className="text-sm font-medium mb-2">Proposed dates</p>
+            <div className="space-y-2">
+              {proposedDates.map((d, i) => (
+                <div key={i} className="flex gap-2">
+                  <Input
+                    type="date"
+                    value={d}
+                    onChange={(e) => {
+                      const next = [...proposedDates];
+                      next[i] = e.target.value;
+                      setProposedDates(next);
+                    }}
+                  />
+                  {proposedDates.length > 1 && (
+                    <Button variant="secondary" size="sm" onClick={() => setProposedDates(proposedDates.filter((_, j) => j !== i))}>Remove</Button>
+                  )}
+                </div>
+              ))}
+              <Button variant="secondary" size="sm" onClick={() => setProposedDates([...proposedDates, ""])}>Add date option</Button>
+            </div>
+          </div>
           <div className="flex gap-4">
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" className="rounded" checked={proposalForm.alcohol} onChange={(e) => setProposalForm({ ...proposalForm, alcohol: e.target.checked })} />
@@ -509,6 +534,12 @@ export default function InterchapterPage() {
             {selectedProposal.theme_ideas && <div><p className="text-xs text-muted-foreground mb-1">Theme ideas</p><p className="text-sm">{selectedProposal.theme_ideas}</p></div>}
             {selectedProposal.venue_ideas && <div><p className="text-xs text-muted-foreground mb-1">Venue ideas</p><p className="text-sm">{selectedProposal.venue_ideas}</p></div>}
             {selectedProposal.philanthropy_beneficiary && <div><p className="text-xs text-muted-foreground mb-1">Philanthropy beneficiary</p><p className="text-sm">{selectedProposal.philanthropy_beneficiary}</p></div>}
+            {selectedProposal.proposed_dates?.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Proposed dates</p>
+                <p className="text-sm">{selectedProposal.proposed_dates.map((d) => d.date).join(" · ")}</p>
+              </div>
+            )}
             {selectedProposal.status === "accepted" && (
               <a href={`/interchapter/workspace?proposal=${selectedProposal.id}`} className="text-sm text-greek-600 hover:underline block mt-2">Open shared workspace →</a>
             )}

@@ -22,7 +22,7 @@ export default async function SocialAssetsPage() {
     .single();
 
   return (
-    <div className="space-y-6">
+    <div className="ds-page-stack">
       <PageHeader
         title="Social Asset Library"
         description="Brand assets, saved captions, and templates — use copies to your social calendar"

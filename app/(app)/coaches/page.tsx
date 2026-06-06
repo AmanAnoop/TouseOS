@@ -11,7 +11,7 @@ import {
 } from "@/lib/coaching-config";
 import {
   Button, Card, CardHeader, EmptyState, Modal,
-  PageHeader, StatCard, Textarea,
+  PageHeader, Select, StatCard, Textarea,
 } from "@/components/ui";
 
 interface Player {
@@ -36,6 +36,7 @@ export default function CoachesPage() {
   const [goalInput, setGoalInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [availability, setAvailability] = useState<Record<string, string>>({});
+  const [lineup, setLineup] = useState<Record<string, string>>({});
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
@@ -66,14 +67,35 @@ export default function CoachesPage() {
     setAvailability(availMap);
     const practice = notes.find((n) => n.note_type === "practice");
     const game = notes.find((n) => n.note_type === "game");
+    const lineupNote = notes.find((n) => n.note_type === "lineup");
     if (practice) setPracticeNotes(practice.content);
     if (game) setGameNotes(game.content);
+    if (lineupNote?.content) {
+      try {
+        setLineup(JSON.parse(lineupNote.content) as Record<string, string>);
+      } catch {
+        setLineup({});
+      }
+    }
     setLoading(false);
   }, []);
 
   useEffect(() => {
     if (orgId) load(orgId);
   }, [orgId, load]);
+
+  async function saveLineup() {
+    if (!orgId) return;
+    setSaving(true);
+    const res = await fetch("/api/coaching", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId, noteType: "lineup", content: JSON.stringify(lineup), title: "Starting lineup" }),
+    });
+    setSaving(false);
+    if (!res.ok) toast.error("Failed to save lineup");
+    else toast.success("Lineup saved");
+  }
 
   async function saveNote(noteType: "practice" | "game" | "goal", content: string, title?: string) {
     if (!orgId || !content.trim()) return;
@@ -185,6 +207,28 @@ export default function CoachesPage() {
           ))}
         </div>
       </Card>
+
+      {positions.length > 0 && (
+        <Card>
+          <CardHeader title="Game lineup planner" description="Pick starters by position — saved for captains and coaches" />
+          <div className="grid sm:grid-cols-2 gap-3">
+            {positions.map((pos) => (
+              <Select
+                key={pos ?? "other"}
+                label={String(pos)}
+                value={lineup[String(pos)] ?? ""}
+                onChange={(e) => setLineup({ ...lineup, [String(pos)]: e.target.value })}
+                placeholder="Select starter"
+                options={[
+                  { value: "", label: "—" },
+                  ...players.filter((p) => p.position === pos).map((p) => ({ value: p.id, label: p.full_name })),
+                ]}
+              />
+            ))}
+          </div>
+          <Button size="sm" className="mt-3" loading={saving} onClick={saveLineup}>Save lineup</Button>
+        </Card>
+      )}
 
       {/* Depth chart by position */}
       {positions.length > 0 ? (

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Bell, ClipboardList, Download, Eye, FileEdit, Pencil, Plus, ScanLine, Trash2 } from "lucide-react";
+import { Bell, ClipboardList, Copy, Download, Eye, FileEdit, Link2, Pencil, Plus, ScanLine, Trash2 } from "lucide-react";
 import { SortableFormFields, type FormFieldItem } from "@/components/forms/sortable-form-fields";
 import { FormCompletionGrid } from "@/components/forms/form-completion-grid";
 import { FormResponsesPanel } from "@/components/forms/form-responses-panel";
@@ -27,6 +27,7 @@ interface FormTemplate {
   fields: FormField[];
   is_required: boolean;
   due_date: string | null;
+  share_token?: string | null;
   created_at: string;
 }
 
@@ -146,6 +147,45 @@ export default function FormsPage() {
     });
     setFields(form.fields);
     setCreateOpen(true);
+  }
+
+  function copyMemberLink(form: FormTemplate) {
+    const url = `${window.location.origin}/forms/${form.id}/fill`;
+    navigator.clipboard.writeText(url);
+    toast.success("Member fill link copied");
+  }
+
+  function copyPublicLink(form: FormTemplate) {
+    if (!form.share_token) {
+      toast.error("Share link not ready — save the form again or refresh");
+      return;
+    }
+    const url = `${window.location.origin}/f/${form.share_token}`;
+    navigator.clipboard.writeText(url);
+    toast.success("Public form link copied (anyone can submit)");
+  }
+
+  async function duplicateForm(form: FormTemplate) {
+    if (!orgId) return;
+    const res = await fetch("/api/forms", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        title: `${form.title} (copy)`,
+        type: form.type,
+        description: form.description,
+        fields: form.fields,
+        isRequired: false,
+        dueDate: form.due_date?.slice(0, 10) ?? "",
+      }),
+    });
+    if (!res.ok) {
+      toast.error("Duplicate failed");
+      return;
+    }
+    toast.success("Form duplicated");
+    load(orgId);
   }
 
   async function exportResponses(form: FormTemplate) {
@@ -321,8 +361,17 @@ export default function FormsPage() {
                     </p>
                   </div>
                   <div className="flex gap-2 flex-shrink-0">
+                    <button onClick={() => copyPublicLink(form)} className="p-1.5 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-foreground" title="Copy public link">
+                      <Link2 size={14} />
+                    </button>
+                    <button onClick={() => copyMemberLink(form)} className="p-1.5 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-foreground" title="Copy member link">
+                      <Copy size={14} />
+                    </button>
                     <button onClick={() => exportResponses(form)} className="p-1.5 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-foreground" title="Export responses">
                       <Download size={14} />
+                    </button>
+                    <button onClick={() => duplicateForm(form)} className="p-1.5 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-foreground" title="Duplicate form">
+                      <Copy size={14} />
                     </button>
                     {form.is_required && (
                       <button onClick={() => remindMissing(form.id)} className="p-1.5 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-foreground" title="Remind missing">

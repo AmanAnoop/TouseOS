@@ -109,6 +109,24 @@ export default async function TournamentsPage() {
         </div>
       )}
 
+      <Card>
+        <CardHeader title="League & roster tools" icon={<Trophy size={16} />} />
+        <div className="flex flex-wrap gap-2">
+          <Link href="/standings">
+            <Button size="sm" variant="secondary">Standings &amp; scores</Button>
+          </Link>
+          <Link href="/roster">
+            <Button size="sm" variant="secondary">Roster &amp; eligibility</Button>
+          </Link>
+          <Link href="/equipment">
+            <Button size="sm" variant="secondary">Equipment &amp; uniforms</Button>
+          </Link>
+        </div>
+        <p className="text-xs text-muted-foreground mt-3">
+          Log game results in Standings, confirm travel eligibility on the roster, and track uniform issue/return under Equipment.
+        </p>
+      </Card>
+
       <TournamentTools />
     </div>
   );
