@@ -24,12 +24,12 @@ export async function GET(
   if (!trip) return NextResponse.json({ error: "Trip not found" }, { status: 404 });
 
   const [rsvps, legs, budget, checklist, documents, members] = await Promise.all([
-    supabase.from("greek_trip_rsvps").select("*, member:member_id(id, full_name, profile_photo_url)").eq("trip_id", tripId),
+    supabase.from("greek_trip_rsvps").select("*, member:member_id(id, full_name, profile_photo_url, user_id)").eq("trip_id", tripId),
     supabase.from("greek_trip_itinerary_legs").select("*").eq("trip_id", tripId).order("day").order("sort_order"),
     supabase.from("greek_trip_budget_items").select("*, payer:paid_by(full_name)").eq("trip_id", tripId),
     supabase.from("greek_trip_checklist_items").select("*").eq("trip_id", tripId).order("sort_order"),
     supabase.from("greek_trip_documents").select("*").eq("trip_id", tripId).order("created_at", { ascending: false }),
-    supabase.from("member_profiles").select("id, full_name").eq("org_id", orgId).eq("status", "active"),
+    supabase.from("member_profiles").select("id, full_name, user_id").eq("org_id", orgId).eq("membership_status", "active"),
   ]);
 
   return NextResponse.json({

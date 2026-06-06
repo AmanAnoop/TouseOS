@@ -165,7 +165,8 @@ export default function ProfilePage() {
         interests: form.interests,
         profile_photo_url: form.profilePhotoUrl || null,
       })
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .eq("org_id", memberProfile.org_id);
 
     setSaving(false);
     if (error) { toast.error(error.message); return; }

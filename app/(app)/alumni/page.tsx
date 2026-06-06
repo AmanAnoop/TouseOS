@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Download, Mail, MapPin, Plus, Briefcase,
   GraduationCap, Heart, Users,
@@ -10,6 +10,7 @@ import {
   Avatar, Badge, Button, Card, CardHeader, EmptyState,
   Modal, Input, PageHeader, SearchInput, StatCard, Tabs,
 } from "@/components/ui";
+import Papa from "papaparse";
 import { downloadCsv } from "@/lib/utils";
 import type { AlumniProfile } from "@/types";
 import toast from "react-hot-toast";
@@ -23,6 +24,10 @@ export default function AlumniPage() {
   const [tab, setTab] = useState("directory");
   const [addOpen, setAddOpen] = useState(false);
   const [selected, setSelected] = useState<AlumniProfile | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importRows, setImportRows] = useState<Array<Record<string, string>>>([]);
+  const [importing, setImporting] = useState(false);
+  const csvRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
     fullName: "", email: "", phone: "", graduationYear: "",
@@ -40,6 +45,38 @@ export default function AlumniPage() {
   useEffect(() => {
     if (orgId) load(orgId);
   }, [orgId, load]);
+
+  function handleCsvFile(file: File) {
+    Papa.parse<Record<string, string>>(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (result) => {
+        setImportRows(result.data.slice(0, 500));
+        setImportOpen(true);
+      },
+      error: () => toast.error("Could not parse CSV"),
+    });
+  }
+
+  async function confirmImport() {
+    if (!orgId || importRows.length === 0) return;
+    setImporting(true);
+    const res = await fetch("/api/alumni/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId, rows: importRows }),
+    });
+    setImporting(false);
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error((data as { error?: string }).error ?? "Import failed");
+      return;
+    }
+    toast.success(`Imported ${(data as { imported?: number }).imported ?? 0} alumni`);
+    setImportOpen(false);
+    setImportRows([]);
+    load(orgId);
+  }
 
   async function addAlumni() {
     if (!orgId || !form.fullName) return;
@@ -92,6 +129,8 @@ export default function AlumniPage() {
         action={
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={() => downloadCsv("alumni.csv", alumni.map((a) => ({ Name: a.full_name, Email: a.email ?? "", "Grad Year": a.graduation_year ?? "", City: a.city ?? "", "Career Field": a.career_field ?? "", Employer: a.employer ?? "" })))}>Export</Button>
+            <input ref={csvRef} type="file" accept=".csv" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCsvFile(f); e.target.value = ""; }} />
+            <Button variant="secondary" size="sm" onClick={() => csvRef.current?.click()}>Import CSV</Button>
             <Button size="sm" icon={<Plus size={14} />} onClick={() => setAddOpen(true)}>Add alumni</Button>
           </div>
         }
@@ -233,6 +272,43 @@ export default function AlumniPage() {
               <a href={`mailto:${selected.email}`} className="flex items-center gap-2 text-sm text-greek-600 hover:underline">
                 <Mail size={14} />{selected.email}
               </a>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        open={importOpen}
+        onClose={() => { setImportOpen(false); setImportRows([]); }}
+        title="Import alumni CSV"
+        description={`${importRows.length} row${importRows.length !== 1 ? "s" : ""} ready to import`}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => { setImportOpen(false); setImportRows([]); }}>Cancel</Button>
+            <Button loading={importing} onClick={confirmImport}>Import</Button>
+          </>
+        }
+      >
+        {importRows.length > 0 && (
+          <div className="ds-table-wrap" style={{ maxHeight: 280, overflow: "auto" }}>
+            <table className="ds-table">
+              <thead>
+                <tr>
+                  {Object.keys(importRows[0]).slice(0, 5).map((k) => <th key={k}>{k}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {importRows.slice(0, 8).map((row, i) => (
+                  <tr key={i}>
+                    {Object.keys(importRows[0]).slice(0, 5).map((k) => <td key={k}>{row[k] ?? ""}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {importRows.length > 8 && (
+              <p className="type-small" style={{ marginTop: 8, color: "var(--color-text-muted)" }}>
+                Showing 8 of {importRows.length} rows
+              </p>
             )}
           </div>
         )}

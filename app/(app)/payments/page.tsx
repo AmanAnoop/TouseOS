@@ -19,6 +19,7 @@ import { TreasurerDashboard } from "@/components/payments/treasurer-dashboard";
 import { HardshipReviewPanel } from "@/components/payments/hardship-review-panel";
 import { StripeDestinationBanner } from "@/components/payments/stripe-destination-banner";
 import { StripeReconciliationPanel } from "@/components/payments/stripe-reconciliation-panel";
+import { ReminderComposerModal } from "@/components/payments/reminder-composer-modal";
 import { can } from "@/lib/permissions";
 import { useOrg } from "@/hooks/use-org";
 
@@ -35,6 +36,7 @@ export default function PaymentsPage() {
   const [manualOpen, setManualOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<PaymentWithMember | null>(null);
   const [manualForm, setManualForm] = useState({ paymentId: "", amount: "", method: "cash", notes: "" });
+  const [reminderOpen, setReminderOpen] = useState(false);
 
   const loadPayments = useCallback(async (oid: string) => {
     setLoading(true);
@@ -107,21 +109,6 @@ export default function PaymentsPage() {
     } else toast.error("Failed to create charge");
   }
 
-  async function sendReminders() {
-    if (!orgId) return;
-    const res = await fetch("/api/payments/remind", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orgId }),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      toast.error((err as { error?: string }).error ?? "Failed to send reminders");
-      return;
-    }
-    const data = await res.json();
-    toast.success(data.message ?? "Reminders sent");
-  }
 
   async function logManualPayment() {
     if (!orgId || !manualForm.paymentId || !manualForm.amount) return;
@@ -170,28 +157,28 @@ export default function PaymentsPage() {
           <div className="flex gap-2 flex-wrap">
             {canManage && (
               <>
-                <Button variant="secondary" size="sm" className="officer-touch" icon={<Send size={14} />} onClick={sendReminders}>
-                  Send reminders
-                </Button>
-                <Button variant="secondary" size="sm" className="officer-touch" onClick={() => setManualOpen(true)}>Log cash/check</Button>
                 <Button size="sm" className="officer-touch" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>
                   New charge
                 </Button>
+                <Button variant="secondary" size="sm" className="officer-touch" onClick={() => setManualOpen(true)}>Log cash/check</Button>
+                <Button variant="secondary" size="sm" className="officer-touch" icon={<Send size={14} />} onClick={() => setReminderOpen(true)}>
+                  Send reminders
+                </Button>
               </>
             )}
-            <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={exportPayments}>
-              Export
-            </Button>
             <Link href="/payments/plan"><Button variant="secondary" size="sm">Payment plans</Button></Link>
             {can(myRole, "manage_budget") && (
-              <>
-                <Link href="/budget"><Button variant="secondary" size="sm">Budget</Button></Link>
-                <Link href="/reimbursements"><Button variant="secondary" size="sm">Reimbursements</Button></Link>
-              </>
+              <Link href="/reimbursements"><Button variant="secondary" size="sm">Reimbursements</Button></Link>
             )}
             <a href="/payments/hardship">
               <Button variant="secondary" size="sm">Hardship request</Button>
             </a>
+            <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={exportPayments}>
+              Export
+            </Button>
+            {can(myRole, "manage_budget") && (
+              <Link href="/budget"><Button variant="secondary" size="sm">Budget</Button></Link>
+            )}
           </div>
         }
       />
@@ -378,6 +365,24 @@ export default function PaymentsPage() {
         payment={selectedPayment}
         canManage={canManage}
         onRefresh={() => orgId && loadPayments(orgId)}
+      />
+
+      <ReminderComposerModal
+        open={reminderOpen}
+        onClose={() => setReminderOpen(false)}
+        orgId={orgId}
+        payments={payments}
+        members={members}
+        onSent={() => orgId && loadPayments(orgId)}
+      />
+
+      <ReminderComposerModal
+        open={reminderOpen}
+        onClose={() => setReminderOpen(false)}
+        orgId={orgId}
+        payments={payments}
+        members={members}
+        onSent={() => orgId && loadPayments(orgId)}
       />
 
       <Modal open={manualOpen} onClose={() => setManualOpen(false)} title="Log manual payment" description="Record cash, check, or Venmo payment" footer={<><Button variant="secondary" onClick={() => setManualOpen(false)}>Cancel</Button><Button onClick={logManualPayment}>Log payment</Button></>}>

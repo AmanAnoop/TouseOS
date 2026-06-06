@@ -8,33 +8,75 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { orgId, paymentIds } = await request.json();
+  const {
+    orgId,
+    paymentIds,
+    body: customBody,
+    audience = "all_unpaid",
+    memberId,
+    includeHardship = true,
+    includePaymentPlans = true,
+  } = await request.json();
+
   if (!orgId) return NextResponse.json({ error: "orgId required" }, { status: 400 });
 
   let query = supabase
     .from("payments")
-    .select("id, amount, paid_amount, status, member_profiles(full_name, email)")
+    .select("id, amount, paid_amount, status, member_id, member_profiles(full_name, email)")
     .eq("org_id", orgId)
     .in("status", ["pending", "overdue", "partial"]);
 
   if (paymentIds?.length) query = query.in("id", paymentIds);
 
+  if (audience === "individual" && memberId) {
+    query = query.eq("member_id", memberId);
+  }
+
   const { data: payments } = await query;
-  const reminded = (payments ?? []).length;
+
+  let filtered = payments ?? [];
+
+  if (!includeHardship) {
+    const { data: hardshipMembers } = await supabase
+      .from("hardship_requests")
+      .select("member_id")
+      .eq("org_id", orgId)
+      .eq("status", "approved");
+    const hardshipIds = new Set((hardshipMembers ?? []).map((h) => h.member_id));
+    filtered = filtered.filter((p) => !hardshipIds.has(p.member_id));
+  }
+
+  if (!includePaymentPlans) {
+    const { data: planMembers } = await supabase
+      .from("payment_plans")
+      .select("member_id")
+      .eq("org_id", orgId)
+      .eq("status", "active");
+    const planIds = new Set((planMembers ?? []).map((p) => p.member_id));
+    filtered = filtered.filter((p) => !planIds.has(p.member_id));
+  }
+
+  const reminded = filtered.length;
+  const messageBody = customBody?.trim()
+    || "You have an outstanding balance on TouseOS. Please sign in to review and pay at your earliest convenience.";
 
   await supabase.from("audit_logs").insert({
     org_id: orgId,
     actor_id: user.id,
     action: "payment_reminders_sent",
     resource_type: "payments",
-    metadata: { count: reminded, payment_ids: (payments ?? []).map((p: { id: string }) => p.id) },
+    metadata: {
+      count: reminded,
+      audience,
+      payment_ids: filtered.map((p: { id: string }) => p.id),
+    },
   });
 
   const serviceSupabase = await createServiceClient();
   let pushSent = 0;
   const emailBodies: string[] = [];
 
-  for (const p of payments ?? []) {
+  for (const p of filtered) {
     const mp = p.member_profiles as { full_name?: string; email?: string } | null;
     if (!mp?.email) continue;
     const { data: profile } = await supabase
@@ -50,13 +92,11 @@ export async function POST(request: Request) {
         orgId,
         type: "payment_reminder",
         title: "Payment reminder",
-        body: `You have an outstanding balance of $${balance}. Please pay at your earliest convenience.`,
+        body: messageBody.includes("$") ? messageBody : `${messageBody} Outstanding balance: $${balance}.`,
         link: "/payments",
       });
       if (!error) pushSent++;
-      if (mp?.email) {
-        emailBodies.push(mp.email);
-      }
+      emailBodies.push(mp.email);
     }
   }
 
@@ -66,7 +106,7 @@ export async function POST(request: Request) {
     const result = await sendBulkEmail({
       to: uniqueEmails,
       subject: "Payment reminder from your chapter",
-      html: textToHtml("You have an outstanding balance on TouseOS. Please sign in to review and pay at your earliest convenience."),
+      html: textToHtml(messageBody),
     });
     emailsSent = result.sent;
   }

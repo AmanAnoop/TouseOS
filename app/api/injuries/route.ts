@@ -17,7 +17,7 @@ export async function POST(request: Request) {
 
   const body = await request.json();
   const {
-    orgId, memberId, incidentDate, context, bodyArea, severity,
+    orgId, memberId, incidentDate, context, injuryType, bodyArea, severity,
     description, actionTaken, trainerReferred, returnToPlayDate,
   } = body;
 
@@ -39,7 +39,8 @@ export async function POST(request: Request) {
     incident_date: incidentDate,
     context: context ?? "practice",
     body_area: bodyArea,
-    severity: severity ?? "minor",
+    injury_type: injuryType || null,
+    severity: severity ?? "mild",
     description: description ?? "",
     action_taken: actionTaken || null,
     trainer_referred: Boolean(trainerReferred),
