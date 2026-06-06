@@ -16,6 +16,8 @@ import { RushMatchPanel } from "@/components/pnm/rush-match-panel";
 import { RelationshipGraphPanel } from "@/components/pnm/relationship-graph-panel";
 import { RecruitmentLinksPanel } from "@/components/pnm/recruitment-links-panel";
 import { RecruitmentAnalyticsPanel } from "@/components/pnm/recruitment-analytics-panel";
+import { PnmLeadAutofillFields } from "@/components/pnm/pnm-lead-autofill-fields";
+import { PnmEventsTab } from "@/components/pnm/pnm-events-tab";
 
 const PIPELINE_STAGES: PnmStatus[] = [
   "lead","contacted","invited","attended","interested",
@@ -41,12 +43,13 @@ export default function PnmPage() {
   const [matcherPnmId, setMatcherPnmId] = useState<string | null>(null);
   const [enrichKey, setEnrichKey] = useState(0);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
-  const [chapterMembers, setChapterMembers] = useState<Array<{ id: string; full_name: string }>>([]);
+  const [chapterMembers, setChapterMembers] = useState<Array<{ id: string; full_name: string; profile_photo_url?: string | null }>>([]);
 
   const [newLead, setNewLead] = useState({
     fullName: "", email: "", phone: "", instagramHandle: "",
     classYear: "", major: "", hometown: "", referralSource: "",
-    activeMemberConnection: "", communicationConsent: false,
+    activeMemberConnections: [] as string[],
+    communicationConsent: false,
   });
 
   const loadLeads = useCallback(async (oid: string) => {
@@ -67,7 +70,11 @@ export default function PnmPage() {
       if (memRes.ok) {
         const mems = (await memRes.json()) as Array<{ id: string; full_name: string; membership_status: string }>;
         setChapterMembers(
-          mems.filter((m) => m.membership_status === "active").map((m) => ({ id: m.id, full_name: m.full_name })),
+          mems.filter((m) => m.membership_status === "active").map((m) => ({
+            id: m.id,
+            full_name: m.full_name,
+            profile_photo_url: (m as { profile_photo_url?: string }).profile_photo_url ?? null,
+          })),
         );
       }
     })();
@@ -100,7 +107,7 @@ export default function PnmPage() {
         major: newLead.major,
         hometown: newLead.hometown,
         referralSource: newLead.referralSource,
-        activeMemberConnection: newLead.activeMemberConnection,
+        activeMemberConnection: newLead.activeMemberConnections.join(", "),
         communicationConsent: newLead.communicationConsent,
         consentSource: newLead.communicationConsent ? "manual_entry" : null,
       }),
@@ -111,7 +118,7 @@ export default function PnmPage() {
     }
     toast.success("PNM added");
     setAddOpen(false);
-    setNewLead({ fullName: "", email: "", phone: "", instagramHandle: "", classYear: "", major: "", hometown: "", referralSource: "", activeMemberConnection: "", communicationConsent: false });
+    setNewLead({ fullName: "", email: "", phone: "", instagramHandle: "", classYear: "", major: "", hometown: "", referralSource: "", activeMemberConnections: [], communicationConsent: false });
     loadLeads(orgId);
   }
 
@@ -180,6 +187,7 @@ export default function PnmPage() {
           { id: "matcher", label: "Rush matcher" },
           { id: "recruitment", label: "Recruitment links" },
           { id: "voting", label: "Voting" },
+          { id: "events", label: "Events" },
         ]}
         active={tab}
         onChange={setTab}
@@ -339,12 +347,18 @@ export default function PnmPage() {
             <Input label="Email" type="email" value={newLead.email} onChange={(e) => setNewLead({ ...newLead, email: e.target.value })} placeholder="jane@college.edu" />
             <Input label="Phone (optional)" type="tel" value={newLead.phone} onChange={(e) => setNewLead({ ...newLead, phone: e.target.value })} placeholder="+1 (555) 000-0000" />
             <Input label="Instagram handle (optional)" value={newLead.instagramHandle} onChange={(e) => setNewLead({ ...newLead, instagramHandle: e.target.value })} placeholder="@janesmithh" />
-            <Input label="Class year" value={newLead.classYear} onChange={(e) => setNewLead({ ...newLead, classYear: e.target.value })} placeholder="2027" />
-            <Input label="Major" value={newLead.major} onChange={(e) => setNewLead({ ...newLead, major: e.target.value })} placeholder="Business" />
-            <Input label="Hometown" value={newLead.hometown} onChange={(e) => setNewLead({ ...newLead, hometown: e.target.value })} placeholder="Austin, TX" />
-            <Input label="Referral source" value={newLead.referralSource} onChange={(e) => setNewLead({ ...newLead, referralSource: e.target.value })} placeholder="Active member name" />
           </div>
-          <Input label="Active member connection" value={newLead.activeMemberConnection} onChange={(e) => setNewLead({ ...newLead, activeMemberConnection: e.target.value })} placeholder="Who knows this PNM?" />
+          <PnmLeadAutofillFields
+            values={{
+              classYear: newLead.classYear,
+              major: newLead.major,
+              hometown: newLead.hometown,
+              referralSource: newLead.referralSource,
+              activeMemberConnections: newLead.activeMemberConnections,
+            }}
+            onChange={(patch) => setNewLead({ ...newLead, ...patch })}
+            members={chapterMembers}
+          />
 
           {/* Consent checkbox – mandatory for SMS */}
           <div className="border border-border rounded-lg p-4 bg-surface-1">
@@ -419,6 +433,10 @@ export default function PnmPage() {
 
       {tab === "voting" && orgId && (
         <PnmVotingPanel orgId={orgId} leads={leads} />
+      )}
+
+      {tab === "events" && orgId && (
+        <PnmEventsTab orgId={orgId} pnms={leads} />
       )}
 
       {/* Mass text modal */}

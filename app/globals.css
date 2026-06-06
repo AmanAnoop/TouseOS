@@ -320,6 +320,15 @@
     color: var(--color-text-primary);
   }
 
+  .ds-btn-disabled,
+  button.ds-btn-disabled:disabled {
+    color: var(--color-text-tertiary) !important;
+    background: var(--color-bg-subtle) !important;
+    border-color: transparent !important;
+    cursor: not-allowed !important;
+    opacity: 1;
+  }
+
   .ds-chip {
     display: inline-flex;
     align-items: center;
@@ -1399,6 +1408,68 @@
 
   .ds-stat-grid-accent .ds-stat-card:first-child {
     border-left: 3px solid var(--color-org-primary);
+  }
+
+  .forms-builder-shell {
+    display: grid;
+    grid-template-columns: minmax(220px, 35%) 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+
+  @media (max-width: 768px) {
+    .forms-builder-shell {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .forms-builder-settings {
+    padding: 16px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg, 12px);
+    background: var(--color-bg-raised);
+  }
+
+  .forms-builder-fields {
+    min-width: 0;
+  }
+
+  .big-little-unmatched-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+
+  @media (max-width: 640px) {
+    .big-little-unmatched-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .big-little-member-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    padding: 8px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md, 8px);
+  }
+
+  .injury-guidance-panel {
+    padding: 14px 16px;
+    border-radius: var(--radius-lg, 12px);
+    border: 1px solid var(--color-border);
+    background: linear-gradient(135deg, var(--color-bg-raised) 0%, var(--color-surface-2, #f4f4f5) 100%);
+  }
+
+  .injury-guidance-panel p:first-child {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+    margin-bottom: 6px;
   }
 }
 

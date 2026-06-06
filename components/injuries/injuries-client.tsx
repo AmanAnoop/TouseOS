@@ -148,9 +148,9 @@ export function InjuriesClient() {
           <Select label="Injury type" value={form.injuryType} onChange={(e) => setForm({ ...form, injuryType: e.target.value })} options={INJURY_TYPES.map((t) => ({ value: t.value, label: t.label }))} />
           <Input label="Body part affected" value={form.bodyArea} onChange={(e) => setForm({ ...form, bodyArea: e.target.value })} placeholder="Knee, ankle…" />
           <Select label="Severity" value={form.severity} onChange={(e) => setForm({ ...form, severity: e.target.value })} options={INJURY_SEVERITY.map((s) => ({ value: s.value, label: s.label }))} />
-          <div className="p-3 rounded-lg border border-border bg-surface-2">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">What to do</p>
-            <p className="text-sm text-foreground">{guidance}</p>
+          <div className="injury-guidance-panel">
+            <p>What to do next</p>
+            <p className="text-sm text-foreground leading-relaxed">{guidance}</p>
           </div>
           <Textarea label="Additional notes" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} />
         </div>

@@ -7,12 +7,13 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useOrg } from "@/hooks/use-org";
-import { Button, Card, EmptyState, Input, Modal,
+import { Badge, Button, Card, EmptyState, Input, Modal,
   PageHeader, Select, StatCard, Tabs, Textarea,
 } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
 import type { Task, TaskStatus, TaskPriority } from "@/types";
 import { STATUS_ICON, PRIORITY_DOT } from "@/components/tasks/task-card";
+import { TASK_TYPES, taskTypeFromTags, taskTypeLabel, tagsWithType, type TaskTypeValue } from "@/lib/task-config";
 import { TaskDetailPanel } from "@/components/tasks/task-detail-panel";
 import { TaskKanbanBoard } from "@/components/tasks/task-kanban-board";
 
@@ -29,6 +30,7 @@ export default function TasksPage() {
   const [memberOptions, setMemberOptions] = useState<Array<{ id: string; name: string }>>([]);
 
   const [form, setForm] = useState({
+    taskType: "administrative" as TaskTypeValue,
     title: "", description: "", priority: "medium" as TaskPriority, isRecurring: false,
     dueDate: "", assigneeName: "", tags: "",
   });
@@ -107,7 +109,8 @@ export default function TasksPage() {
 
   async function saveTask() {
     if (!orgId || !form.title) return;
-    const tags = form.tags ? form.tags.split(",").map((t) => t.trim()).filter(Boolean) : [];
+    const extraTags = form.tags ? form.tags.split(",").map((t) => t.trim()).filter(Boolean) : [];
+    const tags = tagsWithType(extraTags, form.taskType);
 
     if (editTask) {
       const res = await fetch("/api/tasks", {
@@ -156,7 +159,7 @@ export default function TasksPage() {
 
     setCreateOpen(false);
     setEditTask(null);
-    setForm({ title: "", description: "", priority: "medium", isRecurring: false, dueDate: "", assigneeName: "", tags: "" });
+    setForm({ taskType: "administrative", title: "", description: "", priority: "medium", isRecurring: false, dueDate: "", assigneeName: "", tags: "" });
     setSelectedMemberIds([]);
     setNotifyViaSms(false);
     load(orgId);
@@ -171,20 +174,21 @@ export default function TasksPage() {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) { toast.error(data.error ?? "Update failed"); return; }
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...data } as Task : t)));
-    if (status === "done") toast.success("Task completed ✓");
+    if (status === "done") toast.success("Task completed");
   }
 
   function openEdit(task: Task) {
     setEditTask(task);
     const assignees = (task as Task & { assignees?: Array<{ member_id: string | null }> }).assignees ?? [];
     setForm({
+      taskType: taskTypeFromTags(task.tags),
       title: task.title,
       description: task.description ?? "",
       priority: task.priority,
       dueDate: task.due_date ?? "",
       isRecurring: Boolean((task as { is_recurring?: boolean }).is_recurring),
       assigneeName: task.assignee_name ?? "",
-      tags: task.tags?.join(", ") ?? "",
+      tags: (task.tags ?? []).filter((t) => !t.startsWith("type:")).join(", "),
     });
     setSelectedMemberIds(
       assignees.map((a) => a.member_id).filter((id): id is string => Boolean(id)),
@@ -272,10 +276,11 @@ export default function TasksPage() {
           ) : (
             <div className="divide-y divide-border">
               {[...byStatus.in_progress, ...byStatus.todo, ...byStatus.done].map((task) => (
-                <div key={task.id} className="flex items-center gap-3 p-4 hover:bg-surface-1 transition-colors cursor-pointer" onClick={() => setDetailTask(task)}>
+                <div key={task.id} className="flex items-center gap-3 px-4 hover:bg-surface-1 transition-colors cursor-pointer" style={{ minHeight: 44 }} onClick={() => setDetailTask(task)}>
                   <button onClick={(e) => { e.stopPropagation(); updateStatus(task.id, task.status === "done" ? "todo" : "done"); }}>
                     {STATUS_ICON[task.status]}
                   </button>
+                  <Badge label={taskTypeLabel(taskTypeFromTags(task.tags))} color="gray" />
                   <div className="flex-1 min-w-0">
                     <p className={`text-sm font-medium ${task.status === "done" ? "line-through text-muted-foreground" : "text-foreground"}`}>
                       {task.title}
@@ -322,7 +327,23 @@ export default function TasksPage() {
         }
       >
         <div className="space-y-4">
+          <Select
+            label="Type"
+            value={form.taskType}
+            onChange={(e) => setForm({ ...form, taskType: e.target.value as TaskTypeValue })}
+            options={TASK_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+          />
           <Input label="Title" required placeholder="What needs to be done?" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+          <Select
+            label="Assigned to"
+            value={selectedMemberIds[0] ?? ""}
+            onChange={(e) => setSelectedMemberIds(e.target.value ? [e.target.value] : [])}
+            options={[
+              { value: "", label: "Unassigned" },
+              ...memberOptions.map((m) => ({ value: m.id, label: m.name })),
+            ]}
+          />
+          <Input label="Due date" type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} />
           <Textarea label="Description" placeholder="Add details..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           <div className="grid grid-cols-2 gap-3">
             <Select
@@ -330,13 +351,12 @@ export default function TasksPage() {
               value={form.priority}
               onChange={(e) => setForm({ ...form, priority: e.target.value as TaskPriority })}
               options={[
-                { value: "urgent", label: "🔴 Urgent" },
-                { value: "high", label: "🟠 High" },
-                { value: "medium", label: "🟡 Medium" },
-                { value: "low", label: "⚪ Low" },
+                { value: "urgent", label: "Urgent" },
+                { value: "high", label: "High" },
+                { value: "medium", label: "Medium" },
+                { value: "low", label: "Low" },
               ]}
             />
-            <Input label="Due date" type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} />
           </div>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={form.isRecurring} onChange={(e) => setForm({ ...form, isRecurring: e.target.checked })} />

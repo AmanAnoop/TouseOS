@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { AlertTriangle, Plus, Scale } from "lucide-react";
+import { AlertTriangle, Calendar, Plus, Scale } from "lucide-react";
+import { AddressAutocomplete } from "@/components/location/address-autocomplete";
 import toast from "react-hot-toast";
 import {
   Badge, Button, Card, EmptyState, Input,
@@ -66,6 +67,15 @@ export default function StandardsPage() {
   const [restorativeForm, setRestorativeForm] = useState({ action: "", dueDate: "" });
   const [editNotes, setEditNotes] = useState("");
   const [appealNotes, setAppealNotes] = useState("");
+  const [meetingOpen, setMeetingOpen] = useState(false);
+  const [meetingForm, setMeetingForm] = useState({
+    caseId: "",
+    date: "",
+    time: "",
+    location: "",
+    attendeeIds: [] as string[],
+    notes: "",
+  });
 
   const [form, setForm] = useState({
     respondentId: "",
@@ -210,6 +220,57 @@ export default function StandardsPage() {
   const appealed = cases.filter((c) => c.status === "appealed").length;
   const resolved = cases.filter((c) => ["resolved", "closed"].includes(c.status)).length;
 
+  function openMeetingModal(caseId?: string) {
+    const c = caseId ? cases.find((x) => x.id === caseId) : selected;
+    setMeetingForm({
+      caseId: c?.id ?? "",
+      date: c?.hearing_date?.slice(0, 10) ?? "",
+      time: "",
+      location: "",
+      attendeeIds: c?.respondent_id ? [c.respondent_id] : [],
+      notes: "",
+    });
+    setMeetingOpen(true);
+  }
+
+  async function scheduleMeeting() {
+    if (!orgId || !meetingForm.caseId || !meetingForm.date) return;
+    const hearingAt = meetingForm.time
+      ? `${meetingForm.date}T${meetingForm.time}:00`
+      : meetingForm.date;
+    const attendeeNames = meetingForm.attendeeIds
+      .map((id) => members.find((m) => m.id === id)?.full_name)
+      .filter(Boolean);
+    const notes = [
+      meetingForm.notes,
+      meetingForm.location ? `Location: ${meetingForm.location}` : "",
+      attendeeNames.length ? `Attendees: ${attendeeNames.join(", ")}` : "",
+    ].filter(Boolean).join("\n");
+
+    const res = await fetch("/api/standards/cases", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        caseId: meetingForm.caseId,
+        orgId,
+        status: "hearing_scheduled",
+        hearingDate: hearingAt,
+        notes: notes || undefined,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.error ?? "Could not schedule meeting");
+      return;
+    }
+    toast.success("Standards meeting scheduled");
+    setMeetingOpen(false);
+    load(orgId);
+    if (selected?.id === meetingForm.caseId) {
+      setSelected({ ...selected, ...data });
+    }
+  }
+
   async function fileAppeal() {
     if (!selected || !appealNotes.trim() || !orgId) return;
     const notes = `${selected.notes ?? ""}\n\n[Appeal ${new Date().toLocaleDateString()}] ${appealNotes.trim()}`.trim();
@@ -234,7 +295,14 @@ export default function StandardsPage() {
       <PageHeader
         title="Standards & Accountability"
         description="Manage standards cases with permission controls and audit logs"
-        action={<Button size="sm" className="officer-touch" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>New case</Button>}
+        action={
+          <div className="flex gap-2 flex-wrap">
+            <Button size="sm" variant="secondary" className="officer-touch" icon={<Calendar size={14} />} onClick={() => openMeetingModal()} disabled={cases.length === 0}>
+              Schedule meeting
+            </Button>
+            <Button size="sm" className="officer-touch" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>New case</Button>
+          </div>
+        }
       />
 
       <div className="grid grid-cols-3 gap-3">
@@ -347,7 +415,7 @@ export default function StandardsPage() {
           <div className="flex gap-2 flex-wrap w-full">
             {selected?.status === "open" && (
               <>
-                <Button variant="secondary" onClick={() => updateStatus(selected.id, "hearing_scheduled")}>Schedule hearing</Button>
+                <Button variant="secondary" onClick={() => openMeetingModal(selected.id)}>Schedule meeting</Button>
                 <Button onClick={() => updateStatus(selected.id, "resolved")}>Mark resolved</Button>
               </>
             )}
@@ -454,6 +522,76 @@ export default function StandardsPage() {
             )}
           </div>
         )}
+      </Modal>
+
+      <Modal
+        open={meetingOpen}
+        onClose={() => setMeetingOpen(false)}
+        title="Schedule standards meeting"
+        description="Set hearing date, location, and attendees"
+        size="lg"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setMeetingOpen(false)}>Cancel</Button>
+            <Button onClick={scheduleMeeting} disabled={!meetingForm.caseId || !meetingForm.date}>Schedule</Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <Select
+            label="Case"
+            value={meetingForm.caseId}
+            onChange={(e) => {
+              const c = cases.find((x) => x.id === e.target.value);
+              setMeetingForm({
+                ...meetingForm,
+                caseId: e.target.value,
+                attendeeIds: c?.respondent_id ? [c.respondent_id] : [],
+              });
+            }}
+            options={[
+              { value: "", label: "Select case…" },
+              ...cases
+                .filter((c) => ["open", "hearing_scheduled", "appealed"].includes(c.status))
+                .map((c) => ({
+                  value: c.id,
+                  label: c.respondent_name ? `Case: ${c.respondent_name}` : `Case ${c.id.slice(0, 8)}`,
+                })),
+            ]}
+          />
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Input label="Meeting date *" type="date" value={meetingForm.date} onChange={(e) => setMeetingForm({ ...meetingForm, date: e.target.value })} />
+            <Input label="Start time" type="time" value={meetingForm.time} onChange={(e) => setMeetingForm({ ...meetingForm, time: e.target.value })} />
+          </div>
+          <AddressAutocomplete
+            label="Location"
+            value={meetingForm.location}
+            onSelect={({ address }) => setMeetingForm({ ...meetingForm, location: address })}
+          />
+          <div>
+            <p className="text-sm font-medium mb-2">Attendees (members)</p>
+            <div className="max-h-40 overflow-y-auto space-y-1 border border-border rounded-lg p-2">
+              {members.map((m) => (
+                <label key={m.id} className="flex items-center gap-2 text-sm min-h-[36px] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={meetingForm.attendeeIds.includes(m.id)}
+                    onChange={() => {
+                      setMeetingForm((prev) => ({
+                        ...prev,
+                        attendeeIds: prev.attendeeIds.includes(m.id)
+                          ? prev.attendeeIds.filter((id) => id !== m.id)
+                          : [...prev.attendeeIds, m.id],
+                      }));
+                    }}
+                  />
+                  {m.full_name}
+                </label>
+              ))}
+            </div>
+          </div>
+          <Textarea label="Meeting notes" value={meetingForm.notes} onChange={(e) => setMeetingForm({ ...meetingForm, notes: e.target.value })} className="min-h-[80px]" />
+        </div>
       </Modal>
     </div>
   );

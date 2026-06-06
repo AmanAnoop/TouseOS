@@ -41,7 +41,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
-  const { orgId, eventId, items, riskScore, notes } = body;
+  const { orgId, eventId, items, riskScore, notes, metadata } = body;
   if (!orgId || !items) {
     return NextResponse.json({ error: "orgId and items required" }, { status: 400 });
   }
@@ -51,13 +51,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { data, error } = await supabase.from("risk_checklists").insert({
+  const insertRow: Record<string, unknown> = {
     org_id: orgId,
     event_id: eventId || null,
     ...items,
     risk_score: riskScore ?? null,
     notes: notes || null,
-  }).select().single();
+  };
+  if (metadata !== undefined) insertRow.metadata = metadata;
+
+  const { data, error } = await supabase.from("risk_checklists").insert(insertRow).select().single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data, { status: 201 });

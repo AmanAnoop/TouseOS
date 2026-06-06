@@ -148,6 +148,12 @@ export default function BigLittlePage() {
   const littleOptions = members.filter((m) =>
     m.id !== selectedBig && !matches.find((match) => match.little_id === m.id),
   );
+  const unmatchedBigs = members.filter(
+    (m) => m.membership_status === "active" && !matches.some((match) => match.big_id === m.id),
+  );
+  const unmatchedLittles = members.filter(
+    (m) => m.membership_status === "active" && !matches.some((match) => match.little_id === m.id),
+  );
 
   return (
     <div className="ds-page-stack">
@@ -210,7 +216,100 @@ export default function BigLittlePage() {
         </Card>
       )}
 
-      {/* Existing matches */}
+      {/* Unmatched members — two-column layout */}
+      {!loading && (unmatchedBigs.length > 0 || unmatchedLittles.length > 0) && (
+        <Card>
+          <CardHeader title="Unmatched members" description="Members still waiting for a big or little" icon={<Users size={16} />} />
+          <div className="big-little-unmatched-grid">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                Without a little ({unmatchedBigs.length})
+              </p>
+              <div className="space-y-2">
+                {unmatchedBigs.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">All bigs are matched.</p>
+                ) : (
+                  unmatchedBigs.map((m) => (
+                    <div key={m.id} className="big-little-member-row">
+                      <Avatar name={m.full_name} src={m.profile_photo_url} size="sm" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{m.full_name}</p>
+                        <p className="text-xs text-muted-foreground">{m.class_year ?? "—"} · {m.major ?? "—"}</p>
+                      </div>
+                      <Button size="sm" variant="secondary" onClick={() => { setSelectedBig(m.id); setMatchOpen(true); }}>Match</Button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                Without a big ({unmatchedLittles.length})
+              </p>
+              <div className="space-y-2">
+                {unmatchedLittles.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">All littles are matched.</p>
+                ) : (
+                  unmatchedLittles.map((m) => (
+                    <div key={m.id} className="big-little-member-row">
+                      <Avatar name={m.full_name} src={m.profile_photo_url} size="sm" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{m.full_name}</p>
+                        <p className="text-xs text-muted-foreground">{m.class_year ?? "—"} · {m.major ?? "—"}</p>
+                      </div>
+                      <Button size="sm" variant="secondary" onClick={() => { setSelectedLittle(m.id); setMatchOpen(true); }}>Match</Button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Current pairs table */}
+      {!loading && matches.length > 0 && (
+        <Card>
+          <CardHeader title="Current pairs" description={`${matches.length} active match${matches.length !== 1 ? "es" : ""}`} icon={<Heart size={16} />} />
+          <div className="ds-table-wrap ds-table-mobile">
+            <table className="ds-table">
+              <thead>
+                <tr>
+                  <th>Big</th>
+                  <th>Little</th>
+                  <th>Score</th>
+                  <th>Status</th>
+                  <th>Reveal</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {matches.map((match) => {
+                  const big = (match.big as unknown) as MemberProfile;
+                  const little = (match.little as unknown) as MemberProfile;
+                  return (
+                    <tr key={match.id}>
+                      <td data-label="Big">{big?.full_name ?? "—"}</td>
+                      <td data-label="Little">{little?.full_name ?? "—"}</td>
+                      <td data-label="Score">{match.match_score != null ? `${match.match_score}%` : "—"}</td>
+                      <td data-label="Status"><Badge label={match.status} color={match.status === "revealed" ? "green" : "blue"} /></td>
+                      <td data-label="Reveal">{match.reveal_date ? new Date(match.reveal_date).toLocaleDateString() : "—"}</td>
+                      <td data-label="">
+                        {match.status === "confirmed" && (
+                          <Button size="sm" variant="secondary" onClick={() => updateMatchStatus(match.id, "revealed")}>
+                            Reveal
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
       {loading ? (
         <div className="space-y-2">{[1,2,3].map((i) => <Card key={i} className="h-16 animate-pulse bg-surface-2 border-0">&nbsp;</Card>)}</div>
       ) : matches.length === 0 ? (
@@ -220,46 +319,7 @@ export default function BigLittlePage() {
           description="Create matches manually or use AI suggestions based on member profiles."
           action={<Button size="sm" icon={<Plus size={14} />} onClick={() => setMatchOpen(true)}>Create match</Button>}
         />
-      ) : (
-        <div className="space-y-3">
-          {matches.map((match) => {
-            const big = (match.big as unknown) as MemberProfile;
-            const little = (match.little as unknown) as MemberProfile;
-            return (
-              <Card key={match.id} padding="sm">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <div className="text-center">
-                      <Avatar name={big?.full_name ?? "?"} src={big?.profile_photo_url} size="sm" />
-                      <p className="text-[10px] text-muted-foreground mt-0.5">Big</p>
-                    </div>
-                    <Heart size={14} className="text-greek-500 fill-greek-500" />
-                    <div className="text-center">
-                      <Avatar name={little?.full_name ?? "?"} src={little?.profile_photo_url} size="sm" />
-                      <p className="text-[10px] text-muted-foreground mt-0.5">Little</p>
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{big?.full_name ?? "—"} <span className="text-muted-foreground">+</span> {little?.full_name ?? "—"}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      {match.match_score && <span className="text-xs text-muted-foreground">{match.match_score}% match</span>}
-                      {match.reveal_date && <span className="text-xs text-muted-foreground">Reveal: {new Date(match.reveal_date).toLocaleDateString()}</span>}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <Badge label={match.status} color={match.status === "revealed" ? "green" : "blue"} />
-                    {match.status === "confirmed" && (
-                      <Button size="sm" variant="secondary" onClick={() => updateMatchStatus(match.id, "revealed")}>
-                        🎉 Reveal
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      )}
+      ) : null}
 
       {/* Create match modal */}
       <Modal

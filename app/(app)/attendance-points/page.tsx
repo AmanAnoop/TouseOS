@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Award,
-  ChevronRight,
   Minus,
   Plus,
   Settings2,
@@ -25,6 +24,7 @@ import {
   Tabs,
 } from "@/components/ui";
 import { PointsRulesEditor } from "@/components/points/points-rules-editor";
+import { PointsSystemOverview } from "@/components/points/points-system-overview";
 import { DEFAULT_ELIGIBILITY_MIN, mergeRulesWithCatalog, type PointRule } from "@/lib/attendance-points";
 import { eventTypesForOrgType } from "@/lib/org-product";
 import { can, type RoleName } from "@/lib/permissions";
@@ -42,7 +42,7 @@ interface PointEntry {
 }
 
 export default function AttendancePointsPage() {
-  const { orgId, orgType, role } = useOrg();
+  const { orgId, orgType, role, userId } = useOrg();
   const [tab, setTab] = useState("overview");
   const [members, setMembers] = useState<MemberProfile[]>([]);
   const [entries, setEntries] = useState<PointEntry[]>([]);
@@ -259,86 +259,13 @@ export default function AttendancePointsPage() {
       />
 
       {tab === "overview" && (
-        <div className="grid lg:grid-cols-2 gap-4">
-          <Card>
-            <CardHeader
-              title="How it works"
-              description="Points flow from your rules into member totals"
-            />
-            <ol className="text-sm space-y-2 list-decimal list-inside text-muted-foreground">
-              <li>Officers set points per <strong className="text-foreground">event type</strong> on the Rules tab.</li>
-              <li>When members <strong className="text-foreground">QR check in</strong>, matching types auto-award points once per event.</li>
-              <li>Officers can <strong className="text-foreground">manually award or deduct</strong> points anytime.</li>
-              <li>Members at or above <strong className="text-foreground">{eligibilityMin} points</strong> show as eligible.</li>
-            </ol>
-            <Button
-              size="sm"
-              variant="secondary"
-              className="mt-4"
-              icon={<ChevronRight size={14} />}
-              onClick={() => setTab("rules")}
-            >
-              Configure event types
-            </Button>
-          </Card>
-
-          <Card>
-            <CardHeader title="Top members" />
-            {leaderboard.length === 0 ? (
-              <EmptyState icon={<Trophy size={20} />} title="No standings yet" description="Award points or run a check-in event." />
-            ) : (
-              <div className="space-y-2">
-                {leaderboard.slice(0, 5).map((m, i) => {
-                  const eligible = m.pts >= eligibilityMin;
-                  return (
-                    <div key={m.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-1">
-                      <span className="w-6 text-center font-bold text-muted-foreground">{i + 1}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{m.full_name}</p>
-                        <ProgressBar
-                          value={Math.min(100, Math.round((m.pts / eligibilityMin) * 100))}
-                          label={`${m.pts} pts`}
-                          color={eligible ? "green" : "yellow"}
-                          size="sm"
-                        />
-                      </div>
-                      <Badge label={eligible ? "Eligible" : "Below min"} color={eligible ? "green" : "red"} />
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </Card>
-
-          <Card className="lg:col-span-2">
-            <CardHeader title="Recent activity" />
-            {entries.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No point entries yet.</p>
-            ) : (
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {entries.slice(0, 8).map((e) => (
-                  <div key={e.id} className="flex items-center justify-between gap-2 text-sm py-1.5 border-b border-border last:border-0">
-                    <span className="truncate">
-                      {memberNameById.get(e.member_id) ?? "Member"} · {e.reason ?? "Points"}
-                    </span>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Badge
-                        label={`${e.entry_type === "deduction" ? "−" : "+"}${e.points}`}
-                        color={e.entry_type === "deduction" ? "red" : "green"}
-                      />
-                      <span className="text-xs text-muted-foreground">{formatDate(e.created_at)}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            {entries.length > 0 && (
-              <Button size="sm" variant="secondary" className="mt-3" onClick={() => setTab("activity")}>
-                View all activity
-              </Button>
-            )}
-          </Card>
-        </div>
+        <PointsSystemOverview
+          rules={rules.filter((r) => r.points > 0).map((r) => ({ label: r.label ?? "Points", points: r.points }))}
+          leaderboard={leaderboard}
+          entries={entries}
+          eligibilityMin={eligibilityMin}
+          currentMemberId={members.find((m) => m.user_id === userId)?.id ?? null}
+        />
       )}
 
       {tab === "rules" && orgId && (

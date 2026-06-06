@@ -15,6 +15,7 @@ import { downloadCsv } from "@/lib/utils";
 import type { AlumniProfile } from "@/types";
 import toast from "react-hot-toast";
 import { AlumniCampaignsPanel } from "@/components/alumni/alumni-campaigns-panel";
+import { HometownField } from "@/components/forms/hometown-field";
 
 export default function AlumniPage() {
   const { orgId } = useOrg();
@@ -324,8 +325,20 @@ export default function AlumniPage() {
           <Input label="Phone" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
           <Input label="Graduation year" type="number" placeholder="2022" value={form.graduationYear} onChange={(e) => setForm({ ...form, graduationYear: e.target.value })} />
           <Input label="Pledge class" placeholder="Fall 2018, Spring 2019..." value={form.pledgeClass} onChange={(e) => setForm({ ...form, pledgeClass: e.target.value })} />
-          <Input label="City" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
-          <Input label="State" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
+          <div className="sm:col-span-2">
+            <HometownField
+              label="Hometown"
+              value={[form.city, form.state].filter(Boolean).join(", ")}
+              onChange={(hometown) => {
+                const parts = hometown.split(",").map((s) => s.trim());
+                setForm({
+                  ...form,
+                  city: parts[0] ?? "",
+                  state: parts[1] ?? "",
+                });
+              }}
+            />
+          </div>
           <Input label="Career field" placeholder="Finance, Medicine, Tech..." value={form.careerField} onChange={(e) => setForm({ ...form, careerField: e.target.value })} />
           <Input label="Employer" className="sm:col-span-2" value={form.employer} onChange={(e) => setForm({ ...form, employer: e.target.value })} />
           <label className="sm:col-span-2 flex items-center gap-2 cursor-pointer">
