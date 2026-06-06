@@ -55,6 +55,7 @@ export interface Profile {
   phone: string | null;
   notification_email: boolean;
   notification_sms: boolean;
+  sidebar_preferences?: Record<string, unknown>;
   created_at: string;
 }
 
