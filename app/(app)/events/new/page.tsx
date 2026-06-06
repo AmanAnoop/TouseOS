@@ -9,6 +9,8 @@ import { LocationFields, type LocationFieldValues } from "@/components/location/
 import { Button, Input, PageHeader, Select, Textarea, Alert } from "@/components/ui";
 
 import { eventTypesForOrgType } from "@/lib/org-product";
+import { eventTemplatesForOrgType, getEventTemplateById } from "@/lib/event-templates";
+import { formatCurrency } from "@/lib/utils";
 
 export default function NewEventPage() {
   const router = useRouter();
@@ -40,6 +42,7 @@ export default function NewEventPage() {
     alcohol: false,
     riskLevel: "low",
     budgetAmount: "",
+    pricePerPerson: "",
     dresscode: "",
     playlistUrl: "",
     theme: "",
@@ -47,6 +50,28 @@ export default function NewEventPage() {
   });
 
   const eventTypes = eventTypesForOrgType(orgType || "general_org");
+  const eventTemplates = eventTemplatesForOrgType(orgType || "general_org");
+  const [templateId, setTemplateId] = useState("");
+
+  function applyEventTemplate(id: string) {
+    setTemplateId(id);
+    if (!id) return;
+    const tmpl = getEventTemplateById(orgType || "general_org", id);
+    if (!tmpl) return;
+    setForm((f) => ({
+      ...f,
+      title: f.title || tmpl.title,
+      type: tmpl.eventType,
+      description: f.description || tmpl.description,
+      riskLevel: tmpl.riskLevel,
+      budgetAmount: String(tmpl.budgetAmount),
+      pricePerPerson: tmpl.pricePerPerson != null ? String(tmpl.pricePerPerson) : "",
+      dresscode: tmpl.dresscode ?? f.dresscode,
+      theme: tmpl.theme ?? f.theme,
+      rsvpEnabled: tmpl.rsvpEnabled,
+    }));
+    toast.success(`Applied ${tmpl.label} template`);
+  }
 
   useEffect(() => {
     const type = searchParams.get("type");
@@ -157,6 +182,21 @@ export default function NewEventPage() {
 
       {/* Basic info */}
       <div className="space-y-4">
+        {eventTemplates.length > 0 && (
+          <Select
+            label="Start from template (optional)"
+            value={templateId}
+            onChange={(e) => applyEventTemplate(e.target.value)}
+            options={[
+              { value: "", label: "Blank event" },
+              ...eventTemplates.map((t) => ({
+                value: t.id,
+                label: `${t.label} — budget ${formatCurrency(t.budgetAmount)}${t.pricePerPerson != null ? ` · ${formatCurrency(t.pricePerPerson)}/person` : ""}`,
+              })),
+            ]}
+          />
+        )}
+
         <Input label="Event title" required placeholder="Spring Formal 2025" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
 
         <div className="grid sm:grid-cols-2 gap-3">
@@ -283,7 +323,21 @@ export default function NewEventPage() {
       {/* Finance */}
       <div className="space-y-4">
         <h3 className="text-sm font-semibold text-foreground flex items-center gap-2"><DollarSign size={15} />Finance</h3>
-        <Input label="Event budget ($)" type="number" placeholder="500.00" value={form.budgetAmount} onChange={(e) => setForm({ ...form, budgetAmount: e.target.value })} />
+        <div className="grid sm:grid-cols-2 gap-3">
+          <Input label="Event budget ($)" type="number" placeholder="500.00" value={form.budgetAmount} onChange={(e) => setForm({ ...form, budgetAmount: e.target.value })} />
+          <Input
+            label="Suggested price per person ($)"
+            type="number"
+            placeholder="25.00"
+            value={form.pricePerPerson}
+            onChange={(e) => setForm({ ...form, pricePerPerson: e.target.value })}
+          />
+        </div>
+        {form.budgetAmount && form.pricePerPerson && (
+          <p className="text-xs text-muted-foreground">
+            Template pricing: {formatCurrency(parseFloat(form.pricePerPerson) || 0)} per attendee against a {formatCurrency(parseFloat(form.budgetAmount) || 0)} total budget.
+          </p>
+        )}
 
         <label className="flex items-start gap-3 cursor-pointer p-3 rounded-lg bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800">
           <input

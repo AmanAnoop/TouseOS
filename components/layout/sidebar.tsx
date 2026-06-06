@@ -25,6 +25,7 @@ import {
   type SidebarProductPreferences,
 } from "@/lib/sidebar-preferences";
 import { SIDEBAR_PREFS_UPDATED_EVENT } from "@/components/layout/sidebar-editor-panel";
+import { orgBrandMark } from "@/lib/org-brand-mark";
 
 interface SidebarProps {
   org: Organization | null;
@@ -48,6 +49,7 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
   const supabase = createClient();
 
   const product = getProductId(orgType);
+  const activeBrandMark = org ? orgBrandMark(org) : null;
   const hasGreekMembership = orgs.some(
     (o) => o.type === "fraternity" || o.type === "sorority",
   );
@@ -202,12 +204,13 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: 11,
+                fontSize: activeBrandMark?.fontSize ?? 11,
                 fontWeight: 600,
                 flexShrink: 0,
+                lineHeight: 1,
               }}
             >
-              {org.name.slice(0, 2).toUpperCase()}
+              {activeBrandMark?.label}
             </div>
             <div style={{ minWidth: 0, flex: 1 }}>
               <p style={{ fontSize: 12, fontWeight: 500, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -261,13 +264,14 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
                       display: "inline-flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      fontSize: 10,
+                      fontSize: orgBrandMark(o).fontSize ?? 10,
                       fontWeight: 600,
+                      lineHeight: 1,
                       background: o.primary_color ?? "var(--color-org-primary)",
                       color: pickReadableTextColor(o.primary_color ?? "#500000"),
                     }}
                   >
-                    {o.name.slice(0, 1)}
+                    {orgBrandMark(o).label}
                   </span>
                   <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {o.name}

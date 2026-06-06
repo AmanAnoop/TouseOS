@@ -244,7 +244,7 @@ export default function SocialCalendarPage() {
         </Card>
       </div>
 
-      <div className="ds-segment-group" role="tablist" aria-label="Calendar view">
+      <div className="ds-segment-group ds-segment-group-stacked" role="tablist" aria-label="Calendar view">
         {([
           { id: "month" as const, label: "Month", icon: Calendar },
           { id: "week" as const, label: "Week", icon: LayoutGrid },
@@ -255,11 +255,11 @@ export default function SocialCalendarPage() {
             type="button"
             role="tab"
             aria-selected={view === id}
-            className={view === id ? "ds-segment-active" : ""}
+            className={`ds-segment${view === id ? " ds-segment-active" : ""}`}
             onClick={() => setView(id)}
           >
             <Icon size={14} aria-hidden />
-            {label}
+            <span>{label}</span>
           </button>
         ))}
       </div>

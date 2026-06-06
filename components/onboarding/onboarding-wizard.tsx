@@ -15,6 +15,7 @@ import { OnboardingShell } from "@/components/onboarding/onboarding-shell";
 import { REGAL_PRIMARY, REGAL_SECONDARY } from "@/lib/regal-theme";
 import { getProductId, userFacingOrgTypeLabel } from "@/lib/org-product";
 import { universitiesForSelect } from "@/lib/university-colors";
+import { sportsTypesForSelect } from "@/lib/sports-types";
 import { createClient } from "@/lib/supabase/client";
 import {
   clearOnboardingDraft,
@@ -61,7 +62,7 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
   const [inviteCode, setInviteCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
-    name: "", campus: "", councilOrLeague: "", contactEmail: "",
+    name: "", campus: "", councilOrLeague: "", contactEmail: "", sportType: "",
   });
   const [colorsManuallySet, setColorsManuallySet] = useState(false);
   const [identity, setIdentity] = useState<ChapterIdentityValue>({
@@ -82,6 +83,7 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
 
   const product = orgType ? getProductId(orgType) : "greek";
   const isGreek = orgType === "fraternity" || orgType === "sorority";
+  const isSports = orgType === "club_sports";
   const namePlaceholder = isGreek
     ? "Phi Kappa Tau-Epsilon Alpha"
     : product === "sports"
@@ -102,7 +104,7 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
     setStep(draft.step);
     setOrgType(draft.orgType);
     setInviteCode(draft.inviteCode);
-    setForm(draft.form);
+    setForm({ ...draft.form, sportType: draft.form.sportType ?? "" });
     setIdentity(draft.identity);
     clearOnboardingDraft();
     if (draft.pendingAction === "create") {
@@ -143,6 +145,10 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
       toast.error("Choose an organization type and enter a name");
       return;
     }
+    if (orgType === "club_sports" && !form.sportType) {
+      toast.error("Select your sport");
+      return;
+    }
     if (!(await ensureAuthenticated("create"))) return;
     setLoading(true);
     try {
@@ -157,6 +163,7 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
           contactEmail: form.contactEmail || undefined,
           universityId: identity.universityId || undefined,
           greekAffiliationId: identity.greekAffiliationId || undefined,
+          sportType: form.sportType || undefined,
           primaryColor: identity.primaryColor,
           secondaryColor: identity.secondaryColor,
         }),
@@ -378,6 +385,14 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
               onManualColorChange={() => setColorsManuallySet(true)}
             />
           )}
+          {isSports && (
+            <Select
+              label="Sport *"
+              value={form.sportType}
+              onChange={(e) => setForm({ ...form, sportType: e.target.value })}
+              options={[{ value: "", label: "Select a sport…" }, ...sportsTypesForSelect()]}
+            />
+          )}
           <Select
             label="Council / league"
             value={form.councilOrLeague}
@@ -397,7 +412,7 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
             <Button
               onClick={createOrg}
               loading={loading}
-              disabled={!form.name.trim()}
+              disabled={!form.name.trim() || (isSports && !form.sportType)}
               style={{ flex: 1, minHeight: 44 }}
             >
               Create
