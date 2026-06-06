@@ -6,15 +6,12 @@ import {
   CountryCode,
 } from "plaid";
 
-export function isPlaidConfigured(): boolean {
-  return Boolean(
-    process.env.PLAID_CLIENT_ID?.trim()
-    && process.env.PLAID_SECRET?.trim(),
-  );
-}
+import { getPlatformSecretSync } from "@/lib/platform-secrets";
+import { isPlaidConfigured } from "@/lib/integrations";
+export { isPlaidConfigured };
 
 function plaidEnv() {
-  const env = (process.env.PLAID_ENV ?? "sandbox").toLowerCase();
+  const env = (getPlatformSecretSync("PLAID_ENV") ?? "sandbox").toLowerCase();
   if (env === "production") return PlaidEnvironments.production;
   if (env === "development") return PlaidEnvironments.development;
   return PlaidEnvironments.sandbox;
@@ -29,8 +26,8 @@ export function getPlaidClient(): PlaidApi | null {
       basePath: plaidEnv(),
       baseOptions: {
         headers: {
-          "PLAID-CLIENT-ID": process.env.PLAID_CLIENT_ID!,
-          "PLAID-SECRET": process.env.PLAID_SECRET!,
+          "PLAID-CLIENT-ID": getPlatformSecretSync("PLAID_CLIENT_ID")!,
+          "PLAID-SECRET": getPlatformSecretSync("PLAID_SECRET")!,
         },
       },
     });

@@ -44,14 +44,18 @@ const PRODUCTION: Array<{ key: string; label: string; hint?: string }> = [
 const OPTIONAL: Array<{ key: string; label: string }> = [
   { key: "RESEND_API_KEY", label: "Resend (email blasts)" },
   { key: "TWILIO_ACCOUNT_SID", label: "Twilio SMS" },
-  { key: "OPENAI_API_KEY", label: "AI assistant" },
+  { key: "ANTHROPIC_API_KEY", label: "Anthropic (AI assistant)" },
+  { key: "OPENAI_API_KEY", label: "OpenAI (forms scan, PNM)" },
+  { key: "NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN", label: "Mapbox (hometown autocomplete)" },
+  { key: "PLAID_CLIENT_ID", label: "Plaid (bank connect)" },
   { key: "NEXT_PUBLIC_VAPID_PUBLIC_KEY", label: "Web push (public)" },
   { key: "VAPID_PRIVATE_KEY", label: "Web push (private)" },
 ];
 
+import { getPlatformSecretSync } from "@/lib/platform-secrets";
+
 function isSet(key: string): boolean {
-  const v = process.env[key];
-  return typeof v === "string" && v.trim().length > 0;
+  return Boolean(getPlatformSecretSync(key));
 }
 
 export function getLaunchEnvChecks(): LaunchEnvCheck[] {

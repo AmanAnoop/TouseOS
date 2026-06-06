@@ -1,24 +1,27 @@
 import twilio from "twilio";
 import { isTwilioConfigured } from "@/lib/integrations";
+import { getPlatformSecretSync, ensurePlatformSecretsLoaded } from "@/lib/platform-secrets";
 
 let twilioClient: ReturnType<typeof twilio> | null = null;
 
 function getTwilioClient(): ReturnType<typeof twilio> | null {
   if (!isTwilioConfigured()) return null;
+  const sid = getPlatformSecretSync("TWILIO_ACCOUNT_SID");
+  const token = getPlatformSecretSync("TWILIO_AUTH_TOKEN");
+  if (!sid || !token) return null;
   if (!twilioClient) {
-    twilioClient = twilio(
-      process.env.TWILIO_ACCOUNT_SID!,
-      process.env.TWILIO_AUTH_TOKEN!,
-    );
+    twilioClient = twilio(sid, token);
   }
   return twilioClient;
 }
 
 function messageFrom(): { messagingServiceSid: string } | { from: string } {
-  if (process.env.TWILIO_MESSAGING_SERVICE_SID) {
-    return { messagingServiceSid: process.env.TWILIO_MESSAGING_SERVICE_SID };
+  const messagingSid = getPlatformSecretSync("TWILIO_MESSAGING_SERVICE_SID");
+  if (messagingSid) {
+    return { messagingServiceSid: messagingSid };
   }
-  return { from: process.env.TWILIO_PHONE_NUMBER! };
+  const phone = getPlatformSecretSync("TWILIO_PHONE_NUMBER");
+  return { from: phone! };
 }
 
 export interface SendSmsResult {
@@ -31,6 +34,7 @@ export async function sendSms(
   to: string,
   body: string,
 ): Promise<SendSmsResult> {
+  await ensurePlatformSecretsLoaded();
   const client = getTwilioClient();
   if (!client) {
     return {

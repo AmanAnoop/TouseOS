@@ -162,7 +162,7 @@ export default function AiAssistantPage() {
         </Button>
       </div>
       <p className="text-xs text-muted-foreground mt-1 text-center">
-        Requires OPENAI_API_KEY in environment variables.
+        Requires ANTHROPIC_API_KEY — set in Platform Admin → Integration keys or host environment.
       </p>
     </div>
   );

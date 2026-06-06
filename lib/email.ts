@@ -1,10 +1,13 @@
 import { Resend } from "resend";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getPlatformSecretSync } from "@/lib/platform-secrets";
 
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? "TouseOS <onboarding@resend.dev>";
+export function getResendFromEmail(): string {
+  return getPlatformSecretSync("RESEND_FROM_EMAIL") ?? "TouseOS <onboarding@resend.dev>";
+}
 
 export function getResendClient() {
-  const key = process.env.RESEND_API_KEY;
+  const key = getPlatformSecretSync("RESEND_API_KEY");
   if (!key) return null;
   return new Resend(key);
 }
@@ -71,7 +74,7 @@ export async function sendBulkEmail(options: {
     try {
       await resend.batch.send(
         batch.map((email) => ({
-          from: FROM_EMAIL,
+          from: getResendFromEmail(),
           to: email,
           subject: options.subject,
           html: options.html,
@@ -105,7 +108,7 @@ export async function sendInviteEmail(options: {
   }
   try {
     await resend.emails.send({
-      from: FROM_EMAIL,
+      from: getResendFromEmail(),
       to: options.to,
       subject: `Invitation to join ${options.orgName} on TouseOS`,
       html,

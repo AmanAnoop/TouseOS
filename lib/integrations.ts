@@ -1,6 +1,15 @@
 /** Runtime checks for third-party integrations (no secret values returned). */
 
-export type IntegrationId = "stripe" | "twilio" | "resend" | "openai";
+import { getPlatformSecretSync, ensurePlatformSecretsLoaded } from "@/lib/platform-secrets";
+
+export type IntegrationId =
+  | "stripe"
+  | "twilio"
+  | "resend"
+  | "openai"
+  | "anthropic"
+  | "mapbox"
+  | "plaid";
 
 export interface IntegrationStatus {
   id: IntegrationId;
@@ -11,8 +20,7 @@ export interface IntegrationStatus {
 }
 
 function isSet(key: string): boolean {
-  const v = process.env[key];
-  return typeof v === "string" && v.trim().length > 0;
+  return Boolean(getPlatformSecretSync(key));
 }
 
 export function isStripeConfigured(): boolean {
@@ -38,9 +46,30 @@ export function isOpenAiConfigured(): boolean {
   return isSet("OPENAI_API_KEY");
 }
 
+export function isAnthropicConfigured(): boolean {
+  return isSet("ANTHROPIC_API_KEY");
+}
+
+export function isMapboxConfigured(): boolean {
+  return isSet("NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN") || isSet("MAPBOX_ACCESS_TOKEN");
+}
+
+export function isPlaidConfigured(): boolean {
+  return isSet("PLAID_CLIENT_ID") && isSet("PLAID_SECRET");
+}
+
+export function isCronConfigured(): boolean {
+  return isSet("CRON_SECRET");
+}
+
+export async function warmIntegrationSecrets(): Promise<void> {
+  await ensurePlatformSecretsLoaded();
+}
+
 export function getIntegrationStatuses(): IntegrationStatus[] {
   const stripeOk = isStripeConfigured();
   const twilioOk = isTwilioConfigured();
+  const anthropicOk = isAnthropicConfigured();
 
   return [
     {
@@ -52,7 +81,7 @@ export function getIntegrationStatuses(): IntegrationStatus[] {
         ? isStripeWebhookConfigured()
           ? "Checkout and webhooks ready"
           : "Add STRIPE_WEBHOOK_SECRET for payment confirmations"
-        : "Set STRIPE_SECRET_KEY and NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
+        : "Set Stripe keys in Platform Admin → Integration keys",
     },
     {
       id: "twilio",
@@ -61,21 +90,42 @@ export function getIntegrationStatuses(): IntegrationStatus[] {
       live: twilioOk,
       hint: twilioOk
         ? "SMS blasts and PNM texting enabled"
-        : "Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_MESSAGING_SERVICE_SID or TWILIO_PHONE_NUMBER",
+        : "Set Twilio keys in Platform Admin → Integration keys",
     },
     {
       id: "resend",
       label: "Resend email",
       configured: isResendConfigured(),
       live: isResendConfigured(),
-      hint: isResendConfigured() ? "Email blasts will send live" : "Set RESEND_API_KEY for live email",
+      hint: isResendConfigured() ? "Email blasts will send live" : "Set RESEND_API_KEY",
+    },
+    {
+      id: "anthropic",
+      label: "Anthropic (AI assistant)",
+      configured: anthropicOk,
+      live: anthropicOk,
+      hint: anthropicOk ? "AI assistant enabled" : "Set ANTHROPIC_API_KEY",
     },
     {
       id: "openai",
-      label: "OpenAI",
+      label: "OpenAI (forms scan, PNM)",
       configured: isOpenAiConfigured(),
       live: isOpenAiConfigured(),
-      hint: isOpenAiConfigured() ? "AI assistant enabled" : "Set OPENAI_API_KEY",
+      hint: isOpenAiConfigured() ? "Form scan and PNM enrich enabled" : "Set OPENAI_API_KEY",
+    },
+    {
+      id: "mapbox",
+      label: "Mapbox",
+      configured: isMapboxConfigured(),
+      live: isMapboxConfigured(),
+      hint: isMapboxConfigured() ? "Hometown autocomplete enabled" : "Set Mapbox token",
+    },
+    {
+      id: "plaid",
+      label: "Plaid",
+      configured: isPlaidConfigured(),
+      live: isPlaidConfigured(),
+      hint: isPlaidConfigured() ? "Bank connect enabled" : "Set PLAID_CLIENT_ID and PLAID_SECRET",
     },
   ];
 }
