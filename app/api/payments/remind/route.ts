@@ -2,6 +2,18 @@ import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { createNotification } from "@/lib/notifications";
 import { sendBulkEmail, textToHtml } from "@/lib/email";
+import { sendSms } from "@/lib/twilio";
+import { personalizeReminderMessage } from "@/lib/reminder-personalize";
+
+type PaymentRow = {
+  id: string;
+  amount: number;
+  paid_amount: number;
+  status: string;
+  member_id: string;
+  due_date?: string | null;
+  member_profiles: { full_name?: string; email?: string; phone?: string | null } | null;
+};
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -15,6 +27,7 @@ export async function POST(request: Request) {
     audience = "all_unpaid",
     memberId,
     memberIds,
+    memberMessages,
     sendVia = "both",
     includeHardship = true,
     includePaymentPlans = true,
@@ -22,25 +35,32 @@ export async function POST(request: Request) {
 
   if (!orgId) return NextResponse.json({ error: "orgId required" }, { status: 400 });
 
+  const defaultBody = customBody?.trim()
+    || "Hi [First Name], this is a reminder that your dues of $[Amount] are due on [Date]. Please sign in to TouseOS to make a payment.";
+
   let query = supabase
     .from("payments")
-    .select("id, amount, paid_amount, status, member_id, member_profiles(full_name, email)")
-    .eq("org_id", orgId)
-    .in("status", ["pending", "overdue", "partial"]);
+    .select("id, amount, paid_amount, status, member_id, due_date, member_profiles(full_name, email, phone)")
+    .eq("org_id", orgId);
 
-  if (paymentIds?.length) query = query.in("id", paymentIds);
+  if (paymentIds?.length) {
+    query = query.in("id", paymentIds);
+  } else if (audience === "all_members") {
+    query = query.in("status", ["pending", "overdue", "partial", "paid"]);
+  } else if (audience === "overdue_only") {
+    query = query.eq("status", "overdue");
+  } else {
+    query = query.in("status", ["pending", "overdue", "partial"]);
+  }
 
   if (audience === "individual" && memberId) {
     query = query.eq("member_id", memberId);
   } else if (audience === "individual" && Array.isArray(memberIds) && memberIds.length > 0) {
     query = query.in("member_id", memberIds);
-  } else if (audience === "overdue_only") {
-    query = query.eq("status", "overdue");
   }
 
   const { data: payments } = await query;
-
-  let filtered = payments ?? [];
+  let filtered = (payments ?? []) as PaymentRow[];
 
   if (!includeHardship) {
     const { data: hardshipMembers } = await supabase
@@ -79,9 +99,12 @@ export async function POST(request: Request) {
     }
   }
 
+  if (audience === "all_unpaid" || audience === "unpaid_only") {
+    filtered = filtered.filter((p) => ["pending", "overdue", "partial"].includes(p.status));
+  }
+
   const reminded = filtered.length;
-  const messageBody = customBody?.trim()
-    || "You have an outstanding balance on TouseOS. Please sign in to review and pay at your earliest convenience.";
+  const overrides = (memberMessages ?? {}) as Record<string, string>;
 
   await supabase.from("audit_logs").insert({
     org_id: orgId,
@@ -91,57 +114,73 @@ export async function POST(request: Request) {
     metadata: {
       count: reminded,
       audience,
-      payment_ids: filtered.map((p: { id: string }) => p.id),
+      payment_ids: filtered.map((p) => p.id),
+      send_via: sendVia,
     },
   });
 
   const serviceSupabase = await createServiceClient();
   let pushSent = 0;
-  const emailBodies: string[] = [];
-  const sendInApp = sendVia === "in_app" || sendVia === "both";
-  const sendEmail = sendVia === "email" || sendVia === "both";
+  let emailsSent = 0;
+  let smsSent = 0;
+  const sendInApp = sendVia === "in_app" || sendVia === "both" || sendVia === "all";
+  const sendEmail = sendVia === "email" || sendVia === "both" || sendVia === "all";
+  const sendText = sendVia === "sms" || sendVia === "all";
 
   for (const p of filtered) {
-    const mp = p.member_profiles as { full_name?: string; email?: string } | null;
-    if (!mp?.email) continue;
-    const { data: profile } = await supabase
-      .from("member_profiles")
-      .select("user_id")
-      .eq("org_id", orgId)
-      .eq("email", mp.email)
-      .maybeSingle();
-    if (profile?.user_id && sendInApp) {
-      const balance = (Number(p.amount) - Number(p.paid_amount)).toFixed(2);
-      const { error } = await createNotification(serviceSupabase, {
-        userId: profile.user_id,
-        orgId,
-        type: "payment_reminder",
-        title: "Payment reminder",
-        body: messageBody.includes("$") ? messageBody : `${messageBody} Outstanding balance: $${balance}.`,
-        link: "/payments",
-      });
-      if (!error) pushSent++;
+    const mp = p.member_profiles;
+    if (!mp?.full_name) continue;
+
+    const template = overrides[p.member_id]?.trim() || defaultBody;
+    const messageBody = personalizeReminderMessage(template, { full_name: mp.full_name }, p);
+
+    if (sendInApp && mp.email) {
+      const { data: profile } = await supabase
+        .from("member_profiles")
+        .select("user_id")
+        .eq("org_id", orgId)
+        .eq("email", mp.email)
+        .maybeSingle();
+      if (profile?.user_id) {
+        const { error } = await createNotification(serviceSupabase, {
+          userId: profile.user_id,
+          orgId,
+          type: "payment_reminder",
+          title: "Payment reminder",
+          body: messageBody,
+          link: "/payments",
+        });
+        if (!error) pushSent++;
+      }
     }
-    if (sendEmail && mp.email) emailBodies.push(mp.email);
+
+    if (sendEmail && mp.email) {
+      const result = await sendBulkEmail({
+        to: [mp.email],
+        subject: "Payment reminder from your chapter",
+        html: textToHtml(messageBody),
+      });
+      emailsSent += result.sent;
+    }
+
+    if (sendText && mp.phone) {
+      const sms = await sendSms(mp.phone, messageBody);
+      if (sms.status !== "failed") smsSent++;
+    }
   }
 
-  const uniqueEmails = [...new Set(emailBodies)];
-  let emailsSent = 0;
-  if (sendEmail && uniqueEmails.length > 0) {
-    const result = await sendBulkEmail({
-      to: uniqueEmails,
-      subject: "Payment reminder from your chapter",
-      html: textToHtml(messageBody),
-    });
-    emailsSent = result.sent;
-  }
+  const parts: string[] = [];
+  if (pushSent) parts.push(`${pushSent} in-app`);
+  if (emailsSent) parts.push(`${emailsSent} email`);
+  if (smsSent) parts.push(`${smsSent} text`);
 
   return NextResponse.json({
     reminded,
     pushSent,
     emailsSent,
+    smsSent,
     message: reminded > 0
-      ? `Sent ${reminded} reminder${reminded > 1 ? "s" : ""} (in-app, ${emailsSent} email${emailsSent !== 1 ? "s" : ""}, push where enabled).`
+      ? `Sent ${reminded} reminder${reminded > 1 ? "s" : ""}${parts.length ? ` (${parts.join(", ")})` : ""}.`
       : "No outstanding payments to remind.",
   });
 }

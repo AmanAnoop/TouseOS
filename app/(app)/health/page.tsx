@@ -6,7 +6,7 @@ import { useOrg } from "@/hooks/use-org";
 import {
   Alert, Badge, Button, Card, CardHeader, PageHeader, ProgressBar, StatCard,
 } from "@/components/ui";
-import { healthScoreLabel, type HealthMetricKey } from "@/lib/health-score";
+import { HEALTH_SCORE_DRIVERS, healthScoreLabel, type HealthMetricKey } from "@/lib/health-score";
 
 interface MetricMeta {
   score: number;
@@ -78,6 +78,15 @@ export default function HealthPage() {
           description="Add members, dues charges, events, or a budget to generate a meaningful health score. Metrics without data show as “No data” below."
         />
       )}
+
+      <Card padding="sm">
+        <CardHeader title="What drives your score" description="Higher is better for every area below" />
+        <ul className="space-y-2" style={{ margin: 0, paddingLeft: 20 }}>
+          {HEALTH_SCORE_DRIVERS.map((line) => (
+            <li key={line} className="type-small" style={{ color: "var(--color-text-secondary)" }}>{line}</li>
+          ))}
+        </ul>
+      </Card>
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
         <StatCard

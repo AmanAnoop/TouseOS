@@ -244,7 +244,7 @@ export default function SocialCalendarPage() {
         </Card>
       </div>
 
-      <div className="ds-segment" role="tablist" aria-label="Calendar view">
+      <div className="ds-segment-group" role="tablist" aria-label="Calendar view">
         {([
           { id: "month" as const, label: "Month", icon: Calendar },
           { id: "week" as const, label: "Week", icon: LayoutGrid },
@@ -279,6 +279,10 @@ export default function SocialCalendarPage() {
         <SocialCalendarGrid
           posts={posts.filter((p) => p.scheduled_date)}
           onReschedule={reschedulePost}
+          onDayClick={(dateStr) => {
+            setForm((f) => ({ ...f, scheduledDate: dateStr }));
+            setCreateOpen(true);
+          }}
         />
       ) : view === "week" && tab === "calendar" ? (
         loading ? (

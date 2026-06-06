@@ -34,27 +34,38 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
-  const { orgId, title, category, storagePath, url, fileSizeBytes, mimeType, isPrivate } = body;
+  const { orgId, title, category, storagePath, url, fileSizeBytes, mimeType, isPrivate, folderId } = body;
   if (!orgId || !title) {
     return NextResponse.json({ error: "orgId and title required" }, { status: 400 });
+  }
+  if (!storagePath && !url) {
+    return NextResponse.json({ error: "Upload a file or provide a link before saving" }, { status: 400 });
   }
 
   const role = await getMemberRole(supabase, user.id, String(orgId));
   if (!role) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const resolvedUrl = url ?? (storagePath ? `storage:${storagePath}` : null);
 
   const { data, error } = await supabase.from("documents").insert({
     org_id: orgId,
     uploaded_by: user.id,
     title,
     category: category ?? "General",
-    storage_path: storagePath,
-    url,
+    storage_path: storagePath ?? resolvedUrl,
+    url: resolvedUrl,
+    folder_id: folderId ?? null,
     file_size_bytes: fileSizeBytes ?? null,
     mime_type: mimeType ?? null,
     is_private: isPrivate ?? false,
   }).select().single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    const friendly = error.message.includes("null value")
+      ? "Could not save — make sure the file finished uploading"
+      : "Could not save this document. Please try again.";
+    return NextResponse.json({ error: friendly }, { status: 500 });
+  }
 
   await supabase.from("audit_logs").insert({
     org_id: orgId,
@@ -66,6 +77,29 @@ export async function POST(request: Request) {
   });
 
   return NextResponse.json(data, { status: 201 });
+}
+
+export async function PATCH(request: Request) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id, orgId, folderId } = await request.json();
+  if (!id || !orgId) return NextResponse.json({ error: "id and orgId required" }, { status: 400 });
+
+  const role = await getMemberRole(supabase, user.id, String(orgId));
+  if (!role) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const { data, error } = await supabase
+    .from("documents")
+    .update({ folder_id: folderId ?? null })
+    .eq("id", id)
+    .eq("org_id", orgId)
+    .select()
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data);
 }
 
 export async function DELETE(request: Request) {

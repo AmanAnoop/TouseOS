@@ -32,7 +32,7 @@ export default function TasksPage() {
   const [form, setForm] = useState({
     taskType: "administrative" as TaskTypeValue,
     title: "", description: "", priority: "medium" as TaskPriority, isRecurring: false,
-    dueDate: "", assigneeName: "", tags: "",
+    dueDate: "", assigneeName: "", tags: "", pointReward: "0",
   });
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [notifyViaSms, setNotifyViaSms] = useState(false);
@@ -126,6 +126,7 @@ export default function TasksPage() {
           status: editTask.status,
           tags,
           is_recurring: form.isRecurring,
+          pointReward: parseInt(form.pointReward, 10) || 0,
           notifyViaSms: notifyViaSms && selectedMemberIds.length > 0,
         }),
       });
@@ -147,6 +148,7 @@ export default function TasksPage() {
           assigneeMemberIds: selectedMemberIds,
           tags,
           isRecurring: form.isRecurring,
+          pointReward: parseInt(form.pointReward, 10) || 0,
           notifyViaSms: notifyViaSms && selectedMemberIds.length > 0,
         }),
       });
@@ -159,10 +161,22 @@ export default function TasksPage() {
 
     setCreateOpen(false);
     setEditTask(null);
-    setForm({ taskType: "administrative", title: "", description: "", priority: "medium", isRecurring: false, dueDate: "", assigneeName: "", tags: "" });
+    setForm({ taskType: "administrative", title: "", description: "", priority: "medium", isRecurring: false, dueDate: "", assigneeName: "", tags: "", pointReward: "0" });
     setSelectedMemberIds([]);
     setNotifyViaSms(false);
     load(orgId);
+  }
+
+  async function deleteTask(id: string) {
+    if (!confirm("Delete this completed task?")) return;
+    const res = await fetch(`/api/tasks?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+    if (!res.ok) {
+      toast.error("Could not delete task");
+      return;
+    }
+    toast.success("Task deleted");
+    setDetailTask(null);
+    if (orgId) load(orgId);
   }
 
   async function updateStatus(id: string, status: TaskStatus) {
@@ -189,6 +203,7 @@ export default function TasksPage() {
       isRecurring: Boolean((task as { is_recurring?: boolean }).is_recurring),
       assigneeName: task.assignee_name ?? "",
       tags: (task.tags ?? []).filter((t) => !t.startsWith("type:")).join(", "),
+      pointReward: String((task as Task & { point_reward?: number }).point_reward ?? 0),
     });
     setSelectedMemberIds(
       assignees.map((a) => a.member_id).filter((id): id is string => Boolean(id)),
@@ -412,6 +427,14 @@ export default function TasksPage() {
               <p className="text-xs text-muted-foreground mt-1">{selectedMemberIds.length} selected</p>
             )}
           </div>
+          <Input
+            label="Point reward"
+            type="number"
+            min={0}
+            hint="Anyone who completes this task earns these points"
+            value={form.pointReward}
+            onChange={(e) => setForm({ ...form, pointReward: e.target.value })}
+          />
           <Input label="Tags (comma-separated)" placeholder="recruitment, social, important" value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} />
           {editTask && (
             <Select
@@ -438,6 +461,7 @@ export default function TasksPage() {
           twilioLive={twilioLive}
           onClose={() => setDetailTask(null)}
           onUpdate={() => load(orgId)}
+          onDelete={detailTask.status === "done" ? () => deleteTask(detailTask.id) : undefined}
         />
       )}
     </div>

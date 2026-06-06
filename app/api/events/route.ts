@@ -30,6 +30,7 @@ export async function POST(request: Request) {
     orgId, title, type, description, location, address, startsAt, endsAt,
     rsvpEnabled, rsvpLimit, waitlistEnabled, showGuestList, alcohol,
     riskLevel, budgetAmount, dresscode, playlistUrl, theme, isPrivate,
+    coverImageUrl,
   } = body;
 
   const { data, error } = await supabase.from("events").insert({
@@ -53,6 +54,7 @@ export async function POST(request: Request) {
     playlist_url: playlistUrl,
     theme,
     is_private: isPrivate ?? false,
+    cover_image_url: coverImageUrl ?? null,
     status: "upcoming",
   }).select().single();
 

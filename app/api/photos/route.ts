@@ -57,11 +57,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "storagePath required" }, { status: 400 });
   }
 
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const resolvedUrl = url ?? storagePath;
+
   const { data, error } = await supabase.from("photos").insert({
     org_id: orgId,
     album_id: albumId,
     uploaded_by: user.id,
-    url: url ?? null,
+    uploader_name: profile?.full_name ?? null,
+    url: resolvedUrl,
     storage_path: storagePath,
     caption: caption ?? null,
     status: "pending",

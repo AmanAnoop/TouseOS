@@ -72,7 +72,9 @@ export function HousingClient() {
     name: "", roleLabel: "", category: "general", phone: "", email: "", notes: "",
   });
   const [chargingRent, setChargingRent] = useState(false);
+  const [savingRentConfig, setSavingRentConfig] = useState(false);
   const [rentOpen, setRentOpen] = useState(false);
+  const [rentRecurring, setRentRecurring] = useState({ enabled: false, dueDay: 1 });
   const [rentDueDate, setRentDueDate] = useState(() => {
     const d = new Date();
     d.setMonth(d.getMonth() + 1);
@@ -115,6 +117,45 @@ export function HousingClient() {
   useEffect(() => {
     if (orgId) load(orgId);
   }, [orgId, load]);
+
+  useEffect(() => {
+    if (!orgId) return;
+    fetch(`/api/org/settings?org_id=${encodeURIComponent(orgId)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const cfg = ((data?.org?.settings ?? {}) as Record<string, unknown>).housing_rent as Record<string, unknown> | undefined;
+        if (cfg) {
+          setRentRecurring({
+            enabled: Boolean(cfg.recurring_enabled),
+            dueDay: Number(cfg.due_day ?? 1),
+          });
+        }
+      });
+  }, [orgId]);
+
+  async function saveRentRecurring() {
+    if (!orgId) return;
+    setSavingRentConfig(true);
+    const res = await fetch("/api/org/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        settingsPatch: {
+          housing_rent: {
+            recurring_enabled: rentRecurring.enabled,
+            due_day: rentRecurring.dueDay,
+          },
+        },
+      }),
+    });
+    setSavingRentConfig(false);
+    if (!res.ok) {
+      toast.error("Could not save rent schedule");
+      return;
+    }
+    toast.success("Recurring rent settings saved");
+  }
 
   function occupants(roomId: string) {
     return assignments.filter((a) => a.room_id === roomId);
@@ -301,39 +342,68 @@ export function HousingClient() {
         title="Housing"
         description="Room assignments, maintenance requests, and house management"
         action={
-          <div className="flex flex-col gap-2 sm:items-end">
-            <div className="flex gap-2 flex-wrap justify-end">
-              <span className="text-xs text-muted-foreground self-center mr-1 hidden sm:inline">Billing</span>
+          canManageHousing ? (
+            <div className="flex gap-2 flex-wrap justify-end items-center">
               <Link href="/payments"><Button size="sm" variant="secondary">Payments</Button></Link>
               <Link href="/budget"><Button size="sm" variant="secondary">Budget</Button></Link>
-              {canManageHousing && assignments.length > 0 && totalRent > 0 && (
-                <Button size="sm" variant="secondary" onClick={() => setRentOpen(true)}>
-                  Post monthly rent
-                </Button>
-              )}
+              <Button size="sm" icon={<Plus size={14} />} onClick={() => setRentOpen(true)}>
+                Post monthly rent
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  setEditContact(null);
+                  setContactForm({ name: "", roleLabel: "", category: "general", phone: "", email: "", notes: "" });
+                  setContactOpen(true);
+                }}
+              >
+                Add contact
+              </Button>
+              <Button size="sm" icon={<Plus size={14} />} onClick={() => setRoomOpen(true)}>
+                Add room
+              </Button>
             </div>
-            {canManageHousing && (
-              <div className="flex gap-2 flex-wrap justify-end">
-                <span className="text-xs text-muted-foreground self-center mr-1 hidden sm:inline">House</span>
-                <Button size="sm" icon={<Plus size={14} />} onClick={() => setRoomOpen(true)}>
-                  Add room
-                </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => {
-                    setEditContact(null);
-                    setContactForm({ name: "", roleLabel: "", category: "general", phone: "", email: "", notes: "" });
-                    setContactOpen(true);
-                  }}
-                >
-                  Add contact
-                </Button>
-              </div>
-            )}
-          </div>
+          ) : (
+            <div className="flex gap-2 flex-wrap justify-end">
+              <Link href="/payments"><Button size="sm" variant="secondary">Payments</Button></Link>
+              <Link href="/budget"><Button size="sm" variant="secondary">Budget</Button></Link>
+            </div>
+          )
         }
       />
+
+      {canManageHousing && (
+        <Card padding="sm">
+          <CardHeader
+            title="Recurring rent"
+            description="Automatically post rent charges on a set day each month"
+          />
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                className="rounded"
+                checked={rentRecurring.enabled}
+                onChange={(e) => setRentRecurring({ ...rentRecurring, enabled: e.target.checked })}
+              />
+              <span className="text-sm">Enable auto-posting</span>
+            </label>
+            <Input
+              label="Due day of month"
+              type="number"
+              min={1}
+              max={28}
+              className="w-32"
+              value={String(rentRecurring.dueDay)}
+              onChange={(e) => setRentRecurring({ ...rentRecurring, dueDay: Math.min(28, Math.max(1, Number(e.target.value) || 1)) })}
+            />
+            <Button size="sm" variant="secondary" loading={savingRentConfig} onClick={saveRentRecurring}>
+              Save schedule
+            </Button>
+          </div>
+        </Card>
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard title="Total rooms" value={rooms.length} icon={<Home size={18} />} />

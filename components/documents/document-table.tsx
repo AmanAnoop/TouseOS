@@ -8,6 +8,8 @@ import type { Document } from "@/types";
 
 interface DocumentTableProps {
   docs: Document[];
+  folders?: Array<{ id: string; name: string }>;
+  onMoveFolder?: (docId: string, folderId: string | null) => void;
   onDownload: (doc: Document) => void;
   onDelete?: (id: string, storagePath: string) => void;
 }
@@ -20,7 +22,7 @@ function fileIcon(mime: string | null | undefined, title: string) {
   return <FileText size={16} aria-label="Document file" />;
 }
 
-export function DocumentTable({ docs, onDownload, onDelete }: DocumentTableProps) {
+export function DocumentTable({ docs, folders, onMoveFolder, onDownload, onDelete }: DocumentTableProps) {
   if (docs.length === 0) return null;
 
   return (
@@ -32,6 +34,7 @@ export function DocumentTable({ docs, onDownload, onDelete }: DocumentTableProps
             <th>Uploaded by</th>
             <th>Date</th>
             <th className="ds-td-num">Size</th>
+            {onMoveFolder && folders && folders.length > 0 && <th>Folder</th>}
             <th>Actions</th>
           </tr>
         </thead>
@@ -53,6 +56,20 @@ export function DocumentTable({ docs, onDownload, onDelete }: DocumentTableProps
               <td className="ds-td-num" style={{ fontFamily: "var(--font-mono)", fontSize: 13 }}>
                 {formatBytes(doc.file_size_bytes)}
               </td>
+              {onMoveFolder && folders && folders.length > 0 && (
+                <td>
+                  <select
+                    className="text-xs border border-border rounded px-2 py-1 bg-background"
+                    value={(doc as Document & { folder_id?: string }).folder_id ?? ""}
+                    onChange={(e) => onMoveFolder(doc.id, e.target.value || null)}
+                  >
+                    <option value="">No folder</option>
+                    {folders.map((f) => (
+                      <option key={f.id} value={f.id}>{f.name}</option>
+                    ))}
+                  </select>
+                </td>
+              )}
               <td>
                 <div style={{ display: "flex", gap: 4 }}>
                   <Button size="sm" variant="ghost" icon={<Download size={14} />} onClick={() => onDownload(doc)} aria-label="Download">

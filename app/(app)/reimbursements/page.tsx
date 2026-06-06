@@ -15,6 +15,7 @@ import {
 import { downloadCsv, formatCurrency, formatDate } from "@/lib/utils";
 import type { Reimbursement } from "@/types";
 import { ReimbursementList } from "@/components/reimbursements/reimbursement-list";
+import { HardshipReviewPanel } from "@/components/payments/hardship-review-panel";
 import { useOrg } from "@/hooks/use-org";
 import {
   DEFAULT_REIMBURSEMENT_THRESHOLD,
@@ -69,6 +70,7 @@ export default function ReimbursementsPage() {
   });
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [events, setEvents] = useState<Array<{ id: string; title: string }>>([]);
+  const [budgetSummary, setBudgetSummary] = useState<{ remaining: number; budgeted: number; spent: number } | null>(null);
 
   const canReview = can(myRole, "manage_payments") || can(myRole, "manage_budget");
 
@@ -96,6 +98,19 @@ export default function ReimbursementsPage() {
       .limit(30)
       .then(({ data: eRes }) => setEvents((eRes ?? []) as Array<{ id: string; title: string }>));
     load(orgId);
+    fetch(`/api/budget?org_id=${encodeURIComponent(orgId)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data) return;
+        const budgets = Array.isArray(data) ? data : [data];
+        const active = budgets.find((b: { archived_at?: string | null }) => !b.archived_at) ?? budgets[0];
+        if (!active) return;
+        const lines = (active.budget_lines ?? []) as Array<{ type: string; budgeted: number; actual: number }>;
+        const expenseLines = lines.filter((l) => l.type === "expense");
+        const budgeted = expenseLines.reduce((s, l) => s + Number(l.budgeted ?? 0), 0);
+        const spent = expenseLines.reduce((s, l) => s + Number(l.actual ?? 0), 0);
+        setBudgetSummary({ budgeted, spent, remaining: Math.max(0, budgeted - spent) });
+      });
   }, [supabase, orgId, load]);
 
   async function submitReimbursement() {
@@ -215,11 +230,19 @@ export default function ReimbursementsPage() {
         }
       />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <StatCard title="Pending" value={pendingCount} deltaType={pendingCount > 0 ? "down" : "neutral"} icon={<Clock size={18} />} />
         <StatCard title="In pipeline" value={formatCurrency(totalPending)} icon={<DollarSign size={18} />} />
         <StatCard title="Total paid" value={formatCurrency(totalPaid)} deltaType="up" icon={<CheckCircle size={18} />} />
         <StatCard title="Total requests" value={reimbs.length} icon={<Receipt size={18} />} />
+        {budgetSummary && (
+          <StatCard
+            title="Budget remaining"
+            value={formatCurrency(budgetSummary.remaining)}
+            delta={`${formatCurrency(budgetSummary.spent)} spent of ${formatCurrency(budgetSummary.budgeted)}`}
+            icon={<DollarSign size={18} />}
+          />
+        )}
       </div>
 
       <Tabs
@@ -228,13 +251,16 @@ export default function ReimbursementsPage() {
           { id: "approved", label: "Approved" },
           { id: "paid", label: "Paid" },
           { id: "rejected", label: "Rejected" },
+          { id: "hardship", label: "Hardship" },
           { id: "all", label: "All", count: reimbs.length },
         ]}
         active={tab}
         onChange={setTab}
       />
 
-      {loading ? (
+      {tab === "hardship" && orgId && canReview ? (
+        <HardshipReviewPanel orgId={orgId} />
+      ) : loading ? (
         <div className="space-y-2">{[1, 2, 3].map((i) => <Card key={i} className="h-16 animate-pulse bg-surface-2 border-0">&nbsp;</Card>)}</div>
       ) : filtered.length === 0 ? (
         <EmptyState

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Bell, ClipboardList, Copy, Download, Eye, FileEdit, Link2, Pencil, Plus, ScanLine, Trash2 } from "lucide-react";
+import { Bell, ClipboardList, Copy, Download, Eye, Link2, MoreHorizontal, Pencil, Plus, ScanLine, Trash2 } from "lucide-react";
 import { SortableFormFields, type FormFieldItem } from "@/components/forms/sortable-form-fields";
 import { FormCompletionGrid } from "@/components/forms/form-completion-grid";
 import { FormResponsesPanel } from "@/components/forms/form-responses-panel";
@@ -97,6 +97,7 @@ export default function FormsPage() {
   const [forms, setForms] = useState<FormTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("forms");
+  const [menuFormId, setMenuFormId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [previewForm, setPreviewForm] = useState<FormTemplate | null>(null);
   const [responseTotal, setResponseTotal] = useState(0);
@@ -360,36 +361,48 @@ export default function FormsPage() {
                       {form.due_date ? ` · Due ${formatDate(form.due_date)}` : ""}
                     </p>
                   </div>
-                  <div className="flex gap-2 flex-shrink-0">
-                    <button onClick={() => copyPublicLink(form)} className="p-1.5 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-foreground" title="Copy public link">
-                      <Link2 size={14} />
-                    </button>
-                    <button onClick={() => copyMemberLink(form)} className="p-1.5 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-foreground" title="Copy member link">
-                      <Copy size={14} />
-                    </button>
-                    <button onClick={() => exportResponses(form)} className="p-1.5 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-foreground" title="Export responses">
-                      <Download size={14} />
-                    </button>
-                    <button onClick={() => duplicateForm(form)} className="p-1.5 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-foreground" title="Duplicate form">
-                      <Copy size={14} />
-                    </button>
-                    {form.is_required && (
-                      <button onClick={() => remindMissing(form.id)} className="p-1.5 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-foreground" title="Remind missing">
-                        <Bell size={14} />
-                      </button>
-                    )}
-                    <Link href={`/forms/${form.id}/fill`} className="p-1.5 rounded-md hover:bg-greek-50 text-greek-600" title="Fill form">
-                      <FileEdit size={14} />
+                  <div className="flex gap-1 flex-shrink-0 items-center relative">
+                    <Link href={`/forms/${form.id}/fill`} className="p-1.5 rounded-md hover:bg-greek-50 text-greek-600 text-xs font-medium" title="Fill form">
+                      Fill
                     </Link>
                     <button onClick={() => openEditForm(form)} className="p-1.5 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-foreground" title="Edit form">
                       <Pencil size={14} />
                     </button>
-                    <button onClick={() => setPreviewForm(form)} className="p-1.5 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-foreground">
-                      <Eye size={14} />
+                    <button
+                      type="button"
+                      onClick={() => setMenuFormId(menuFormId === form.id ? null : form.id)}
+                      className="p-1.5 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-foreground"
+                      aria-label="More actions"
+                    >
+                      <MoreHorizontal size={14} />
                     </button>
-                    <button onClick={() => deleteForm(form.id)} className="p-1.5 rounded-md hover:bg-red-50 text-muted-foreground hover:text-red-500">
-                      <Trash2 size={14} />
-                    </button>
+                    {menuFormId === form.id && (
+                      <div className="absolute right-0 top-full mt-1 z-10 min-w-[180px] rounded-lg border border-border bg-card shadow-lg py-1">
+                        <button type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-surface-1 flex items-center gap-2" onClick={() => { copyPublicLink(form); setMenuFormId(null); }}>
+                          <Link2 size={14} /> Public link
+                        </button>
+                        <button type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-surface-1 flex items-center gap-2" onClick={() => { copyMemberLink(form); setMenuFormId(null); }}>
+                          <Copy size={14} /> Member link
+                        </button>
+                        <button type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-surface-1 flex items-center gap-2" onClick={() => { exportResponses(form); setMenuFormId(null); }}>
+                          <Download size={14} /> Export
+                        </button>
+                        <button type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-surface-1 flex items-center gap-2" onClick={() => { duplicateForm(form); setMenuFormId(null); }}>
+                          <Copy size={14} /> Duplicate
+                        </button>
+                        {form.is_required && (
+                          <button type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-surface-1 flex items-center gap-2" onClick={() => { remindMissing(form.id); setMenuFormId(null); }}>
+                            <Bell size={14} /> Remind missing
+                          </button>
+                        )}
+                        <button type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-surface-1 flex items-center gap-2" onClick={() => { setPreviewForm(form); setMenuFormId(null); }}>
+                          <Eye size={14} /> Preview
+                        </button>
+                        <button type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-red-50 text-red-600 flex items-center gap-2" onClick={() => { deleteForm(form.id); setMenuFormId(null); }}>
+                          <Trash2 size={14} /> Delete
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </Card>

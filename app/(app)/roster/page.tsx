@@ -43,8 +43,12 @@ export default function RosterPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [massInviteOpen, setMassInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
+  const [bulkEmails, setBulkEmails] = useState("");
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [inviteRole, setInviteRole] = useState("general_member");
+  const [inviting, setInviting] = useState(false);
   const [importing, setImporting] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
 
@@ -62,6 +66,13 @@ export default function RosterPage() {
   useEffect(() => {
     if (orgId) loadMembers(orgId);
   }, [orgId, loadMembers]);
+
+  useEffect(() => {
+    if (!orgId) return;
+    fetch(`/api/org/settings?org_id=${encodeURIComponent(orgId)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setInviteCode(data?.org?.invite_code ? String(data.org.invite_code) : null));
+  }, [orgId]);
 
   const showPayment = can(myRole, "view_payments") || can(myRole, "manage_payments");
 
@@ -120,20 +131,44 @@ export default function RosterPage() {
     });
   }
 
-  async function sendInvite() {
-    if (!orgId || !inviteEmail) return;
+  async function sendInvite(email?: string, emails?: string[]) {
+    if (!orgId) return;
+    setInviting(true);
     const res = await fetch("/api/members/invite", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orgId, email: inviteEmail, role: inviteRole }),
+      body: JSON.stringify({
+        orgId,
+        email,
+        emails,
+        role: inviteRole,
+      }),
     });
+    setInviting(false);
+    const data = await res.json().catch(() => ({}));
     if (res.ok) {
-      toast.success(`Invite sent to ${inviteEmail}`);
+      toast.success((data as { message?: string }).message ?? "Invites sent");
       setInviteOpen(false);
+      setMassInviteOpen(false);
       setInviteEmail("");
+      setBulkEmails("");
+      loadMembers(orgId);
     } else {
-      toast.error("Failed to send invite");
+      toast.error((data as { error?: string }).error ?? "Failed to send invite");
     }
+  }
+
+  function parseBulkEmails(raw: string): string[] {
+    return [...new Set(
+      raw.split(/[\n,;]+/).map((e) => e.trim().toLowerCase()).filter((e) => e.includes("@")),
+    )];
+  }
+
+  async function copyInviteLink() {
+    if (!inviteCode) return;
+    const link = `${window.location.origin}/join/${inviteCode}`;
+    await navigator.clipboard.writeText(link);
+    toast.success("Invite link copied");
   }
 
   const roleOptions = Object.entries(ROLE_LABELS).map(([v, l]) => ({ value: v, label: l }));
@@ -150,6 +185,9 @@ export default function RosterPage() {
             <input ref={importRef} type="file" accept=".csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCsvImport(f); e.target.value = ""; }} />
             <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={exportRoster}>
               Export
+            </Button>
+            <Button size="sm" variant="secondary" icon={<UserPlus size={14} />} onClick={() => setMassInviteOpen(true)}>
+              Mass invite
             </Button>
             <Button size="sm" icon={<UserPlus size={14} />} onClick={() => setInviteOpen(true)}>
               Invite
@@ -201,7 +239,7 @@ export default function RosterPage() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setInviteOpen(false)}>Cancel</Button>
-            <Button onClick={sendInvite} disabled={!inviteEmail}>Send invite</Button>
+            <Button onClick={() => sendInvite(inviteEmail)} disabled={!inviteEmail} loading={inviting}>Send invite</Button>
           </>
         }
       >
@@ -219,6 +257,62 @@ export default function RosterPage() {
             onChange={(e) => setInviteRole(e.target.value)}
             options={roleOptions}
           />
+        </div>
+      </Modal>
+
+      <Modal
+        open={massInviteOpen}
+        onClose={() => setMassInviteOpen(false)}
+        title="Mass invite"
+        description="Share your chapter link or paste multiple emails at once."
+        size="md"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setMassInviteOpen(false)}>Cancel</Button>
+            <Button
+              loading={inviting}
+              disabled={parseBulkEmails(bulkEmails).length === 0}
+              onClick={() => sendInvite(undefined, parseBulkEmails(bulkEmails))}
+            >
+              Send invites
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {inviteCode && (
+            <div className="p-3 rounded-lg border border-border bg-surface-1 space-y-2">
+              <p className="text-sm font-medium">Shareable invite link</p>
+              <p className="text-xs text-muted-foreground break-all">{typeof window !== "undefined" ? `${window.location.origin}/join/${inviteCode}` : `/join/${inviteCode}`}</p>
+              <div className="flex gap-2 flex-wrap">
+                <Button size="sm" variant="secondary" onClick={copyInviteLink}>Copy link</Button>
+                <Button size="sm" variant="secondary" onClick={async () => {
+                  await navigator.clipboard.writeText(inviteCode);
+                  toast.success("Invite code copied");
+                }}>Copy code {inviteCode}</Button>
+              </div>
+            </div>
+          )}
+          <Select
+            label="Default role for new members"
+            value={inviteRole}
+            onChange={(e) => setInviteRole(e.target.value)}
+            options={roleOptions}
+          />
+          <div className="ds-field">
+            <label className="type-label" htmlFor="bulk-emails">Paste emails</label>
+            <textarea
+              id="bulk-emails"
+              className="ds-input"
+              rows={6}
+              placeholder="one@school.edu, two@school.edu&#10;or one address per line"
+              value={bulkEmails}
+              onChange={(e) => setBulkEmails(e.target.value)}
+            />
+            <p className="type-small" style={{ color: "var(--color-text-tertiary)" }}>
+              {parseBulkEmails(bulkEmails).length} valid address{parseBulkEmails(bulkEmails).length !== 1 ? "es" : ""}
+            </p>
+          </div>
         </div>
       </Modal>
     </div>

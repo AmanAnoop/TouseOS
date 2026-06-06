@@ -53,6 +53,14 @@ export function EngagementDashboard({
     ? "/events/new?type=sisterhood"
     : "/events/new?type=brotherhood";
 
+  const bondingFilter = orgType === "sorority" ? "sisterhood" : "brotherhood";
+  const filterOptions: EventFilter[] = [
+    "all",
+    bondingFilter,
+    "upcoming",
+    "past",
+  ];
+
   return (
     <div className="ds-page-stack">
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -61,28 +69,18 @@ export function EngagementDashboard({
             Create {orgLabel} event
           </Button>
         </Link>
-        {orgType === "fraternity" && (
-          <Link href="/events/new?type=brotherhood">
-            <Button size="sm" variant="secondary">Create Brotherhood event</Button>
-          </Link>
-        )}
-        {orgType === "sorority" && (
-          <Link href="/events/new?type=sisterhood">
-            <Button size="sm" variant="secondary">Create Sisterhood event</Button>
-          </Link>
-        )}
       </div>
 
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {(["all", "brotherhood", "sisterhood", "upcoming", "past"] as EventFilter[]).map((f) => (
+      <div className="ds-segment-group">
+        {filterOptions.map((f) => (
           <button
             key={f}
             type="button"
             className={`ds-segment ${filter === f ? "ds-segment-active" : ""}`}
-            style={{ flex: "0 1 auto", minWidth: 0, padding: "0 12px" }}
+            style={{ flex: "0 1 auto", minWidth: 0 }}
             onClick={() => setFilter(f)}
           >
-            {f === "all" ? "All" : f.charAt(0).toUpperCase() + f.slice(1)}
+            {f === "all" ? "All" : f === bondingFilter ? orgLabel : f.charAt(0).toUpperCase() + f.slice(1)}
           </button>
         ))}
       </div>
@@ -91,7 +89,7 @@ export function EngagementDashboard({
         <EmptyState
           icon={<Users size={32} />}
           title="No engagement events yet"
-          description="Create your first brotherhood or sisterhood event to get started."
+          description={`Create your first ${orgLabel.toLowerCase()} event to get started.`}
           action={
             <Link href={createHref}>
               <Button size="sm">Create event</Button>

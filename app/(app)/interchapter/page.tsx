@@ -17,6 +17,8 @@ import { AvailabilityMatcher, type AvailabilityEntry } from "@/components/interc
 import { JointBudgetSplitter } from "@/components/interchapter/joint-budget-splitter";
 import { InterchapterSummaryPanel } from "@/components/interchapter/interchapter-summary-panel";
 import { InterchapterMessagesPanel } from "@/components/interchapter/interchapter-messages-panel";
+import { GreekDirectoryPanel } from "@/components/interchapter/greek-directory-panel";
+import { GreekChapterPicker } from "@/components/interchapter/greek-chapter-picker";
 
 interface Proposal {
   id: string;
@@ -63,9 +65,6 @@ export default function InterchapterPage() {
   const [availability, setAvailability] = useState<AvailabilityEntry[]>([]);
   const [userName, setUserName] = useState("");
   const [partnerOrgs, setPartnerOrgs] = useState<Array<{ id: string; name: string }>>([]);
-  const [targetOrgSearch, setTargetOrgSearch] = useState("");
-  const [greekOrgs, setGreekOrgs] = useState<Array<{ id: string; name: string; campus: string | null }>>([]);
-
   const [proposedDates, setProposedDates] = useState<string[]>([""]);
 
   const [proposalForm, setProposalForm] = useState({
@@ -139,19 +138,6 @@ export default function InterchapterPage() {
         setPartnerOrgs(list.filter((o) => ids.has(o.id))),
       );
   }, [proposals, orgId]);
-
-  useEffect(() => {
-    if (!proposeOpen || !orgId) return;
-    const timer = setTimeout(() => {
-      const q = targetOrgSearch.trim();
-      fetch(
-        `/api/interchapter/orgs?exclude_org_id=${encodeURIComponent(orgId)}${q ? `&q=${encodeURIComponent(q)}` : ""}`,
-      )
-        .then((r) => (r.ok ? r.json() : []))
-        .then((list) => setGreekOrgs(list as Array<{ id: string; name: string; campus: string | null }>));
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [proposeOpen, orgId, targetOrgSearch]);
 
   async function submitProposal() {
     if (!orgId || !proposalForm.eventName || !proposalForm.targetOrgId) return;
@@ -322,6 +308,7 @@ export default function InterchapterPage() {
           { id: "availability", label: "Availability", count: availability.length },
           { id: "budget", label: "Budget split" },
           { id: "messages", label: "Messages", count: partnerOrgs.length || undefined },
+          { id: "directory", label: "Chapter directory" },
         ]}
         active={tab}
         onChange={setTab}
@@ -413,30 +400,24 @@ export default function InterchapterPage() {
         <InterchapterMessagesPanel orgId={orgId} userName={userName} partners={partnerOrgs} />
       )}
 
+      {tab === "directory" && (
+        <GreekDirectoryPanel orgId={orgId} />
+      )}
+
       {/* Propose event modal */}
       <Modal open={proposeOpen} onClose={() => setProposeOpen(false)} title="Propose event to another chapter" size="lg"
         footer={<><Button variant="secondary" onClick={() => setProposeOpen(false)}>Cancel</Button><Button onClick={submitProposal} disabled={!proposalForm.eventName}>Send proposal</Button></>}
       >
         <div className="space-y-4">
           <Alert type="info" title="Your proposal will be sent to the target chapter's exec board for review." />
-          <Input
-            label="Search chapters"
-            placeholder="Name or campus..."
-            value={targetOrgSearch}
-            onChange={(e) => setTargetOrgSearch(e.target.value)}
-          />
-          <Select
-            label="Target chapter *"
-            value={proposalForm.targetOrgId}
-            onChange={(e) => setProposalForm({ ...proposalForm, targetOrgId: e.target.value })}
-            options={[
-              { value: "", label: greekOrgs.length ? "Select a chapter" : "Search to find chapters" },
-              ...greekOrgs.map((o) => ({
-                value: o.id,
-                label: o.campus ? `${o.name} · ${o.campus}` : o.name,
-              })),
-            ]}
-          />
+          {orgId && (
+            <GreekChapterPicker
+              orgId={orgId}
+              value={proposalForm.targetOrgId}
+              kindFilter="all"
+              onChange={(id) => setProposalForm({ ...proposalForm, targetOrgId: id })}
+            />
+          )}
           <div className="grid sm:grid-cols-2 gap-3">
             <Input label="Event name *" placeholder="Spring Mixer 2025" value={proposalForm.eventName} onChange={(e) => setProposalForm({ ...proposalForm, eventName: e.target.value })} />
             <Select label="Event type" value={proposalForm.eventType} onChange={(e) => setProposalForm({ ...proposalForm, eventType: e.target.value })} options={[

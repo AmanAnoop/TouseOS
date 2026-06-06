@@ -40,10 +40,12 @@ function DayCell({
   dateStr,
   posts,
   isCurrentMonth,
+  onDayClick,
 }: {
   dateStr: string;
   posts: CalendarPost[];
   isCurrentMonth: boolean;
+  onDayClick?: (dateStr: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: dateStr });
   const dayNum = parseInt(dateStr.slice(8), 10);
@@ -51,7 +53,11 @@ function DayCell({
   return (
     <div
       ref={setNodeRef}
-      className={`min-h-[72px] border border-border p-1 ${isCurrentMonth ? "bg-card" : "bg-surface-1/50"} ${isOver ? "ring-2 ring-pink-400" : ""}`}
+      role={onDayClick ? "button" : undefined}
+      tabIndex={onDayClick ? 0 : undefined}
+      onClick={() => onDayClick?.(dateStr)}
+      onKeyDown={(e) => { if (onDayClick && (e.key === "Enter" || e.key === " ")) onDayClick(dateStr); }}
+      className={`min-h-[72px] border border-border p-1 ${isCurrentMonth ? "bg-card" : "bg-surface-1/50"} ${isOver ? "ring-2 ring-pink-400" : ""} ${onDayClick ? "cursor-pointer hover:bg-surface-1" : ""}`}
     >
       <span className={`text-xs font-medium ${isCurrentMonth ? "text-foreground" : "text-muted-foreground"}`}>{dayNum}</span>
       <div className="space-y-0.5 mt-0.5">
@@ -66,9 +72,11 @@ function DayCell({
 export function SocialCalendarGrid({
   posts,
   onReschedule,
+  onDayClick,
 }: {
   posts: CalendarPost[];
   onReschedule: (postId: string, newDate: string) => void;
+  onDayClick?: (dateStr: string) => void;
 }) {
   const [monthOffset, setMonthOffset] = useState(0);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
@@ -135,7 +143,7 @@ export function SocialCalendarGrid({
           <Button size="sm" variant="secondary" onClick={() => setMonthOffset((m) => m + 1)} icon={<ChevronRight size={14} />} />
         </div>
       </div>
-      <p className="text-xs text-muted-foreground">Drag posts between days to reschedule.</p>
+      <p className="text-xs text-muted-foreground">Tap a day to schedule a post, or drag existing posts to reschedule.</p>
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         <div className="grid grid-cols-7 gap-0 border border-border rounded-xl overflow-hidden">
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
@@ -147,6 +155,7 @@ export function SocialCalendarGrid({
               dateStr={cell.dateStr}
               posts={postByDate.get(cell.dateStr) ?? []}
               isCurrentMonth={cell.inMonth}
+              onDayClick={onDayClick}
             />
           ))}
         </div>

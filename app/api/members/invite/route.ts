@@ -7,8 +7,15 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { orgId, email, role } = await request.json();
-  if (!orgId || !email) return NextResponse.json({ error: "orgId and email required" }, { status: 400 });
+  const { orgId, email, emails, role } = await request.json();
+  const emailList = Array.isArray(emails)
+    ? emails.map((e: string) => String(e).trim().toLowerCase()).filter(Boolean)
+    : email
+      ? [String(email).trim().toLowerCase()]
+      : [];
+  if (!orgId || emailList.length === 0) {
+    return NextResponse.json({ error: "orgId and at least one email required" }, { status: 400 });
+  }
 
   // Verify caller is an officer
   const { data: membership } = await supabase
@@ -20,40 +27,53 @@ export async function POST(request: Request) {
 
   if (!membership) return NextResponse.json({ error: "Not a member" }, { status: 403 });
 
-  // Create a pending member profile
   const { data: org } = await supabase.from("organizations").select("name, invite_code").eq("id", orgId).single();
+  const results: Array<{ email: string; ok: boolean; error?: string }> = [];
+  let sentCount = 0;
 
-  const { data: profile, error } = await supabase.from("member_profiles").insert({
-    org_id: orgId,
-    full_name: email.split("@")[0],
-    email,
-    role: role ?? "general_member",
-    membership_status: "pending_invite",
-  }).select().single();
+  for (const targetEmail of emailList) {
+    const { data: profile, error } = await supabase.from("member_profiles").insert({
+      org_id: orgId,
+      full_name: targetEmail.split("@")[0],
+      email: targetEmail,
+      role: role ?? "general_member",
+      membership_status: "pending_invite",
+    }).select().single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      results.push({ email: targetEmail, ok: false, error: error.message });
+      continue;
+    }
 
-  const emailResult = await sendInviteEmail({
-    to: email,
-    orgName: org?.name ?? "your chapter",
-    inviteCode: org?.invite_code ?? "",
-  });
+    const emailResult = await sendInviteEmail({
+      to: targetEmail,
+      orgName: org?.name ?? "your chapter",
+      inviteCode: org?.invite_code ?? "",
+    });
+    if (emailResult.sent) sentCount++;
 
-  await supabase.from("audit_logs").insert({
-    org_id: orgId,
-    actor_id: user.id,
-    action: "member_invited",
-    resource_type: "member_profiles",
-    resource_id: profile.id,
-    metadata: { email, role, org_name: org?.name },
-  });
+    await supabase.from("audit_logs").insert({
+      org_id: orgId,
+      actor_id: user.id,
+      action: "member_invited",
+      resource_type: "member_profiles",
+      resource_id: profile.id,
+      metadata: { email: targetEmail, role, org_name: org?.name },
+    });
+
+    results.push({ email: targetEmail, ok: true });
+  }
+
+  const okCount = results.filter((r) => r.ok).length;
 
   return NextResponse.json({
-    success: true,
+    success: okCount > 0,
     inviteCode: org?.invite_code,
-    emailSent: emailResult.sent,
-    message: emailResult.sent
-      ? `Invite email sent to ${email}.`
-      : `Invite created for ${email}. Share code ${org?.invite_code} (configure RESEND_API_KEY for email delivery).`,
+    invited: okCount,
+    emailsSent: sentCount,
+    results,
+    message: okCount > 0
+      ? `Invited ${okCount} member${okCount > 1 ? "s" : ""}${sentCount ? ` (${sentCount} email${sentCount > 1 ? "s" : ""} sent)` : ""}. Share join link or code ${org?.invite_code}.`
+      : "Could not send invites. Check that emails are not already on the roster.",
   });
 }

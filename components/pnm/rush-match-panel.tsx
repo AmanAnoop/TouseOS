@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { RefreshCw, Users } from "lucide-react";
 import toast from "react-hot-toast";
 import { Avatar, Badge, Button, Card, CardHeader, EmptyState, ProgressBar } from "@/components/ui";
@@ -111,10 +110,9 @@ export function RushMatchPanel({ orgId, pnm, refreshKey }: RushMatchPanelProps) 
             const member = m.member_profiles;
             if (!member) return null;
             return (
-              <Link
+              <div
                 key={m.id}
-                href={`/roster/${member.id}`}
-                className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-surface-1 transition-colors"
+                className="flex items-start gap-3 p-3 rounded-lg border border-border bg-surface-1/50"
               >
                 <Avatar name={member.full_name} src={member.profile_photo_url ?? undefined} size="md" />
                 <div className="flex-1 min-w-0">
@@ -141,7 +139,7 @@ export function RushMatchPanel({ orgId, pnm, refreshKey }: RushMatchPanelProps) 
                     </p>
                   )}
                 </div>
-              </Link>
+              </div>
             );
           })}
         </div>
