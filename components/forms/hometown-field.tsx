@@ -61,7 +61,6 @@ export function HometownField({
         onChange={(e) => {
           const next = e.target.value;
           setQuery(next);
-          onChange(next);
           scheduleSearch(next);
         }}
         onFocus={() => {
@@ -70,15 +69,16 @@ export function HometownField({
         autoComplete="off"
       />
       {open && suggestions.length > 0 && (
-        <ul className="absolute z-20 mt-1 w-full rounded-lg border border-border bg-background shadow-lg max-h-48 overflow-y-auto">
+        <ul className="ds-autocomplete-list" style={{ top: "100%", marginTop: 0 }}>
           {suggestions.map((s) => (
-            <li key={s.value}>
+            <li key={s.value} role="option">
               <button
                 type="button"
-                className="w-full text-left px-3 py-2 text-sm hover:bg-surface-1"
-                onClick={() => {
-                  setQuery(s.value);
-                  onChange(s.value);
+                className="ds-autocomplete-item"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  setQuery(s.label);
+                  onChange(s.label);
                   setOpen(false);
                 }}
               >

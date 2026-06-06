@@ -12,7 +12,8 @@ import { PageShell } from "@/components/layout/page-shell";
 import {
   formatCurrency, formatDateTime, isGreekOrg, isSportsOrg, isClubOrg,
 } from "@/lib/utils";
-import { getProductId, productLabel } from "@/lib/org-product";
+import { getProductId } from "@/lib/org-product";
+import { userFacingProductName } from "@/lib/user-facing-product";
 import { HealthScoreBadge } from "@/components/dashboard/health-score-badge";
 import { OfficerQuickActions } from "@/components/dashboard/officer-quick-actions";
 import { AttendanceTrendChart } from "@/components/dashboard/attendance-trend-chart";
@@ -81,7 +82,7 @@ export default async function DashboardPage() {
     <PageShell
       title="Dashboard"
       orgName={String(org.name)}
-      breadcrumb={`${productLabel(product)}${!isOfficer ? " · Member view" : ""}`}
+      breadcrumb={`${userFacingProductName(product)}${!isOfficer ? " · Member view" : ""}`}
       showDashboardAccent
       action={isOfficer ? <HealthScoreBadge composite={composite} metricsUsed={metricsUsed} /> : undefined}
     >

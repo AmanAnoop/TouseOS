@@ -85,7 +85,7 @@ export function FeedComposer({ orgId, onPosted }: { orgId: string; onPosted?: ()
   }
 
   return (
-    <Card padding="sm" className="space-y-3">
+    <Card className="space-y-3" padding="md">
       <div className="flex gap-2">
         <button
           type="button"

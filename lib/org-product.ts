@@ -9,6 +9,7 @@ export function getProductId(orgType: string): ProductId {
   return "club";
 }
 
+/** Internal / analytics label — not for authenticated UI chrome. */
 export function productLabel(product: ProductId): string {
   const map: Record<ProductId, string> = {
     greek: "TouseGreek",
@@ -17,6 +18,15 @@ export function productLabel(product: ProductId): string {
     university: "University",
   };
   return map[product];
+}
+
+/** User-facing org type labels (sign-up, onboarding, dashboards). */
+export function userFacingOrgTypeLabel(orgType: string): string {
+  if (orgType === "fraternity") return "Fraternity / Men's Spirit Org";
+  if (orgType === "sorority") return "Sorority / Women's Spirit Org";
+  if (orgType === "club_sports") return "Club Sport";
+  if (orgType === "general_org") return "Student Club / Organization";
+  return "Organization";
 }
 
 export function productHomePath(product: ProductId): string {
@@ -188,7 +198,7 @@ export const GREEK_FEATURE_NAV: NavItemDef[] = [
   { href: "/travel", label: "Travel", products: ["greek"] },
   { href: "/travel/templates", label: "Travel templates", products: ["greek"] },
   { href: "/social", label: "Touse Social", products: ["greek"] },
-  { href: "/social-calendar", label: "Social Calendar", products: ["greek"] },
+  { href: "/social-calendar", label: "Social Media", products: ["greek"] },
   { href: "/social-collab", label: "Collab planner", products: ["greek"] },
   { href: "/social-assets", label: "Asset Library", products: ["greek"] },
   { href: "/risk", label: "Risk Management", products: ["greek"] },
@@ -256,14 +266,14 @@ export function navForProduct(product: ProductId): {
     return {
       core: dedupeByHref(filter(CORE_NAV)),
       feature: filter(SPORTS_FEATURE_NAV),
-      featureSectionTitle: "SportsOS",
+      featureSectionTitle: "Team",
     };
   }
   if (product === "club") {
     return {
       core: dedupeByHref(filter(CORE_NAV)),
       feature: filter(CLUB_FEATURE_NAV),
-      featureSectionTitle: "ClubOS",
+      featureSectionTitle: "Organization",
     };
   }
   return { core: dedupeByHref(filter(CORE_NAV)), feature: [], featureSectionTitle: "" };

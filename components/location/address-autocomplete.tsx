@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { MapPin } from "lucide-react";
-import { Input } from "@/components/ui";
 
 interface Suggestion {
   address: string;
@@ -58,36 +57,44 @@ export function AddressAutocomplete({
   }
 
   return (
-    <div ref={wrapRef} style={{ position: "relative" }}>
-      <Input
-        label={label}
-        icon={<MapPin size={15} />}
-        placeholder={placeholder ?? "Start typing an address…"}
-        value={query}
-        disabled={disabled}
-        onChange={(e) => {
-          setQuery(e.target.value);
-          search(e.target.value);
-        }}
-        onFocus={() => suggestions.length > 0 && setOpen(true)}
-      />
-      {open && suggestions.length > 0 && (
-        <ul
-          className="ds-card"
+    <div ref={wrapRef} className="ds-field">
+      <label className="type-label" htmlFor="address-autocomplete-input">{label}</label>
+      <div style={{ position: "relative" }}>
+        <MapPin
+          size={15}
+          aria-hidden
           style={{
-            position: "absolute", zIndex: 40, top: "100%", left: 0, right: 0,
-            margin: "4px 0 0", padding: 4, listStyle: "none", maxHeight: 220, overflowY: "auto",
+            position: "absolute",
+            left: 12,
+            top: "50%",
+            transform: "translateY(-50%)",
+            opacity: 0.4,
+            pointerEvents: "none",
           }}
-        >
+        />
+        <input
+          id="address-autocomplete-input"
+          className="ds-input"
+          type="text"
+          style={{ paddingLeft: 36 }}
+          placeholder={placeholder ?? "Start typing an address…"}
+          value={query}
+          disabled={disabled}
+          autoComplete="off"
+          onChange={(e) => {
+            setQuery(e.target.value);
+            search(e.target.value);
+          }}
+          onFocus={() => suggestions.length > 0 && setOpen(true)}
+        />
+      </div>
+      {open && suggestions.length > 0 && (
+        <ul className="ds-autocomplete-list" role="listbox">
           {suggestions.map((s) => (
-            <li key={s.address}>
+            <li key={s.address} role="option">
               <button
                 type="button"
-                className="type-small"
-                style={{
-                  width: "100%", textAlign: "left", padding: "10px 12px", minHeight: 44,
-                  border: "none", background: "transparent", cursor: "pointer", borderRadius: 6,
-                }}
+                className="ds-autocomplete-item"
                 onMouseDown={(e) => {
                   e.preventDefault();
                   onSelect({ address: s.address, venueName: s.placeName || venueValue || "" });
@@ -95,8 +102,12 @@ export function AddressAutocomplete({
                   setOpen(false);
                 }}
               >
-                <strong style={{ display: "block" }}>{s.placeName}</strong>
-                <span style={{ color: "var(--color-text-muted)" }}>{s.address}</span>
+                <span style={{ display: "block", fontWeight: 500 }}>{s.placeName || s.address}</span>
+                {s.placeName && (
+                  <span className="type-small" style={{ color: "var(--color-text-secondary)" }}>
+                    {s.address}
+                  </span>
+                )}
               </button>
             </li>
           ))}

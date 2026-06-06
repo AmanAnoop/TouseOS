@@ -19,9 +19,16 @@ export default async function FeedPage() {
   const { orgId, orgName, role } = membership;
   const isOfficer = isDashboardOfficer(role);
 
-  const { timeline } = await loadFeedTimeline(supabase, orgId);
+  const { timeline, events } = await loadFeedTimeline(supabase, orgId);
+  const nonEventTimeline = timeline.filter((item) => item.type !== "event");
 
   return (
-    <FeedPageClient orgId={orgId} orgName={orgName} isOfficer={isOfficer} timeline={timeline} />
+    <FeedPageClient
+      orgId={orgId}
+      orgName={orgName}
+      isOfficer={isOfficer}
+      timeline={nonEventTimeline}
+      upcomingEvents={events as Array<{ id: string; title: string; type?: string; starts_at: string; location?: string | null; address?: string | null }>}
+    />
   );
 }

@@ -143,7 +143,7 @@ export default function RosterPage() {
       <PageHeader
         title={isSportsOrg(orgType) ? "Team Roster" : "Member Roster"}
         description={`${members.length} members`}
-        breadcrumb={isSportsOrg(orgType) ? "SportsOS" : "Organization"}
+        breadcrumb={isSportsOrg(orgType) ? "Team" : "Organization"}
         action={
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" icon={<Upload size={14} />} onClick={() => importRef.current?.click()} loading={importing}>Import CSV</Button>

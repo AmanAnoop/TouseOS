@@ -76,7 +76,9 @@ export default function BigLittlePage() {
     const suggestions: Array<{ big: MemberProfile; little: MemberProfile; score: number }> = [];
 
     for (const little of newMembers.slice(0, 5)) {
-      const scored = bigs.map((big) => ({ big, little, score: computeMatchScore(big, little) }));
+      const scored = bigs
+        .filter((big) => big.id !== little.id)
+        .map((big) => ({ big, little, score: computeMatchScore(big, little) }));
       scored.sort((a, b) => b.score - a.score);
       if (scored.length > 0) suggestions.push(scored[0]);
     }

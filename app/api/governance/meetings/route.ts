@@ -27,7 +27,16 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
-  const { orgId, title, meetingType, scheduledAt, location, agenda, quorumRequired } = body;
+  const {
+    orgId,
+    title,
+    meetingType,
+    scheduledAt,
+    location,
+    agenda,
+    expectedAttendeeGroup,
+    attendeeIds,
+  } = body;
   if (!orgId || !title) {
     return NextResponse.json({ error: "orgId and title required" }, { status: 400 });
   }
@@ -44,18 +53,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const insert: Record<string, unknown> = {
+    org_id: orgId,
+    title,
+    meeting_type: meetingType || "chapter",
+    scheduled_at: scheduledAt || null,
+    location: location || null,
+    agenda: agenda || null,
+    quorum_required: 0,
+    status: "scheduled",
+    expected_attendee_group: expectedAttendeeGroup || "all_members",
+    attendee_ids: Array.isArray(attendeeIds) ? attendeeIds : [],
+  };
+
   const { data, error } = await supabase
     .from("governance_meetings")
-    .insert({
-      org_id: orgId,
-      title,
-      meeting_type: meetingType || "chapter_meeting",
-      scheduled_at: scheduledAt || null,
-      location: location || null,
-      agenda: agenda || null,
-      quorum_required: parseInt(String(quorumRequired ?? "0"), 10) || 0,
-      status: "scheduled",
-    })
+    .insert(insert)
     .select()
     .single();
 
@@ -68,13 +81,12 @@ export async function PATCH(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id, orgId, quorumPresent, minutes } = await request.json();
+  const { id, orgId, minutes } = await request.json();
   if (!id || !orgId) {
     return NextResponse.json({ error: "id and orgId required" }, { status: 400 });
   }
 
   const updates: Record<string, unknown> = {};
-  if (quorumPresent !== undefined) updates.quorum_present = quorumPresent;
   if (minutes !== undefined) updates.minutes = minutes;
 
   const { data, error } = await supabase

@@ -21,7 +21,7 @@ export async function loadFeedTimeline(
       .limit(10),
     supabase
       .from("events")
-      .select("id, title, type, starts_at, cover_image_url")
+      .select("id, title, type, starts_at, cover_image_url, location, address")
       .eq("org_id", orgId)
       .gte("starts_at", new Date().toISOString())
       .order("starts_at")

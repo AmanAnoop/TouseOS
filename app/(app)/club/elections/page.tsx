@@ -162,7 +162,7 @@ export default function ClubElectionsPage() {
   }
 
   if (!loading && orgType && !isClubOrg(orgType)) {
-    return <PageHeader title="Officer elections" description="ClubOS feature for student organizations." />;
+    return <PageHeader title="Officer elections" description="Run officer elections for your student organization." />;
   }
 
   return (

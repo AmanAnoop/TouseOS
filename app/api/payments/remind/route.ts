@@ -14,6 +14,8 @@ export async function POST(request: Request) {
     body: customBody,
     audience = "all_unpaid",
     memberId,
+    memberIds,
+    sendVia = "both",
     includeHardship = true,
     includePaymentPlans = true,
   } = await request.json();
@@ -30,6 +32,10 @@ export async function POST(request: Request) {
 
   if (audience === "individual" && memberId) {
     query = query.eq("member_id", memberId);
+  } else if (audience === "individual" && Array.isArray(memberIds) && memberIds.length > 0) {
+    query = query.in("member_id", memberIds);
+  } else if (audience === "overdue_only") {
+    query = query.eq("status", "overdue");
   }
 
   const { data: payments } = await query;
@@ -75,6 +81,8 @@ export async function POST(request: Request) {
   const serviceSupabase = await createServiceClient();
   let pushSent = 0;
   const emailBodies: string[] = [];
+  const sendInApp = sendVia === "in_app" || sendVia === "both";
+  const sendEmail = sendVia === "email" || sendVia === "both";
 
   for (const p of filtered) {
     const mp = p.member_profiles as { full_name?: string; email?: string } | null;
@@ -85,7 +93,7 @@ export async function POST(request: Request) {
       .eq("org_id", orgId)
       .eq("email", mp.email)
       .maybeSingle();
-    if (profile?.user_id) {
+    if (profile?.user_id && sendInApp) {
       const balance = (Number(p.amount) - Number(p.paid_amount)).toFixed(2);
       const { error } = await createNotification(serviceSupabase, {
         userId: profile.user_id,
@@ -96,13 +104,13 @@ export async function POST(request: Request) {
         link: "/payments",
       });
       if (!error) pushSent++;
-      emailBodies.push(mp.email);
     }
+    if (sendEmail && mp.email) emailBodies.push(mp.email);
   }
 
   const uniqueEmails = [...new Set(emailBodies)];
   let emailsSent = 0;
-  if (uniqueEmails.length > 0) {
+  if (sendEmail && uniqueEmails.length > 0) {
     const result = await sendBulkEmail({
       to: uniqueEmails,
       subject: "Payment reminder from your chapter",

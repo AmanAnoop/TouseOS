@@ -7,15 +7,15 @@ import { Download, DollarSign, Plus, Send } from "lucide-react";
 import toast from "react-hot-toast";
 import {
   Button, Card, CardHeader, EmptyState,
-  Input, Modal, PageHeader, ProgressBar, Select,
+  Input, Modal, PageHeader, Select,
 } from "@/components/ui";
-import { formatCurrency, downloadCsv } from "@/lib/utils";
+import { downloadCsv } from "@/lib/utils";
 import { PaymentStats } from "@/components/payments/payment-stats";
 import { PaymentList, type PaymentWithMember } from "@/components/payments/payment-list";
 import type { MemberProfile } from "@/types";
 import { PaymentDetailModal } from "@/components/payments/payment-detail-modal";
-import { MemberBalancesPanel, computeMemberBalances } from "@/components/payments/member-balances-panel";
-import { TreasurerDashboard } from "@/components/payments/treasurer-dashboard";
+import { MemberDuesTable, buildMemberDuesRows } from "@/components/payments/member-dues-table";
+import { DuesSummarySidebar } from "@/components/payments/dues-summary-sidebar";
 import { HardshipReviewPanel } from "@/components/payments/hardship-review-panel";
 import { StripeDestinationBanner } from "@/components/payments/stripe-destination-banner";
 import { StripeReconciliationPanel } from "@/components/payments/stripe-reconciliation-panel";
@@ -30,7 +30,6 @@ export default function PaymentsPage() {
   const [planCount, setPlanCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [myMemberId, setMyMemberId] = useState<string | null>(null);
-  const [filter, setFilter] = useState("all");
   const [createOpen, setCreateOpen] = useState(false);
   const [charge, setCharge] = useState({ title: "", amount: "", category: "dues", dueDate: "", lateFee: "", recurring: false, recurringInterval: "semesterly" });
   const [manualOpen, setManualOpen] = useState(false);
@@ -77,13 +76,10 @@ export default function PaymentsPage() {
     ? payments
     : payments.filter((p) => p.member_id === myMemberId);
 
-  const filtered = visiblePayments.filter((p) => filter === "all" || p.status === filter);
-
   const totalExpected = visiblePayments.reduce((s, p) => s + Number(p.amount), 0);
   const totalCollected = visiblePayments.reduce((s, p) => s + Number(p.paid_amount), 0);
   const overdue = visiblePayments.filter((p) => p.status === "overdue");
   const pending = visiblePayments.filter((p) => p.status === "pending");
-  const collectionRate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
 
   async function createCharge() {
     if (!orgId || !charge.title || !charge.amount) return;
@@ -136,7 +132,7 @@ export default function PaymentsPage() {
   }
 
   function exportPayments() {
-    downloadCsv("payments.csv", filtered.map((p) => ({
+    downloadCsv("payments.csv", visiblePayments.map((p) => ({
       Member: p.member_profiles?.full_name ?? "—",
       Email: p.member_profiles?.email ?? "—",
       Amount: p.amount,
@@ -173,7 +169,7 @@ export default function PaymentsPage() {
             <a href="/payments/hardship">
               <Button variant="secondary" size="sm">Hardship request</Button>
             </a>
-            <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={exportPayments}>
+            <Button variant="ghost" size="sm" icon={<Download size={14} />} onClick={exportPayments}>
               Export
             </Button>
             {can(myRole, "manage_budget") && (
@@ -198,69 +194,55 @@ export default function PaymentsPage() {
         </Card>
       )}
 
-      {canManage && (
-        <>
-          <TreasurerDashboard payments={payments} planCount={planCount} />
-          <MemberBalancesPanel rows={computeMemberBalances(members, payments)} />
-          <HardshipReviewPanel orgId={orgId} />
-        </>
-      )}
+      {canManage && <HardshipReviewPanel orgId={orgId} />}
 
-      <PaymentStats
-        totalExpected={totalExpected}
-        totalCollected={totalCollected}
-        pendingCount={pending.length}
-        overdueCount={overdue.length}
-      />
-
-      <Card>
-        <CardHeader title="Collection progress" />
-        <ProgressBar
-          value={collectionRate}
-          label={`${formatCurrency(totalCollected)} of ${formatCurrency(totalExpected)}`}
-          color={collectionRate >= 75 ? "green" : collectionRate >= 50 ? "yellow" : "red"}
-          size="md"
-        />
-      </Card>
-
-      {/* Filter */}
-      <div className="flex gap-2">
-        {["all","pending","overdue","paid","failed"].map((s) => (
-          <button
-            key={s}
-            onClick={() => setFilter(s)}
-            className={`px-3 py-1.5 text-sm rounded-full font-medium transition-colors ${filter === s ? "bg-greek-600 text-white" : "bg-surface-1 text-muted-foreground hover:text-foreground"}`}
-          >
-            {s.charAt(0).toUpperCase() + s.slice(1)}
-            {s !== "all" && (
-              <span className="ml-1 text-xs opacity-70">
-                ({visiblePayments.filter((p) => p.status === s).length})
-              </span>
+      {canViewAll ? (
+        <div className="ds-payments-layout">
+          <Card>
+            <CardHeader title="Member dues" description={`${planCount} active payment plan${planCount !== 1 ? "s" : ""}`} />
+            {loading ? (
+              <PaymentList payments={[]} loading />
+            ) : (
+              <MemberDuesTable
+                rows={buildMemberDuesRows(members, visiblePayments)}
+                onSelectMember={(memberId) => {
+                  const payment = visiblePayments.find((p) => p.member_id === memberId);
+                  if (payment) setSelectedPayment(payment);
+                }}
+              />
             )}
-          </button>
-        ))}
-      </div>
-
-      {/* Payments list */}
-      {loading ? (
-        <PaymentList payments={[]} loading />
-      ) : filtered.length === 0 ? (
-        <EmptyState icon={<DollarSign size={24} />} title="No payments" description="Create a charge to get started." action={canManage ? <Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>New charge</Button> : undefined} />
+          </Card>
+          <DuesSummarySidebar payments={visiblePayments} />
+        </div>
       ) : (
-        <PaymentList
-          payments={filtered}
-          onSelect={(p) => setSelectedPayment(p)}
-          onCopyParentLink={copyParentLink}
-          onPayStripe={async (p) => {
-            const res = await fetch("/api/stripe/checkout", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ paymentId: p.id, email: p.member_profiles?.email }),
-            });
-            const { url } = await res.json();
-            if (url) window.open(url, "_blank");
-          }}
-        />
+        <>
+          <PaymentStats
+            totalExpected={totalExpected}
+            totalCollected={totalCollected}
+            pendingCount={pending.length}
+            overdueCount={overdue.length}
+          />
+          {loading ? (
+            <PaymentList payments={[]} loading />
+          ) : visiblePayments.length === 0 ? (
+            <EmptyState icon={<DollarSign size={24} />} title="No payments" description="Your payment history will appear here." />
+          ) : (
+            <PaymentList
+              payments={visiblePayments}
+              onSelect={(p) => setSelectedPayment(p)}
+              onCopyParentLink={copyParentLink}
+              onPayStripe={async (p) => {
+                const res = await fetch("/api/stripe/checkout", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ paymentId: p.id, email: p.member_profiles?.email }),
+                });
+                const { url } = await res.json();
+                if (url) window.open(url, "_blank");
+              }}
+            />
+          )}
+        </>
       )}
 
       {/* Create charge modal */}
@@ -365,15 +347,6 @@ export default function PaymentsPage() {
         payment={selectedPayment}
         canManage={canManage}
         onRefresh={() => orgId && loadPayments(orgId)}
-      />
-
-      <ReminderComposerModal
-        open={reminderOpen}
-        onClose={() => setReminderOpen(false)}
-        orgId={orgId}
-        payments={payments}
-        members={members}
-        onSent={() => orgId && loadPayments(orgId)}
       />
 
       <ReminderComposerModal
