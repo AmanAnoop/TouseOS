@@ -59,7 +59,7 @@ export async function PATCH(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id, chatMessage, task, taskToggle, budgetLine, guest, riskItem, senderName } = await request.json();
+  const { id, chatMessage, task, taskToggle, budgetLine, guest, riskItem, sharedDocument, senderName } = await request.json();
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
   const { data: ws } = await supabase.from("interchapter_workspaces").select("*").eq("id", id).single();
@@ -120,6 +120,19 @@ export async function PATCH(request: Request) {
   }
   if (riskItem) {
     updates.risk_checklist = { ...(ws.risk_checklist as object ?? {}), ...riskItem };
+  }
+  if (sharedDocument) {
+    const docs = (ws.shared_documents as unknown[]) ?? [];
+    updates.shared_documents = [
+      ...docs,
+      {
+        id: crypto.randomUUID(),
+        title: String(sharedDocument.title ?? "Document"),
+        url: String(sharedDocument.url ?? ""),
+        uploaded_by: senderName ?? "Officer",
+        created_at: new Date().toISOString(),
+      },
+    ];
   }
 
   const { data, error } = await supabase.from("interchapter_workspaces").update(updates).eq("id", id).select().single();

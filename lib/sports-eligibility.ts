@@ -4,6 +4,7 @@ export type EligibilityIssue =
   | "dues_overdue"
   | "waivers_incomplete"
   | "low_attendance"
+  | "low_points"
   | "travel_waiver_missing";
 
 export interface MemberEligibilityInput {
@@ -13,6 +14,8 @@ export interface MemberEligibilityInput {
   isInjured?: boolean;
   completedWaiverTypes?: string[];
   requiredWaiverTypes?: string[];
+  pointsTotal?: number;
+  pointsMin?: number;
 }
 
 const DEFAULT_REQUIRED_WAIVERS: string[] = [
@@ -23,7 +26,7 @@ const DEFAULT_REQUIRED_WAIVERS: string[] = [
 
 export function assessMemberEligibility(
   input: MemberEligibilityInput,
-  opts?: { minAttendancePercent?: number; requireTravelWaiver?: boolean },
+  opts?: { minAttendancePercent?: number; requireTravelWaiver?: boolean; requirePoints?: boolean },
 ): { eligible: boolean; issues: EligibilityIssue[] } {
   const minAttendance = opts?.minAttendancePercent ?? 70;
   const required: string[] = input.requiredWaiverTypes
@@ -46,6 +49,9 @@ export function assessMemberEligibility(
   if (opts?.requireTravelWaiver && !completed.has("travel_authorization")) {
     issues.push("travel_waiver_missing");
   }
+  if (opts?.requirePoints && input.pointsMin != null && (input.pointsTotal ?? 0) < input.pointsMin) {
+    issues.push("low_points");
+  }
 
   return { eligible: issues.length === 0, issues };
 }
@@ -58,6 +64,7 @@ export function eligibilityIssueLabel(issue: EligibilityIssue): string {
     waivers_incomplete: "Waivers incomplete",
     low_attendance: "Below attendance minimum",
     travel_waiver_missing: "Travel waiver missing",
+    low_points: "Below attendance points minimum",
   };
   return map[issue];
 }

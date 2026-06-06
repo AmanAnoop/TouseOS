@@ -42,9 +42,16 @@ export async function GET(request: Request) {
   const progress = progressRes.data ?? [];
   const completedIds = new Set(progress.filter((p) => p.completed).map((p) => String(p.module_id)));
 
+  const modules = modulesRes.data ?? [];
+  const required = modules.filter((m) => m.is_required);
+  const requiredComplete = required.filter((m) => completedIds.has(String(m.id))).length;
+
   return NextResponse.json({
-    modules: modulesRes.data ?? [],
+    modules,
     progress,
     completedModuleIds: Array.from(completedIds),
+    requiredTotal: required.length,
+    requiredComplete,
+    allRequiredDone: required.length === 0 || requiredComplete >= required.length,
   });
 }

@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/sync-stripe-connect",
       "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/tasks-due-soon",
+      "schedule": "0 8 * * *"
     }
   ]
 }

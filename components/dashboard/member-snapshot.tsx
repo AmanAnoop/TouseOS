@@ -7,6 +7,7 @@ import {
   User,
 } from "lucide-react";
 import { Card, CardHeader, Badge, EmptyState } from "@/components/ui";
+import { NmeProgressBanner } from "@/components/nme/nme-progress-banner";
 import { formatDateTime } from "@/lib/utils";
 import type { Event, MemberProfile, Task } from "@/types";
 
@@ -24,7 +25,9 @@ export function MemberSnapshot({ profile, events, myTasks }: MemberSnapshotProps
     profile.forms_completed >= profile.forms_required;
 
   return (
-    <div className="grid lg:grid-cols-3 gap-4">
+    <div className="space-y-4">
+      {profile?.org_id && <NmeProgressBanner orgId={profile.org_id} />}
+      <div className="grid lg:grid-cols-3 gap-4">
       <Card>
         <CardHeader title="Your status" icon={<User size={16} />} action={<Link href="/profile" className="text-xs text-greek-600 hover:underline">Profile</Link>} />
         {!profile ? (
@@ -107,6 +110,7 @@ export function MemberSnapshot({ profile, events, myTasks }: MemberSnapshotProps
           </div>
         )}
       </Card>
+      </div>
     </div>
   );
 }

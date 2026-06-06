@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { can, type RoleName } from "@/lib/permissions";
 import { getProductId } from "@/lib/org-product";
+import { getPointsEligibilityMin } from "@/lib/attendance-points";
 import { computeTravelReadiness } from "@/lib/sports-travel-readiness";
 
 export async function GET(
@@ -38,12 +39,22 @@ export async function GET(
 
   if (error || !trip) return NextResponse.json({ error: "Trip not found" }, { status: 404 });
 
-  const [costsRes, rosterRes, membersRes, waiversRes] = await Promise.all([
+  const [costsRes, rosterRes, membersRes, waiversRes, pointsRes, pointsMin] = await Promise.all([
     supabase.from("sports_trip_costs").select("*").eq("trip_id", tripId),
     supabase.from("sports_travel_roster").select("*, member_profiles(id, full_name, membership_status, payment_status, attendance_rate, is_injured)").eq("trip_id", tripId),
     supabase.from("member_profiles").select("id, full_name, membership_status, payment_status, attendance_rate, is_injured").eq("org_id", orgId).eq("membership_status", "active"),
     supabase.from("sports_waivers").select("member_id, waiver_type, status").eq("org_id", orgId).eq("status", "completed"),
+    supabase.from("member_point_entries").select("member_id, points, entry_type").eq("org_id", orgId),
+    getPointsEligibilityMin(supabase, orgId),
   ]);
+
+  const pointsByMember = new Map<string, number>();
+  for (const row of pointsRes.data ?? []) {
+    const mid = String(row.member_id);
+    const pts = Number(row.points ?? 0);
+    const delta = row.entry_type === "deduction" ? -pts : pts;
+    pointsByMember.set(mid, (pointsByMember.get(mid) ?? 0) + delta);
+  }
 
   const waiversByMember = new Map<string, string[]>();
   for (const w of waiversRes.data ?? []) {
@@ -72,7 +83,9 @@ export async function GET(
       attendance_rate: Number(mem.attendance_rate ?? 0),
       is_injured: Boolean(mem.is_injured),
       completedWaiverTypes: waiversByMember.get(String(mem.id)) ?? [],
+      pointsTotal: pointsByMember.get(String(mem.id)) ?? 0,
     })),
+    pointsMin,
   });
 
   return NextResponse.json({

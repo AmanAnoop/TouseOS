@@ -20,7 +20,9 @@ export interface TravelReadinessInput {
     attendance_rate: number;
     is_injured?: boolean;
     completedWaiverTypes: string[];
+    pointsTotal?: number;
   }>;
+  pointsMin?: number;
 }
 
 export interface TravelReadinessResult {
@@ -39,8 +41,10 @@ export function computeTravelReadiness(input: TravelReadinessInput): TravelReadi
           attendanceRate: Number(m.attendance_rate ?? 0),
           isInjured: m.is_injured,
           completedWaiverTypes: m.completedWaiverTypes,
+          pointsTotal: m.pointsTotal,
+          pointsMin: input.pointsMin,
         },
-        { requireTravelWaiver: true },
+        { requireTravelWaiver: true, requirePoints: input.pointsMin != null && input.pointsMin > 0 },
       );
       return eligible ? null : { memberId: m.id, name: m.full_name, issues };
     })

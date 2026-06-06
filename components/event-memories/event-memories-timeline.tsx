@@ -46,7 +46,7 @@ export function EventMemoriesTimeline({
                 <div className="flex items-center gap-2">
                   <EventRecapButton orgId={orgId} eventId={event.id} eventTitle={event.title} />
                   {event.album && (
-                    <Link href="/social" className="flex items-center gap-1 text-xs text-greek-600 hover:underline">
+                    <Link href={`/social?albumId=${event.album.id}`} className="flex items-center gap-1 text-xs text-greek-600 hover:underline">
                       <ImageIcon size={12} aria-hidden />
                       Album
                     </Link>

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
-  BarChart2, Download, FileText,
+  BarChart2, Download, ExternalLink, FileText,
 } from "lucide-react";
 import {
   Badge, Button, Card, CardHeader, PageHeader, Select, Tabs,
@@ -209,6 +210,12 @@ downloadCsv(`${orgName}-semester-rewind.csv`, [{
   const isGreek = orgType === "fraternity" || orgType === "sorority";
   const isSports = orgType === "club_sports";
 
+  const PREVIEW_REPORTS = [
+    { id: "roster", label: "Roster preview", description: "Browse active members before exporting" },
+    { id: "unpaid-balances", label: "Unpaid balances", description: "Pending and overdue payment records" },
+    { id: "nme-progress", label: "NME progress", description: "Required module completion by member" },
+  ];
+
   const REPORTS = {
     core: [
       { id: "roster", label: "Roster report", description: "Full member directory with all profile fields, status, and payment info" },
@@ -246,7 +253,23 @@ downloadCsv(`${orgName}-semester-rewind.csv`, [{
         <Alert type="warning" title="Limited access" description="Officer or advisor roles can export chapter reports. You can still view your own profile data in Account." />
       )}
 
-
+      {canViewReports && (
+        <div className="grid sm:grid-cols-3 gap-3">
+          {PREVIEW_REPORTS.map((report) => (
+            <Link key={report.id} href={`/reports/${report.id}`}>
+              <Card padding="sm" className="h-full hover:border-greek-300 transition-colors cursor-pointer">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-medium text-sm">{report.label}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{report.description}</p>
+                  </div>
+                  <ExternalLink size={14} className="text-greek-600 flex-shrink-0 mt-0.5" />
+                </div>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      )}
 
       <Card>
         <CardHeader title="Generate report" icon={<BarChart2 size={16} />} />

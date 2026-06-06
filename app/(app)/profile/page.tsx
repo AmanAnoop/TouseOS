@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useOrg } from "@/hooks/use-org";
 import { PageHeader, Tabs } from "@/components/ui";
 import type { MemberProfile } from "@/types";
+import { NmeProgressBanner } from "@/components/nme/nme-progress-banner";
 import { ProfileHeader } from "@/components/profile/profile-header";
 import { ProfileForm } from "@/components/profile/profile-form";
 import { PrivacySettings } from "@/components/profile/privacy-settings";
@@ -256,6 +257,8 @@ export default function ProfilePage() {
   return (
     <div className="space-y-5 max-w-2xl mx-auto">
       <PageHeader title="My Profile" description="Manage your personal information and privacy settings" />
+
+      {orgId && <NmeProgressBanner orgId={orgId} />}
 
       <ProfileHeader
         fullName={memberProfile?.full_name ?? "You"}

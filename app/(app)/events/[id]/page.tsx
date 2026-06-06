@@ -24,9 +24,10 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [eventRes, rsvpRes] = await Promise.all([
+  const [eventRes, rsvpRes, albumRes] = await Promise.all([
     supabase.from("events").select("*").eq("id", id).single(),
     supabase.from("event_rsvps").select("id, status, member_id, guest_name, checked_in").eq("event_id", id),
+    supabase.from("photo_albums").select("id").eq("event_id", id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
 
   if (eventRes.error || !eventRes.data) notFound();
@@ -118,6 +119,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
               eventId={id}
               eventTitle={String(event.title)}
               isPast={isPast}
+              albumId={albumRes.data?.id ?? null}
             />
           )}
 

@@ -37,6 +37,15 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
     primaryColor: REGAL_PRIMARY,
     secondaryColor: REGAL_SECONDARY,
   });
+  const [joinedOrgId, setJoinedOrgId] = useState<string | null>(null);
+  const [profileForm, setProfileForm] = useState({
+    phone: "",
+    classYear: "",
+    major: "",
+    hometown: "",
+    emergencyContactName: "",
+    emergencyContactPhone: "",
+  });
 
   async function createOrg() {
     if (!orgType || !form.name.trim()) {
@@ -97,9 +106,36 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
     toast.success(`Joined ${data.org?.name ?? "organization"}!`);
     if (data.org?.id) {
       document.cookie = `touse_active_org_id=${data.org.id}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
+      setJoinedOrgId(data.org.id);
+    }
+    if (data.needsProfile) {
+      setStep(5);
+      return;
     }
     router.push(data.redirectTo ?? "/home");
     router.refresh();
+  }
+
+  async function completeProfile() {
+    if (!joinedOrgId) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/onboarding/complete-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orgId: joinedOrgId, ...profileForm }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data.error ?? "Failed to save profile");
+        return;
+      }
+      toast.success("Profile saved!");
+      router.push("/home");
+      router.refresh();
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -209,6 +245,25 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
           <div className="flex gap-2">
             <Button variant="secondary" onClick={() => setStep(1)} className="flex-1">Back</Button>
             <Button onClick={joinByCode} loading={loading} className="flex-1">Join</Button>
+          </div>
+        </div>
+      )}
+
+      {step === 5 && (
+        <div className="space-y-4">
+          <h2 className="text-xl font-bold">Complete your profile</h2>
+          <p className="text-sm text-muted-foreground">Help your officers reach you and keep chapter records up to date.</p>
+          <Input label="Phone" value={profileForm.phone} onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })} placeholder="(555) 123-4567" />
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Input label="Class year" value={profileForm.classYear} onChange={(e) => setProfileForm({ ...profileForm, classYear: e.target.value })} placeholder="Sophomore" />
+            <Input label="Major" value={profileForm.major} onChange={(e) => setProfileForm({ ...profileForm, major: e.target.value })} placeholder="Business" />
+          </div>
+          <Input label="Hometown" value={profileForm.hometown} onChange={(e) => setProfileForm({ ...profileForm, hometown: e.target.value })} placeholder="Austin, TX" />
+          <Input label="Emergency contact name" value={profileForm.emergencyContactName} onChange={(e) => setProfileForm({ ...profileForm, emergencyContactName: e.target.value })} />
+          <Input label="Emergency contact phone" value={profileForm.emergencyContactPhone} onChange={(e) => setProfileForm({ ...profileForm, emergencyContactPhone: e.target.value })} />
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => { router.push("/home"); router.refresh(); }} className="flex-1">Skip for now</Button>
+            <Button onClick={completeProfile} loading={loading} className="flex-1">Save & continue</Button>
           </div>
         </div>
       )}
