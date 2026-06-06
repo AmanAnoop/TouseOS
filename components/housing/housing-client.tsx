@@ -72,6 +72,21 @@ export function HousingClient() {
     name: "", roleLabel: "", category: "general", phone: "", email: "", notes: "",
   });
   const [chargingRent, setChargingRent] = useState(false);
+  const [rentOpen, setRentOpen] = useState(false);
+  const [rentDueDate, setRentDueDate] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 1);
+    d.setDate(1);
+    return d.toISOString().slice(0, 10);
+  });
+
+  const CONTACT_STARTERS = [
+    { name: "House manager", roleLabel: "On-call", category: "general" },
+    { name: "Chapter landlord", roleLabel: "Lease contact", category: "landlord" },
+    { name: "Campus facilities", roleLabel: "After-hours", category: "campus" },
+    { name: "Preferred plumber", roleLabel: "Emergency", category: "plumber" },
+    { name: "HVAC service", roleLabel: "Maintenance", category: "hvac" },
+  ] as const;
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
@@ -246,10 +261,11 @@ export function HousingClient() {
   async function createRentCharges() {
     if (!orgId) return;
     setChargingRent(true);
+    const monthLabel = new Date(`${rentDueDate}T12:00:00`).toLocaleString("en-US", { month: "long", year: "numeric" });
     const res = await fetch("/api/housing/rent-charges", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orgId }),
+      body: JSON.stringify({ orgId, dueDate: rentDueDate, monthLabel }),
     });
     setChargingRent(false);
     const data = await res.json();
@@ -262,7 +278,21 @@ export function HousingClient() {
     } else {
       toast.success(data.message ?? `Created ${data.created} rent charge(s)`);
     }
+    setRentOpen(false);
     load(orgId);
+  }
+
+  function applyContactStarter(starter: typeof CONTACT_STARTERS[number]) {
+    setEditContact(null);
+    setContactForm({
+      name: starter.name,
+      roleLabel: starter.roleLabel,
+      category: starter.category,
+      phone: "",
+      email: "",
+      notes: "",
+    });
+    setContactOpen(true);
   }
 
   return (
@@ -271,22 +301,36 @@ export function HousingClient() {
         title="Housing"
         description="Room assignments, maintenance requests, and house management"
         action={
-          <div className="flex gap-2 flex-wrap">
-            <Link href="/payments"><Button size="sm" variant="secondary">Payments</Button></Link>
-            <Link href="/budget"><Button size="sm" variant="secondary">Budget</Button></Link>
-            {assignments.length > 0 && totalRent > 0 && (
-              <Button size="sm" variant="secondary" loading={chargingRent} onClick={createRentCharges}>
-                Post monthly rent
-              </Button>
-            )}
+          <div className="flex flex-col gap-2 sm:items-end">
+            <div className="flex gap-2 flex-wrap justify-end">
+              <span className="text-xs text-muted-foreground self-center mr-1 hidden sm:inline">Billing</span>
+              <Link href="/payments"><Button size="sm" variant="secondary">Payments</Button></Link>
+              <Link href="/budget"><Button size="sm" variant="secondary">Budget</Button></Link>
+              {canManageHousing && assignments.length > 0 && totalRent > 0 && (
+                <Button size="sm" variant="secondary" onClick={() => setRentOpen(true)}>
+                  Post monthly rent
+                </Button>
+              )}
+            </div>
             {canManageHousing && (
-              <Button size="sm" icon={<Plus size={14} />} onClick={() => setRoomOpen(true)}>
-                Add room
-              </Button>
+              <div className="flex gap-2 flex-wrap justify-end">
+                <span className="text-xs text-muted-foreground self-center mr-1 hidden sm:inline">House</span>
+                <Button size="sm" icon={<Plus size={14} />} onClick={() => setRoomOpen(true)}>
+                  Add room
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    setEditContact(null);
+                    setContactForm({ name: "", roleLabel: "", category: "general", phone: "", email: "", notes: "" });
+                    setContactOpen(true);
+                  }}
+                >
+                  Add contact
+                </Button>
+              </div>
             )}
-            <Button size="sm" variant="secondary" onClick={() => { setEditContact(null); setContactForm({ name: "", roleLabel: "", category: "general", phone: "", email: "", notes: "" }); setContactOpen(true); }}>
-              Add contact
-            </Button>
           </div>
         }
       />
@@ -390,8 +434,22 @@ export function HousingClient() {
 
       <Card>
         <CardHeader title="Local contacts" description="House manager, plumber, landlord, campus facilities" />
+        {canManageHousing && contacts.length === 0 && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            {CONTACT_STARTERS.map((starter) => (
+              <Button key={starter.name} size="sm" variant="secondary" onClick={() => applyContactStarter(starter)}>
+                + {starter.name}
+              </Button>
+            ))}
+          </div>
+        )}
         {contacts.length === 0 ? (
-          <EmptyState title="No contacts yet" description="Add contacts your chapter uses for housing emergencies and repairs." />
+          <EmptyState
+            title="No contacts yet"
+            description={canManageHousing
+              ? "Add contacts your chapter uses for housing emergencies and repairs."
+              : "Housing officers maintain emergency contacts for the chapter house."}
+          />
         ) : (
           <div className="space-y-2">
             {contacts.map((c) => (
@@ -477,6 +535,25 @@ export function HousingClient() {
               { value: "urgent", label: "Urgent" },
             ]}
           />
+        </div>
+      </Modal>
+
+      <Modal open={rentOpen} onClose={() => setRentOpen(false)} title="Post monthly rent charges" footer={
+        <>
+          <Button variant="secondary" onClick={() => setRentOpen(false)}>Cancel</Button>
+          <Button loading={chargingRent} onClick={createRentCharges}>Create charges</Button>
+        </>
+      }>
+        <div className="space-y-3">
+          <Input
+            label="Rent due date"
+            type="date"
+            value={rentDueDate}
+            onChange={(e) => setRentDueDate(e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">
+            Creates one charge per assigned member based on room rent. Charges appear under Housing on Payments and Budget.
+          </p>
         </div>
       </Modal>
 

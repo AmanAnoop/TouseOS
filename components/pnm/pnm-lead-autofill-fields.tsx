@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import { Select } from "@/components/ui";
 import { SearchableCombobox } from "@/components/ui/searchable-combobox";
 import { HometownField } from "@/components/forms/hometown-field";
-import { CLASS_YEAR_OPTIONS, MAJOR_COMBOBOX_OPTIONS } from "@/lib/academic-fields";
+import { CLASS_YEAR_OPTIONS } from "@/lib/academic-fields";
+import { majorsForUniversity } from "@/lib/university-majors";
 import { REFERRAL_SOURCE_OPTIONS } from "@/lib/pnm-config";
 import { Avatar } from "@/components/ui";
 
@@ -20,9 +21,11 @@ interface PnmLeadAutofillFieldsProps {
   values: PnmLeadAutofillValues;
   onChange: (patch: Partial<PnmLeadAutofillValues>) => void;
   members: Array<{ id: string; full_name: string; profile_photo_url?: string | null }>;
+  universityId?: string | null;
 }
 
-export function PnmLeadAutofillFields({ values, onChange, members }: PnmLeadAutofillFieldsProps) {
+export function PnmLeadAutofillFields({ values, onChange, members, universityId }: PnmLeadAutofillFieldsProps) {
+  const majorOptions = majorsForUniversity(universityId);
   const [memberSearch, setMemberSearch] = useState("");
 
   const referralOptions = useMemo(
@@ -54,7 +57,7 @@ export function PnmLeadAutofillFields({ values, onChange, members }: PnmLeadAuto
       <SearchableCombobox
         label="Major"
         value={values.major}
-        options={MAJOR_COMBOBOX_OPTIONS}
+        options={majorOptions}
         onChange={(major) => onChange({ major })}
         placeholder="Search majors…"
         strict

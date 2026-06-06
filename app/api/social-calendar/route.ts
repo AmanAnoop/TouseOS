@@ -41,7 +41,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
-  const { orgId, title, caption, scheduledDate, postType, status } = body;
+  const { orgId, title, caption, scheduledDate, postType, status, photoIds } = body;
   if (!orgId || !title) {
     return NextResponse.json({ error: "orgId and title required" }, { status: 400 });
   }
@@ -59,6 +59,7 @@ export async function POST(request: Request) {
     post_type: postType ?? "feed",
     status: status ?? "draft",
     platform: ["instagram"],
+    photo_ids: Array.isArray(photoIds) ? photoIds : [],
   }).select().single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -70,12 +71,12 @@ export async function PATCH(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id, orgId, status, scheduledDate } = await request.json();
+  const { id, orgId, status, scheduledDate, photoIds } = await request.json();
   if (!id || !orgId) {
     return NextResponse.json({ error: "id and orgId required" }, { status: 400 });
   }
-  if (!status && scheduledDate === undefined) {
-    return NextResponse.json({ error: "status or scheduledDate required" }, { status: 400 });
+  if (!status && scheduledDate === undefined && photoIds === undefined) {
+    return NextResponse.json({ error: "status, scheduledDate, or photoIds required" }, { status: 400 });
   }
 
   const role = await roleForOrg(supabase, user.id, orgId);
@@ -86,6 +87,7 @@ export async function PATCH(request: Request) {
   const updates: Record<string, unknown> = {};
   if (status !== undefined) updates.status = status;
   if (scheduledDate !== undefined) updates.scheduled_date = scheduledDate || null;
+  if (photoIds !== undefined) updates.photo_ids = Array.isArray(photoIds) ? photoIds : [];
 
   const { data, error } = await supabase
     .from("social_calendar")

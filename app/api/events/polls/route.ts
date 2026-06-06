@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { can, type RoleName } from "@/lib/permissions";
 
 async function roleForOrg(
@@ -15,6 +15,17 @@ async function roleForOrg(
     .neq("status", "removed")
     .maybeSingle();
   return String(data?.role ?? "general_member") as RoleName;
+}
+
+async function writeClient() {
+  try {
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return await createServiceClient();
+    }
+  } catch {
+    /* fall through */
+  }
+  return null;
 }
 
 export async function GET(request: Request) {
@@ -61,14 +72,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "At least two options required" }, { status: 400 });
   }
 
-  const { data, error } = await supabase
+  const payload = {
+    event_id: eventId,
+    question: question.trim(),
+    options: opts,
+    votes: {},
+  };
+
+  const db = (await writeClient()) ?? supabase;
+  const { data, error } = await db
     .from("event_polls")
-    .insert({
-      event_id: eventId,
-      question: question.trim(),
-      options: opts,
-      votes: {},
-    })
+    .insert(payload)
     .select()
     .single();
 
@@ -108,7 +122,8 @@ export async function PATCH(request: Request) {
   const key = String(optionIndex);
   votes[key] = (votes[key] ?? 0) + 1;
 
-  const { data, error } = await supabase
+  const db = (await writeClient()) ?? supabase;
+  const { data, error } = await db
     .from("event_polls")
     .update({ votes })
     .eq("id", pollId)

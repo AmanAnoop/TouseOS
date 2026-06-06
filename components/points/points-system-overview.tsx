@@ -60,8 +60,8 @@ export function PointsSystemOverview({
 
   return (
     <div className="ds-page-stack">
-      <section>
-        <h2 className="type-h2" style={{ marginBottom: 16 }}>How it works</h2>
+      <section className="points-overview-section">
+        <h2 className="type-h2">How it works</h2>
         <div className="grid md:grid-cols-3 gap-4">
           {howItWorks.map((card) => (
             <Card key={card.label}>
@@ -73,8 +73,8 @@ export function PointsSystemOverview({
         </div>
       </section>
 
-      <section>
-        <h2 className="type-h2" style={{ marginBottom: 16 }}>Top members</h2>
+      <section className="points-overview-section">
+        <h2 className="type-h2">Top members</h2>
         <Card padding="none">
           {leaderboard.length === 0 ? (
             <EmptyState icon={<Trophy size={20} />} title="No standings yet" />

@@ -64,6 +64,7 @@ export default function ProfilePage() {
     maxAge: "30",
   });
   const [gmPhotos, setGmPhotos] = useState<string[]>([]);
+  const [universityId, setUniversityId] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -75,11 +76,21 @@ export default function ProfilePage() {
         ? supabase.from("member_profiles").select("*").eq("user_id", user.id).eq("org_id", orgId).maybeSingle()
         : supabase.from("member_profiles").select("*").eq("user_id", user.id).limit(1).maybeSingle();
 
-      const [mpRes, rolesRes, gmRes] = await Promise.all([
+      const orgSettingsQuery = orgId
+        ? supabase.from("organizations").select("settings").eq("id", orgId).maybeSingle()
+        : Promise.resolve({ data: null });
+
+      const [mpRes, rolesRes, gmRes, orgRes] = await Promise.all([
         profileQuery,
         supabase.from("org_members").select("org_id, role, organizations(name, type)").eq("user_id", user.id).neq("status", "removed"),
         supabase.from("greekmatch_profiles").select("*").eq("user_id", user.id).maybeSingle(),
+        orgSettingsQuery,
       ]);
+
+      if (orgRes.data?.settings) {
+        const settings = orgRes.data.settings as Record<string, unknown>;
+        setUniversityId(typeof settings.university_id === "string" ? settings.university_id : null);
+      }
 
       if (mpRes.data) {
         const mp = mpRes.data as MemberProfile & { bio?: string; pronouns?: string; interests?: string[]; instagram_url?: string; linkedin_url?: string; twitter_url?: string; profile_visibility?: string };
@@ -284,6 +295,7 @@ export default function ProfilePage() {
         <ProfileForm
           form={form}
           saving={saving}
+          universityId={universityId}
           onChange={(updates) => setForm({ ...form, ...updates })}
           onToggleInterest={toggleInterest}
           onSave={saveProfile}

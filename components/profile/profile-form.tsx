@@ -1,8 +1,9 @@
 "use client";
 
 import { ExternalLink, Lock, Save } from "lucide-react";
-import { Button, Card, CardHeader, Input, Textarea } from "@/components/ui";
+import { Button, Card, CardHeader, Input, Select, Textarea } from "@/components/ui";
 import { AcademicProfileFields } from "@/components/profile/academic-profile-fields";
+import { GRAD_YEAR_OPTIONS } from "@/lib/academic-fields";
 
 const PROFILE_INTERESTS = [
   "Sports", "Music", "Art", "Photography", "Travel", "Cooking", "Gaming", "Reading",
@@ -30,26 +31,33 @@ export interface ProfileFormData {
 interface ProfileFormProps {
   form: ProfileFormData;
   saving?: boolean;
+  universityId?: string | null;
   onChange: (updates: Partial<ProfileFormData>) => void;
   onToggleInterest: (interest: string) => void;
   onSave: () => void;
 }
 
-export function ProfileForm({ form, saving, onChange, onToggleInterest, onSave }: ProfileFormProps) {
+export function ProfileForm({ form, saving, universityId, onChange, onToggleInterest, onSave }: ProfileFormProps) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 profile-form-stack">
       <Card>
         <CardHeader title="Personal info" />
-        <div className="grid sm:grid-cols-2 gap-4">
+        <div className="grid sm:grid-cols-2 gap-4 profile-academic-grid">
           <Input label="Preferred name" placeholder="Alex" value={form.preferredName} onChange={(e) => onChange({ preferredName: e.target.value })} />
           <Input label="Pronouns" placeholder="she/her, he/him, they/them..." value={form.pronouns} onChange={(e) => onChange({ pronouns: e.target.value })} />
           <Input label="Phone" type="tel" placeholder="+1 (555) 000-0000" value={form.phone} onChange={(e) => onChange({ phone: e.target.value })} />
-          <Input label="Graduation year" type="number" placeholder="2026" value={form.graduationYear} onChange={(e) => onChange({ graduationYear: e.target.value })} className="sm:col-span-2" />
+          <Select
+            label="Graduation year"
+            value={form.graduationYear}
+            onChange={(e) => onChange({ graduationYear: e.target.value })}
+            options={[{ value: "", label: "Select year…" }, ...GRAD_YEAR_OPTIONS]}
+          />
           <div className="sm:col-span-2">
             <AcademicProfileFields
               values={{ classYear: form.classYear, major: form.major, hometown: form.hometown }}
               onChange={(updates) => onChange(updates)}
               layout="grid"
+              universityId={universityId}
             />
           </div>
         </div>

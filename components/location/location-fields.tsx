@@ -119,20 +119,9 @@ export function LocationFields({
         </>
       )}
 
-      {variant === "event" && (
-        <Input
-          label="Venue name"
-          placeholder="Chapter house, ballroom, field..."
-          icon={<MapPin size={15} />}
-          value={values.venueName || values.destination}
-          onChange={(e) => onChange({ venueName: e.target.value, destination: e.target.value })}
-          disabled={disabled}
-        />
-      )}
-
       <AddressAutocomplete
         label="Street address"
-        placeholder="123 Main St, City, ST 12345"
+        placeholder="Start typing an address or place name…"
         value={values.address}
         venueValue={values.venueName || values.destination}
         disabled={disabled}
@@ -147,6 +136,17 @@ export function LocationFields({
           onChange(patch);
         }}
       />
+
+      {variant === "event" && (
+        <Input
+          label="Venue name"
+          placeholder="Auto-filled from address — edit if needed"
+          icon={<MapPin size={15} />}
+          value={values.venueName || values.destination}
+          onChange={(e) => onChange({ venueName: e.target.value, destination: e.target.value })}
+          disabled={disabled}
+        />
+      )}
 
       {variant === "travel" && (
         <>

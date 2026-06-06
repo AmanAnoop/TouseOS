@@ -70,6 +70,7 @@ function mapCoreItem(
     "/payments": "dollar",
     "/reimbursements": "dollar",
     "/budget": "book",
+    "/finance": "book",
     "/tasks": "clipboard",
     "/documents": "file",
     "/forms": "clipboard",
@@ -136,23 +137,23 @@ function mapFeatureItem(href: string, label: string): SidebarNavItemDef {
 function greekFeatureSections(
   items: Array<{ href: string; label: string }>,
 ): SidebarSectionDef[] {
+  const community = ["/alumni", "/philanthropy", "/interchapter"];
   const recruitment = ["/pnm", "/big-little", "/nme"];
   const social = ["/social", "/social-calendar", "/social-collab", "/social-assets", "/event-memories"];
   const chapter = ["/travel", "/travel/templates", "/risk", "/standards", "/housing", "/engagement", "/attendance-points", "/study-hours"];
-  const community = ["/alumni", "/philanthropy", "/interchapter"];
 
   const pick = (hrefs: string[]) =>
     items.filter((i) => hrefs.includes(i.href)).map((i) => mapFeatureItem(i.href, i.label));
 
   const sections: SidebarSectionDef[] = [];
+  const comm = pick(community);
+  if (comm.length) sections.push({ id: "community", title: "Community", items: comm });
   const rec = pick(recruitment);
   if (rec.length) sections.push({ id: "recruitment", title: "Recruitment", items: rec });
   const soc = pick(social);
   if (soc.length) sections.push({ id: "social", title: "Social & media", items: soc });
   const ch = pick(chapter);
   if (ch.length) sections.push({ id: "chapter-ops", title: "Chapter operations", items: ch });
-  const comm = pick(community);
-  if (comm.length) sections.push({ id: "community", title: "Community", items: comm });
   return sections;
 }
 
@@ -205,7 +206,7 @@ export function buildSidebarNavigation(
     if (!mapped) continue;
     const h = mapped.href;
     if (h === homeHref(product) || h === "/health") overview.push(mapped);
-    else if (["/roster", "/events", "/payments", "/reimbursements", "/budget"].includes(h)) {
+    else if (["/roster", "/events", "/payments", "/reimbursements", "/budget", "/finance"].includes(h)) {
       peopleMoney.push(mapped);
     } else if (["/comms", "/feed"].includes(h)) comms.push(mapped);
     else work.push(mapped);

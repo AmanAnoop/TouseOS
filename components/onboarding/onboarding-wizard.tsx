@@ -7,7 +7,8 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { Button, Input } from "@/components/ui";
+import { Button, Input, Select } from "@/components/ui";
+import { COUNCIL_OPTIONS } from "@/lib/council-options";
 import { ChapterIdentityPicker, type ChapterIdentityValue } from "@/components/settings/chapter-identity-picker";
 import { AcademicProfileFields } from "@/components/profile/academic-profile-fields";
 import { OnboardingShell } from "@/components/onboarding/onboarding-shell";
@@ -82,7 +83,7 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
   const product = orgType ? getProductId(orgType) : "greek";
   const isGreek = orgType === "fraternity" || orgType === "sorority";
   const namePlaceholder = isGreek
-    ? "Phi Kappa Tau — Epsilon Alpha"
+    ? "Phi Kappa Tau-Epsilon Alpha"
     : product === "sports"
       ? "Texas A&M Rugby"
       : "Campus Photography Club";
@@ -377,10 +378,11 @@ export function OnboardingWizard({ mode = "welcome", allowBackToDashboard = fals
               onManualColorChange={() => setColorsManuallySet(true)}
             />
           )}
-          <Input
+          <Select
             label="Council / league"
             value={form.councilOrLeague}
             onChange={(e) => setForm({ ...form, councilOrLeague: e.target.value })}
+            options={[...COUNCIL_OPTIONS]}
           />
           <Input
             label="Contact email"

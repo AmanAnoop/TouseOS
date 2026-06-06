@@ -44,6 +44,7 @@ export default function PnmPage() {
   const [enrichKey, setEnrichKey] = useState(0);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [chapterMembers, setChapterMembers] = useState<Array<{ id: string; full_name: string; profile_photo_url?: string | null }>>([]);
+  const [universityId, setUniversityId] = useState<string | null>(null);
 
   const [newLead, setNewLead] = useState({
     fullName: "", email: "", phone: "", instagramHandle: "",
@@ -65,6 +66,8 @@ export default function PnmPage() {
       if (orgRes.ok) {
         const { org } = await orgRes.json();
         setInviteCode(org?.invite_code ? String(org.invite_code) : null);
+        const settings = (org?.settings ?? {}) as Record<string, unknown>;
+        setUniversityId(typeof settings.university_id === "string" ? settings.university_id : null);
       }
       const memRes = await fetch(`/api/members?org_id=${encodeURIComponent(orgId)}`);
       if (memRes.ok) {
@@ -358,6 +361,7 @@ export default function PnmPage() {
             }}
             onChange={(patch) => setNewLead({ ...newLead, ...patch })}
             members={chapterMembers}
+            universityId={universityId}
           />
 
           {/* Consent checkbox – mandatory for SMS */}

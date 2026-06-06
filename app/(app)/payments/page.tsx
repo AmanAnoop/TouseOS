@@ -28,6 +28,12 @@ export default function PaymentsPage() {
   const [payments, setPayments] = useState<PaymentWithMember[]>([]);
   const [members, setMembers] = useState<MemberProfile[]>([]);
   const [planCount, setPlanCount] = useState(0);
+  const [paymentPlans, setPaymentPlans] = useState<Array<{
+    payment_id: string;
+    installments: number;
+    schedule: Array<{ due_date?: string; status?: string }>;
+    payments?: { member_id?: string | null } | null;
+  }>>([]);
   const [loading, setLoading] = useState(true);
   const [myMemberId, setMyMemberId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -53,7 +59,9 @@ export default function PaymentsPage() {
     if (memberRes.ok) setMembers((await memberRes.json()) as MemberProfile[]);
     if (plansRes.ok) {
       const plans = await plansRes.json();
-      setPlanCount(Array.isArray(plans) ? plans.length : 0);
+      const list = Array.isArray(plans) ? plans : [];
+      setPlanCount(list.length);
+      setPaymentPlans(list);
     }
     setLoading(false);
   }, []);
@@ -150,30 +158,30 @@ export default function PaymentsPage() {
         title="Dues & Payments"
         description="Track collections, create charges, and send reminders"
         action={
-          <div className="flex gap-2 flex-wrap">
+          <div className="payments-action-bar">
             {canManage && (
-              <>
-                <Button size="sm" className="officer-touch" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>
-                  New charge
-                </Button>
-                <Button variant="secondary" size="sm" className="officer-touch" onClick={() => setManualOpen(true)}>Log cash/check</Button>
-                <Button variant="secondary" size="sm" className="officer-touch" icon={<Send size={14} />} onClick={() => setReminderOpen(true)}>
-                  Send reminders
-                </Button>
-              </>
+              <Button size="sm" className="officer-touch" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>
+                New charge
+              </Button>
+            )}
+            {canManage && (
+              <Button variant="secondary" size="sm" className="officer-touch" onClick={() => setManualOpen(true)}>
+                Log cash/check
+              </Button>
+            )}
+            {canManage && (
+              <Button variant="secondary" size="sm" className="officer-touch" icon={<Send size={14} />} onClick={() => setReminderOpen(true)}>
+                Send reminders
+              </Button>
             )}
             <Link href="/payments/plan"><Button variant="secondary" size="sm">Payment plans</Button></Link>
-            {can(myRole, "manage_budget") && (
-              <Link href="/reimbursements"><Button variant="secondary" size="sm">Reimbursements</Button></Link>
-            )}
-            <a href="/payments/hardship">
-              <Button variant="secondary" size="sm">Hardship request</Button>
-            </a>
+            <Link href="/reimbursements"><Button variant="secondary" size="sm">Reimbursements</Button></Link>
+            <Link href="/payments/hardship"><Button variant="secondary" size="sm">Hardship request</Button></Link>
             <Button variant="ghost" size="sm" icon={<Download size={14} />} onClick={exportPayments}>
               Export
             </Button>
-            {can(myRole, "manage_budget") && (
-              <Link href="/budget"><Button variant="secondary" size="sm">Budget</Button></Link>
+            {(can(myRole, "manage_budget") || can(myRole, "view_payments")) && (
+              <Link href="/finance"><Button variant="secondary" size="sm">Budget</Button></Link>
             )}
           </div>
         }
@@ -204,7 +212,7 @@ export default function PaymentsPage() {
               <PaymentList payments={[]} loading />
             ) : (
               <MemberDuesTable
-                rows={buildMemberDuesRows(members, visiblePayments)}
+                rows={buildMemberDuesRows(members, visiblePayments, paymentPlans)}
                 onSelectMember={(memberId) => {
                   const payment = visiblePayments.find((p) => p.member_id === memberId);
                   if (payment) setSelectedPayment(payment);

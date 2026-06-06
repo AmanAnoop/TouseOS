@@ -44,6 +44,7 @@ export function NmeModuleModal({
   const [quizSubmitted, setQuizSubmitted] = useState(false);
   const [scrollReady, setScrollReady] = useState(false);
   const [videoEnded, setVideoEnded] = useState(false);
+  const [embedAcknowledged, setEmbedAcknowledged] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -55,6 +56,7 @@ export function NmeModuleModal({
     setQuizSubmitted(false);
     setScrollReady(false);
     setVideoEnded(false);
+    setEmbedAcknowledged(false);
   }, []);
 
   useEffect(() => {
@@ -91,7 +93,7 @@ export function NmeModuleModal({
 
   const canComplete = (() => {
     if (hasQuiz) return quizSubmitted && allAnswered;
-    if (contentKind === "video") return videoEnded;
+    if (contentKind === "video") return videoEnded || embedAcknowledged;
     if (contentKind === "reading") return scrollReady || !content?.trim();
     return true;
   })();
@@ -182,7 +184,17 @@ export function NmeModuleModal({
             ) : (
               <p className="type-body whitespace-pre-wrap">{content}</p>
             )}
-            {contentKind === "video" && !videoEnded && videoUrl && (
+            {contentKind === "video" && videoUrl?.includes("youtube.com/embed") && !embedAcknowledged && (
+              <Button
+                size="sm"
+                variant="secondary"
+                className="mt-3"
+                onClick={() => setEmbedAcknowledged(true)}
+              >
+                I finished watching this video
+              </Button>
+            )}
+            {contentKind === "video" && !videoEnded && !embedAcknowledged && videoUrl && !videoUrl.includes("youtube.com/embed") && (
               <p className="type-small" style={{ color: "var(--color-text-tertiary)", marginTop: 8 }}>
                 Watch the video to the end to unlock Mark complete.
               </p>

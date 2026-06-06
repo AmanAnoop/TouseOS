@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Bell, ClipboardList, Download, Eye, FileEdit, Pencil, Plus, ScanLine, Trash2 } from "lucide-react";
 import { SortableFormFields, type FormFieldItem } from "@/components/forms/sortable-form-fields";
 import { FormCompletionGrid } from "@/components/forms/form-completion-grid";
+import { FormResponsesPanel } from "@/components/forms/form-responses-panel";
 import { FormScanPanel } from "@/components/forms/form-scan-panel";
 import { SignaturePad } from "@/components/forms/signature-pad";
 import type { ScannedFormDraft } from "@/lib/form-ai";
@@ -284,6 +285,7 @@ export default function FormsPage() {
         tabs={[
           { id: "forms", label: "My forms", count: forms.length },
           { id: "completion", label: "Completion" },
+          { id: "responses", label: "Responses" },
           { id: "scan", label: "Scan with AI" },
           { id: "templates", label: "Templates" },
         ]}
@@ -348,6 +350,8 @@ export default function FormsPage() {
       )}
 
       {tab === "completion" && orgId && <FormCompletionGrid orgId={orgId} />}
+
+      {tab === "responses" && orgId && <FormResponsesPanel orgId={orgId} forms={forms} />}
 
       {tab === "scan" && (
         <FormScanPanel
