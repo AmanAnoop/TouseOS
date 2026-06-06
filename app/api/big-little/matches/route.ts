@@ -32,7 +32,8 @@ export async function GET(request: Request) {
     .order("created_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data ?? []);
+  const filtered = (data ?? []).filter((m: { big_id: string; little_id: string }) => m.big_id !== m.little_id);
+  return NextResponse.json(filtered);
 }
 
 export async function POST(request: Request) {

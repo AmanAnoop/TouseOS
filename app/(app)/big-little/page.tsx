@@ -47,7 +47,8 @@ export default function BigLittlePage() {
       fetch(`/api/big-little/matches?org_id=${encodeURIComponent(oid)}`),
     ]);
     if (membersRes.ok) setMembers((await membersRes.json()) as MemberProfile[]);
-    setMatches(matchesRes.ok ? ((await matchesRes.json()) as Match[]) : []);
+    const raw = matchesRes.ok ? ((await matchesRes.json()) as Match[]) : [];
+    setMatches(raw.filter((m) => m.big_id !== m.little_id));
     setLoading(false);
   }, []);
 

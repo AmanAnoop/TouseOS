@@ -4,6 +4,7 @@ import { Select } from "@/components/ui";
 import { SearchableCombobox } from "@/components/ui/searchable-combobox";
 import { HometownField } from "@/components/forms/hometown-field";
 import { CLASS_YEAR_OPTIONS, MAJOR_COMBOBOX_OPTIONS } from "@/lib/academic-fields";
+import { majorsForUniversity } from "@/lib/university-majors";
 
 export interface AcademicProfileValues {
   classYear: string;
@@ -17,6 +18,7 @@ interface AcademicProfileFieldsProps {
   layout?: "grid" | "stack";
   /** School-specific majors when available; falls back to COMMON_MAJORS list. */
   majorOptions?: Array<{ value: string; label: string }>;
+  universityId?: string | null;
 }
 
 export function AcademicProfileFields({
@@ -24,9 +26,14 @@ export function AcademicProfileFields({
   onChange,
   layout = "grid",
   majorOptions,
+  universityId,
 }: AcademicProfileFieldsProps) {
-  const wrapperClass = layout === "grid" ? "grid grid-cols-2 gap-3" : "space-y-3";
-  const majors = majorOptions?.length ? majorOptions : MAJOR_COMBOBOX_OPTIONS;
+  const wrapperClass = layout === "grid" ? "academic-fields-grid" : "space-y-3";
+  const majors = majorOptions?.length
+    ? majorOptions
+    : universityId
+      ? majorsForUniversity(universityId)
+      : MAJOR_COMBOBOX_OPTIONS;
 
   return (
     <div className={wrapperClass}>

@@ -11,7 +11,7 @@ export default function TermsPage() {
         <p>
           TouseOS provides software for student and alumni organizations (chapters, club sports, campus clubs)
           to manage members, events, communications, documents, and finances. Features vary by organization type
-          (TouseGreek, SportsOS, ClubOS).
+          TouseOS (including Greek life, club sports, and campus organizations).
         </p>
       </section>
 

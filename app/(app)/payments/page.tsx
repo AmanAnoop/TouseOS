@@ -150,30 +150,30 @@ export default function PaymentsPage() {
         title="Dues & Payments"
         description="Track collections, create charges, and send reminders"
         action={
-          <div className="flex gap-2 flex-wrap">
+          <div className="payments-action-bar">
             {canManage && (
-              <>
-                <Button size="sm" className="officer-touch" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>
-                  New charge
-                </Button>
-                <Button variant="secondary" size="sm" className="officer-touch" onClick={() => setManualOpen(true)}>Log cash/check</Button>
-                <Button variant="secondary" size="sm" className="officer-touch" icon={<Send size={14} />} onClick={() => setReminderOpen(true)}>
-                  Send reminders
-                </Button>
-              </>
+              <Button size="sm" className="officer-touch" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>
+                New charge
+              </Button>
+            )}
+            {canManage && (
+              <Button variant="secondary" size="sm" className="officer-touch" onClick={() => setManualOpen(true)}>
+                Log cash/check
+              </Button>
+            )}
+            {canManage && (
+              <Button variant="secondary" size="sm" className="officer-touch" icon={<Send size={14} />} onClick={() => setReminderOpen(true)}>
+                Send reminders
+              </Button>
             )}
             <Link href="/payments/plan"><Button variant="secondary" size="sm">Payment plans</Button></Link>
-            {can(myRole, "manage_budget") && (
-              <Link href="/reimbursements"><Button variant="secondary" size="sm">Reimbursements</Button></Link>
-            )}
-            <a href="/payments/hardship">
-              <Button variant="secondary" size="sm">Hardship request</Button>
-            </a>
+            <Link href="/reimbursements"><Button variant="secondary" size="sm">Reimbursements</Button></Link>
+            <Link href="/payments/hardship"><Button variant="secondary" size="sm">Hardship request</Button></Link>
             <Button variant="ghost" size="sm" icon={<Download size={14} />} onClick={exportPayments}>
               Export
             </Button>
-            {can(myRole, "manage_budget") && (
-              <Link href="/budget"><Button variant="secondary" size="sm">Budget</Button></Link>
+            {(can(myRole, "manage_budget") || can(myRole, "view_payments")) && (
+              <Link href="/finance"><Button variant="secondary" size="sm">Budget</Button></Link>
             )}
           </div>
         }
