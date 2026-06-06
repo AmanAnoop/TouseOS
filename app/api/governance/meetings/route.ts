@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
-  const { orgId, title, scheduledAt, location, agenda, quorumRequired } = body;
+  const { orgId, title, meetingType, scheduledAt, location, agenda, quorumRequired } = body;
   if (!orgId || !title) {
     return NextResponse.json({ error: "orgId and title required" }, { status: 400 });
   }
@@ -49,6 +49,7 @@ export async function POST(request: Request) {
     .insert({
       org_id: orgId,
       title,
+      meeting_type: meetingType || "chapter_meeting",
       scheduled_at: scheduledAt || null,
       location: location || null,
       agenda: agenda || null,

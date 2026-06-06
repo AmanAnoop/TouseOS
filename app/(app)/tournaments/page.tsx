@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 export default async function TournamentsPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/onboarding");
 
   const membership = await loadActiveMembershipServer(user.id);
   if (!membership) redirect("/onboarding");
@@ -106,10 +106,10 @@ export default async function TournamentsPage() {
               </div>
             </Card>
           )}
-
-          <TournamentTools />
         </div>
       )}
+
+      <TournamentTools />
     </div>
   );
 }

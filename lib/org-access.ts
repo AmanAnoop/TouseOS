@@ -7,7 +7,7 @@ import type { OrgType } from "@/types";
 export async function requireOrgProduct(allowed: Array<"greek" | "sports" | "club">) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/onboarding");
 
   const membership = await loadActiveMembershipServer(user.id);
   if (!membership) redirect("/onboarding");

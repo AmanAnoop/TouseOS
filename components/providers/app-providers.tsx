@@ -14,8 +14,8 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     <ClerkProvider
       publishableKey={publishableKey}
       appearance={clerkAppearance}
-      signInUrl="/sign-in"
-      signUpUrl="/sign-up"
+      signInUrl="/login"
+      signUpUrl="/signup"
       afterSignInUrl="/home"
       afterSignUpUrl="/onboarding"
     >

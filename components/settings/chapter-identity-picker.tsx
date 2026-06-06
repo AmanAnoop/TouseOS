@@ -20,6 +20,7 @@ interface ChapterIdentityPickerProps {
   disabled?: boolean;
   /** When true, manual color picks persist across university/org changes. */
   colorsLocked?: boolean;
+  onManualColorChange?: () => void;
   onChange: (next: ChapterIdentityValue) => void;
 }
 
@@ -28,6 +29,7 @@ export function ChapterIdentityPicker({
   value,
   disabled,
   colorsLocked = false,
+  onManualColorChange,
   onChange,
 }: ChapterIdentityPickerProps) {
   const product = getProductId(orgType);
@@ -211,10 +213,13 @@ export function ChapterIdentityPicker({
               }}
               value={value.primaryColor}
               disabled={disabled}
-              onChange={(e) => emit({
-                primaryColor: e.target.value,
-                ...(campusOnly ? { universityId: "custom-campus" } : {}),
-              })}
+              onChange={(e) => {
+                onManualColorChange?.();
+                emit({
+                  primaryColor: e.target.value,
+                  ...(campusOnly ? { universityId: "custom-campus" } : {}),
+                });
+              }}
             />
           </label>
           <label className="type-body" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -227,10 +232,13 @@ export function ChapterIdentityPicker({
               }}
               value={value.secondaryColor}
               disabled={disabled}
-              onChange={(e) => emit({
-                secondaryColor: e.target.value,
-                ...(campusOnly ? { universityId: "custom-campus" } : {}),
-              })}
+              onChange={(e) => {
+                onManualColorChange?.();
+                emit({
+                  secondaryColor: e.target.value,
+                  ...(campusOnly ? { universityId: "custom-campus" } : {}),
+                });
+              }}
             />
           </label>
         </div>

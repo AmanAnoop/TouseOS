@@ -11,14 +11,13 @@ export default async function OnboardingRoute({
 }: {
   searchParams: Promise<{ create?: string }>;
 }) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login?next=/onboarding");
-
   const params = await searchParams;
   const forceCreate = params.create === "1";
 
-  if (!forceCreate) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (user && !forceCreate) {
     const { data: m } = await supabase
       .from("org_members")
       .select("org_id, organizations(type)")

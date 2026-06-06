@@ -70,7 +70,9 @@ export function SocialAssetsClient({ orgId, org }: { orgId: string; org: OrgBran
   const [assets, setAssets] = useState<SocialAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [saveOpen, setSaveOpen] = useState(false);
-  const [form, setForm] = useState({ title: "", assetType: "template", content: "" });
+  const [form, setForm] = useState({ title: "", assetType: "template", content: "", fileUrl: "" });
+  const [uploading, setUploading] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -86,25 +88,46 @@ export function SocialAssetsClient({ orgId, org }: { orgId: string; org: OrgBran
 
   async function saveAsset() {
     if (!form.title.trim()) return;
-    const res = await fetch("/api/social-assets", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        orgId,
-        title: form.title,
-        assetType: form.assetType,
-        content: form.content,
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      toast.error(data.error ?? "Could not save asset");
-      return;
+    setUploading(true);
+    try {
+      let fileUrl = form.fileUrl;
+      if (pendingFile) {
+        const fd = new FormData();
+        fd.append("file", pendingFile);
+        fd.append("org_id", orgId);
+        const uploadRes = await fetch("/api/social-assets/upload", { method: "POST", body: fd });
+        const uploadData = await uploadRes.json();
+        if (!uploadRes.ok) {
+          toast.error(uploadData.error ?? "Upload failed");
+          return;
+        }
+        fileUrl = uploadData.fileUrl as string;
+      }
+
+      const res = await fetch("/api/social-assets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orgId,
+          title: form.title,
+          assetType: form.assetType,
+          content: form.content,
+          fileUrl: fileUrl || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error ?? "Could not save asset");
+        return;
+      }
+      toast.success("Saved to library");
+      setSaveOpen(false);
+      setForm({ title: "", assetType: "template", content: "", fileUrl: "" });
+      setPendingFile(null);
+      load();
+    } finally {
+      setUploading(false);
     }
-    toast.success("Saved to library");
-    setSaveOpen(false);
-    setForm({ title: "", assetType: "template", content: "" });
-    load();
   }
 
   async function applyTemplateContent(title: string, content: string) {
@@ -290,7 +313,7 @@ export function SocialAssetsClient({ orgId, org }: { orgId: string; org: OrgBran
         footer={
           <>
             <Button variant="secondary" onClick={() => setSaveOpen(false)}>Cancel</Button>
-            <Button onClick={saveAsset} disabled={!form.title.trim()}>Save</Button>
+            <Button onClick={saveAsset} loading={uploading} disabled={!form.title.trim()}>Save</Button>
           </>
         }
       >
@@ -298,6 +321,18 @@ export function SocialAssetsClient({ orgId, org }: { orgId: string; org: OrgBran
           <Input label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
           <Select label="Type" value={form.assetType} onChange={(e) => setForm({ ...form, assetType: e.target.value })} options={ASSET_TYPES} />
           <Textarea label="Content" value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} className="min-h-[120px]" placeholder="Caption, story script, or notes..." />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium">File (optional)</label>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+              className="text-sm"
+              onChange={(e) => setPendingFile(e.target.files?.[0] ?? null)}
+            />
+            {pendingFile && (
+              <p className="text-xs text-muted-foreground">{pendingFile.name} ({Math.round(pendingFile.size / 1024)} KB)</p>
+            )}
+          </div>
         </div>
       </Modal>
     </div>

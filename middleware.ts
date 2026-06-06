@@ -1,6 +1,4 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse, type NextRequest } from "next/server";
-import { isClerkEnabled } from "@/lib/clerk-config";
 import {
   updateSupabaseSession,
   withSessionCookies,
@@ -8,6 +6,7 @@ import {
 
 function isPublicPath(pathname: string): boolean {
   return (
+    pathname === "/" ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/signup") ||
     pathname.startsWith("/sign-in") ||
@@ -35,38 +34,12 @@ function isPublicPath(pathname: string): boolean {
   );
 }
 
-const clerkPublicRoutes = createRouteMatcher([
-  "/sign-in(.*)",
-  "/sign-up(.*)",
-  "/login(.*)",
-  "/signup(.*)",
-  "/forgot-password(.*)",
-  "/reset-password(.*)",
-  "/terms(.*)",
-  "/privacy(.*)",
-  "/join(.*)",
-  "/pay(.*)",
-  "/donate(.*)",
-  "/p(.*)",
-  "/api/webhooks(.*)",
-  "/api/stripe/webhook(.*)",
-  "/api/plaid/webhook(.*)",
-  "/api/ready(.*)",
-  "/api/cron(.*)",
-  "/api/twilio(.*)",
-]);
-
-async function supabaseMiddleware(request: NextRequest) {
+/** Supabase session is the source of truth — never gate routes with Clerk middleware. */
+export default async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const { response: supabaseResponse, latestCookies, user } =
     await updateSupabaseSession(request);
-
-  if ((pathname === "/login" || pathname === "/signup") && isClerkEnabled()) {
-    const clerkDest = pathname === "/signup" ? "/sign-up" : "/sign-in";
-    const redirect = NextResponse.redirect(new URL(clerkDest, request.url));
-    return withSessionCookies(redirect, latestCookies);
-  }
 
   const isAuthRoute =
     pathname.startsWith("/login") ||
@@ -83,30 +56,13 @@ async function supabaseMiddleware(request: NextRequest) {
   }
 
   if (!isPublicPath(pathname) && !user) {
-    const signInPath = isClerkEnabled() ? "/sign-in" : "/login";
-    const redirectUrl = new URL(signInPath, request.url);
+    const redirectUrl = new URL("/onboarding", request.url);
     redirectUrl.searchParams.set("next", pathname);
     const redirect = NextResponse.redirect(redirectUrl);
     return withSessionCookies(redirect, latestCookies);
   }
 
   return supabaseResponse;
-}
-
-const clerkHandler = clerkMiddleware(async (auth, request) => {
-  if (!clerkPublicRoutes(request)) {
-    await auth.protect();
-  }
-});
-
-export default async function middleware(
-  request: NextRequest,
-  event: import("next/server").NextFetchEvent,
-) {
-  if (isClerkEnabled()) {
-    return clerkHandler(request, event);
-  }
-  return supabaseMiddleware(request);
 }
 
 export const config = {

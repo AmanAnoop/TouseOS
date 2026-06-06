@@ -10,6 +10,11 @@ import {
   EmptyState, Modal, PageHeader, ProgressBar, StatCard,
 } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
+import {
+  RISK_CHECKLIST_ITEMS,
+  computeRiskScore,
+  riskLabel,
+} from "@/lib/risk-config";
 
 interface RiskChecklist {
   id: string;
@@ -28,17 +33,6 @@ interface RiskChecklist {
   notes: string | null;
   created_at: string;
 }
-
-const CHECKLIST_ITEMS = [
-  { key: "alcohol_policy", label: "Alcohol policy checklist completed", risk: 20 },
-  { key: "sober_monitors_assigned", label: "Sober monitors assigned", risk: 15 },
-  { key: "guest_ratio_checked", label: "Guest ratio within limits", risk: 10 },
-  { key: "venue_contract_uploaded", label: "Venue contract uploaded", risk: 10 },
-  { key: "transportation_plan", label: "Transportation plan in place", risk: 15 },
-  { key: "security_plan", label: "Security/door plan confirmed", risk: 15 },
-  { key: "emergency_plan", label: "Emergency action plan ready", risk: 10 },
-  { key: "food_water_plan", label: "Food and water available", risk: 5 },
-];
 
 export default function RiskPage() {
   const { can, loading: permLoading } = usePermissions();
@@ -127,11 +121,6 @@ export default function RiskPage() {
     if (orgId) load(orgId);
   }, [orgId, load]);
 
-  function computeRiskScore(items: Record<string, boolean>) {
-    const completed = CHECKLIST_ITEMS.filter((i) => items[i.key]).length;
-    return Math.round((completed / CHECKLIST_ITEMS.length) * 100);
-  }
-
   async function createChecklist() {
     if (!orgId) return;
     const score = computeRiskScore(newChecklist);
@@ -153,7 +142,7 @@ export default function RiskPage() {
     }
     toast.success("Risk checklist saved");
     setCreateOpen(false);
-    setNewChecklist(Object.fromEntries(CHECKLIST_ITEMS.map((i) => [i.key, false])));
+    setNewChecklist(Object.fromEntries(RISK_CHECKLIST_ITEMS.map((i) => [i.key, false])));
     setNotes("");
     setSelectedEventId("");
     load(orgId);
@@ -213,9 +202,8 @@ export default function RiskPage() {
         <div className="space-y-3">
           {checklists.map((c) => {
             const score = c.risk_score ?? 0;
-            const color = score >= 80 ? "green" : score >= 60 ? "yellow" : "red";
-            const label = score >= 80 ? "Low risk" : score >= 60 ? "Medium risk" : "High risk";
-            const items = CHECKLIST_ITEMS.map((item) => ({
+            const { label, color } = riskLabel(score);
+            const items = RISK_CHECKLIST_ITEMS.map((item) => ({
               ...item,
               checked: Boolean(c[item.key as keyof RiskChecklist]),
             }));
@@ -381,7 +369,7 @@ export default function RiskPage() {
           )}
 
           <div className="space-y-3">
-            {CHECKLIST_ITEMS.map((item) => (
+            {RISK_CHECKLIST_ITEMS.map((item) => (
               <label key={item.key} className="flex items-start gap-3 cursor-pointer p-3 rounded-lg border border-border hover:bg-surface-1">
                 <input
                   type="checkbox"
@@ -391,7 +379,7 @@ export default function RiskPage() {
                 />
                 <div>
                   <p className="text-sm font-medium">{item.label}</p>
-                  <p className="text-xs text-muted-foreground">Risk weight: {item.risk}%</p>
+                  <p className="text-xs text-muted-foreground">{item.description}</p>
                 </div>
               </label>
             ))}

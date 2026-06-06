@@ -19,7 +19,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect("/login");
+  if (!user) redirect("/onboarding");
 
   // Load profile and organizations in parallel
   const [profileRes, orgsRes] = await Promise.all([

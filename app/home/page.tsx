@@ -8,7 +8,7 @@ import { homePathForOrgType } from "@/lib/resolve-home";
 export default async function HomeRedirectPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/onboarding");
 
   const cookieStore = await cookies();
   const activeOrgId = cookieStore.get(ACTIVE_ORG_COOKIE)?.value;

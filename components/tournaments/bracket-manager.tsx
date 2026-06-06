@@ -4,8 +4,13 @@ import { useState, useEffect, useCallback } from "react";
 import { Plus, Trophy } from "lucide-react";
 import toast from "react-hot-toast";
 import {
-  Badge, Button, Card, CardHeader, EmptyState, Input, Modal,
+  Badge, Button, Card, CardHeader, EmptyState, Input, Modal, Select,
 } from "@/components/ui";
+import {
+  advanceWinner,
+  BRACKET_TYPES,
+  type BracketType,
+} from "@/lib/tournament-bracket";
 
 interface Match {
   id: string;
@@ -32,6 +37,7 @@ export function TournamentBracketManager({ orgId }: { orgId: string }) {
   const [brackets, setBrackets] = useState<Bracket[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
   const [title, setTitle] = useState("");
+  const [bracketType, setBracketType] = useState<BracketType>("single_elimination");
   const [teamsText, setTeamsText] = useState("");
   const [selected, setSelected] = useState<Bracket | null>(null);
 
@@ -54,7 +60,7 @@ export function TournamentBracketManager({ orgId }: { orgId: string }) {
     const res = await fetch("/api/tournaments/brackets", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orgId, title, teams }),
+      body: JSON.stringify({ orgId, title, teams, bracketType }),
     });
     if (res.ok) {
       toast.success("Bracket created");
@@ -68,24 +74,16 @@ export function TournamentBracketManager({ orgId }: { orgId: string }) {
   async function reportScore(bracketId: string, roundIdx: number, matchId: string, winner: string, score1: number, score2: number) {
     const bracket = brackets.find((b) => b.id === bracketId);
     if (!bracket) return;
-    const rounds = [...bracket.bracket_data.rounds];
-    const round = { ...rounds[roundIdx], matches: [...rounds[roundIdx].matches] };
-    round.matches = round.matches.map((m) =>
-      m.id === matchId ? { ...m, score1, score2, winner } : m,
+    const type = (bracket.bracket_data.type ?? "single_elimination") as BracketType;
+    const rounds = advanceWinner(
+      bracket.bracket_data.rounds,
+      roundIdx,
+      matchId,
+      winner,
+      score1,
+      score2,
+      type,
     );
-    rounds[roundIdx] = round;
-
-    // Advance winner to next round
-    if (roundIdx + 1 < rounds.length) {
-      const nextRound = { ...rounds[roundIdx + 1], matches: [...rounds[roundIdx + 1].matches] };
-      const matchIdx = round.matches.findIndex((m) => m.id === matchId);
-      const nextMatchIdx = Math.floor(matchIdx / 2);
-      const slot = matchIdx % 2 === 0 ? "team1" : "team2";
-      if (nextRound.matches[nextMatchIdx]) {
-        nextRound.matches[nextMatchIdx] = { ...nextRound.matches[nextMatchIdx], [slot]: winner };
-        rounds[roundIdx + 1] = nextRound;
-      }
-    }
 
     await fetch("/api/tournaments/brackets", {
       method: "PATCH",
@@ -107,7 +105,7 @@ export function TournamentBracketManager({ orgId }: { orgId: string }) {
           action={<Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>Create bracket</Button>}
         />
         {brackets.length === 0 ? (
-          <EmptyState icon={<Trophy size={20} />} title="No brackets yet" description="Create a single-elimination bracket for your tournament." />
+          <EmptyState icon={<Trophy size={20} />} title="No brackets yet" description="Create a single-, double-, or round-robin bracket for your tournament." />
         ) : (
           <div className="space-y-2">
             {brackets.map((b) => (
@@ -130,6 +128,15 @@ export function TournamentBracketManager({ orgId }: { orgId: string }) {
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Create tournament bracket" footer={<><Button variant="secondary" onClick={() => setCreateOpen(false)}>Cancel</Button><Button onClick={createBracket}>Create</Button></>}>
         <div className="space-y-3">
           <Input label="Tournament name" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Spring Invitational" />
+          <Select
+            label="Bracket type"
+            value={bracketType}
+            onChange={(e) => setBracketType(e.target.value as BracketType)}
+            options={BRACKET_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+          />
+          <p className="text-xs text-muted-foreground">
+            {BRACKET_TYPES.find((t) => t.value === bracketType)?.description}
+          </p>
           <div>
             <label className="text-sm font-medium block mb-1">Teams (one per line)</label>
             <textarea className="w-full min-h-[120px] rounded-lg border border-border bg-background px-3 py-2 text-sm" placeholder={"Team Alpha\nTeam Beta\nTeam Gamma\nTeam Delta"} value={teamsText} onChange={(e) => setTeamsText(e.target.value)} />

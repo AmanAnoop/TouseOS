@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -25,8 +25,10 @@ const schema = z.object({
 });
 type FormData = z.infer<typeof schema>;
 
-export default function SignupPage() {
+function SignupForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const next = searchParams.get("next") ?? "/onboarding";
   const [loading, setLoading] = useState(false);
   const [canSignUp, setCanSignUp] = useState(true);
 
@@ -67,7 +69,7 @@ export default function SignupPage() {
 
       if (json.hasSession) {
         toast.success("Account created — set up your organization");
-        router.push("/onboarding");
+        router.push(next.startsWith("/") ? next : "/onboarding");
         router.refresh();
         return;
       }
@@ -75,7 +77,7 @@ export default function SignupPage() {
       toast.success(
         "Check your email for a confirmation link. After confirming, you will be signed in to set up your organization.",
       );
-      router.push("/login?next=/onboarding");
+      router.push(`/login?next=${encodeURIComponent(next.startsWith("/") ? next : "/onboarding")}`);
     } catch {
       toast.error("Could not reach the server. Try again.");
     } finally {
@@ -90,7 +92,10 @@ export default function SignupPage() {
       footer={
         <p className="text-center text-sm text-muted-foreground">
           Already have an account?{" "}
-          <Link href="/login" className="font-medium text-primary hover:underline">
+          <Link
+            href={`/login?next=${encodeURIComponent(next)}`}
+            className="font-medium text-primary hover:underline"
+          >
             Sign in
           </Link>
         </p>
@@ -151,5 +156,21 @@ export default function SignupPage() {
         .
       </p>
     </AuthShell>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="auth-layout">
+          <main className="auth-main">
+            <p className="text-muted-foreground text-sm">Loading…</p>
+          </main>
+        </div>
+      }
+    >
+      <SignupForm />
+    </React.Suspense>
   );
 }
