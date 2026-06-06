@@ -11,6 +11,7 @@ export interface OnboardingDraft {
     campus: string;
     councilOrLeague: string;
     contactEmail: string;
+    sportType?: string;
   };
   identity: {
     universityId: string;

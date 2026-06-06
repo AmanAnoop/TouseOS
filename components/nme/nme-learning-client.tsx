@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { BookOpen, Download, Lock, Play, HelpCircle } from "lucide-react";
 import toast from "react-hot-toast";
-import { Badge, Button, Card, PageHeader, ProgressBar } from "@/components/ui";
+import { Badge, Button, Card, ProgressBar } from "@/components/ui";
 import { NmeModuleModal, type QuizQuestion } from "@/components/nme/nme-module-modal";
 import { NmeModuleEditor } from "@/components/nme/nme-module-editor";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -89,25 +89,20 @@ export function NmeLearningClient({ orgId }: { orgId: string }) {
 
   return (
     <div className="ds-page-stack">
-      <PageHeader
-        title="New Member Education"
-        description="Complete required modules for your chapter"
-        action={
-          can("manage_nme") ? undefined : (
-            doneRequired >= required.length && required.length > 0 ? (
-              <a href={`/api/nme/certificate?org_id=${encodeURIComponent(orgId)}`} target="_blank" rel="noopener noreferrer">
-                <Button size="sm" variant="secondary" icon={<Download size={14} />}>Download certificate</Button>
-              </a>
-            ) : undefined
-          )
-        }
-      />
-
       {required.length > 0 && (
-        <ProgressBar
-          value={Math.round((doneRequired / required.length) * 100)}
-          label={`${doneRequired} of ${required.length} modules complete`}
-        />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <ProgressBar
+              value={Math.round((doneRequired / required.length) * 100)}
+              label={`${doneRequired} of ${required.length} modules complete`}
+            />
+          </div>
+          {!can("manage_nme") && doneRequired >= required.length && (
+            <a href={`/api/nme/certificate?org_id=${encodeURIComponent(orgId)}`} target="_blank" rel="noopener noreferrer">
+              <Button size="sm" variant="secondary" icon={<Download size={14} />}>Download certificate</Button>
+            </a>
+          )}
+        </div>
       )}
 
       {can("manage_nme") && (

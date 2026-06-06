@@ -114,7 +114,6 @@ function mapFeatureItem(href: string, label: string): SidebarNavItemDef {
     "/yearbook": "book",
     "/waivers": "shield",
     "/travel": "plane",
-    "/travel/templates": "plane",
     "/equipment": "warehouse",
     "/injuries": "clipboard",
     "/coaches": "trophy",
@@ -140,7 +139,7 @@ function greekFeatureSections(
   const community = ["/alumni", "/philanthropy", "/interchapter"];
   const recruitment = ["/pnm", "/big-little", "/nme"];
   const social = ["/social", "/social-calendar", "/social-collab", "/social-assets", "/event-memories"];
-  const chapter = ["/travel", "/travel/templates", "/risk", "/standards", "/housing", "/engagement", "/attendance-points", "/study-hours"];
+  const chapter = ["/travel", "/risk", "/standards", "/housing", "/engagement", "/attendance-points", "/study-hours"];
 
   const pick = (hrefs: string[]) =>
     items.filter((i) => hrefs.includes(i.href)).map((i) => mapFeatureItem(i.href, i.label));
@@ -161,7 +160,7 @@ function sportsFeatureSections(
   items: Array<{ href: string; label: string }>,
 ): SidebarSectionDef[] {
   const team = ["/tryouts", "/tournaments", "/standings", "/coaches", "/injuries"];
-  const ops = ["/waivers", "/travel", "/travel/templates", "/equipment"];
+  const ops = ["/waivers", "/travel", "/equipment"];
   const other = items.filter(
     (i) => !team.includes(i.href) && !ops.includes(i.href) && i.href !== "/sports",
   );

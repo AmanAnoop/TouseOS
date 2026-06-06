@@ -106,6 +106,7 @@ export async function POST(request: Request) {
   const contactEmail = body.contactEmail ? String(body.contactEmail) : null;
   const universityId = body.universityId ? String(body.universityId) : "";
   const greekAffiliationId = body.greekAffiliationId ? String(body.greekAffiliationId) : "";
+  const sportType = body.sportType ? String(body.sportType).trim() : "";
   const greekOrg = getGreekOrgById(greekAffiliationId);
   const university = getUniversityById(universityId);
   const product = getProductId(type);
@@ -127,6 +128,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `Invalid organization type: ${type}` }, { status: 400 });
   }
 
+  if (type === "club_sports" && !sportType) {
+    return NextResponse.json({ error: "Sport type is required for club sports teams" }, { status: 400 });
+  }
+
   const service = await createServiceClient();
   const input = {
     name,
@@ -139,6 +144,7 @@ export async function POST(request: Request) {
     settings: {
       university_id: universityId || null,
       greek_affiliation_id: greekAffiliationId || null,
+      sport_type: type === "club_sports" ? sportType : null,
     },
   };
 

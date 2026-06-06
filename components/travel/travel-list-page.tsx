@@ -44,6 +44,13 @@ interface GreekTrip {
   total_budget?: number | null;
 }
 
+interface TemplateRow {
+  id: string;
+  name: string;
+  type: string;
+  checklist_items?: string[];
+}
+
 export function TravelListPage() {
   const searchParams = useSearchParams();
   const { orgId, orgType } = useOrg();
@@ -52,9 +59,9 @@ export function TravelListPage() {
 
   const [sportsTrips, setSportsTrips] = useState<SportsTravelTrip[]>([]);
   const [greekTrips, setGreekTrips] = useState<GreekTrip[]>([]);
-  const [templates, setTemplates] = useState<Array<{ id: string; name: string; type: string }>>([]);
+  const [templates, setTemplates] = useState<TemplateRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState("trips");
+  const [tab, setTab] = useState(() => searchParams.get("tab") ?? "trips");
   const [createOpen, setCreateOpen] = useState(false);
   const [calcOpen, setCalcOpen] = useState(false);
   const [playerCount, setPlayerCount] = useState(20);
@@ -94,7 +101,13 @@ export function TravelListPage() {
 
   useEffect(() => {
     if (searchParams.get("create") === "1") setCreateOpen(true);
+    const requestedTab = searchParams.get("tab");
+    if (requestedTab === "trips" || requestedTab === "past" || requestedTab === "templates") {
+      setTab(requestedTab);
+    }
   }, [searchParams]);
+
+  const typeLabels = Object.fromEntries(tripTypesForProduct(product).map((t) => [t.value, t.label]));
 
   async function createTrip() {
     if (!orgId) return;
@@ -193,12 +206,41 @@ export function TravelListPage() {
         tabs={[
           { id: "trips", label: "Upcoming", count: upcoming.length },
           { id: "past", label: "Past", count: past.length },
+          ...(isGreek ? [{ id: "templates", label: "Templates", count: templates.length }] : []),
         ]}
         active={tab}
         onChange={setTab}
       />
 
-      {loading ? (
+      {tab === "templates" ? (
+        loading ? (
+          <div className="ds-page-skeleton"><div className="ds-page-skeleton-header" /></div>
+        ) : templates.length === 0 ? (
+          <EmptyState
+            icon={<Plane size={20} />}
+            title="No templates yet"
+            description="Complete a trip and save it as a template from the trip detail page."
+          />
+        ) : (
+          <div className="ds-page-stack" style={{ gap: 12 }}>
+            {templates.map((t) => (
+              <Card key={t.id}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+                  <div>
+                    <p className="type-body" style={{ fontWeight: 500, margin: 0 }}>{t.name}</p>
+                    <Badge label={typeLabels[t.type] ?? t.type} color="blue" />
+                    {Array.isArray(t.checklist_items) && t.checklist_items.length > 0 && (
+                      <p className="type-small" style={{ color: "var(--color-text-muted)", margin: "8px 0 0" }}>
+                        {t.checklist_items.length} checklist items
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )
+      ) : loading ? (
         <div className="ds-page-skeleton"><div className="ds-page-skeleton-header" /></div>
       ) : (tab === "trips" ? upcoming : past).length === 0 ? (
         <EmptyState
