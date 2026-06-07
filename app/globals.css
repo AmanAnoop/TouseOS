@@ -1486,6 +1486,100 @@
     margin: 0 0 16px;
   }
 
+  /* Dashboard home headers — Greek, sports, ClubOS */
+  .ds-page-shell[data-variant="dashboard"] .ds-page-shell-header {
+    align-items: center;
+    padding: 12px 0 24px;
+    gap: 16px 28px;
+  }
+
+  .ds-page-shell[data-variant="dashboard"] .ds-page-shell-breadcrumb {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-tertiary);
+    margin: 0 0 10px;
+  }
+
+  .ds-page-shell[data-variant="dashboard"] .ds-page-header-org {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.3;
+    margin: 0 0 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: min(100%, 42rem);
+  }
+
+  .ds-page-shell[data-variant="dashboard"] .ds-page-shell-title {
+    font-family: var(--font-body);
+    font-size: 1.625rem;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    line-height: 1.2;
+  }
+
+  .ds-page-shell[data-variant="dashboard"] .ds-page-shell-description {
+    margin-top: 8px;
+    max-width: 36rem;
+  }
+
+  .ds-page-shell[data-variant="dashboard"] .ds-page-shell-header-action {
+    align-self: center;
+  }
+
+  .dashboard-metric-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-raised);
+    white-space: nowrap;
+    transition: box-shadow 120ms ease;
+  }
+
+  .dashboard-metric-badge:hover {
+    box-shadow: var(--shadow-sm);
+  }
+
+  .dashboard-metric-badge__label {
+    font-size: 11px;
+    color: var(--color-text-secondary);
+    line-height: 1.2;
+  }
+
+  .dashboard-metric-badge__value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--color-text-primary);
+  }
+
+  @media (max-width: 640px) {
+    .ds-page-shell[data-variant="dashboard"] .ds-page-shell-header {
+      align-items: flex-start;
+    }
+
+    .ds-page-shell[data-variant="dashboard"] .ds-page-shell-header-action {
+      align-self: stretch;
+      width: 100%;
+      justify-content: flex-start;
+    }
+
+    .ds-page-shell[data-variant="dashboard"] .ds-page-shell-title {
+      font-size: 1.375rem;
+    }
+
+    .dashboard-metric-badge {
+      width: 100%;
+      justify-content: space-between;
+    }
+  }
+
   .ds-stat-grid-accent .ds-stat-card:first-child {
     border-left: 3px solid var(--color-org-primary);
   }

@@ -9,12 +9,11 @@ import {
   StatCard, Card, CardHeader, Badge, ProgressBar,
   EmptyState, Alert,
 } from "@/components/ui";
-import { PageShell } from "@/components/layout/page-shell";
+import { DashboardPageShell } from "@/components/dashboard/dashboard-page-shell";
 import {
   formatCurrency, formatDateTime, isGreekOrg, isSportsOrg, isClubOrg,
 } from "@/lib/utils";
 import { getProductId } from "@/lib/org-product";
-import { userFacingProductName } from "@/lib/user-facing-product";
 import { HealthScoreBadge } from "@/components/dashboard/health-score-badge";
 import { OfficerQuickActions } from "@/components/dashboard/officer-quick-actions";
 import { AttendanceTrendChart } from "@/components/dashboard/attendance-trend-chart";
@@ -82,11 +81,11 @@ export default async function DashboardPage() {
   const showGettingStarted = isOfficer && setupSteps.some((s) => !s.done);
 
   return (
-    <PageShell
+    <DashboardPageShell
+      product="greek"
       title="Dashboard"
       orgName={String(org.name)}
-      breadcrumb={`${userFacingProductName(product)}${!isOfficer ? " · Member view" : ""}`}
-      showDashboardAccent
+      isOfficer={isOfficer}
       action={isOfficer ? <HealthScoreBadge composite={composite} metricsUsed={metricsUsed} /> : undefined}
     >
       <OfficerQuickActions role={myRole} orgType={orgType} />
@@ -427,6 +426,6 @@ export default async function DashboardPage() {
           </div>
         </Card>
       )}
-    </PageShell>
+    </DashboardPageShell>
   );
 }
