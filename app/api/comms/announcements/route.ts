@@ -18,12 +18,21 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const orgId = searchParams.get("org_id");
+  const eventId = searchParams.get("event_id");
   if (!orgId) return NextResponse.json({ error: "org_id required" }, { status: 400 });
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("announcements")
     .select("*")
-    .eq("org_id", orgId)
+    .eq("org_id", orgId);
+
+  if (eventId) {
+    query = query.eq("event_id", eventId);
+  } else {
+    query = query.is("event_id", null);
+  }
+
+  const { data, error } = await query
     .order("pinned", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(50);
@@ -37,7 +46,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { orgId, title, body, audience, pinned, sendSms } = await request.json();
+  const { orgId, title, body, audience, pinned, sendSms, eventId } = await request.json();
   if (!orgId || !title || !body) {
     return NextResponse.json({ error: "orgId, title, and body required" }, { status: 400 });
   }
@@ -70,6 +79,7 @@ export async function POST(request: Request) {
       body,
       audience: audienceList,
       pinned: Boolean(pinned),
+      event_id: eventId ?? null,
     })
     .select()
     .single();

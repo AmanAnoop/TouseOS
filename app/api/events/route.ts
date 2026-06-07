@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     orgId, title, type, description, location, address, startsAt, endsAt,
     rsvpEnabled, rsvpLimit, waitlistEnabled, showGuestList, alcohol,
     riskLevel, budgetAmount, dresscode, playlistUrl, theme, isPrivate,
-    coverImageUrl,
+    coverImageUrl, isPointOpportunity, pointValue, pointCategory,
   } = body;
 
   let resolvedCover = coverImageUrl ?? null;
@@ -62,6 +62,9 @@ export async function POST(request: Request) {
     is_private: isPrivate ?? false,
     cover_image_url: resolvedCover,
     status: "upcoming",
+    is_point_opportunity: Boolean(isPointOpportunity),
+    point_value: pointValue != null ? Number(pointValue) : null,
+    point_category: pointCategory ?? null,
   }).select().single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

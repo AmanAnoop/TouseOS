@@ -145,8 +145,22 @@ export interface Event {
   status: string;
   is_private: boolean;
   alcohol: boolean;
+  is_point_opportunity?: boolean;
+  point_value?: number | null;
+  point_category?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface EventComment {
+  id: string;
+  event_id: string;
+  org_id: string;
+  author_id: string | null;
+  author_name: string | null;
+  parent_id: string | null;
+  body: string;
+  created_at: string;
 }
 
 export interface EventRsvp {

@@ -32,6 +32,11 @@ export function EventEditPanel({
   );
   const [coverUploading, setCoverUploading] = useState(false);
   const coverRef = useRef<HTMLInputElement>(null);
+  const [isPointOpportunity, setIsPointOpportunity] = useState(Boolean(event.is_point_opportunity));
+  const [pointValue, setPointValue] = useState(
+    event.point_value != null ? String(event.point_value) : "",
+  );
+  const [pointCategory, setPointCategory] = useState(String(event.point_category ?? ""));
   const [locationValues, setLocationValues] = useState<LocationFieldValues>({
     venueName: String(event.location ?? ""),
     address: String(event.address ?? ""),
@@ -72,6 +77,9 @@ export function EventEditPanel({
         startsAt: startsAt ? new Date(startsAt).toISOString() : undefined,
         endsAt: endsAt ? new Date(endsAt).toISOString() : null,
         coverImageUrl: coverUrl,
+        isPointOpportunity,
+        pointValue: pointValue ? parseInt(pointValue, 10) : null,
+        pointCategory: pointCategory || null,
       }),
     });
     setSaving(false);
@@ -115,6 +123,24 @@ export function EventEditPanel({
             values={locationValues}
             onChange={(patch) => setLocationValues((v) => ({ ...v, ...patch }))}
           />
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              className="rounded mt-0.5"
+              checked={isPointOpportunity}
+              onChange={(e) => setIsPointOpportunity(e.target.checked)}
+            />
+            <div>
+              <p className="text-sm font-medium">Counts toward member points</p>
+              <p className="text-xs text-muted-foreground">Check-in earns credit for this event.</p>
+            </div>
+          </label>
+          {isPointOpportunity && (
+            <div className="grid sm:grid-cols-2 gap-3">
+              <Input label="Points to award" type="number" value={pointValue} onChange={(e) => setPointValue(e.target.value)} placeholder="Chapter default" />
+              <Input label="Category" value={pointCategory} onChange={(e) => setPointCategory(e.target.value)} placeholder="Philanthropy, service..." />
+            </div>
+          )}
           <div className="space-y-2">
             <p className="text-sm font-medium">Cover image</p>
             {coverUrl && (
