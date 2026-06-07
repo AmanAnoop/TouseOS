@@ -65,7 +65,6 @@ Run these SQL files **in strict numeric order** in the Supabase SQL Editor (or `
 | 059 | `migrations/059_engagement_events_phase1.sql` | Yes — event comments, point opportunities, event announcements |
 | 060 | `migrations/060_engagement_media_tickets.sql` | Yes — photo likes/comments, gallery approval, point gates, tickets |
 | 061 | `migrations/061_engagement_points_phase5.sql` | Yes — point opportunities, proof requests |
-| 062 | `migrations/062_engagement_chats_phase4.sql` | Yes — group chats, DMs, reactions, read state |
 
 **If migration 034 failed partway** (error: `function is_org_finance_officer does not exist`), run `057_finance_officer_rls.sql` to repair finance policies.
 

@@ -81,7 +81,6 @@ function mapCoreItem(
     "/attendance-points": "trophy",
     "/engagement": "heart",
     "/comms": "message",
-    "/chats": "message",
     "/feed": "zap",
   };
   const icon = iconMap[resolvedHref] ?? iconMap[href];
