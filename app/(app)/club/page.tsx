@@ -115,7 +115,7 @@ export default async function ClubDashboardPage() {
   const hours = hoursRes.data ?? [];
   const tasks = tasksRes.data ?? [];
 
-  const activeMembers = members.filter((m) => m.membership_status === "active").length;
+  const activeMembers = members.filter((m) => m.membership_status === "active" || m.membership_status === "new_member").length;
   const totalExpected = payments.reduce((s, p) => s + Number(p.amount), 0);
   const totalCollected = payments.reduce((s, p) => s + Number(p.paid_amount), 0);
   const collectionRate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;

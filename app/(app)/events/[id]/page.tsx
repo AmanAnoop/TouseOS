@@ -85,10 +85,11 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
 
           {/* Event title */}
           <div className="absolute bottom-0 left-0 right-0 p-5">
-            <div className="flex items-center gap-2 mb-1">
-              <Badge label={String(event.type).replace(/_/g, " ")} color="blue" className="bg-white/20 text-white border-transparent" />
-              {Boolean(event.theme)&& <Badge label={String(event.theme)} color="purple" className="bg-white/20 text-white border-transparent" />}
-            </div>
+            {Boolean(event.theme) && (
+              <div className="flex items-center gap-2 mb-1">
+                <Badge label={String(event.theme)} color="purple" className="bg-white/20 text-white border-transparent" />
+              </div>
+            )}
             <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight">
               {String(event.title)}
             </h1>

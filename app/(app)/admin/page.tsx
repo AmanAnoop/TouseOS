@@ -53,7 +53,7 @@ export default async function AdminPage() {
   const auditLogs = auditRes.data ?? [];
   const reimbs = reimbsRes.data ?? [];
 
-  const activeMembers = members.filter((m: Record<string, unknown>) => m.membership_status === "active");
+  const activeMembers = members.filter((m: Record<string, unknown>) => m.membership_status === "active" || m.membership_status === "new_member");
   const totalCollected = payments.reduce((s: number, p: Record<string, unknown>) => s + Number(p.paid_amount), 0);
   const totalExpected = payments.reduce((s: number, p: Record<string, unknown>) => s + Number(p.amount), 0);
   const pendingReimbs = reimbs.filter((r: Record<string, unknown>) => r.status === "submitted").length;

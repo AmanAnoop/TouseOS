@@ -146,7 +146,7 @@ export default function BigLittlePage() {
     toast.success(`Match ${status}!`);
   }
 
-  const activeMembers = members.filter((m) => m.membership_status === "active");
+  const activeMembers = members.filter((m) => m.membership_status === "active" || m.membership_status === "new_member");
   const matchedBigIds = new Set(matches.map((m) => m.big_id));
   const matchedLittleIds = new Set(matches.map((m) => m.little_id));
 

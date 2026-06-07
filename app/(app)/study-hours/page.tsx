@@ -9,6 +9,7 @@ import {
   Badge, Button, Card, CardHeader, EmptyState, Input, Modal, PageHeader, ProgressBar, Select, StatCard,
 } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
+import { filterActiveMembers } from "@/lib/member-filters";
 
 interface StudyHourRow {
   id: string;
@@ -36,9 +37,10 @@ export default function StudyHoursPage() {
     if (hRes.ok) setRows(await hRes.json());
     if (mRes.ok) {
       const data = await mRes.json();
-      setMembers((data as Array<{ id: string; full_name: string; membership_status: string }>)
-        .filter((m) => m.membership_status === "active")
-        .map((m) => ({ id: m.id, full_name: m.full_name })));
+      setMembers(
+        filterActiveMembers(data as Array<{ id: string; full_name: string; membership_status: string }>)
+          .map((m) => ({ id: m.id, full_name: m.full_name })),
+      );
     }
   }, []);
 

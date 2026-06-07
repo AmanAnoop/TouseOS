@@ -18,7 +18,7 @@ export function SportsEligibilitySummary({ orgId }: { orgId: string }) {
       if (!org || !isSportsOrg(String(org.type))) return;
 
       const [membersRes, waiversRes, pointsRes, pointsMin] = await Promise.all([
-        supabase.from("member_profiles").select("id, membership_status, payment_status, attendance_rate, is_injured").eq("org_id", orgId).eq("membership_status", "active"),
+        supabase.from("member_profiles").select("id, membership_status, payment_status, attendance_rate, is_injured").eq("org_id", orgId).in("membership_status", ["active", "new_member"]),
         supabase.from("sports_waivers").select("member_id, waiver_type, status").eq("org_id", orgId).eq("status", "completed"),
         supabase.from("member_point_entries").select("member_id, points, entry_type").eq("org_id", orgId),
         getPointsEligibilityMin(supabase, orgId),

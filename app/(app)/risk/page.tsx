@@ -90,7 +90,7 @@ export default function RiskPage() {
     setIncidents(Array.isArray(incRes) ? incRes : []);
     setMembers(
       (Array.isArray(memRes) ? memRes : [])
-        .filter((m: { membership_status?: string }) => m.membership_status === "active")
+        .filter((m: { membership_status?: string }) => m.membership_status === "active" || m.membership_status === "new_member")
         .map((m: { id: string; full_name: string }) => ({ id: m.id, full_name: m.full_name })),
     );
     setLoading(false);

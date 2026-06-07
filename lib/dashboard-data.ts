@@ -461,7 +461,7 @@ export async function loadDashboardData(
   >[1];
   const deadlineItems = buildDeadlineItems(tasks, paymentRows, members);
 
-  const activeCount = members.filter((m) => m.membership_status === "active").length;
+  const activeCount = members.filter((m) => m.membership_status === "active" || m.membership_status === "new_member").length;
   const newMembers = members.filter(
     (m) =>
       m.membership_status === "new_member" ||

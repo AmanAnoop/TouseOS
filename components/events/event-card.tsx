@@ -7,19 +7,6 @@ import { Badge, Card } from "@/components/ui";
 import { formatDateTime } from "@/lib/utils";
 import type { Event } from "@/types";
 
-const TYPE_COLORS: Record<string, string> = {
-  mixer: "blue",
-  formal: "purple",
-  philanthropy: "green",
-  recruitment: "yellow",
-  practice: "blue",
-  game: "green",
-  tournament: "purple",
-  tryout: "orange",
-  brotherhood: "purple",
-  sisterhood: "purple",
-};
-
 interface EventCardProps {
   event: Event;
 }
@@ -56,13 +43,6 @@ export function EventCard({ event }: EventCardProps) {
             backgroundPosition: "center",
           } : {}}
         >
-          <div className="absolute top-2 right-2">
-            <Badge
-              label={event.type.replace(/_/g, " ")}
-              color={(TYPE_COLORS[event.type] ?? "gray") as "blue"}
-              className="text-xs"
-            />
-          </div>
           {event.status === "draft" && (
             <div className="absolute top-2 left-2">
               <Badge label="Draft" color="yellow" />

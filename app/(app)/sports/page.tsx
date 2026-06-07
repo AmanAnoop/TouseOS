@@ -158,7 +158,7 @@ export default async function SportsPage() {
   const tryouts = tryoutsRes.data ?? [];
   const equipment = equipmentRes.data ?? [];
 
-  const activePlayers = members.filter((m) => m.membership_status === "active");
+  const activePlayers = members.filter((m) => m.membership_status === "active" || m.membership_status === "new_member");
   const injuredPlayers = members.filter((m) => m.is_injured);
   const totalExpected = payments.reduce((s, p) => s + Number(p.amount), 0);
   const totalCollected = payments.reduce((s, p) => s + Number(p.paid_amount), 0);
