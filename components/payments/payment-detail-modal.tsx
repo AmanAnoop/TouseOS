@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Copy, CreditCard, DollarSign, ExternalLink, RotateCcw, X } from "lucide-react";
 import toast from "react-hot-toast";
@@ -21,8 +21,20 @@ interface PaymentDetailModalProps {
 
 export function PaymentDetailModal({ open, onClose, orgId, payment, onRefresh, canManage = false }: PaymentDetailModalProps) {
   const [loading, setLoading] = useState(false);
+  const [stripeReady, setStripeReady] = useState(false);
   const [manualForm, setManualForm] = useState({ amount: "", method: "cash", notes: "" });
   const [lateFeeInput, setLateFeeInput] = useState("");
+
+  useEffect(() => {
+    if (!open || !orgId) {
+      setStripeReady(false);
+      return;
+    }
+    fetch(`/api/stripe/connect?org_id=${orgId}`)
+      .then((r) => r.json())
+      .then((d) => setStripeReady(Boolean(d.chargesEnabled)))
+      .catch(() => setStripeReady(false));
+  }, [open, orgId]);
 
   if (!payment) return null;
   const p: PaymentWithMember = payment;
@@ -95,7 +107,7 @@ export function PaymentDetailModal({ open, onClose, orgId, payment, onRefresh, c
       footer={
         <>
           <Button variant="secondary" onClick={onClose} icon={<X size={14} />}>Close</Button>
-          {(p.status === "pending" || p.status === "overdue" || p.status === "partial") && (
+          {(p.status === "pending" || p.status === "overdue" || p.status === "partial") && stripeReady && (
             <Button onClick={payWithStripe} loading={loading} icon={<CreditCard size={14} />}>
               Pay with card
             </Button>

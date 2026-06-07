@@ -187,11 +187,11 @@ export default function PaymentsPage() {
         }
       />
 
+      {orgId && (
+        <StripeDestinationBanner orgId={orgId} canManage={canManage} />
+      )}
       {orgId && canManage && (
-        <>
-          <StripeDestinationBanner orgId={orgId} />
-          <StripeReconciliationPanel orgId={orgId} />
-        </>
+        <StripeReconciliationPanel orgId={orgId} />
       )}
 
       {!canViewAll && (
@@ -245,8 +245,9 @@ export default function PaymentsPage() {
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ paymentId: p.id, email: p.member_profiles?.email }),
                 });
-                const { url } = await res.json();
-                if (url) window.open(url, "_blank");
+                const data = await res.json();
+                if (data.url) window.open(data.url, "_blank");
+                else toast.error(data.error ?? "Could not start checkout");
               }}
             />
           )}

@@ -17,6 +17,8 @@ interface ParentPayData {
   paidAmount?: number;
   dueDate?: string | null;
   status?: string;
+  stripeReady?: boolean;
+  stripeMessage?: string;
 }
 
 export function ParentPayClient({ token }: { token: string }) {
@@ -122,12 +124,19 @@ export function ParentPayClient({ token }: { token: string }) {
             <p className="text-xs text-red-500 font-medium">This balance is past due. Late fees may apply.</p>
           )}
 
+          {data.stripeReady === false && (
+            <p className="text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 rounded-lg p-3">
+              {data.stripeMessage ?? "Online card payments are not available yet. Ask the chapter treasurer to connect Stripe."}
+            </p>
+          )}
+
           <Input
             label="Your email (for receipt)"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="parent@email.com"
+            disabled={data.stripeReady === false}
           />
 
           <Button
@@ -136,7 +145,7 @@ export function ParentPayClient({ token }: { token: string }) {
             icon={<CreditCard size={16} />}
             loading={paying}
             onClick={pay}
-            disabled={(data.checkoutAmount ?? 0) <= 0}
+            disabled={(data.checkoutAmount ?? 0) <= 0 || data.stripeReady === false}
           >
             Pay {formatCurrency(data.checkoutAmount ?? 0)} securely
           </Button>

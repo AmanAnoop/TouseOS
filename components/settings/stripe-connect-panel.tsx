@@ -107,7 +107,7 @@ export function StripeConnectPanel({
         <Alert
           type="info"
           title="Platform payments"
-          description="Until Connect is complete, checkout still runs on the TouseOS platform Stripe account (if configured)."
+          description="Online dues and donations are blocked until Connect is complete with charges enabled."
           className="mt-3"
         />
       )}
@@ -115,7 +115,7 @@ export function StripeConnectPanel({
         <Alert
           type="success"
           title="Destination charges active"
-          description="Member dues, parent pay links, and philanthropy donations will transfer to this connected account."
+          description="Member dues, parent pay links, and philanthropy donations transfer to this account (0.25% platform fee)."
           className="mt-3"
         />
       )}

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getOrgStripeDestination } from "@/lib/org-stripe";
 import { createPhilanthropyCheckout } from "@/lib/stripe";
+import { requireChapterStripeForCheckout } from "@/lib/stripe-connect-guard";
 import { createServiceClient } from "@/lib/supabase/server";
 
 export async function POST(request: Request) {
@@ -27,7 +27,10 @@ export async function POST(request: Request) {
   }
 
   try {
-    const connectedAccountId = await getOrgStripeDestination(supabase, campaign.org_id);
+    const connect = await requireChapterStripeForCheckout(supabase, campaign.org_id);
+    if (!connect.ok) {
+      return NextResponse.json({ error: connect.error, code: "stripe_connect_required" }, { status: 403 });
+    }
 
     const session = await createPhilanthropyCheckout({
       campaignId: campaign.id,
@@ -39,7 +42,7 @@ export async function POST(request: Request) {
       donorEmail,
       message,
       isAnonymous: Boolean(isAnonymous),
-      connectedAccountId,
+      connectedAccountId: connect.accountId,
     });
 
     if (!session.url) {
