@@ -19,17 +19,18 @@ export function HealthScoreBadge({ composite, metricsUsed, href = "/health" }: H
     healthMeta.color === "red" ? "border-red-200 bg-red-50 dark:bg-red-950/20" :
     "border-border bg-surface-1";
 
+  const iconClass =
+    healthMeta.color === "green" ? "text-green-600" :
+    healthMeta.color === "yellow" ? "text-yellow-600" :
+    healthMeta.color === "red" ? "text-red-500" :
+    "text-muted-foreground";
+
   const content = (
-    <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border ${borderClass}`}>
-      <Heart size={18} className={
-        healthMeta.color === "green" ? "text-green-600" :
-        healthMeta.color === "yellow" ? "text-yellow-600" :
-        healthMeta.color === "red" ? "text-red-500" :
-        "text-muted-foreground"
-      } />
-      <div>
-        <p className="text-xs text-muted-foreground">Health score</p>
-        <p className="text-lg font-bold leading-none">{displayScore}</p>
+    <div className={`dashboard-metric-badge ${borderClass}`}>
+      <Heart size={20} className={iconClass} aria-hidden />
+      <div className="min-w-0">
+        <p className="dashboard-metric-badge__label">Health score</p>
+        <p className="dashboard-metric-badge__value">{displayScore}</p>
         {composite === null && metricsUsed !== undefined && (
           <p className="text-[10px] text-muted-foreground">{metricsUsed} metrics tracked</p>
         )}
@@ -39,7 +40,7 @@ export function HealthScoreBadge({ composite, metricsUsed, href = "/health" }: H
   );
 
   if (href) {
-    return <Link href={href}>{content}</Link>;
+    return <Link href={href} className="no-underline">{content}</Link>;
   }
   return content;
 }

@@ -7,11 +7,10 @@ import { REQUIRED_SPORTS_WAIVER_KEYS, waiverTypeLabel } from "@/lib/sports-waive
 import {
   Alert, Badge, Button, Card, CardHeader, EmptyState, ProgressBar, StatCard,
 } from "@/components/ui";
-import { PageShell } from "@/components/layout/page-shell";
+import { DashboardPageShell } from "@/components/dashboard/dashboard-page-shell";
 import { ProductHomeShortcuts } from "@/components/dashboard/product-home-shortcuts";
 import { MemberSnapshot } from "@/components/dashboard/member-snapshot";
 import { TeamReadinessBadge } from "@/components/dashboard/team-readiness-badge";
-import { userFacingProductName } from "@/lib/user-facing-product";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 import {
   AlertTriangle, Calendar, CheckCircle2, DollarSign,
@@ -59,12 +58,12 @@ export default async function SportsPage() {
     const myWaiverTotal = REQUIRED_SPORTS_WAIVER_KEYS.length;
 
     return (
-      <PageShell
+      <DashboardPageShell
+        product="sports"
         title="Team Dashboard"
         orgName={orgName}
-        breadcrumb={`${userFacingProductName("sports")} · Player view`}
+        isOfficer={false}
         description="Your schedule, waivers, and tasks"
-        showDashboardAccent
       >
         <MemberSnapshot profile={myProfile} events={events} myTasks={myTasks} />
 
@@ -136,7 +135,7 @@ export default async function SportsPage() {
             { href: "/forms", label: "Forms" },
           ]}
         />
-      </PageShell>
+      </DashboardPageShell>
     );
   }
 
@@ -172,14 +171,14 @@ export default async function SportsPage() {
     : "Set your university in Settings for team colors";
 
   return (
-    <PageShell
+    <DashboardPageShell
+      product="sports"
       title="Team Dashboard"
       orgName={orgName}
-      breadcrumb={`${userFacingProductName("sports")} · Officer view`}
+      isOfficer
       description={campusNote}
-      showDashboardAccent
       action={(
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap justify-end">
           <TeamReadinessBadge
             waiverRate={waiverRate}
             missingWaivers={missingWaivers}
@@ -343,6 +342,6 @@ export default async function SportsPage() {
           { href: "/events", label: "Events" },
         ]}
       />
-    </PageShell>
+    </DashboardPageShell>
   );
 }

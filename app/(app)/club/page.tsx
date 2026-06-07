@@ -6,6 +6,8 @@ import { getUniversityById } from "@/lib/university-colors";
 import {
   Alert, Badge, Button, Card, CardHeader, EmptyState, ProgressBar, StatCard,
 } from "@/components/ui";
+import { DashboardPageShell } from "@/components/dashboard/dashboard-page-shell";
+import { ClubPulseBadge } from "@/components/dashboard/club-pulse-badge";
 import { ProductHomeShortcuts } from "@/components/dashboard/product-home-shortcuts";
 import { MemberSnapshot } from "@/components/dashboard/member-snapshot";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
@@ -15,11 +17,19 @@ import type { Event, MemberProfile, Task } from "@/types";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Organization Dashboard" };
 
+function campusDescription(university: ReturnType<typeof getUniversityById>): string | undefined {
+  if (university) {
+    return `${university.name} colors active · Change campus in Settings`;
+  }
+  return "Set your university in Settings for campus colors";
+}
+
 export default async function ClubDashboardPage() {
   const { orgId, role, userId } = await requireOrgProduct(["club"]);
   const isOfficer = isDashboardOfficer(role);
   const supabase = await createClient();
-  const { data: orgRow } = await supabase.from("organizations").select("settings").eq("id", orgId).single();
+  const { data: orgRow } = await supabase.from("organizations").select("name, settings").eq("id", orgId).single();
+  const orgName = String(orgRow?.name ?? "");
   const settings = (orgRow?.settings ?? {}) as Record<string, unknown>;
   const university = getUniversityById(
     typeof settings.university_id === "string" ? settings.university_id : undefined,
@@ -48,21 +58,16 @@ export default async function ClubDashboardPage() {
     const myVerified = (myHoursRows ?? []).filter((h) => h.verified).reduce((s, h) => s + Number(h.hours), 0);
 
     return (
-      <div className="space-y-6">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold">
-              CL
-            </div>
-            <span className="text-sm font-semibold text-primary uppercase tracking-wide">TouseOS</span>
-          </div>
-          <h1 className="font-serif text-2xl font-semibold text-foreground">Organization Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-1">Member view</p>
-        </div>
-
+      <DashboardPageShell
+        product="club"
+        title="Organization Dashboard"
+        orgName={orgName}
+        isOfficer={false}
+        description="Your service hours, events, and tasks"
+      >
         <MemberSnapshot profile={myProfile} events={events} myTasks={myTasks} />
 
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="ds-stat-grid">
           <StatCard title="Your service hours" value={myHours.toFixed(1)} delta={`${myVerified.toFixed(1)} verified`} icon={<HandHeart size={18} />} />
           <StatCard title="Upcoming events" value={events.length} icon={<Calendar size={18} />} />
           <StatCard title="Open tasks" value={myTasks.length} icon={<Users size={18} />} />
@@ -95,7 +100,7 @@ export default async function ClubDashboardPage() {
             { href: "/forms", label: "Forms" },
           ]}
         />
-      </div>
+      </DashboardPageShell>
     );
   }
 
@@ -124,42 +129,24 @@ export default async function ClubDashboardPage() {
   const pendingApps = applications.filter((a) => ["applied", "interview"].includes(String(a.status))).length;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold">
-              CL
-            </div>
-            <span className="text-sm font-semibold text-primary uppercase tracking-wide">TouseOS</span>
-          </div>
-          <h1 className="font-serif text-2xl font-semibold text-foreground">Organization Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-1">Officer view</p>
-          <p className="text-sm text-muted-foreground mt-1">
-            {university ? (
-              <>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-campus-600" />
-                  {university.name} colors
-                </span>
-                {" · "}
-                <Link href="/settings" className="text-campus-600 hover:underline">Change campus</Link>
-              </>
-            ) : (
-              <>
-                <Link href="/settings" className="text-campus-600 hover:underline">Set your university</Link> for campus colors
-              </>
-            )}
-          </p>
+    <DashboardPageShell
+      product="club"
+      title="Organization Dashboard"
+      orgName={orgName}
+      isOfficer
+      description={campusDescription(university)}
+      action={(
+        <div className="flex items-center gap-3 flex-wrap justify-end">
+          <ClubPulseBadge activeMembers={activeMembers} collectionRate={collectionRate} />
+          <Link href="/events/new">
+            <Button size="sm" className="officer-touch">
+              <Calendar size={14} />
+              Plan event
+            </Button>
+          </Link>
         </div>
-        <Link href="/events/new">
-          <Button size="sm" className="officer-touch">
-            <Calendar size={14} />
-            Plan event
-          </Button>
-        </Link>
-      </div>
-
+      )}
+    >
       {pendingApps > 0 && (
         <Alert
           type="info"
@@ -168,7 +155,7 @@ export default async function ClubDashboardPage() {
         />
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="ds-stat-grid">
         <StatCard title="Active members" value={activeMembers} icon={<Users size={18} />} />
         <StatCard title="Dues collected" value={`${collectionRate}%`} delta={formatCurrency(totalCollected)} icon={<DollarSign size={18} />} />
         <StatCard title="Service hours" value={totalHours.toFixed(1)} delta={`${verifiedHours.toFixed(1)} verified`} icon={<HandHeart size={18} />} />
@@ -252,6 +239,6 @@ export default async function ClubDashboardPage() {
           { href: "/philanthropy", label: "Fundraising" },
         ]}
       />
-    </div>
+    </DashboardPageShell>
   );
 }

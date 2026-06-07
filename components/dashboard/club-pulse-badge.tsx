@@ -1,26 +1,24 @@
 import Link from "next/link";
-import { Shield } from "lucide-react";
+import { HandHeart } from "lucide-react";
 import { Badge } from "@/components/ui";
 
-interface TeamReadinessBadgeProps {
-  waiverRate: number;
-  missingWaivers: number;
-  injuredCount: number;
+interface ClubPulseBadgeProps {
+  activeMembers: number;
+  collectionRate: number;
   href?: string;
 }
 
-export function TeamReadinessBadge({
-  waiverRate,
-  missingWaivers,
-  injuredCount,
-  href = "/waivers",
-}: TeamReadinessBadgeProps) {
+export function ClubPulseBadge({
+  activeMembers,
+  collectionRate,
+  href = "/payments",
+}: ClubPulseBadgeProps) {
   const color =
-    waiverRate >= 90 && injuredCount === 0 ? "green" :
-    waiverRate >= 70 ? "yellow" : "red";
+    collectionRate >= 75 ? "green" :
+    collectionRate >= 50 ? "yellow" : "red";
   const label =
-    waiverRate >= 90 && injuredCount === 0 ? "Ready" :
-    missingWaivers > 0 ? "Waivers due" : injuredCount > 0 ? "Injuries" : "Needs attention";
+    collectionRate >= 75 ? "On track" :
+    collectionRate >= 50 ? "Behind" : "Needs attention";
 
   const borderClass =
     color === "green" ? "border-green-200 bg-green-50 dark:bg-green-950/20" :
@@ -33,10 +31,11 @@ export function TeamReadinessBadge({
 
   const content = (
     <div className={`dashboard-metric-badge ${borderClass}`}>
-      <Shield size={20} className={iconClass} aria-hidden />
+      <HandHeart size={20} className={iconClass} aria-hidden />
       <div className="min-w-0">
-        <p className="dashboard-metric-badge__label">Team readiness</p>
-        <p className="dashboard-metric-badge__value">{waiverRate}%</p>
+        <p className="dashboard-metric-badge__label">Org pulse</p>
+        <p className="dashboard-metric-badge__value">{collectionRate}%</p>
+        <p className="text-[10px] text-muted-foreground">{activeMembers} active members</p>
       </div>
       <Badge label={label} color={color} />
     </div>
