@@ -17,7 +17,7 @@ export async function requireFinanceOfficer(orgId: string): Promise<FinanceAuth>
   }
   const role = await getFinanceOfficerRole(supabase, user.id, orgId);
   if (!role) {
-    return { ok: false, response: NextResponse.json({ error: "Treasurer or president access required" }, { status: 403 }) };
+    return { ok: false, response: NextResponse.json({ error: "Finance officer access required (president, VP, or treasurer)" }, { status: 403 }) };
   }
   return { ok: true, supabase, userId: user.id, orgId };
 }

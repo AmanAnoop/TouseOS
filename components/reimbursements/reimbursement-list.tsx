@@ -49,7 +49,7 @@ export function ReimbursementList({
                   <p className="font-semibold text-sm">{r.description}</p>
                   <Badge label={r.status.replace("_", " ")} color={(STATUS_COLOR[r.status] ?? "gray") as "green"} />
                   {showApprovalHints && needsDualApproval && r.status === "submitted" && (
-                    <Badge label="Needs treasurer + president" color="orange" />
+                    <Badge label="Needs treasurer + president/VP" color="orange" />
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">

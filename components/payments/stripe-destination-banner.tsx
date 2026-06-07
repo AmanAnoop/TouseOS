@@ -45,7 +45,7 @@ export function StripeDestinationBanner({
         description={
           canManage
             ? "Connect Stripe in Settings → Integrations before members can pay dues online. Until then, use manual payment logging for cash/check."
-            : "Your treasurer must connect the chapter Stripe account before you can pay dues with a card. Cash/check can still be logged manually."
+            : "A finance officer (treasurer, president, or VP) must connect the chapter Stripe account before you can pay dues with a card. Cash/check can still be logged manually."
         }
       />
       {canManage && (

@@ -353,7 +353,7 @@ export default function ReimbursementsPage() {
               <>
                 <Button loading={actionLoading} onClick={() => updateStatus(selected.id, "approved", { approvalType: "treasurer" })} icon={<CheckCircle size={14} />}>Treasurer approve</Button>
                 {selected && needsPresidentApproval(selected) && (
-                  <Button loading={actionLoading} onClick={() => updateStatus(selected.id, "approved", { approvalType: "president" })}>President approve</Button>
+                  <Button loading={actionLoading} onClick={() => updateStatus(selected.id, "approved", { approvalType: "president" })}>President/VP approve</Button>
                 )}
                 <Button variant="secondary" loading={actionLoading} onClick={() => updateStatus(selected.id, "needs_info", { rejectionReason: rejectNotes || "More information needed" })}>Need info</Button>
                 <Button variant="danger" loading={actionLoading} onClick={handleReject} icon={<XCircle size={14} />}>Reject</Button>
@@ -380,7 +380,7 @@ export default function ReimbursementsPage() {
             </div>
             {canReview && needsPresidentApproval(selected) && selected.status === "submitted" && (
               <p className="text-xs text-muted-foreground">
-                Amounts over {formatCurrency(threshold)} require treasurer and president approval.
+                Amounts over {formatCurrency(threshold)} require treasurer and president/VP approval.
               </p>
             )}
             <div className="grid grid-cols-2 gap-3">

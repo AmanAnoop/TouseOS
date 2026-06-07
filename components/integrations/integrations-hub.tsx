@@ -69,7 +69,7 @@ export function IntegrationsHub({ orgId, stripeAccountId, role }: IntegrationsHu
       ) : orgId ? (
         <Card padding="sm">
           <p className="text-sm text-muted-foreground">
-            Bank account linking is available to the treasurer or president in Settings → Integrations.
+            Bank account linking is available to finance officers (treasurer, president, or VP) in Settings → Integrations.
           </p>
         </Card>
       ) : null}
