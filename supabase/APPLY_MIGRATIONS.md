@@ -34,6 +34,7 @@ Run these SQL files **in order** in the Supabase SQL Editor (or `psql` against y
 | 053 | `053_chapter_os_wave4_pnm_rsvp.sql` | Yes — PNM event invite RSVP tokens and check-in |
 | 054 | `054_ux_bugfixes.sql` | Yes — task point recipient mode, Greek org discovery for interchapter |
 | 055 | `055_pilot_fixes.sql` | Yes — PNM eval RLS, photo albums created_by, photo request targets, task open rewards, dashboard layout |
+| 056 | `056_schema_repairs.sql` | Yes — idempotent repairs for photo_albums.created_by, governance attendee_ids, photo request targets |
 | 039 | `039_batch10_study_hours.sql` | Yes — study hours table (apply if missing) |
 
 After apply:

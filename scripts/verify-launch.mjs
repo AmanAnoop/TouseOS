@@ -70,8 +70,8 @@ if (process.env.NODE_ENV === "production") {
   }
 }
 
-console.log("\nMigrations: apply supabase/migrations/001 through 024 in order.");
-console.log("Optional seed: 005_seed.sql");
+console.log("\nMigrations: apply supabase/migrations/001 through 056 in order.");
+console.log("See supabase/APPLY_MIGRATIONS.md for the full table.");
 console.log("Ops endpoint after deploy: GET /api/ready\n");
 
 if (failed > 0) {

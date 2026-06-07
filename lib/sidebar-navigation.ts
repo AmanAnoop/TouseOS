@@ -1,5 +1,7 @@
 import type { ProductId } from "@/lib/org-product";
 import { navForProduct } from "@/lib/org-product";
+import { isPathAllowedByFeatureFlags } from "@/lib/platform-feature-routes";
+import { DEFAULT_FEATURE_FLAGS } from "@/lib/platform-feature-flags";
 
 /** Lucide icon keys resolved in `components/layout/sidebar-icons.tsx` */
 export type SidebarIconKey =
@@ -46,6 +48,7 @@ export interface SidebarNavOptions {
   hasGreekMembership?: boolean;
   platformAdmin?: boolean;
   universityAdmin?: boolean;
+  featureFlags?: Record<string, boolean>;
 }
 
 function homeHref(product: ProductId): string {
@@ -268,5 +271,11 @@ export function buildSidebarNavigation(
     sections.push({ id: "admin", title: "Administration", items: admin });
   }
 
-  return sections;
+  const flags = { ...DEFAULT_FEATURE_FLAGS, ...(options.featureFlags ?? {}) };
+  return sections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => isPathAllowedByFeatureFlags(item.href, flags)),
+    }))
+    .filter((section) => section.items.length > 0);
 }

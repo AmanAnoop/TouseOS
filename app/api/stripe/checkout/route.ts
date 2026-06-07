@@ -2,8 +2,12 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getOrgStripeDestination } from "@/lib/org-stripe";
 import { createPaymentLink } from "@/lib/stripe";
+import { requirePlatformFeature } from "@/lib/platform-api-guard";
 
 export async function POST(request: Request) {
+  const blocked = await requirePlatformFeature("stripe_payments");
+  if (blocked) return blocked;
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
