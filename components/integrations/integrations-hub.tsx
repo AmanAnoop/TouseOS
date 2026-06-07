@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Alert, Badge, Card } from "@/components/ui";
 import { StripeIntegrationCard } from "@/components/integrations/stripe-integration-card";
 import { TwilioIntegrationCard } from "@/components/integrations/twilio-integration-card";
+import { ResendIntegrationCard } from "@/components/integrations/resend-integration-card";
 import { BankConnectCard } from "@/components/finance/bank-connect-card";
 import { IntegrationKeysStatusPanel } from "@/components/integrations/integration-keys-status-panel";
 import { isFinanceOfficerRole } from "@/lib/finance-access";
@@ -46,6 +47,7 @@ export function IntegrationsHub({ orgId, stripeAccountId, role }: IntegrationsHu
 
   const stripeRow = rows.find((r) => r.id === "stripe");
   const twilioRow = rows.find((r) => r.id === "twilio");
+  const resendRow = rows.find((r) => r.id === "resend");
   const isAdmin = can(role, "manage_org_settings");
   const isFinanceOfficer = isFinanceOfficerRole(role);
   const canTestSms = can(role, "send_mass_texts");
@@ -103,6 +105,11 @@ export function IntegrationsHub({ orgId, stripeAccountId, role }: IntegrationsHu
           canTest={canTestSms}
         />
       ) : null}
+
+      <ResendIntegrationCard
+        configured={Boolean(resendRow?.configured)}
+        live={Boolean(resendRow?.live)}
+      />
 
       <IntegrationKeysStatusPanel role={role} />
 

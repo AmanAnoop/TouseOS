@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { createPhilanthropyCheckout } from "@/lib/stripe";
 import { requireChapterStripeForCheckout } from "@/lib/stripe-connect-guard";
 import { createServiceClient } from "@/lib/supabase/server";
+import { isStripeConfigured } from "@/lib/integrations";
 
 export async function POST(request: Request) {
-  if (!process.env.STRIPE_SECRET_KEY) {
+  if (!isStripeConfigured()) {
     return NextResponse.json({ error: "Stripe is not configured" }, { status: 503 });
   }
 

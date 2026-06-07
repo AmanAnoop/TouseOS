@@ -1,3 +1,5 @@
+import "server-only";
+
 import twilio from "twilio";
 import { isTwilioConfigured } from "@/lib/integrations";
 import { formatChapterSms } from "@/lib/sms-branding";

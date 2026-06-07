@@ -1,5 +1,7 @@
 /** Runtime checks for third-party integrations (no secret values returned). */
 
+import "server-only";
+
 import { getPlatformSecretSync, ensurePlatformSecretsLoaded } from "@/lib/platform-secrets";
 
 export type IntegrationId =
