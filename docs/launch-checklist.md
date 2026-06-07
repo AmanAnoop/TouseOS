@@ -5,7 +5,7 @@ Use this before inviting a live chapter or university pilot.
 
 ## Environment
 
-- [ ] Supabase project provisioned; migrations **001 → 028** applied (see `supabase/migrations/` and `supabase/APPLY_MIGRATIONS.md`)
+- [ ] Supabase project provisioned; migrations **001 → 056** applied (see `supabase/migrations/` and `supabase/APPLY_MIGRATIONS.md`)
 - [ ] `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` set
 - [ ] `NEXT_PUBLIC_APP_URL` matches production domain
 - [ ] Stripe keys + webhook endpoint (`checkout.session.completed`, `account.updated`, `payment_intent.payment_failed`)

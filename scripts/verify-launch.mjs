@@ -72,11 +72,12 @@ if (anon.startsWith("eyJ")) {
   }
 }
 
-console.log("\nStripe (required for live dues):");
+console.log("\nStripe (live dues — webhook optional for local dev):");
 for (const key of PAYMENTS) {
   const pass = ok(key);
-  console.log(`${pass ? "✓" : "○"} ${key}`);
-  if (!pass) failed++;
+  const optional = key === "STRIPE_WEBHOOK_SECRET";
+  console.log(`${pass ? "✓" : optional ? "○" : "✗"} ${key}${optional ? " (optional locally)" : ""}`);
+  if (!pass && !optional) failed++;
 }
 
 if (process.env.NODE_ENV === "production") {

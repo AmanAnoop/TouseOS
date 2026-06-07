@@ -42,6 +42,7 @@ export default function PaymentsPage() {
   const [selectedPayment, setSelectedPayment] = useState<PaymentWithMember | null>(null);
   const [manualForm, setManualForm] = useState({ paymentId: "", amount: "", method: "cash", notes: "" });
   const [reminderOpen, setReminderOpen] = useState(false);
+  const [stripeCheckoutEnabled, setStripeCheckoutEnabled] = useState(false);
 
   const loadPayments = useCallback(async (oid: string) => {
     setLoading(true);
@@ -70,6 +71,17 @@ export default function PaymentsPage() {
     if (!orgId || !userId) return;
     loadPayments(orgId);
   }, [orgId, userId, loadPayments]);
+
+  useEffect(() => {
+    if (!orgId) {
+      setStripeCheckoutEnabled(false);
+      return;
+    }
+    fetch(`/api/stripe/connect?org_id=${orgId}`)
+      .then((r) => r.json())
+      .then((d) => setStripeCheckoutEnabled(Boolean(d.chargesEnabled)))
+      .catch(() => setStripeCheckoutEnabled(false));
+  }, [orgId]);
 
   useEffect(() => {
     if (!userId) return;
@@ -237,6 +249,7 @@ export default function PaymentsPage() {
           ) : (
             <PaymentList
               payments={visiblePayments}
+              stripeCheckoutEnabled={stripeCheckoutEnabled}
               onSelect={(p) => setSelectedPayment(p)}
               onCopyParentLink={copyParentLink}
               onPayStripe={async (p) => {

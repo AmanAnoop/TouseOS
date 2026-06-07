@@ -64,7 +64,7 @@ export function getProductDepthReport(): ProductDepthReport {
     },
     {
       id: "anthropic",
-      label: "Anthropic API key for AI assistant",
+      label: "Anthropic API key (Claude — all AI features)",
       category: "integrations",
       points: 1,
       done: isAnthropicConfigured(),

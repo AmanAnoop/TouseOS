@@ -12,12 +12,13 @@ export type PaymentWithMember = Payment & {
 interface PaymentListProps {
   payments: PaymentWithMember[];
   loading?: boolean;
+  stripeCheckoutEnabled?: boolean;
   onCopyParentLink?: (payment: PaymentWithMember) => void;
   onPayStripe?: (payment: PaymentWithMember) => void;
   onSelect?: (payment: PaymentWithMember) => void;
 }
 
-export function PaymentList({ payments, loading, onCopyParentLink, onPayStripe, onSelect }: PaymentListProps) {
+export function PaymentList({ payments, loading, stripeCheckoutEnabled = false, onCopyParentLink, onPayStripe, onSelect }: PaymentListProps) {
   if (loading) {
     return <Card className="h-48 animate-pulse bg-surface-2 border-0">&nbsp;</Card>;
   }
@@ -59,7 +60,7 @@ export function PaymentList({ payments, loading, onCopyParentLink, onPayStripe, 
               />
             </div>
             {onCopyParentLink && <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); onCopyParentLink(p); }}>Parent link</Button>}
-            {(p.status === "pending" || p.status === "overdue" || p.status === "partial") && onPayStripe && (
+            {(p.status === "pending" || p.status === "overdue" || p.status === "partial") && onPayStripe && stripeCheckoutEnabled && (
               <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); onPayStripe(p); }}>Pay</Button>
             )}
           </button>

@@ -3,6 +3,8 @@
  * Does not expose secret values — only whether keys are set.
  */
 
+import { getPlatformSecretSync } from "@/lib/platform-secrets";
+
 export type LaunchEnvCheck = {
   key: string;
   label: string;
@@ -50,8 +52,6 @@ const OPTIONAL: Array<{ key: string; label: string }> = [
   { key: "NEXT_PUBLIC_VAPID_PUBLIC_KEY", label: "Web push (public)" },
   { key: "VAPID_PRIVATE_KEY", label: "Web push (private)" },
 ];
-
-import { getPlatformSecretSync } from "@/lib/platform-secrets";
 
 function isSet(key: string): boolean {
   return Boolean(getPlatformSecretSync(key));

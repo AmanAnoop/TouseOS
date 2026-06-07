@@ -1,5 +1,7 @@
 /** Mapbox — server geocoding; client uses NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN with react-map-gl. */
 
+import "server-only";
+
 import { getPlatformSecretSync } from "@/lib/platform-secrets";
 export { isMapboxConfigured } from "@/lib/integrations";
 

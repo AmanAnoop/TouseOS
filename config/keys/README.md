@@ -20,6 +20,8 @@ The app loads `config/keys/keys.env` automatically at startup (see `next.config.
 | `keys.env.example` | Yes — template only, no secrets |
 | `keys.env` | **Never** — gitignored |
 
+**Never** put secret keys (`sk_`, `sk-ant-`, `sb_secret_`, service role) in `NEXT_PUBLIC_*` variables — those are embedded in the browser bundle. Server secrets load only from this file or Platform Admin → Keys.
+
 For production, prefer Vercel/host environment variables. Use this folder for local dev or when you want one obvious place to paste keys on a VM.
 
 ## Validate
