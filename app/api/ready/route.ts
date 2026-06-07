@@ -12,13 +12,15 @@ export async function GET() {
       status: readiness.readyForPilot ? "ok" : "degraded",
       env: readiness,
       migrations: {
-        expected: "001 through 027 in supabase/migrations/",
+        expected: "001 through 056 in supabase/migrations/",
+        latest: "056_schema_repairs.sql",
         seedDeprecated: "005_seed.sql (demo removed — use 033_remove_demo_org.sql to clean old DBs)",
-        doc: "docs/launch-checklist.md",
+        doc: "supabase/APPLY_MIGRATIONS.md",
       },
       webhooks: {
         stripe: "/api/stripe/webhook",
         twilio: "/api/twilio/webhook",
+        plaid: "/api/webhooks/plaid",
       },
       cron: {
         paths: [
@@ -26,6 +28,12 @@ export async function GET() {
           "/api/cron/overdue-dues",
           "/api/cron/recurring-dues",
           "/api/cron/sync-stripe-connect",
+          "/api/cron/tasks-due-soon",
+          "/api/cron/recurring-tasks",
+          "/api/cron/social-calendar-reminders",
+          "/api/cron/event-reminders",
+          "/api/cron/forms-due",
+          "/api/cron/recurring-housing-rent",
         ],
         auth: "Authorization: Bearer <CRON_SECRET>",
       },

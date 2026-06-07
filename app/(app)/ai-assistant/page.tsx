@@ -57,7 +57,7 @@ export default function AiAssistantPage() {
       const message = err instanceof Error ? err.message : "Failed to get response";
       setMessages((prev) => [...prev, {
         role: "assistant",
-        content: `I'm sorry, I couldn't process that request right now. ${message}. Make sure your OpenAI API key is configured in your environment variables.`,
+        content: `I'm sorry, I couldn't process that request right now. ${message}. Add your Anthropic API key in Settings → API keys (platform admin).`,
       }]);
     } finally {
       setLoading(false);

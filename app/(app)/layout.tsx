@@ -9,6 +9,8 @@ import {
 } from "@/lib/platform-impersonate";
 import { ACTIVE_ORG_COOKIE } from "@/lib/active-org-cookie";
 import { loadActiveMembershipServer } from "@/lib/active-org-membership-server";
+import { createServiceClient } from "@/lib/supabase/server";
+import { getStoredFeatureFlags, isOrgSuspended } from "@/lib/platform-feature-flags";
 import type { Organization, Profile } from "@/types";
 import type { ActiveOrgSnapshot } from "@/components/providers/active-org-provider";
 
@@ -78,6 +80,22 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const org = orgs[0] ?? null;
 
   const activeMembership = await loadActiveMembershipServer(user.id);
+  const activeOrgRecord = orgs.find((o) => o.id === activeMembership?.orgId) ?? org;
+  const orgSuspended = Boolean(
+    activeOrgRecord
+    && isOrgSuspended(activeOrgRecord.settings)
+    && !impersonating
+    && !isPlatformAdminEmail(user.email),
+  );
+
+  let featureFlags: Record<string, boolean> = {};
+  try {
+    const service = await createServiceClient();
+    featureFlags = await getStoredFeatureFlags(service);
+  } catch {
+    /* use defaults in client guards */
+  }
+
   const activeOrg: ActiveOrgSnapshot | null = activeMembership
     ? {
         orgId: activeMembership.orgId,
@@ -101,6 +119,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       activeOrg={activeOrg}
       impersonating={impersonating}
       impersonateOrgName={impersonating ? org?.name : undefined}
+      orgSuspended={orgSuspended}
+      featureFlags={featureFlags}
     >
       {children}
     </AppShell>

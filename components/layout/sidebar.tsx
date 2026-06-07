@@ -32,11 +32,12 @@ interface SidebarProps {
   orgs: Organization[];
   profile: Profile | null;
   orgType: string;
+  featureFlags?: Record<string, boolean>;
   onClose?: () => void;
   mobile?: boolean;
 }
 
-export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: SidebarProps) {
+export function Sidebar({ org, orgs, profile, orgType, featureFlags, onClose, mobile }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [switchingOrg, setSwitchingOrg] = useState(false);
@@ -61,8 +62,9 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
         hasGreekMembership,
         platformAdmin,
         universityAdmin,
+        featureFlags,
       }),
-    [product, unreadCount, hasGreekMembership, platformAdmin, universityAdmin],
+    [product, unreadCount, hasGreekMembership, platformAdmin, universityAdmin, featureFlags],
   );
 
   const sections = useMemo(

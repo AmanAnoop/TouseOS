@@ -6,6 +6,8 @@ import { BottomNav } from "@/components/layout/bottom-nav";
 import { ServiceWorkerRegister } from "@/components/layout/service-worker-register";
 import { ImpersonationBanner } from "@/components/layout/impersonation-banner";
 import { ProductRouteGuard } from "@/components/layout/product-route-guard";
+import { PlatformRouteGuard } from "@/components/layout/platform-route-guard";
+import { OrgSuspensionGuard } from "@/components/layout/org-suspension-guard";
 import { OrgThemeProvider } from "@/components/theme/org-theme-provider";
 import { ActiveOrgProvider, type ActiveOrgSnapshot } from "@/components/providers/active-org-provider";
 import { userHasGreekOrg } from "@/lib/org-product";
@@ -18,6 +20,8 @@ interface AppShellProps {
   activeOrg?: ActiveOrgSnapshot | null;
   impersonating?: boolean;
   impersonateOrgName?: string;
+  orgSuspended?: boolean;
+  featureFlags?: Record<string, boolean>;
   children: React.ReactNode;
 }
 
@@ -28,6 +32,8 @@ export function AppShell({
   activeOrg,
   impersonating,
   impersonateOrgName,
+  orgSuspended = false,
+  featureFlags = {},
   children,
 }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -44,6 +50,7 @@ export function AppShell({
           orgs={orgs}
           profile={profile}
           orgType={org?.type ?? "general_org"}
+          featureFlags={featureFlags}
         />
       </div>
 
@@ -61,6 +68,7 @@ export function AppShell({
               orgs={orgs}
               profile={profile}
               orgType={org?.type ?? "general_org"}
+              featureFlags={featureFlags}
               onClose={() => setSidebarOpen(false)}
               mobile
             />
@@ -73,14 +81,21 @@ export function AppShell({
           {impersonating && impersonateOrgName && (
             <ImpersonationBanner orgName={impersonateOrgName} />
           )}
-          <ProductRouteGuard
-            orgType={org?.type ?? "general_org"}
-            hasGreekMembership={hasGreekMembership}
-          >
-            <ActiveOrgProvider initial={activeOrg ?? null}>
-              {children}
-            </ActiveOrgProvider>
-          </ProductRouteGuard>
+          <OrgSuspensionGuard suspended={orgSuspended}>
+            <PlatformRouteGuard
+              orgType={org?.type ?? "general_org"}
+              featureFlags={featureFlags}
+            >
+              <ProductRouteGuard
+                orgType={org?.type ?? "general_org"}
+                hasGreekMembership={hasGreekMembership}
+              >
+                <ActiveOrgProvider initial={activeOrg ?? null}>
+                  {children}
+                </ActiveOrgProvider>
+              </ProductRouteGuard>
+            </PlatformRouteGuard>
+          </OrgSuspensionGuard>
         </div>
       </div>
 

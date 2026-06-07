@@ -102,6 +102,7 @@ const SHARED_PREFIXES = [
   "/pay",
   "/platform-admin",
   "/university-admin",
+  "/suspended",
 ];
 
 /** Social & media — all member-facing org types except university */

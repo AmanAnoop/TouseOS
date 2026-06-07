@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAnthropicClient, ANTHROPIC_DEFAULT_MODEL, isAnthropicConfigured } from "@/lib/anthropic";
 import { buildAiOrgContext } from "@/lib/ai-org-context";
+import { requirePlatformFeature } from "@/lib/platform-api-guard";
 
 const rateLimit = new Map<string, { count: number; resetAt: number }>();
 const MAX_PER_MINUTE = 12;
@@ -24,6 +25,9 @@ Never make final decisions on discipline, risk, medical, or recruitment acceptan
 Remind users to review and personalize generated content.`;
 
 export async function POST(request: Request) {
+  const blocked = await requirePlatformFeature("ai_assistant");
+  if (blocked) return blocked;
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
