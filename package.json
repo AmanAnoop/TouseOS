@@ -9,6 +9,7 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "launch:check": "node scripts/verify-launch.mjs",
+    "keys:check": "node scripts/check-keys.mjs",
     "smoke:pilot": "node scripts/smoke-pilot.mjs"
   },
   "dependencies": {

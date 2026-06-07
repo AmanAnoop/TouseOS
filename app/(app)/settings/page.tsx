@@ -274,6 +274,13 @@ export default function SettingsPage() {
 
       {tab === "keys" && (isAdmin || platformAdmin) && (
         <div className="ds-page-stack max-w-3xl">
+          <Card padding="sm">
+            <p className="text-sm text-muted-foreground">
+              For local dev, put all keys in one file: <code className="text-xs bg-surface-2 px-1.5 py-0.5 rounded">config/keys/keys.env</code>
+              {" "}(copy from <code className="text-xs bg-surface-2 px-1.5 py-0.5 rounded">config/keys/keys.env.example</code>).
+              Run <code className="text-xs bg-surface-2 px-1.5 py-0.5 rounded">npm run keys:check</code> to validate.
+            </p>
+          </Card>
           {platformAdmin ? (
             <PlatformKeysPanel />
           ) : (

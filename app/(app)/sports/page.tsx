@@ -7,8 +7,11 @@ import { REQUIRED_SPORTS_WAIVER_KEYS, waiverTypeLabel } from "@/lib/sports-waive
 import {
   Alert, Badge, Button, Card, CardHeader, EmptyState, ProgressBar, StatCard,
 } from "@/components/ui";
+import { PageShell } from "@/components/layout/page-shell";
 import { ProductHomeShortcuts } from "@/components/dashboard/product-home-shortcuts";
 import { MemberSnapshot } from "@/components/dashboard/member-snapshot";
+import { TeamReadinessBadge } from "@/components/dashboard/team-readiness-badge";
+import { userFacingProductName } from "@/lib/user-facing-product";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 import {
   AlertTriangle, Calendar, CheckCircle2, DollarSign,
@@ -23,7 +26,8 @@ export default async function SportsPage() {
   const { orgId, role, userId } = await requireOrgProduct(["sports"]);
   const isOfficer = isDashboardOfficer(role);
   const supabase = await createClient();
-  const { data: orgRow } = await supabase.from("organizations").select("settings, campus").eq("id", orgId).single();
+  const { data: orgRow } = await supabase.from("organizations").select("name, settings, campus").eq("id", orgId).single();
+  const orgName = String(orgRow?.name ?? "");
   const settings = (orgRow?.settings ?? {}) as Record<string, unknown>;
   const university = getUniversityById(
     typeof settings.university_id === "string" ? settings.university_id : undefined,
@@ -55,17 +59,13 @@ export default async function SportsPage() {
     const myWaiverTotal = REQUIRED_SPORTS_WAIVER_KEYS.length;
 
     return (
-      <div className="space-y-6">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
-              <Trophy size={14} className="text-primary-foreground" />
-            </div>
-          </div>
-          <h1 className="type-h1" style={{ margin: 0 }}>Team Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-1">Player view · See your schedule, waivers, and tasks</p>
-        </div>
-
+      <PageShell
+        title="Team Dashboard"
+        orgName={orgName}
+        breadcrumb={`${userFacingProductName("sports")} · Player view`}
+        description="Your schedule, waivers, and tasks"
+        showDashboardAccent
+      >
         <MemberSnapshot profile={myProfile} events={events} myTasks={myTasks} />
 
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
@@ -136,7 +136,7 @@ export default async function SportsPage() {
             { href: "/forms", label: "Forms" },
           ]}
         />
-      </div>
+      </PageShell>
     );
   }
 
@@ -167,41 +167,33 @@ export default async function SportsPage() {
   const missingWaivers = waivers.filter((w) => w.status === "missing").length;
   const waiverRate = waivers.length > 0 ? Math.round((completedWaivers / waivers.length) * 100) : 0;
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
-              <Trophy size={14} className="text-primary-foreground" />
-            </div>
-          </div>
-          <h1 className="type-h1" style={{ margin: 0 }}>Team Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-1">Officer view</p>
-          {university && (
-            <p className="text-sm text-muted-foreground mt-1">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-campus-600" />
-                {university.name} colors active
-              </span>
-              {" · "}
-              <Link href="/settings" className="text-campus-600 hover:underline">Change campus</Link>
-            </p>
-          )}
-          {!university && (
-            <p className="text-sm text-muted-foreground mt-1">
-              <Link href="/settings" className="text-campus-600 hover:underline">Set your university</Link> for team colors
-            </p>
-          )}
-        </div>
-        <Link href="/events/new">
-          <Button size="sm">
-            <Calendar size={14} />
-            Add event
-          </Button>
-        </Link>
-      </div>
+  const campusNote = university
+    ? `${university.name} colors active · Change campus in Settings`
+    : "Set your university in Settings for team colors";
 
+  return (
+    <PageShell
+      title="Team Dashboard"
+      orgName={orgName}
+      breadcrumb={`${userFacingProductName("sports")} · Officer view`}
+      description={campusNote}
+      showDashboardAccent
+      action={(
+        <div className="flex items-center gap-2 flex-wrap">
+          <TeamReadinessBadge
+            waiverRate={waiverRate}
+            missingWaivers={missingWaivers}
+            injuredCount={injuredPlayers.length}
+          />
+          <Link href="/events/new">
+            <Button size="sm">
+              <Calendar size={14} />
+              Add event
+            </Button>
+          </Link>
+        </div>
+      )}
+    >
       {(missingWaivers > 0 || injuredPlayers.length > 0) && (
         <div className="space-y-2">
           {missingWaivers > 0 && (
@@ -351,6 +343,6 @@ export default async function SportsPage() {
           { href: "/events", label: "Events" },
         ]}
       />
-    </div>
+    </PageShell>
   );
 }

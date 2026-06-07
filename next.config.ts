@@ -1,4 +1,7 @@
 import type { NextConfig } from "next";
+import { loadKeysFromConfigFolder } from "./lib/load-keys-env";
+
+loadKeysFromConfigFolder();
 
 const nextConfig: NextConfig = {
   images: {

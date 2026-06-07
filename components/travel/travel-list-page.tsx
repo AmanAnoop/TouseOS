@@ -1,16 +1,18 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
-  Calculator, Calendar, Car, Hotel, MapPin, Plane, Plus, Users, Utensils, Package, Shirt,
+  Calculator, Calendar, Car, Hotel, Plane, Plus, Users, Utensils, Package, Shirt,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
   Badge, Button, Card, EmptyState, Input,
-  Modal, PageHeader, Select, StatCard, Tabs,
+  Modal, Select, StatCard, Tabs,
 } from "@/components/ui";
+import { PageShell } from "@/components/layout/page-shell";
+import { TravelAiPlanner, type TravelAiPlan } from "@/components/travel/travel-ai-planner";
+import { TravelTripCard } from "@/components/travel/travel-trip-card";
 import { LocationFields, type LocationFieldValues } from "@/components/location/location-fields";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
@@ -181,20 +183,58 @@ export function TravelListPage() {
   const netCost = totalCost - subsidy;
   const perPlayer = playerCount > 0 ? netCost / playerCount : 0;
 
+  function applyAiPlan(plan: TravelAiPlan) {
+    if (isGreek) {
+      setGreekForm({
+        ...greekForm,
+        name: plan.tripName ?? greekForm.name,
+        type: plan.tripType ?? greekForm.type,
+        destination: plan.destination ?? greekForm.destination,
+        departureLocation: plan.departureLocation ?? greekForm.departureLocation,
+        startDate: plan.startDate?.slice(0, 10) ?? greekForm.startDate,
+        endDate: plan.endDate?.slice(0, 10) ?? greekForm.endDate,
+        estimatedAttendees: plan.estimatedAttendees != null ? String(plan.estimatedAttendees) : greekForm.estimatedAttendees,
+        location: {
+          ...greekForm.location,
+          destination: plan.destination ?? greekForm.location.destination,
+          venueName: plan.venueName ?? greekForm.location.venueName,
+          departureLocation: plan.departureLocation ?? greekForm.location.departureLocation,
+        },
+      });
+    } else {
+      setSportsForm({
+        ...sportsForm,
+        title: plan.tripName ?? sportsForm.title,
+        type: plan.tripType ?? sportsForm.type,
+        departureDate: plan.startDate?.slice(0, 10) ?? sportsForm.departureDate,
+        returnDate: plan.endDate?.slice(0, 10) ?? sportsForm.returnDate,
+        itinerary: plan.itinerarySummary ?? sportsForm.itinerary,
+        location: {
+          ...sportsForm.location,
+          destination: plan.destination ?? sportsForm.location.destination,
+          venueName: plan.venueName ?? sportsForm.location.venueName,
+          departureLocation: plan.departureLocation ?? sportsForm.location.departureLocation,
+        },
+      });
+    }
+    setCreateOpen(true);
+  }
+
   return (
-    <div className="ds-page-stack">
-      <PageHeader
-        title="Travel"
-        description={`${upcoming.length} upcoming trips`}
-        action={
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <Button variant="secondary" size="sm" icon={<Calculator size={14} />} onClick={() => setCalcOpen(true)}>
-              Trip calculator
-            </Button>
-            <Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>New trip</Button>
-          </div>
-        }
-      />
+    <PageShell
+      title="Travel"
+      breadcrumb={isGreek ? "Chapter trips & retreats" : "Team travel & tournaments"}
+      description={`${upcoming.length} upcoming · plan logistics, budgets, and rosters in one place`}
+      action={
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="secondary" size="sm" icon={<Calculator size={14} />} onClick={() => setCalcOpen(true)}>
+            Cost calculator
+          </Button>
+          <Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>New trip</Button>
+        </div>
+      }
+    >
+      <TravelAiPlanner orgId={orgId} product={product} onApply={applyAiPlan} />
 
       <div className="ds-stat-grid">
         <StatCard title="Upcoming" value={upcoming.length} icon={<Calendar size={18} />} />
@@ -249,56 +289,34 @@ export function TravelListPage() {
           action={tab === "trips" ? <Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>Plan trip</Button> : undefined}
         />
       ) : (
-        <div className="ds-page-stack" style={{ gap: 12 }}>
+        <div className="space-y-3">
           {isGreek
             ? (tab === "trips" ? upcomingGreek : pastGreek).map((trip) => (
-              <Card key={trip.id}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                      <Link href={`/travel/${trip.id}`} className="type-h2" style={{ margin: 0, textDecoration: "none", color: "inherit" }}>
-                        {trip.name}
-                      </Link>
-                      <Badge label={trip.status} color={trip.status === "confirmed" ? "green" : "yellow"} />
-                    </div>
-                    {trip.destination && (
-                      <p className="type-small" style={{ color: "var(--color-text-muted)", margin: "4px 0 0", display: "flex", alignItems: "center", gap: 4 }}>
-                        <MapPin size={12} /> {trip.destination}
-                      </p>
-                    )}
-                    <p className="type-small" style={{ color: "var(--color-text-muted)", margin: "4px 0 0" }}>
-                      {formatDate(trip.start_date)} – {formatDate(trip.end_date)}
-                    </p>
-                  </div>
-                </div>
-              </Card>
+              <TravelTripCard
+                key={trip.id}
+                id={trip.id}
+                name={trip.name}
+                destination={trip.destination}
+                startLabel={formatDate(trip.start_date)}
+                endLabel={formatDate(trip.end_date)}
+                status={trip.status}
+                typeLabel={typeLabels[trip.type]}
+                totalCost={trip.total_budget}
+              />
             ))
             : (tab === "trips" ? upcomingSports : pastSports).map((trip) => (
-              <Card key={trip.id}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                      <Link href={`/travel/${trip.id}`} className="type-h2" style={{ margin: 0, textDecoration: "none", color: "inherit" }}>
-                        {trip.title}
-                      </Link>
-                      <Badge label={trip.status} color={trip.status === "confirmed" ? "green" : "yellow"} />
-                    </div>
-                    {(trip.destination || trip.venue_name) && (
-                      <p className="type-small" style={{ color: "var(--color-text-muted)", margin: "4px 0 0", display: "flex", alignItems: "center", gap: 4 }}>
-                        <MapPin size={12} /> {[trip.venue_name, trip.destination].filter(Boolean).join(" · ")}
-                      </p>
-                    )}
-                    <p className="type-small" style={{ color: "var(--color-text-muted)", margin: "4px 0 0" }}>
-                      {formatDate(trip.departure_date)} – {formatDate(trip.return_date)}
-                    </p>
-                  </div>
-                  {trip.total_cost != null && (
-                    <p className="type-body" style={{ fontFamily: "var(--font-mono)", fontWeight: 500 }}>
-                      {formatCurrency(Number(trip.total_cost))}
-                    </p>
-                  )}
-                </div>
-              </Card>
+              <TravelTripCard
+                key={trip.id}
+                id={trip.id}
+                name={trip.title}
+                destination={trip.destination}
+                venueName={trip.venue_name}
+                startLabel={formatDate(trip.departure_date)}
+                endLabel={formatDate(trip.return_date)}
+                status={trip.status}
+                typeLabel={typeLabels[String((trip as { type?: string }).type ?? "away_game")]}
+                totalCost={trip.total_cost != null ? Number(trip.total_cost) : null}
+              />
             ))}
         </div>
       )}
@@ -427,6 +445,6 @@ export function TravelListPage() {
           </div>
         </div>
       </Modal>
-    </div>
+    </PageShell>
   );
 }
