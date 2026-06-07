@@ -406,7 +406,7 @@ export default async function DashboardPage() {
         <Card>
           <CardHeader title="Club snapshot" icon={<Users size={16} />} action={<Link href="/club" className="text-xs text-club-600 hover:underline">Club home</Link>} />
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-            <StatCard title="Active members" value={members.filter((m) => m.membership_status === "active").length} icon={<Users size={16} />} />
+            <StatCard title="Active members" value={members.filter((m) => m.membership_status === "active" || m.membership_status === "new_member").length} icon={<Users size={16} />} />
             <StatCard title="Membership apps" value={clubApplications.filter((a) => a.status === "applied").length} icon={<Zap size={16} />} />
             <StatCard title="Service hours" value={totalClubHours.toFixed(1)} icon={<Heart size={16} />} />
             <StatCard title="Collection rate" value={`${collectionRate}%`} icon={<DollarSign size={16} />} />

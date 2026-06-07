@@ -29,7 +29,7 @@ export default function EngagementPage() {
 
     const allMembers = membersRes.ok ? ((await membersRes.json()) as Array<{ id: string; full_name: string; membership_status: string }>) : [];
     const memberList = allMembers
-      .filter((m) => m.membership_status === "active")
+      .filter((m) => m.membership_status === "active" || m.membership_status === "new_member")
       .map((m) => ({ id: m.id, full_name: m.full_name }));
     const allEvents = eventsRes.ok ? ((await eventsRes.json()) as Array<{ id: string; title: string; type: string; starts_at: string }>) : [];
     const eventList = allEvents

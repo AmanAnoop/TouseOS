@@ -74,7 +74,7 @@ export default function PnmPage() {
       if (memRes.ok) {
         const mems = (await memRes.json()) as Array<{ id: string; full_name: string; membership_status: string }>;
         setChapterMembers(
-          mems.filter((m) => m.membership_status === "active").map((m) => ({
+          mems.filter((m) => m.membership_status === "active" || m.membership_status === "new_member").map((m) => ({
             id: m.id,
             full_name: m.full_name,
             profile_photo_url: (m as { profile_photo_url?: string }).profile_photo_url ?? null,

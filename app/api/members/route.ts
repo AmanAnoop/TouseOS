@@ -2,6 +2,35 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { filterPendingInvites, filterRosterMembers, isPendingInvite } from "@/lib/member-filters";
 import { enrichMemberPhotos } from "@/lib/member-photo";
+import type { MemberProfile } from "@/types";
+
+async function attachProfileAvatars(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  members: MemberProfile[],
+) {
+  const userIds = [
+    ...new Set(
+      members.map((m) => m.user_id).filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  if (userIds.length === 0) return members;
+
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, avatar_url")
+    .in("id", userIds);
+
+  const avatarByUser = new Map(
+    (profiles ?? []).map((p) => [String(p.id), p.avatar_url as string | null]),
+  );
+
+  return members.map((m) => ({
+    ...m,
+    profiles: m.user_id
+      ? { avatar_url: avatarByUser.get(String(m.user_id)) ?? null }
+      : null,
+  }));
+}
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -17,20 +46,22 @@ export async function GET(request: Request) {
 
   const { data, error } = await supabase
     .from("member_profiles")
-    .select("*, profiles:user_id(avatar_url)")
+    .select("*")
     .eq("org_id", orgId)
     .order("full_name");
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  let members = enrichMemberPhotos(data ?? []);
+  const withAvatars = await attachProfileAvatars(supabase, (data ?? []) as MemberProfile[]);
+  const enriched = enrichMemberPhotos(withAvatars);
 
+  let members = enriched;
   if (scope === "roster") {
-    members = filterRosterMembers(members);
+    members = filterRosterMembers(enriched);
   } else if (scope === "invited") {
-    members = filterPendingInvites(members);
+    members = filterPendingInvites(enriched);
   } else if (searchParams.get("exclude") === "pending_invite") {
-    members = filterRosterMembers(members);
+    members = filterRosterMembers(enriched);
   }
 
   if (includePayments && members.length > 0) {

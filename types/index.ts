@@ -358,6 +358,7 @@ export interface Document {
   id: string;
   org_id: string;
   uploaded_by: string | null;
+  uploaded_by_name?: string | null;
   title: string;
   category: string;
   storage_path: string;

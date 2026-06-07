@@ -2,6 +2,34 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getMemberRole } from "@/lib/api-org-role";
 
+async function attachUploaderNames(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  rows: Array<Record<string, unknown>>,
+) {
+  const uploaderIds = [
+    ...new Set(
+      rows.map((r) => r.uploaded_by).filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  if (uploaderIds.length === 0) return rows;
+
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, full_name")
+    .in("id", uploaderIds);
+
+  const nameById = new Map(
+    (profiles ?? []).map((p) => [String(p.id), String(p.full_name ?? "Member")]),
+  );
+
+  return rows.map((row) => ({
+    ...row,
+    uploaded_by_name: row.uploaded_by
+      ? nameById.get(String(row.uploaded_by)) ?? "Member"
+      : null,
+  }));
+}
+
 export async function GET(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -25,7 +53,8 @@ export async function GET(request: Request) {
     url: row.is_private || row.storage_path ? null : row.url,
   }));
 
-  return NextResponse.json(safe);
+  const enriched = await attachUploaderNames(supabase, safe);
+  return NextResponse.json(enriched);
 }
 
 export async function POST(request: Request) {
@@ -76,7 +105,16 @@ export async function POST(request: Request) {
     metadata: { title, category },
   });
 
-  return NextResponse.json(data, { status: 201 });
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  return NextResponse.json({
+    ...data,
+    uploaded_by_name: profile?.full_name ?? "You",
+  }, { status: 201 });
 }
 
 export async function PATCH(request: Request) {

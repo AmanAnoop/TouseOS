@@ -10,6 +10,7 @@ import {
   Badge, Button, Card, CardHeader, EmptyState, Input, Modal, PageHeader, Select, StatCard, Textarea,
 } from "@/components/ui";
 import { formatCurrency } from "@/lib/utils";
+import { filterActiveMembers } from "@/lib/member-filters";
 
 interface Room {
   id: string;
@@ -109,7 +110,7 @@ export function HousingClient() {
     if (membersRes.ok) {
       const mems = (await membersRes.json()) as Array<{ id: string; full_name: string; membership_status: string }>;
       setMembers(
-        mems.filter((m) => m.membership_status === "active").map((m) => ({ id: m.id, full_name: m.full_name })),
+        filterActiveMembers(mems).map((m) => ({ id: m.id, full_name: m.full_name })),
       );
     }
     setLoading(false);
@@ -357,13 +358,13 @@ export function HousingClient() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Housing"
         description="Room assignments, maintenance requests, and house management"
         action={
           canManageHousing ? (
-            <div className="flex gap-2 flex-wrap justify-end items-center">
+            <div className="payments-action-bar flex gap-2 flex-wrap justify-end items-center">
               <Link href="/payments"><Button size="sm" variant="secondary">Payments</Button></Link>
               <Link href="/budget"><Button size="sm" variant="secondary">Budget</Button></Link>
               <Button size="sm" icon={<Plus size={14} />} onClick={() => setRentOpen(true)}>
@@ -399,8 +400,8 @@ export function HousingClient() {
             title="Recurring rent"
             description="Automatically post rent charges on a set day each month"
           />
-          <div className="flex flex-wrap items-end gap-3">
-            <label className="flex items-center gap-2 cursor-pointer">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-4">
+            <label className="flex items-center gap-2 cursor-pointer sm:pb-2">
               <input
                 type="checkbox"
                 className="rounded"
@@ -414,18 +415,18 @@ export function HousingClient() {
               type="number"
               min={1}
               max={28}
-              className="w-32"
+              className="w-full sm:w-32"
               value={String(rentRecurring.dueDay)}
               onChange={(e) => setRentRecurring({ ...rentRecurring, dueDay: Math.min(28, Math.max(1, Number(e.target.value) || 1)) })}
             />
-            <Button size="sm" variant="secondary" loading={savingRentConfig} onClick={saveRentRecurring}>
+            <Button size="sm" variant="secondary" loading={savingRentConfig} onClick={saveRentRecurring} className="sm:mb-0.5">
               Save schedule
             </Button>
           </div>
         </Card>
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="ds-stat-grid">
         <StatCard title="Total rooms" value={rooms.length} icon={<Home size={18} />} />
         <StatCard title="Occupied beds" value={`${totalOccupied}/${totalCapacity}`} icon={<Users size={18} />} />
         <StatCard title="Monthly rent" value={totalRent > 0 ? formatCurrency(totalRent) : "—"} icon={<Building size={18} />} />
@@ -445,14 +446,14 @@ export function HousingClient() {
               action={<Button size="sm" onClick={() => setRoomOpen(true)}>Add room</Button>}
             />
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {rooms.map((room) => {
                 const occ = occupants(room.id);
                 const full = occ.length >= (room.capacity ?? 1);
                 return (
                   <div
                     key={room.id}
-                    className={`p-3 rounded-lg border text-left ${full ? "bg-greek-50 border-greek-200" : "bg-surface-1 border-border"}`}
+                    className={`p-4 rounded-xl border text-left ${full ? "bg-greek-50 border-greek-200 dark:bg-greek-950/20 dark:border-greek-800" : "bg-surface-1 border-border"}`}
                   >
                     <p className="font-bold text-foreground">#{room.room_number}</p>
                     <p className="text-xs text-muted-foreground">Floor {room.floor ?? 1}</p>
@@ -467,7 +468,7 @@ export function HousingClient() {
                         <p className="text-xs truncate">{a.member_profiles?.full_name}</p>
                         {canManageHousing && (
                           <select
-                            className="w-full text-[10px] border border-border rounded px-1 py-0.5 bg-background"
+                            className="w-full text-xs border border-border rounded-md px-2 py-1 bg-background"
                             value={a.rent_due_day ?? ""}
                             onChange={(e) => updateRentDueDay(a.id, e.target.value)}
                             aria-label={`Rent due day for ${a.member_profiles?.full_name}`}

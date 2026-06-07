@@ -48,7 +48,7 @@ export default function CoachesPage() {
       const all = (await playersRes.json()) as Array<Player & { membership_status: string }>;
       setPlayers(
         all
-          .filter((m) => m.membership_status === "active")
+          .filter((m) => m.membership_status === "active" || m.membership_status === "new_member")
           .sort((a, b) => {
             const pa = a.position ?? "";
             const pb = b.position ?? "";

@@ -52,7 +52,7 @@ export function computeTravelReadiness(input: TravelReadinessInput): TravelReadi
     })
     .filter(Boolean) as TravelReadinessResult["ineligiblePlayers"];
 
-  const activeCount = input.members.filter((m) => m.membership_status === "active").length;
+  const activeCount = input.members.filter((m) => m.membership_status === "active" || m.membership_status === "new_member").length;
   const waiverOk = ineligiblePlayers.filter((p) =>
     p.issues.some((i) => i.includes("waiver")),
   ).length === 0 || activeCount === 0;

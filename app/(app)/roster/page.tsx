@@ -66,7 +66,8 @@ export default function RosterPage() {
     if (rosterRes.ok) {
       setMembers((await rosterRes.json()) as MemberProfile[]);
     } else {
-      toast.error("Failed to load roster");
+      const err = await rosterRes.json().catch(() => ({}));
+      toast.error((err as { error?: string }).error ?? "Failed to load roster");
     }
     if (invitedRes.ok) {
       setInvitedMembers((await invitedRes.json()) as MemberProfile[]);

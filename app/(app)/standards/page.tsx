@@ -10,6 +10,7 @@ import {
 } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
 import { useOrg } from "@/hooks/use-org";
+import { filterActiveMembers } from "@/lib/member-filters";
 
 interface RestorativeAction {
   action: string;
@@ -105,9 +106,9 @@ export default function StandardsPage() {
     ]);
     const caseData = caseRes.ok ? await caseRes.json() : [];
     const allMembers = memberRes.ok ? await memberRes.json() : [];
-    const memberData = (allMembers as Array<{ id: string; full_name: string; membership_status: string; role: string }>)
-      .filter((m) => m.membership_status === "active")
-      .map((m) => ({ id: m.id, full_name: m.full_name, role: m.role }));
+    const memberData = filterActiveMembers(
+      allMembers as Array<{ id: string; full_name: string; membership_status: string; role: string }>,
+    ).map((m) => ({ id: m.id, full_name: m.full_name, role: m.role }));
     setCases((caseData as StandardsCase[]).map((c) => ({
       ...c,
       sanctions: c.sanctions ?? [],

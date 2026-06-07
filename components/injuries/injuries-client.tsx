@@ -44,7 +44,7 @@ export function InjuriesClient() {
     const supabase = createClient();
     const [injRes, memRes] = await Promise.all([
       supabase.from("sports_injuries").select("*, member_profiles(full_name)").eq("org_id", oid).order("incident_date", { ascending: false }),
-      supabase.from("member_profiles").select("id, full_name").eq("org_id", oid).eq("membership_status", "active").order("full_name"),
+      supabase.from("member_profiles").select("id, full_name").eq("org_id", oid).in("membership_status", ["active", "new_member"]).order("full_name"),
     ]);
     setInjuries((injRes.data ?? []) as Injury[]);
     setMembers((memRes.data ?? []) as Array<{ id: string; full_name: string }>);

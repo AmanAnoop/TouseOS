@@ -94,10 +94,13 @@ export default function DocumentsPage() {
       toast.error((await res.json()).error ?? "Failed");
       return;
     }
+    const created = (await res.json()) as { id: string; name: string };
     toast.success("Folder created");
     setFolderOpen(false);
     setNewFolderName("");
-    loadFolders(orgId);
+    setFolders((prev) => [...prev, created]);
+    setFolderId(created.id);
+    setUploadForm((f) => ({ ...f, folderId: created.id }));
   }
 
   async function moveToFolder(docId: string, targetFolderId: string | null) {
@@ -217,27 +220,35 @@ export default function DocumentsPage() {
         }
       />
 
-      {folders.length > 0 && (
-        <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 flex-wrap items-center">
+        <button
+          type="button"
+          onClick={() => setFolderId(null)}
+          className={`text-xs px-3 py-1.5 rounded-full border ${!folderId ? "bg-greek-100 border-greek-300 text-greek-800 dark:bg-greek-950/40 dark:border-greek-700 dark:text-greek-200" : "border-border text-muted-foreground"}`}
+        >
+          All folders
+        </button>
+        {folders.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            onClick={() => setFolderId(f.id)}
+            className={`text-xs px-3 py-1.5 rounded-full border flex items-center gap-1 ${folderId === f.id ? "bg-greek-100 border-greek-300 text-greek-800 dark:bg-greek-950/40 dark:border-greek-700 dark:text-greek-200" : "border-border text-muted-foreground"}`}
+          >
+            <Folder size={12} /> {f.name}
+            <span className="opacity-60">({docs.filter((d) => d.folder_id === f.id).length})</span>
+          </button>
+        ))}
+        {canManageDocs && (
           <button
             type="button"
-            onClick={() => setFolderId(null)}
-            className={`text-xs px-3 py-1.5 rounded-full border ${!folderId ? "bg-greek-100 border-greek-300 text-greek-800" : "border-border text-muted-foreground"}`}
+            onClick={() => setFolderOpen(true)}
+            className="text-xs px-3 py-1.5 rounded-full border border-dashed border-border text-muted-foreground hover:border-greek-400 flex items-center gap-1"
           >
-            All folders
+            <FolderPlus size={12} /> New folder
           </button>
-          {folders.map((f) => (
-            <button
-              key={f.id}
-              type="button"
-              onClick={() => setFolderId(f.id)}
-              className={`text-xs px-3 py-1.5 rounded-full border flex items-center gap-1 ${folderId === f.id ? "bg-greek-100 border-greek-300 text-greek-800" : "border-border text-muted-foreground"}`}
-            >
-              <Folder size={12} /> {f.name}
-            </button>
-          ))}
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="overflow-x-auto scrollbar-hide">
         <Tabs tabs={tabItems.slice(0, 8)} active={tab} onChange={setTab} />
@@ -321,17 +332,15 @@ export default function DocumentsPage() {
             options={CATEGORIES.map((c) => ({ value: c, label: c }))}
           />
 
-          {folders.length > 0 && (
-            <Select
-              label="Folder"
-              value={uploadForm.folderId || folderId || ""}
-              onChange={(e) => setUploadForm({ ...uploadForm, folderId: e.target.value })}
-              options={[
-                { value: "", label: "No folder" },
-                ...folders.map((f) => ({ value: f.id, label: f.name })),
-              ]}
-            />
-          )}
+          <Select
+            label="Folder"
+            value={uploadForm.folderId || folderId || ""}
+            onChange={(e) => setUploadForm({ ...uploadForm, folderId: e.target.value })}
+            options={[
+              { value: "", label: "No folder" },
+              ...folders.map((f) => ({ value: f.id, label: f.name })),
+            ]}
+          />
 
           {uploadError && (
             <p className="type-small" style={{ color: "var(--color-error)" }} role="alert">{uploadError}</p>
