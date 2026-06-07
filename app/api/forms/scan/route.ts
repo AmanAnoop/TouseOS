@@ -5,6 +5,7 @@ import {
   parseFormScanJson,
   type ScannedFormDraft,
 } from "@/lib/form-ai";
+import { claudeVisionComplete, isAnthropicConfigured } from "@/lib/anthropic";
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const ALLOWED_MIME = new Set([
@@ -21,10 +22,10 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  if (!process.env.OPENAI_API_KEY) {
+  if (!isAnthropicConfigured()) {
     return NextResponse.json(
       {
-        error: "AI form scan requires OPENAI_API_KEY in your environment.",
+        error: "AI form scan requires ANTHROPIC_API_KEY in your environment.",
         configured: false,
       },
       { status: 503 },
@@ -60,7 +61,6 @@ export async function POST(request: Request) {
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const base64 = buffer.toString("base64");
-  const dataUrl = `data:${mime};base64,${base64}`;
 
   const hints = String(formData.get("hints") ?? "").trim();
   const userText = hints
@@ -68,40 +68,15 @@ export async function POST(request: Request) {
     : "Extract the form from this image.";
 
   try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: FORM_SCAN_SYSTEM_PROMPT },
-          {
-            role: "user",
-            content: [
-              { type: "text", text: userText },
-              { type: "image_url", image_url: { url: dataUrl, detail: "high" } },
-            ],
-          },
-        ],
-        max_tokens: 4000,
-        temperature: 0.2,
-      }),
+    const content = await claudeVisionComplete({
+      system: FORM_SCAN_SYSTEM_PROMPT,
+      userText,
+      imageBase64: base64,
+      mediaType: mime as "image/jpeg" | "image/png" | "image/webp" | "image/gif",
+      maxTokens: 4000,
     });
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      const message =
-        (err as { error?: { message?: string } }).error?.message ?? "OpenAI API error";
-      return NextResponse.json({ error: message }, { status: 500 });
-    }
-
-    const data = await res.json();
-    const content = data.choices?.[0]?.message?.content;
-    if (!content || typeof content !== "string") {
+    if (!content) {
       return NextResponse.json({ error: "No structured output from AI." }, { status: 500 });
     }
 

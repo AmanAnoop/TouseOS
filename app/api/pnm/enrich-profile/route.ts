@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { can, type RoleName } from "@/lib/permissions";
+import { isAnthropicConfigured } from "@/lib/anthropic";
 import { extractInterestsFromBio } from "@/lib/interest-extractor";
 
 export async function POST(request: Request) {
@@ -97,7 +98,7 @@ export async function POST(request: Request) {
     resource_id: pnmId,
     metadata: {
       interestCount: mergedInterests.length,
-      usedAi: Boolean(process.env.OPENAI_API_KEY),
+      usedAi: isAnthropicConfigured(),
     },
   });
 
