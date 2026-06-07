@@ -77,7 +77,7 @@ export default function GovernancePage() {
     const [mRes, vRes, memRes] = await Promise.all([
       fetch(`/api/governance/meetings?org_id=${encodeURIComponent(oid)}`),
       fetch(`/api/governance/votes?org_id=${encodeURIComponent(oid)}`),
-      fetch(`/api/members?org_id=${encodeURIComponent(oid)}`),
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}&scope=roster`),
     ]);
     if (mRes.ok) setMeetings((await mRes.json()) as Meeting[]);
     if (vRes.ok) setVotes((await vRes.json()) as Vote[]);

@@ -86,7 +86,7 @@ export function SportsTripDetail({ tripId }: SportsTripDetailProps) {
   useEffect(() => {
     if (!orgId || !userId) return;
     (async () => {
-      const res = await fetch(`/api/members?org_id=${encodeURIComponent(orgId)}`);
+      const res = await fetch(`/api/members?org_id=${encodeURIComponent(orgId)}&scope=roster`);
       if (!res.ok) return;
       const members = await res.json() as Array<{ id: string; user_id?: string }>;
       const mine = members.find((m) => m.user_id === userId);

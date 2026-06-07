@@ -22,7 +22,7 @@ export default function PlatformAdminKeysPage() {
       }
       const res = await fetch("/api/platform-admin/check");
       const data = await res.json();
-      if (!data.allowed) {
+      if (!data.ok) {
         router.push("/dashboard");
         return;
       }

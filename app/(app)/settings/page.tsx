@@ -15,6 +15,8 @@ import { useOrg } from "@/hooks/use-org";
 import { InviteCodeCard } from "@/components/settings/invite-code-card";
 import { MemberRolesPanel, type OrgMemberWithProfile } from "@/components/settings/member-roles-panel";
 import { IntegrationsHub } from "@/components/integrations/integrations-hub";
+import { IntegrationKeysStatusPanel } from "@/components/integrations/integration-keys-status-panel";
+import { PlatformKeysPanel } from "@/components/platform-admin/platform-keys-panel";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { SidebarEditorPanel } from "@/components/layout/sidebar-editor-panel";
 import { getProductId } from "@/lib/org-product";
@@ -30,6 +32,7 @@ export default function SettingsPage() {
   const [org, setOrg] = useState<Record<string, unknown> | null>(null);
   const [members, setMembers] = useState<OrgMemberWithProfile[]>([]);
   const [saving, setSaving] = useState(false);
+  const [platformAdmin, setPlatformAdmin] = useState(false);
 
   const [orgForm, setOrgForm] = useState<OrgProfileFormData>({
     name: "", campus: "", councilOrLeague: "", contactEmail: "",
@@ -43,8 +46,15 @@ export default function SettingsPage() {
   }, [searchParams]);
 
   useEffect(() => {
+    fetch("/api/platform-admin/check")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setPlatformAdmin(Boolean(data?.ok)))
+      .catch(() => setPlatformAdmin(false));
+  }, []);
+
+  useEffect(() => {
     if (!orgId) return;
-    (async () => {
+    void (async () => {
       const res = await fetch(`/api/org/settings?org_id=${encodeURIComponent(orgId)}`);
       if (!res.ok) return;
       const { org: orgData, members: membersData } = await res.json();
@@ -194,6 +204,7 @@ export default function SettingsPage() {
           { id: "members", label: "Members", count: activeMembers.length },
           { id: "navigation", label: "Navigation" },
           { id: "integrations", label: "Integrations" },
+          ...(isAdmin || platformAdmin ? [{ id: "keys", label: "API keys" }] : []),
           { id: "danger", label: "Danger zone" },
         ]}
         active={tab}
@@ -258,6 +269,16 @@ export default function SettingsPage() {
             stripeAccountId={org?.stripe_account_id ? String(org.stripe_account_id) : null}
             role={myRole}
           />
+        </div>
+      )}
+
+      {tab === "keys" && (isAdmin || platformAdmin) && (
+        <div className="ds-page-stack max-w-3xl">
+          {platformAdmin ? (
+            <PlatformKeysPanel />
+          ) : (
+            <IntegrationKeysStatusPanel role={myRole} />
+          )}
         </div>
       )}
 

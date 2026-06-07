@@ -54,7 +54,7 @@ export default function ClubServiceHoursPage() {
     setLoading(true);
     const [hoursRes, membersRes, goalRes] = await Promise.all([
       fetch(`/api/club/service-hours?org_id=${oid}`),
-      fetch(`/api/members?org_id=${encodeURIComponent(oid)}`),
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}&scope=roster`),
       fetch(`/api/club/service-goals?org_id=${oid}`),
     ]);
     const goalData = await goalRes.json();

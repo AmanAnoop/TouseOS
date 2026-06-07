@@ -31,7 +31,7 @@ export default function StudyHoursPage() {
   const load = useCallback(async (oid: string) => {
     const [hRes, mRes] = await Promise.all([
       fetch(`/api/study-hours?org_id=${encodeURIComponent(oid)}`),
-      fetch(`/api/members?org_id=${encodeURIComponent(oid)}`),
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}&scope=roster`),
     ]);
     if (hRes.ok) setRows(await hRes.json());
     if (mRes.ok) {

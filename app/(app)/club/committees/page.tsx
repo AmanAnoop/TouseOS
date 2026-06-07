@@ -44,7 +44,7 @@ export default function ClubCommitteesPage() {
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
-    const res = await fetch(`/api/members?org_id=${encodeURIComponent(oid)}`);
+    const res = await fetch(`/api/members?org_id=${encodeURIComponent(oid)}&scope=roster`);
     if (res.ok) {
       const data = (await res.json()) as MemberRow[];
       setMembers(data.map((m) => ({

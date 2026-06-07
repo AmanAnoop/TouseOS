@@ -70,7 +70,7 @@ export default function PnmPage() {
         const settings = (org?.settings ?? {}) as Record<string, unknown>;
         setUniversityId(typeof settings.university_id === "string" ? settings.university_id : null);
       }
-      const memRes = await fetch(`/api/members?org_id=${encodeURIComponent(orgId)}`);
+      const memRes = await fetch(`/api/members?org_id=${encodeURIComponent(orgId)}&scope=roster`);
       if (memRes.ok) {
         const mems = (await memRes.json()) as Array<{ id: string; full_name: string; membership_status: string }>;
         setChapterMembers(

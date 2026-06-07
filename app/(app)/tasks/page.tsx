@@ -14,6 +14,7 @@ import { formatDate } from "@/lib/utils";
 import type { Task, TaskStatus, TaskPriority } from "@/types";
 import { STATUS_ICON, PRIORITY_DOT } from "@/components/tasks/task-card";
 import { TASK_TYPES, taskTypeFromTags, taskTypeLabel, tagsWithType, type TaskTypeValue } from "@/lib/task-config";
+import { getHardshipRequesterName, isHardshipTask } from "@/lib/task-display";
 import { TaskDetailPanel } from "@/components/tasks/task-detail-panel";
 import { TaskKanbanBoard } from "@/components/tasks/task-kanban-board";
 
@@ -300,7 +301,9 @@ export default function TasksPage() {
             <EmptyState icon={<CheckCircle2 size={24} />} title="No tasks" action={<Button size="sm" onClick={() => setCreateOpen(true)}>Create task</Button>} />
           ) : (
             <div className="divide-y divide-border">
-              {[...byStatus.in_progress, ...byStatus.todo, ...byStatus.done].map((task) => (
+              {[...byStatus.in_progress, ...byStatus.todo, ...byStatus.done].map((task) => {
+                const hardshipRequester = isHardshipTask(task) ? getHardshipRequesterName(task) : null;
+                return (
                 <div key={task.id} className="flex items-center gap-3 px-4 hover:bg-surface-1 transition-colors cursor-pointer" style={{ minHeight: 44 }} onClick={() => setDetailTask(task)}>
                   <button onClick={(e) => { e.stopPropagation(); updateStatus(task.id, task.status === "done" ? "todo" : "done"); }}>
                     {STATUS_ICON[task.status]}
@@ -310,6 +313,11 @@ export default function TasksPage() {
                     <p className={`text-sm font-medium ${task.status === "done" ? "line-through text-muted-foreground" : "text-foreground"}`}>
                       {task.title}
                     </p>
+                    {hardshipRequester && (
+                      <p className="text-xs font-medium text-greek-700 dark:text-greek-300">
+                        Request from: {hardshipRequester}
+                      </p>
+                    )}
                     {task.description && <p className="text-xs text-muted-foreground truncate">{task.description}</p>}
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
                       {task.assignee_name && (
@@ -334,7 +342,8 @@ export default function TasksPage() {
                     </button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </Card>

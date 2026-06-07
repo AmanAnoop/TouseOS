@@ -47,7 +47,7 @@ export default function PaymentsPage() {
     setLoading(true);
     const [paymentsRes, memberRes, plansRes] = await Promise.all([
       fetch(`/api/payments?org_id=${encodeURIComponent(oid)}`),
-      fetch(`/api/members?org_id=${encodeURIComponent(oid)}`),
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}&scope=roster`),
       fetch(`/api/payments/plans?org_id=${encodeURIComponent(oid)}`),
     ]);
     if (paymentsRes.ok) {

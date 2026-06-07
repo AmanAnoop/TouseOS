@@ -91,7 +91,8 @@ export default function NewEventPage() {
   useEffect(() => {
     const venue = form.locationValues.venueName;
     const address = form.locationValues.address;
-    if (!venue && !address) {
+    const destination = form.locationValues.destination;
+    if (!venue && !address && !destination) {
       setCoverSuggestions([]);
       return;
     }
@@ -99,17 +100,22 @@ export default function NewEventPage() {
       const params = new URLSearchParams();
       if (venue) params.set("venue", venue);
       if (address) params.set("address", address);
+      if (destination) params.set("destination", destination);
       const res = await fetch(`/api/events/cover-suggest?${params}`);
       if (res.ok) {
         const data = await res.json();
-        setCoverSuggestions((data.suggestions ?? []).map((s: { url: string; label: string }) => ({
+        const suggestions = (data.suggestions ?? []).map((s: { url: string; label: string }) => ({
           url: s.url,
           label: s.label,
-        })));
+        }));
+        setCoverSuggestions(suggestions);
+        if (!coverUrl && suggestions[0]?.url) {
+          setCoverUrl(suggestions[0].url);
+        }
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [form.locationValues.venueName, form.locationValues.address]);
+  }, [form.locationValues.venueName, form.locationValues.address, form.locationValues.destination, coverUrl]);
 
   async function uploadCover(file: File) {
     if (!orgId) return;
