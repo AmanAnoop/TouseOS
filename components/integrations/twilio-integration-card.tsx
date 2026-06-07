@@ -53,7 +53,7 @@ export function TwilioIntegrationCard({
             Twilio SMS
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            PNM texting, comms blasts, and task assignment texts. Includes STOP/HELP and quiet hours (9pm–9am).
+            PNM texting, comms blasts, and task assignment texts. Each message is prefixed with your chapter name from Settings → Profile. Includes STOP/HELP and quiet hours (9pm–9am).
           </p>
         </div>
         <Badge

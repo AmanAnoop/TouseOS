@@ -1,9 +1,12 @@
+import "server-only";
+
+import { isStripeConfigured } from "@/lib/integrations";
 import { stripe } from "@/lib/stripe";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 export function isStripeConnectEnabled(): boolean {
-  return Boolean(process.env.STRIPE_SECRET_KEY) && process.env.STRIPE_CONNECT_ENABLED !== "false";
+  return isStripeConfigured() && process.env.STRIPE_CONNECT_ENABLED !== "false";
 }
 
 export async function createConnectOnboardingLink(opts: {

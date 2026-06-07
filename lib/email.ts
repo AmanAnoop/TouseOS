@@ -1,3 +1,5 @@
+import "server-only";
+
 import { Resend } from "resend";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getPlatformSecretSync } from "@/lib/platform-secrets";
@@ -60,8 +62,13 @@ export async function sendBulkEmail(options: {
   subject: string;
   html: string;
 }): Promise<{ sent: number; failed: number; mode: "live" | "log" }> {
+  if (options.to.length === 0) {
+    return { sent: 0, failed: 0, mode: "log" };
+  }
+
   const resend = getResendClient();
-  if (!resend || options.to.length === 0) {
+  if (!resend) {
+    console.info("[email:blast]", options.subject, `→ ${options.to.length} recipient(s)`);
     return { sent: 0, failed: 0, mode: "log" };
   }
 

@@ -1,3 +1,5 @@
+import { claudeComplete, isAnthropicConfigured } from "@/lib/anthropic";
+
 export interface ExtractedProfile {
   interests: string[];
   traits: string[];
@@ -10,6 +12,15 @@ const FALLBACK: ExtractedProfile = {
   summary: "",
 };
 
+const EXTRACT_SYSTEM = `You extract structured interest tags from social media bios for fraternity/sorority rush matching.
+Return JSON only: { "interests": string[], "traits": string[], "summary": string }
+Rules:
+- interests: lowercase short tags (e.g. "basketball", "finance", "photography") max 15 items
+- traits: personality/social tags max 5 (e.g. "outgoing", "community-minded")
+- summary: one sentence for recruitment chairs, no sensitive judgments
+- Do not infer race, religion, sexuality, or medical info
+- Only use information explicitly in the bio text`;
+
 export async function extractInterestsFromBio(
   bioText: string,
   context?: { fullName?: string; major?: string; hometown?: string },
@@ -17,54 +28,31 @@ export async function extractInterestsFromBio(
   const trimmed = bioText.trim();
   if (!trimmed) return FALLBACK;
 
-  if (!process.env.OPENAI_API_KEY) {
+  if (!isAnthropicConfigured()) {
     return extractInterestsHeuristic(trimmed, context);
   }
 
-  try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        temperature: 0.2,
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "system",
-            content: `You extract structured interest tags from social media bios for fraternity/sorority rush matching.
-Return JSON only: { "interests": string[], "traits": string[], "summary": string }
-Rules:
-- interests: lowercase short tags (e.g. "basketball", "finance", "photography") max 15 items
-- traits: personality/social tags max 5 (e.g. "outgoing", "community-minded")
-- summary: one sentence for recruitment chairs, no sensitive judgments
-- Do not infer race, religion, sexuality, or medical info
-- Only use information explicitly in the bio text`,
-          },
-          {
-            role: "user",
-            content: `Name: ${context?.fullName ?? "Unknown"}
+  const raw = await claudeComplete({
+    system: EXTRACT_SYSTEM,
+    maxTokens: 500,
+    messages: [{
+      role: "user",
+      content: `Name: ${context?.fullName ?? "Unknown"}
 Major: ${context?.major ?? "—"}
 Hometown: ${context?.hometown ?? "—"}
 
 Bio text:
 ${trimmed.slice(0, 4000)}`,
-          },
-        ],
-        max_tokens: 500,
-      }),
-    });
+    }],
+  });
 
-    if (!res.ok) return extractInterestsHeuristic(trimmed, context);
+  if (!raw) return extractInterestsHeuristic(trimmed, context);
 
-    const data = await res.json();
-    const raw = data.choices?.[0]?.message?.content;
-    if (!raw) return extractInterestsHeuristic(trimmed, context);
-
-    const parsed = JSON.parse(raw) as Partial<ExtractedProfile>;
+  try {
+    const jsonStart = raw.indexOf("{");
+    const jsonEnd = raw.lastIndexOf("}");
+    const json = jsonStart >= 0 && jsonEnd > jsonStart ? raw.slice(jsonStart, jsonEnd + 1) : raw;
+    const parsed = JSON.parse(json) as Partial<ExtractedProfile>;
     return {
       interests: normalizeTags(parsed.interests ?? []),
       traits: normalizeTags(parsed.traits ?? []),
@@ -87,7 +75,7 @@ function normalizeTags(items: string[]): string[] {
   return out.slice(0, 20);
 }
 
-/** Keyword fallback when OpenAI is unavailable */
+/** Keyword fallback when Claude is unavailable */
 export function extractInterestsHeuristic(
   bioText: string,
   context?: { fullName?: string; major?: string; hometown?: string },

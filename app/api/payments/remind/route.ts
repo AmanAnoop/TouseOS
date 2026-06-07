@@ -3,6 +3,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { createNotification } from "@/lib/notifications";
 import { sendBulkEmail, textToHtml } from "@/lib/email";
 import { sendSms } from "@/lib/twilio";
+import { getOrgSmsDisplayName } from "@/lib/sms-branding";
 import { personalizeReminderMessage } from "@/lib/reminder-personalize";
 
 type PaymentRow = {
@@ -126,6 +127,7 @@ export async function POST(request: Request) {
   const sendInApp = sendVia === "in_app" || sendVia === "both" || sendVia === "all";
   const sendEmail = sendVia === "email" || sendVia === "both" || sendVia === "all";
   const sendText = sendVia === "sms" || sendVia === "all";
+  const orgName = sendText ? await getOrgSmsDisplayName(supabase, orgId) : undefined;
 
   for (const p of filtered) {
     const mp = p.member_profiles;
@@ -164,7 +166,7 @@ export async function POST(request: Request) {
     }
 
     if (sendText && mp.phone) {
-      const sms = await sendSms(mp.phone, messageBody);
+      const sms = await sendSms(mp.phone, messageBody, { orgName });
       if (sms.status !== "failed") smsSent++;
     }
   }

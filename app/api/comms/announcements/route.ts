@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { can, type RoleName } from "@/lib/permissions";
 import { isTwilioConfigured } from "@/lib/integrations";
 import { sendMassSms, isWithinQuietHours } from "@/lib/twilio";
+import { getOrgSmsDisplayName } from "@/lib/sms-branding";
 
 const OFFICER_ROLES: RoleName[] = [
   "owner", "president", "vice_president", "treasurer", "secretary",
@@ -98,8 +99,9 @@ export async function POST(request: Request) {
       .map((m) => ({ phone: String(m.phone), name: String(m.full_name) }));
 
     if (recipients.length > 0) {
+      const orgName = await getOrgSmsDisplayName(supabase, orgId);
       const smsBody = `${title.trim()}\n\n${body.trim()}`.slice(0, 1500);
-      const results = await sendMassSms(recipients, smsBody);
+      const results = await sendMassSms(recipients, smsBody, undefined, { orgName });
       smsSent = results.filter((r) => r.status !== "failed" && !r.error).length;
     }
   }

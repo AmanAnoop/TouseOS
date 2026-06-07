@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getOrgStripeDestination } from "@/lib/org-stripe";
 import { createPaymentLink } from "@/lib/stripe";
 import { requirePlatformFeature } from "@/lib/platform-api-guard";
+import { requireChapterStripeForCheckout } from "@/lib/stripe-connect-guard";
 
 export async function POST(request: Request) {
   const blocked = await requirePlatformFeature("stripe_payments");
@@ -27,7 +27,10 @@ export async function POST(request: Request) {
   const applyLateFee =
     payment.status === "overdue" || duePast || payment.status === "partial";
   const lateFee = applyLateFee ? Number(payment.late_fee ?? 0) : 0;
-  const connectedAccountId = await getOrgStripeDestination(supabase, payment.org_id);
+  const connect = await requireChapterStripeForCheckout(supabase, payment.org_id);
+  if (!connect.ok) {
+    return NextResponse.json({ error: connect.error, code: "stripe_connect_required" }, { status: 403 });
+  }
 
   const session = await createPaymentLink({
     amount: remaining + lateFee,
@@ -35,7 +38,7 @@ export async function POST(request: Request) {
     orgName: (payment.organizations as Record<string, unknown>)?.name as string ?? "Chapter",
     memberEmail: email,
     metadata: { paymentId, orgId: payment.org_id },
-    connectedAccountId,
+    connectedAccountId: connect.accountId,
   });
 
   // Save session ID to payment record

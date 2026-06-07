@@ -42,6 +42,7 @@ export default function PaymentsPage() {
   const [selectedPayment, setSelectedPayment] = useState<PaymentWithMember | null>(null);
   const [manualForm, setManualForm] = useState({ paymentId: "", amount: "", method: "cash", notes: "" });
   const [reminderOpen, setReminderOpen] = useState(false);
+  const [stripeCheckoutEnabled, setStripeCheckoutEnabled] = useState(false);
 
   const loadPayments = useCallback(async (oid: string) => {
     setLoading(true);
@@ -70,6 +71,17 @@ export default function PaymentsPage() {
     if (!orgId || !userId) return;
     loadPayments(orgId);
   }, [orgId, userId, loadPayments]);
+
+  useEffect(() => {
+    if (!orgId) {
+      setStripeCheckoutEnabled(false);
+      return;
+    }
+    fetch(`/api/stripe/connect?org_id=${orgId}`)
+      .then((r) => r.json())
+      .then((d) => setStripeCheckoutEnabled(Boolean(d.chargesEnabled)))
+      .catch(() => setStripeCheckoutEnabled(false));
+  }, [orgId]);
 
   useEffect(() => {
     if (!userId) return;
@@ -187,11 +199,11 @@ export default function PaymentsPage() {
         }
       />
 
+      {orgId && (
+        <StripeDestinationBanner orgId={orgId} canManage={canManage} />
+      )}
       {orgId && canManage && (
-        <>
-          <StripeDestinationBanner orgId={orgId} />
-          <StripeReconciliationPanel orgId={orgId} />
-        </>
+        <StripeReconciliationPanel orgId={orgId} />
       )}
 
       {!canViewAll && (
@@ -237,6 +249,7 @@ export default function PaymentsPage() {
           ) : (
             <PaymentList
               payments={visiblePayments}
+              stripeCheckoutEnabled={stripeCheckoutEnabled}
               onSelect={(p) => setSelectedPayment(p)}
               onCopyParentLink={copyParentLink}
               onPayStripe={async (p) => {
@@ -245,8 +258,9 @@ export default function PaymentsPage() {
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ paymentId: p.id, email: p.member_profiles?.email }),
                 });
-                const { url } = await res.json();
-                if (url) window.open(url, "_blank");
+                const data = await res.json();
+                if (data.url) window.open(data.url, "_blank");
+                else toast.error(data.error ?? "Could not start checkout");
               }}
             />
           )}

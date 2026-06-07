@@ -32,7 +32,14 @@ export function OrgProfileForm({ form, org, isAdmin, saving, onChange, onSave }:
       <Card>
         <CardHeader title="Organization profile" icon={<Building size={16} />} />
         <div className="grid sm:grid-cols-2 gap-4">
-          <Input label="Organization name" required value={form.name} onChange={(e) => onChange({ name: e.target.value })} disabled={!isAdmin} />
+          <Input
+            label="Organization name"
+            required
+            value={form.name}
+            onChange={(e) => onChange({ name: e.target.value })}
+            disabled={!isAdmin}
+            hint="Used in SMS as the sender label (e.g. Alpha Chi: meeting at 7pm)."
+          />
           <Input label="Campus / University" value={form.campus} onChange={(e) => onChange({ campus: e.target.value })} disabled={!isAdmin} />
           <Input label="Council or League" placeholder="IFC, Panhellenic, Campus Rec" value={form.councilOrLeague} onChange={(e) => onChange({ councilOrLeague: e.target.value })} disabled={!isAdmin} />
           <Input label="Contact email" type="email" value={form.contactEmail} onChange={(e) => onChange({ contactEmail: e.target.value })} disabled={!isAdmin} />

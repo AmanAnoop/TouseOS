@@ -1,3 +1,5 @@
+import "server-only";
+
 import Stripe from "stripe";
 import { getPlatformSecretSync } from "@/lib/platform-secrets";
 
@@ -28,11 +30,19 @@ export const stripe = new Proxy({} as Stripe, {
   },
 });
 
-function applicationFeeAmountCents(totalCents: number): number | undefined {
+const DEFAULT_PLATFORM_FEE_PERCENT = 0.25;
+
+function applicationFeePercent(): number {
   const raw = process.env.PLATFORM_STRIPE_APPLICATION_FEE_PERCENT;
-  if (!raw) return undefined;
+  if (raw === undefined || raw === "") return DEFAULT_PLATFORM_FEE_PERCENT;
   const percent = Number(raw);
-  if (!Number.isFinite(percent) || percent <= 0) return undefined;
+  if (!Number.isFinite(percent) || percent < 0) return DEFAULT_PLATFORM_FEE_PERCENT;
+  return percent;
+}
+
+function applicationFeeAmountCents(totalCents: number): number | undefined {
+  const percent = applicationFeePercent();
+  if (percent <= 0) return undefined;
   return Math.max(0, Math.round(totalCents * (percent / 100)));
 }
 
@@ -43,16 +53,17 @@ export async function createPaymentLink(opts: {
   orgName: string;
   memberEmail?: string;
   metadata?: Record<string, string>;
-  connectedAccountId?: string;
+  connectedAccountId: string;
 }) {
+  if (!opts.connectedAccountId) {
+    throw new Error("Chapter Stripe Connect account required for checkout");
+  }
+
   const unitAmount = Math.round(opts.amount * 100);
-  const paymentIntentData =
-    opts.connectedAccountId
-      ? {
-          application_fee_amount: applicationFeeAmountCents(unitAmount),
-          transfer_data: { destination: opts.connectedAccountId },
-        }
-      : undefined;
+  const paymentIntentData = {
+    application_fee_amount: applicationFeeAmountCents(unitAmount),
+    transfer_data: { destination: opts.connectedAccountId },
+  };
 
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ["card", "us_bank_account"],
@@ -93,16 +104,17 @@ export async function createPhilanthropyCheckout(opts: {
   donorEmail?: string;
   message?: string;
   isAnonymous?: boolean;
-  connectedAccountId?: string;
+  connectedAccountId: string;
 }) {
+  if (!opts.connectedAccountId) {
+    throw new Error("Chapter Stripe Connect account required for checkout");
+  }
+
   const unitAmount = Math.round(opts.amount * 100);
-  const paymentIntentData =
-    opts.connectedAccountId
-      ? {
-          application_fee_amount: applicationFeeAmountCents(unitAmount),
-          transfer_data: { destination: opts.connectedAccountId },
-        }
-      : undefined;
+  const paymentIntentData = {
+    application_fee_amount: applicationFeeAmountCents(unitAmount),
+    transfer_data: { destination: opts.connectedAccountId },
+  };
 
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ["card"],

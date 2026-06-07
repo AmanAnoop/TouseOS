@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { can, type RoleName } from "@/lib/permissions";
 import { isTwilioConfigured } from "@/lib/integrations";
 import { sendSms } from "@/lib/twilio";
+import { getOrgSmsDisplayName } from "@/lib/sms-branding";
 
 /** POST — send a test SMS to the signed-in officer's phone (integration smoke test). */
 export async function POST(request: Request) {
@@ -48,10 +49,8 @@ export async function POST(request: Request) {
     );
   }
 
-  const result = await sendSms(
-    phone,
-    `TouseOS test from your chapter workspace. Reply STOP to opt out.`,
-  );
+  const orgName = await getOrgSmsDisplayName(supabase, orgId);
+  const result = await sendSms(phone, "TouseOS test from your chapter workspace.", { orgName });
 
   if (result.status === "failed" || result.error) {
     return NextResponse.json({ error: result.error ?? "SMS failed" }, { status: 502 });

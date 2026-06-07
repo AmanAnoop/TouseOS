@@ -17,7 +17,7 @@ import { can } from "@/lib/permissions";
 import { useOrg } from "@/hooks/use-org";
 
 export default function CommsPage() {
-  const { orgId, role, loading: orgLoading } = useOrg();
+  const { orgId, orgName, role, loading: orgLoading } = useOrg();
   const canManageComms = can(role, "send_mass_texts");
   const [tab, setTab] = useState("announcements");
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -41,6 +41,7 @@ export default function CommsPage() {
     channel: "announcement", title: "", body: "", audience: "all", scheduledFor: "",
   });
   const [twilioLive, setTwilioLive] = useState<boolean | null>(null);
+  const [resendLive, setResendLive] = useState<boolean | null>(null);
 
   const loadScheduled = useCallback(async (oid: string) => {
     const res = await fetch(`/api/comms/schedule?orgId=${oid}`);
@@ -71,7 +72,9 @@ export default function CommsPage() {
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         const twilio = data?.integrations?.find((i: { id: string }) => i.id === "twilio");
+        const resend = data?.integrations?.find((i: { id: string }) => i.id === "resend");
         setTwilioLive(Boolean(twilio?.live));
+        setResendLive(Boolean(resend?.live));
       })
       .catch(() => setTwilioLive(false));
   }, []);
@@ -156,11 +159,13 @@ export default function CommsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ orgId, ...emailDraft }),
     });
+    const data = await res.json().catch(() => ({}));
     if (res.ok) {
-      const data = await res.json();
-      toast.success(data.message ?? "Email blast sent");
+      toast.success((data as { message?: string }).message ?? "Email blast sent");
       setEmailBlastOpen(false);
-    } else toast.error("Failed to send");
+    } else {
+      toast.error((data as { error?: string }).error ?? "Failed to send");
+    }
   }
 
 
@@ -267,6 +272,9 @@ export default function CommsPage() {
           )}
           <p className="text-sm text-muted-foreground mb-3">
             Quiet hours (9pm–9am) apply. Members must have a phone number on their roster profile.
+            {orgName ? (
+              <> Messages are sent as <span className="font-medium text-foreground">{orgName}: your text</span> — edit the chapter name in Settings → Profile.</>
+            ) : null}
           </p>
           <Button size="sm" onClick={() => setSmsOpen(true)} disabled={twilioLive === false}>
             Compose SMS blast
@@ -282,6 +290,11 @@ export default function CommsPage() {
       }>
         <div className="space-y-3">
           <Textarea label="Message" value={smsDraft.body} onChange={(e) => setSmsDraft({ ...smsDraft, body: e.target.value })} placeholder="Chapter meeting tomorrow at 7pm..." />
+          {orgName && smsDraft.body.trim() && (
+            <p className="text-xs text-muted-foreground rounded-lg bg-surface-1 p-2">
+              Preview: <span className="text-foreground">{orgName}: {smsDraft.body.trim()} Reply STOP to opt out.</span>
+            </p>
+          )}
           <Alert type="warning" title="Only members with phone numbers receive SMS. PNM texting remains on the PNM page with consent tracking." />
         </div>
       </Modal>
@@ -344,6 +357,14 @@ export default function CommsPage() {
         </div>
       </Modal>
 
+      {resendLive === false && (
+        <Alert
+          type="info"
+          title="Email dev mode"
+          description="Without RESEND_API_KEY, email blasts are saved as announcements only (not delivered). See Settings → Integrations → Email (Resend) for setup."
+        />
+      )}
+
       {/* Email blast modal */}
       <Modal
         open={emailBlastOpen}
@@ -370,7 +391,15 @@ export default function CommsPage() {
             </select>
           </div>
           <Textarea label="Email body" placeholder="Write your email..." value={emailDraft.body} onChange={(e) => setEmailDraft({ ...emailDraft, body: e.target.value })} className="min-h-[180px]" />
-          <Alert type="info" title="Emails will be sent via your configured email provider." />
+          <Alert
+            type="info"
+            title={resendLive ? "Live email via Resend" : "Dev mode — no delivery"}
+            description={
+              resendLive
+                ? "Emails will be sent through Resend to the selected audience."
+                : "Without RESEND_API_KEY, this saves an announcement only. Add Resend in Settings → Integrations to deliver mail."
+            }
+          />
         </div>
       </Modal>
     </div>

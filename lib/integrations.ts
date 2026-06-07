@@ -1,12 +1,13 @@
 /** Runtime checks for third-party integrations (no secret values returned). */
 
+import "server-only";
+
 import { getPlatformSecretSync, ensurePlatformSecretsLoaded } from "@/lib/platform-secrets";
 
 export type IntegrationId =
   | "stripe"
   | "twilio"
   | "resend"
-  | "openai"
   | "anthropic"
   | "mapbox"
   | "plaid";
@@ -40,10 +41,6 @@ export function isTwilioConfigured(): boolean {
 
 export function isResendConfigured(): boolean {
   return isSet("RESEND_API_KEY");
-}
-
-export function isOpenAiConfigured(): boolean {
-  return isSet("OPENAI_API_KEY");
 }
 
 export function isAnthropicConfigured(): boolean {
@@ -101,17 +98,12 @@ export function getIntegrationStatuses(): IntegrationStatus[] {
     },
     {
       id: "anthropic",
-      label: "Anthropic (AI assistant)",
+      label: "Anthropic (Claude)",
       configured: anthropicOk,
       live: anthropicOk,
-      hint: anthropicOk ? "AI assistant enabled" : "Set ANTHROPIC_API_KEY",
-    },
-    {
-      id: "openai",
-      label: "OpenAI (forms scan, PNM)",
-      configured: isOpenAiConfigured(),
-      live: isOpenAiConfigured(),
-      hint: isOpenAiConfigured() ? "Form scan and PNM enrich enabled" : "Set OPENAI_API_KEY",
+      hint: anthropicOk
+        ? "AI assistant, travel planner, form scan, and PNM enrich enabled"
+        : "Set ANTHROPIC_API_KEY",
     },
     {
       id: "mapbox",

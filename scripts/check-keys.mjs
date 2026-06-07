@@ -52,10 +52,20 @@ const pubOk = hasPublicSupabaseKey(vars);
 console.log(`${pubOk ? "✓" : "✗"} NEXT_PUBLIC_SUPABASE_ANON_KEY or PUBLISHABLE_KEY`);
 if (!pubOk) failed++;
 
-const optional = ["STRIPE_SECRET_KEY", "TWILIO_ACCOUNT_SID", "ANTHROPIC_API_KEY", "MAPBOX_ACCESS_TOKEN"];
+const optional = ["STRIPE_SECRET_KEY", "TWILIO_ACCOUNT_SID", "ANTHROPIC_API_KEY", "RESEND_API_KEY", "MAPBOX_ACCESS_TOKEN"];
 console.log("\nOptional integrations:");
 for (const key of optional) {
   console.log(`${vars[key]?.trim() ? "✓" : "○"} ${key}`);
+}
+
+const publicKeys = Object.entries(vars).filter(([k]) => k.startsWith("NEXT_PUBLIC_"));
+const leaked = publicKeys.filter(([, v]) =>
+  v.startsWith("sk_") || v.startsWith("sk-ant-") || v.startsWith("sb_secret_") || v.includes("service_role"),
+);
+if (leaked.length) {
+  console.log("\n⚠ Security: secret values must not use NEXT_PUBLIC_ prefix:");
+  for (const [k] of leaked) console.log(`  ✗ ${k}`);
+  failed++;
 }
 
 console.log(`\nKeys file: config/keys/keys.env (${Object.keys(vars).length} entries)\n`);

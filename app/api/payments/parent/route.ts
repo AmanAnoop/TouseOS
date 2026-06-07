@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { getOrgStripeDestination } from "@/lib/org-stripe";
 import { createPaymentLink } from "@/lib/stripe";
+import { requireChapterStripeForCheckout } from "@/lib/stripe-connect-guard";
 import {
   computeCheckoutAmount,
   loadPaymentForCheckout,
@@ -44,6 +44,8 @@ export async function GET(request: Request) {
     });
   }
 
+  const connect = await requireChapterStripeForCheckout(supabase, payment.org_id);
+
   return NextResponse.json({
     paid: false,
     paymentId: payment.id,
@@ -55,6 +57,8 @@ export async function GET(request: Request) {
     checkoutAmount: computeCheckoutAmount(row),
     dueDate: payment.due_date,
     status: payment.status,
+    stripeReady: connect.ok,
+    stripeMessage: connect.ok ? undefined : connect.error,
   });
 }
 
@@ -82,7 +86,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Nothing due on this payment" }, { status: 400 });
   }
 
-  const connectedAccountId = await getOrgStripeDestination(supabase, full.org_id);
+  const connect = await requireChapterStripeForCheckout(supabase, full.org_id);
+  if (!connect.ok) {
+    return NextResponse.json(
+      { error: connect.error, code: "stripe_connect_required", stripeReady: false },
+      { status: 403 },
+    );
+  }
 
   const session = await createPaymentLink({
     amount: checkoutAmount,
@@ -90,7 +100,7 @@ export async function POST(request: Request) {
     orgName: orgNameFromPayment(row),
     memberEmail: email ?? memberEmailFromPayment(row),
     metadata: { paymentId: payment.id, orgId: full.org_id, parentPay: "true" },
-    connectedAccountId,
+    connectedAccountId: connect.accountId,
   });
 
   await supabase

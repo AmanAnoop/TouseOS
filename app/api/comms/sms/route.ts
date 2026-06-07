@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAudienceMembers, sendBulkEmail, textToHtml } from "@/lib/email";
 import { isTwilioConfigured } from "@/lib/integrations";
 import { sendMassSms, isWithinQuietHours } from "@/lib/twilio";
+import { getOrgSmsDisplayName } from "@/lib/sms-branding";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -41,7 +42,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No members with phone numbers on file" }, { status: 400 });
     }
 
-    const results = await sendMassSms(recipients, body.trim());
+    const orgName = await getOrgSmsDisplayName(supabase, orgId);
+    const results = await sendMassSms(recipients, body.trim(), undefined, { orgName });
     const sent = results.filter((r) => r.status !== "failed" && !r.error).length;
     const failed = results.length - sent;
 

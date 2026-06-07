@@ -167,7 +167,7 @@ export default async function AdminPage() {
               { name: "Supabase DB", status: "connected", desc: "Database, auth, storage, realtime" },
               { name: "Stripe", status: org.stripe_account_id ? "connected" : "not_connected", desc: "Payment processing" },
               { name: "Twilio SMS", status: process.env.NEXT_PUBLIC_SUPABASE_URL ? "configured" : "not_configured", desc: "Consent-based PNM texting" },
-              { name: "OpenAI", status: "check_env", desc: "AI assistant features" },
+              { name: "Anthropic (Claude)", status: "check_env", desc: "AI assistant, travel, forms, PNM" },
               { name: "Supabase Storage", status: "connected", desc: "Photo & document storage" },
             ].map((integration) => (
               <div key={integration.name} className="flex items-start gap-3 p-2 rounded-lg border border-border">
