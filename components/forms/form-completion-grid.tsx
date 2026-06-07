@@ -28,7 +28,7 @@ export function FormCompletionGrid({ orgId }: { orgId: string }) {
     (async () => {
       setLoading(true);
       const [memRes, formsRes, respRes] = await Promise.all([
-        fetch(`/api/members?org_id=${encodeURIComponent(orgId)}`),
+        fetch(`/api/members?org_id=${encodeURIComponent(orgId)}&scope=roster`),
         fetch(`/api/forms?org_id=${encodeURIComponent(orgId)}`),
         fetch(`/api/forms/responses?org_id=${encodeURIComponent(orgId)}`),
       ]);

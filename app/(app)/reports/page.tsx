@@ -28,7 +28,7 @@ export default function ReportsPage() {
     try {
       switch (reportType) {
         case "roster": {
-          const rosterRes = await fetch(`/api/members?org_id=${encodeURIComponent(orgId)}`);
+          const rosterRes = await fetch(`/api/members?org_id=${encodeURIComponent(orgId)}&scope=roster`);
           const data = rosterRes.ok ? await rosterRes.json() : [];
           downloadCsv(`${orgName}-roster.csv`, (data as Record<string, unknown>[]).map((m) => ({
             "Full Name": m.full_name,

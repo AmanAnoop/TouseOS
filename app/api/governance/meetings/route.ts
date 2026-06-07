@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { GOVERNANCE_MEETING_OPTIONAL_COLUMNS, insertRowWithOptionalColumns } from "@/lib/db-optional-columns";
 import { can, type RoleName } from "@/lib/permissions";
 
 export async function GET(request: Request) {
@@ -66,11 +67,12 @@ export async function POST(request: Request) {
     attendee_ids: Array.isArray(attendeeIds) ? attendeeIds : [],
   };
 
-  const { data, error } = await supabase
-    .from("governance_meetings")
-    .insert(insert)
-    .select()
-    .single();
+  const { data, error } = await insertRowWithOptionalColumns(
+    supabase,
+    "governance_meetings",
+    insert,
+    GOVERNANCE_MEETING_OPTIONAL_COLUMNS,
+  );
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data, { status: 201 });

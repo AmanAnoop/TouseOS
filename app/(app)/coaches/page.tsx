@@ -41,7 +41,7 @@ export default function CoachesPage() {
   const load = useCallback(async (oid: string) => {
     setLoading(true);
     const [playersRes, notesRes] = await Promise.all([
-      fetch(`/api/members?org_id=${encodeURIComponent(oid)}`),
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}&scope=roster`),
       fetch(`/api/coaching?org_id=${oid}`).then((r) => (r.ok ? r.json() : [])),
     ]);
     if (playersRes.ok) {

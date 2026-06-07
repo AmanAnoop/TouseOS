@@ -95,7 +95,7 @@ export function HousingClient() {
     setLoading(true);
     const [housingRes, membersRes] = await Promise.all([
       fetch(`/api/housing?org_id=${encodeURIComponent(oid)}`),
-      fetch(`/api/members?org_id=${encodeURIComponent(oid)}`),
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}&scope=roster`),
     ]);
     if (housingRes.ok) {
       const data = await housingRes.json();

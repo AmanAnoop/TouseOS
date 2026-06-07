@@ -55,7 +55,7 @@ export default function ClubElectionsPage() {
     setLoading(true);
     const [elecRes, membersRes] = await Promise.all([
       fetch(`/api/club/elections?org_id=${oid}`),
-      fetch(`/api/members?org_id=${encodeURIComponent(oid)}`),
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}&scope=roster`),
     ]);
     const data = await elecRes.json();
     if (elecRes.ok) setElections(data.elections ?? []);

@@ -101,7 +101,7 @@ export default function StandardsPage() {
     setLoading(true);
     const [caseRes, memberRes] = await Promise.all([
       fetch(`/api/standards/cases?org_id=${encodeURIComponent(oid)}`),
-      fetch(`/api/members?org_id=${encodeURIComponent(oid)}`),
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}&scope=roster`),
     ]);
     const caseData = caseRes.ok ? await caseRes.json() : [];
     const allMembers = memberRes.ok ? await memberRes.json() : [];

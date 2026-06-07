@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { resolveEventCoverUrl } from "@/lib/event-cover";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -33,6 +34,11 @@ export async function POST(request: Request) {
     coverImageUrl,
   } = body;
 
+  let resolvedCover = coverImageUrl ?? null;
+  if (!resolvedCover && (location || address)) {
+    resolvedCover = await resolveEventCoverUrl({ venue: location, address });
+  }
+
   const { data, error } = await supabase.from("events").insert({
     org_id: orgId,
     created_by: user.id,
@@ -54,7 +60,7 @@ export async function POST(request: Request) {
     playlist_url: playlistUrl,
     theme,
     is_private: isPrivate ?? false,
-    cover_image_url: coverImageUrl ?? null,
+    cover_image_url: resolvedCover,
     status: "upcoming",
   }).select().single();
 

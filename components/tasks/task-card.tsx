@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { taskTypeFromTags, taskTypeLabel } from "@/lib/task-config";
+import { getHardshipRequesterName, isHardshipTask } from "@/lib/task-display";
 import type { Task, TaskPriority, TaskStatus } from "@/types";
 
 export const PRIORITY_DOT: Record<TaskPriority, string> = {
@@ -32,6 +33,7 @@ export function TaskCard({ task, onStatusChange, onEdit, onSelect }: TaskCardPro
   const assigneeCount = task.assignees?.length ?? 0;
   const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== "done";
   const taskType = taskTypeFromTags(task.tags);
+  const hardshipRequester = isHardshipTask(task) ? getHardshipRequesterName(task) : null;
 
   return (
     <div
@@ -64,8 +66,19 @@ export function TaskCard({ task, onStatusChange, onEdit, onSelect }: TaskCardPro
         </button>
       </div>
 
-      {task.description && (
+      {hardshipRequester && (
+        <p className="text-xs font-medium text-greek-700 dark:text-greek-300 mt-1.5 ml-6">
+          Request from: {hardshipRequester}
+        </p>
+      )}
+
+      {task.description && !hardshipRequester && (
         <p className="text-xs text-muted-foreground mt-1.5 ml-6 line-clamp-2">{task.description}</p>
+      )}
+      {task.description && hardshipRequester && (
+        <p className="text-xs text-muted-foreground mt-1 ml-6 line-clamp-2">
+          {task.description.split("\n").slice(2).join(" ").trim() || task.description}
+        </p>
       )}
 
       <div className="flex items-center justify-between mt-2.5 ml-6">

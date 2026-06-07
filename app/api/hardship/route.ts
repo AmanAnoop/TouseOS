@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { can, type RoleName } from "@/lib/permissions";
 import { tagsWithType } from "@/lib/task-config";
+import { insertTaskRow } from "@/lib/tasks-db";
 import { triggerBudgetSyncForOrg } from "@/lib/budget-auto-sync";
 
 export async function GET(request: Request) {
@@ -111,7 +112,7 @@ export async function POST(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  await supabase.from("tasks").insert({
+  await insertTaskRow(supabase, {
     org_id: orgId,
     created_by: user.id,
     title: `Hardship request — ${memberName}`,

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { insertRowWithOptionalColumns, PHOTO_ALBUM_OPTIONAL_COLUMNS } from "@/lib/db-optional-columns";
 import { getOrgPhotoPermissions } from "@/lib/photo-permissions";
 
 export async function GET(request: Request) {
@@ -42,18 +43,19 @@ export async function POST(request: Request) {
 
   const perms = await getOrgPhotoPermissions(supabase, orgId);
 
-  const { data, error } = await supabase
-    .from("photo_albums")
-    .insert({
+  const { data, error } = await insertRowWithOptionalColumns(
+    supabase,
+    "photo_albums",
+    {
       org_id: orgId,
       title,
       event_id: eventId || null,
       created_by: user.id,
       is_public: !perms.officer_only_albums,
       allow_member_upload: perms.who_can_upload === "all_members",
-    })
-    .select()
-    .single();
+    },
+    PHOTO_ALBUM_OPTIONAL_COLUMNS,
+  );
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data, { status: 201 });

@@ -83,7 +83,7 @@ export default function RiskPage() {
         };
       }),
       fetch(`/api/incidents?org_id=${oid}`).then((r) => (r.ok ? r.json() : [])),
-      fetch(`/api/members?org_id=${encodeURIComponent(oid)}`).then((r) => (r.ok ? r.json() : [])),
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}&scope=roster`).then((r) => (r.ok ? r.json() : [])),
     ]);
     setChecklists(ckRes.ok ? ((await ckRes.json()) as RiskChecklist[]) : []);
     setEvents((evRes.data ?? []) as Array<{ id: string; title: string; starts_at: string }>);

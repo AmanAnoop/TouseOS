@@ -21,7 +21,7 @@ export async function buildUnpaidBalancesReport(orgId: string): Promise<ReportRo
 export async function buildNmeProgressReport(orgId: string): Promise<ReportRow[]> {
   const [modsRes, memRes] = await Promise.all([
     fetch(`/api/nme/modules?org_id=${encodeURIComponent(orgId)}`),
-    fetch(`/api/members?org_id=${encodeURIComponent(orgId)}`),
+    fetch(`/api/members?org_id=${encodeURIComponent(orgId)}&scope=roster`),
   ]);
   const modsData = modsRes.ok ? await modsRes.json() : { modules: [] };
   const members = memRes.ok ? await memRes.json() : [];
@@ -44,7 +44,7 @@ export async function buildNmeProgressReport(orgId: string): Promise<ReportRow[]
 }
 
 export async function buildRosterReport(orgId: string, orgName: string): Promise<{ rows: ReportRow[]; filename: string }> {
-  const res = await fetch(`/api/members?org_id=${encodeURIComponent(orgId)}`);
+  const res = await fetch(`/api/members?org_id=${encodeURIComponent(orgId)}&scope=roster`);
   const data = res.ok ? await res.json() : [];
   const rows = (data as Record<string, unknown>[]).map((m) => ({
     "Full Name": String(m.full_name),

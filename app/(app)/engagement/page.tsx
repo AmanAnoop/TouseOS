@@ -23,7 +23,7 @@ export default function EngagementPage() {
     semesterStart.setMonth(semesterStart.getMonth() - 4);
 
     const [membersRes, eventsRes] = await Promise.all([
-      fetch(`/api/members?org_id=${encodeURIComponent(oid)}`),
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}&scope=roster`),
       fetch(`/api/events?org_id=${encodeURIComponent(oid)}`),
     ]);
 
