@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { RoleName } from "@/lib/permissions";
+import { can, type RoleName } from "@/lib/permissions";
 
 const FINANCE_ROLES: RoleName[] = ["owner", "president", "vice_president", "treasurer"];
 
@@ -8,6 +8,18 @@ export const EXECUTIVE_APPROVAL_ROLES: RoleName[] = ["owner", "president", "vice
 
 export function isFinanceOfficerRole(role: string | null | undefined): boolean {
   return FINANCE_ROLES.includes(role as RoleName);
+}
+
+/** Same access as budget page — treasurer helpers, travel coordinators with view_payments, etc. */
+export function canViewFinancePage(role: string | null | undefined): boolean {
+  if (!role) return false;
+  const r = role as RoleName;
+  return (
+    isFinanceOfficerRole(r) ||
+    can(r, "manage_budget") ||
+    can(r, "view_payments") ||
+    can(r, "manage_payments")
+  );
 }
 
 export function canManageStripeConnect(role: string | null | undefined): boolean {

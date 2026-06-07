@@ -234,7 +234,7 @@ export default async function ClubDashboardPage() {
           { href: "/club/elections", label: "Elections" },
           { href: "/club/service-hours", label: "Service hours" },
           { href: "/roster", label: "Roster" },
-          { href: "/budget", label: "Budget" },
+          { href: "/finance", label: "Budget" },
           { href: "/forms", label: "Forms" },
           { href: "/philanthropy", label: "Fundraising" },
         ]}

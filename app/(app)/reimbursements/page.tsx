@@ -237,7 +237,7 @@ export default function ReimbursementsPage() {
         description={`${pendingCount} pending · ${formatCurrency(totalPending)} in pipeline`}
         action={
           <div className="flex gap-2 flex-wrap">
-            <Link href="/budget"><Button variant="secondary" size="sm">Budget</Button></Link>
+            <Link href="/finance"><Button variant="secondary" size="sm">Budget & Finance</Button></Link>
             <Link href="/payments"><Button variant="secondary" size="sm">Payments</Button></Link>
             {canReview && (
               <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={() => downloadCsv("reimbursements.csv", reimbs.map((r) => ({ Submitter: r.submitted_by_name ?? "", Amount: r.amount, Category: r.category, Description: r.description, Status: r.status, Date: formatDate(r.created_at) })))}>Export</Button>

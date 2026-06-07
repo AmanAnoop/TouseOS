@@ -234,7 +234,7 @@ function buildSetupSteps(
       id: "budget",
       label: "Create a budget",
       description: "Track spending against your chapter plan",
-      href: "/budget",
+      href: "/finance",
       done: hasBudget,
     },
   ];

@@ -221,7 +221,7 @@ export function FinanceSetupWizard({
             Categories: {DEFAULT_BUDGET_CATEGORIES.map((c) => c.label).join(", ")}
           </p>
           {path === "manual" && (
-            <Link href="/budget" className="text-sm text-primary hover:underline">Open manual budget editor</Link>
+            <Link href="/finance?tab=budget" className="text-sm text-primary hover:underline">Open budget lines</Link>
           )}
         </div>
       );

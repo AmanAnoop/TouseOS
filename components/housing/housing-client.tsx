@@ -366,7 +366,7 @@ export function HousingClient() {
           canManageHousing ? (
             <div className="payments-action-bar flex gap-2 flex-wrap justify-end items-center">
               <Link href="/payments"><Button size="sm" variant="secondary">Payments</Button></Link>
-              <Link href="/budget"><Button size="sm" variant="secondary">Budget</Button></Link>
+              <Link href="/finance"><Button size="sm" variant="secondary">Budget</Button></Link>
               <Button size="sm" icon={<Plus size={14} />} onClick={() => setRentOpen(true)}>
                 Post monthly rent
               </Button>
@@ -388,7 +388,7 @@ export function HousingClient() {
           ) : (
             <div className="flex gap-2 flex-wrap justify-end">
               <Link href="/payments"><Button size="sm" variant="secondary">Payments</Button></Link>
-              <Link href="/budget"><Button size="sm" variant="secondary">Budget</Button></Link>
+              <Link href="/finance"><Button size="sm" variant="secondary">Budget</Button></Link>
             </div>
           )
         }

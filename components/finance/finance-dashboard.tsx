@@ -63,9 +63,17 @@ interface TxRow {
 interface FinanceDashboardProps {
   orgId: string;
   onOpenSetup: () => void;
+  isFinanceOfficer?: boolean;
+  /** Limit which sections render when embedded in tabbed finance page */
+  view?: "all" | "overview" | "transactions";
 }
 
-export function FinanceDashboard({ orgId, onOpenSetup }: FinanceDashboardProps) {
+export function FinanceDashboard({
+  orgId,
+  onOpenSetup,
+  isFinanceOfficer = true,
+  view = "all",
+}: FinanceDashboardProps) {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<DashboardData | null>(null);
   const [transactions, setTransactions] = useState<TxRow[]>([]);
@@ -75,14 +83,19 @@ export function FinanceDashboard({ orgId, onOpenSetup }: FinanceDashboardProps) 
   const [reminding, setReminding] = useState(false);
 
   const loadDashboard = useCallback(async () => {
+    if (!isFinanceOfficer) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const res = await fetch(`/api/finance/dashboard?org_id=${encodeURIComponent(orgId)}`);
     if (res.ok) setData(await res.json());
     else toast.error("Failed to load finance dashboard");
     setLoading(false);
-  }, [orgId]);
+  }, [orgId, isFinanceOfficer]);
 
   const loadTransactions = useCallback(async () => {
+    if (!isFinanceOfficer) return;
     const params = new URLSearchParams({ org_id: orgId, limit: "100" });
     if (filterSource !== "all") params.set("source", filterSource);
     if (filterCategory) params.set("category", filterCategory);
@@ -92,7 +105,7 @@ export function FinanceDashboard({ orgId, onOpenSetup }: FinanceDashboardProps) 
       const json = await res.json();
       setTransactions(json.transactions ?? []);
     }
-  }, [orgId, filterSource, filterCategory, search]);
+  }, [orgId, filterSource, filterCategory, search, isFinanceOfficer]);
 
   useEffect(() => {
     loadDashboard();
@@ -128,29 +141,43 @@ export function FinanceDashboard({ orgId, onOpenSetup }: FinanceDashboardProps) 
     }
   }
 
-  if (loading && !data) {
-    return <p className="text-sm text-muted-foreground p-6">Loading finances…</p>;
-  }
-
-  if (data?.needsSetup) {
+  if (!isFinanceOfficer) {
     return (
-      <div className="space-y-6">
-        <BankConnectCard orgId={orgId} variant="hero" onConnected={loadDashboard} />
-        <div className="flex flex-wrap gap-2 justify-center">
-          <Button onClick={onOpenSetup}>Full setup wizard</Button>
-          <span className="text-sm text-muted-foreground self-center">Stripe dues, budget categories, and more</span>
-        </div>
-      </div>
+      <Alert
+        type="info"
+        title="Bank & Stripe tools"
+        description="Connecting Plaid and Stripe is limited to finance officers. You can still view budgets, forecasts, and line items on the tabs above."
+      />
     );
   }
 
+  if (loading && !data) {
+    return <p className="text-sm text-muted-foreground py-4">Loading bank & dues summary…</p>;
+  }
+
   const bankDisconnected = data?.plaid.status === "disconnected" || data?.plaid.expired;
+  const showOverview = view === "all" || view === "overview";
+  const showTransactions = view === "all" || view === "transactions";
 
   const plaidBanner = data?.plaid.expired || data?.plaid.status === "error";
   const stripeIncomplete = data?.stripe.enabled && !data?.stripe.onboardingComplete;
 
   return (
     <div className="space-y-6">
+      {data?.needsSetup && (
+        <div className="space-y-4">
+          <Alert
+            type="info"
+            title="Finish finance setup"
+            description="Connect Stripe and your chapter bank to sync dues and transactions automatically. Budget charts and line items work without setup."
+          />
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={onOpenSetup}>Open setup wizard</Button>
+            <BankConnectCard orgId={orgId} variant="compact" onConnected={loadDashboard} />
+          </div>
+        </div>
+      )}
+
       {bankDisconnected && (
         <BankConnectCard orgId={orgId} variant="hero" onConnected={() => { loadDashboard(); loadTransactions(); }} />
       )}
@@ -185,6 +212,7 @@ export function FinanceDashboard({ orgId, onOpenSetup }: FinanceDashboardProps) 
         />
       )}
 
+      {showOverview && (
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Bank balance"
@@ -208,7 +236,9 @@ export function FinanceDashboard({ orgId, onOpenSetup }: FinanceDashboardProps) 
           icon={<Banknote />}
         />
       </div>
+      )}
 
+      {showOverview && (
       <div className="flex flex-wrap gap-2">
         <Button variant="secondary" icon={<RefreshCw className="h-4 w-4" />} onClick={() => { loadDashboard(); loadTransactions(); }}>
           Refresh
@@ -225,9 +255,10 @@ export function FinanceDashboard({ orgId, onOpenSetup }: FinanceDashboardProps) 
           Export CSV
         </a>
         <Link href="/payments" className="ds-btn ds-btn-secondary text-sm">Member dues view</Link>
-        <Link href="/budget" className="ds-btn ds-btn-ghost text-sm">Manual budget editor</Link>
       </div>
+      )}
 
+      {showOverview && (
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
           <h3 className="font-semibold">Dues status</h3>
@@ -246,7 +277,9 @@ export function FinanceDashboard({ orgId, onOpenSetup }: FinanceDashboardProps) 
           </p>
         )}
       </Card>
+      )}
 
+      {showOverview && (
       <Card>
         <h3 className="font-semibold mb-4">Budget vs actual</h3>
         <div className="space-y-4">
@@ -266,7 +299,9 @@ export function FinanceDashboard({ orgId, onOpenSetup }: FinanceDashboardProps) 
           ))}
         </div>
       </Card>
+      )}
 
+      {showTransactions && (
       <Card>
         <h3 className="font-semibold mb-4">Transaction feed</h3>
         <div className="flex flex-wrap gap-3 mb-4">
@@ -343,6 +378,7 @@ export function FinanceDashboard({ orgId, onOpenSetup }: FinanceDashboardProps) 
           </div>
         )}
       </Card>
+      )}
     </div>
   );
 }
