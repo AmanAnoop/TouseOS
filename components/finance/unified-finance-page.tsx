@@ -88,7 +88,7 @@ export function UnifiedFinancePage() {
       />
 
       <div className="overflow-x-auto scrollbar-hide">
-        <Tabs tabs={[...TABS]} active={tab} onChange={setTab} />
+        <Tabs tabs={visibleTabs} active={tab} onChange={setTab} />
       </div>
 
       {tab === "overview" && (

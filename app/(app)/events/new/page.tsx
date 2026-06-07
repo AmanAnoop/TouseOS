@@ -47,6 +47,9 @@ export default function NewEventPage() {
     playlistUrl: "",
     theme: "",
     isPrivate: false,
+    isPointOpportunity: false,
+    pointValue: "",
+    pointCategory: "",
   });
 
   const eventTypes = eventTypesForOrgType(orgType || "general_org");
@@ -162,6 +165,9 @@ export default function NewEventPage() {
         theme: form.theme || null,
         isPrivate: form.isPrivate,
         coverImageUrl: coverUrl,
+        isPointOpportunity: form.isPointOpportunity,
+        pointValue: form.pointValue ? parseInt(form.pointValue, 10) : null,
+        pointCategory: form.pointCategory || null,
       }),
     });
 
@@ -324,6 +330,40 @@ export default function NewEventPage() {
           ))}
         </div>
         <Input label="RSVP capacity (optional)" type="number" placeholder="Leave blank for unlimited" value={form.rsvpLimit} onChange={(e) => setForm({ ...form, rsvpLimit: e.target.value })} />
+      </div>
+
+      {/* Points */}
+      <div className="space-y-4">
+        <h3 className="text-sm font-semibold text-foreground">Points</h3>
+        <label className="flex items-start gap-3 cursor-pointer p-3 rounded-lg bg-surface-1 border border-border">
+          <input
+            type="checkbox"
+            className="rounded mt-0.5"
+            checked={form.isPointOpportunity}
+            onChange={(e) => setForm({ ...form, isPointOpportunity: e.target.checked })}
+          />
+          <div>
+            <p className="text-sm font-medium">Counts toward member points</p>
+            <p className="text-xs text-muted-foreground">Members earn credit when they check in at this event.</p>
+          </div>
+        </label>
+        {form.isPointOpportunity && (
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Input
+              label="Points to award (optional)"
+              type="number"
+              placeholder="Uses your chapter default if blank"
+              value={form.pointValue}
+              onChange={(e) => setForm({ ...form, pointValue: e.target.value })}
+            />
+            <Input
+              label="Category (optional)"
+              placeholder="Philanthropy, service, brotherhood..."
+              value={form.pointCategory}
+              onChange={(e) => setForm({ ...form, pointCategory: e.target.value })}
+            />
+          </div>
+        )}
       </div>
 
       {/* Finance */}

@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { LocationDisplay } from "@/components/location/location-display";
+import { EventMapPreview } from "@/components/location/event-map-preview";
 import { EventEditPanel } from "@/components/events/event-edit-panel";
 
 export function EventDetailLocationSection({
@@ -28,10 +29,16 @@ export function EventDetailLocationSection({
         />
       </div>
       {hasLocation ? (
-        <LocationDisplay
-          venueName={String(event.location ?? "")}
-          address={String(event.address ?? "")}
-        />
+        <>
+          <EventMapPreview
+            venueName={String(event.location ?? "")}
+            address={String(event.address ?? "")}
+          />
+          <LocationDisplay
+            venueName={String(event.location ?? "")}
+            address={String(event.address ?? "")}
+          />
+        </>
       ) : (
         <p className="text-sm text-muted-foreground">
           No location set yet.

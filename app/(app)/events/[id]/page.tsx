@@ -16,6 +16,10 @@ import EventRsvpButton from "./rsvp-button";
 import { EventDetailActions } from "@/components/events/event-detail-actions";
 import { EventPollsPanel } from "@/components/events/event-polls-panel";
 import { EventQrCard } from "@/components/events/event-qr-card";
+import { EventAddToCalendar } from "@/components/events/event-add-to-calendar";
+import { EventAnnouncementsPanel } from "@/components/events/event-announcements-panel";
+import { EventCommentsPanel } from "@/components/events/event-comments-panel";
+import { EventGallerySection } from "@/components/events/event-gallery-section";
 
 export const dynamic = "force-dynamic";
 
@@ -85,9 +89,14 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
 
           {/* Event title */}
           <div className="absolute bottom-0 left-0 right-0 p-5">
-            {Boolean(event.theme) && (
-              <div className="flex items-center gap-2 mb-1">
-                <Badge label={String(event.theme)} color="purple" className="bg-white/20 text-white border-transparent" />
+            {(Boolean(event.theme) || Boolean(event.is_point_opportunity)) && (
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                {Boolean(event.theme) && (
+                  <Badge label={String(event.theme)} color="purple" className="bg-white/20 text-white border-transparent" />
+                )}
+                {Boolean(event.is_point_opportunity) && (
+                  <Badge label="Earns points" color="emerald" className="bg-white/20 text-white border-transparent" />
+                )}
               </div>
             )}
             <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight">
@@ -104,6 +113,18 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
         {/* Event info body */}
         <div className="bg-card p-5 space-y-5">
           {/* RSVP action */}
+          {isUpcoming && (
+            <EventAddToCalendar
+              eventId={id}
+              title={String(event.title)}
+              description={event.description ? String(event.description) : null}
+              location={event.location ? String(event.location) : null}
+              address={event.address ? String(event.address) : null}
+              startsAt={String(event.starts_at)}
+              endsAt={event.ends_at ? String(event.ends_at) : null}
+            />
+          )}
+
           {Boolean(event.rsvp_enabled)&& isUpcoming && (
             <EventRsvpButton eventId={id} orgId={String(event.org_id)} capacity={capacity} goingCount={goingCount} />
           )}
@@ -243,6 +264,16 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
             eventId={id}
             orgId={membership.orgId}
             canManage={canEditEvent}
+          />
+
+          <EventAnnouncementsPanel eventId={id} orgId={membership.orgId} />
+
+          <EventCommentsPanel eventId={id} />
+
+          <EventGallerySection
+            eventId={id}
+            orgId={membership.orgId}
+            eventTitle={String(event.title)}
           />
 
           {isPast && (

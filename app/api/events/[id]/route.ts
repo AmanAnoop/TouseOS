@@ -63,6 +63,9 @@ export async function PATCH(
   if (body.budgetAmount !== undefined) updates.budget_amount = body.budgetAmount;
   if (body.isPrivate !== undefined) updates.is_private = body.isPrivate;
   if (body.coverImageUrl !== undefined) updates.cover_image_url = body.coverImageUrl;
+  if (body.isPointOpportunity !== undefined) updates.is_point_opportunity = body.isPointOpportunity;
+  if (body.pointValue !== undefined) updates.point_value = body.pointValue;
+  if (body.pointCategory !== undefined) updates.point_category = body.pointCategory;
 
   if (Object.keys(updates).length <= 1) {
     return NextResponse.json({ error: "No updates" }, { status: 400 });

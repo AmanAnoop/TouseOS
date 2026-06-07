@@ -191,21 +191,48 @@ export async function awardCheckInPoints(params: {
 
   if (existing) return { awarded: false, points: 0, reason: "already_awarded" };
 
+  const { data: eventRow } = await supabase
+    .from("events")
+    .select("is_point_opportunity, point_value, point_category, title")
+    .eq("id", eventId)
+    .eq("org_id", orgId)
+    .maybeSingle();
+
   const rules = await getPointRules(supabase, orgId);
   const effective = rules.length ? rules : DEFAULT_POINT_RULES;
-  const rule = effective.find((r) => r.event_type === eventType);
-  if (!rule || rule.points <= 0) return { awarded: false, points: 0, reason: "no_rule" };
+  const typeRule = effective.find((r) => r.event_type === eventType);
+
+  const isOpportunity = Boolean(eventRow?.is_point_opportunity);
+  const customValue = eventRow?.point_value != null ? Number(eventRow.point_value) : null;
+
+  if (isOpportunity && customValue != null && customValue <= 0) {
+    return { awarded: false, points: 0, reason: "no_rule" };
+  }
+  if (!isOpportunity && (!typeRule || typeRule.points <= 0)) {
+    return { awarded: false, points: 0, reason: "no_rule" };
+  }
+
+  const points = isOpportunity && customValue != null && customValue > 0
+    ? customValue
+    : (typeRule?.points ?? 0);
+
+  if (points <= 0) return { awarded: false, points: 0, reason: "no_rule" };
+
+  const label = eventRow?.point_category
+    ?? typeRule?.label
+    ?? eventRow?.title
+    ?? eventType.replace(/_/g, " ");
 
   const { error } = await supabase.from("member_point_entries").insert({
     org_id: orgId,
     member_id: memberId,
     event_id: eventId,
-    points: rule.points,
-    reason: `Auto-award: ${rule.label ?? eventType} check-in`,
+    points,
+    reason: `Checked in: ${label}`,
     entry_type: "earned",
     created_by: createdBy ?? null,
   });
 
   if (error) return { awarded: false, points: 0, reason: error.message };
-  return { awarded: true, points: rule.points };
+  return { awarded: true, points };
 }

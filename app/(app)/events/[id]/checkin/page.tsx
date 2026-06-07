@@ -76,12 +76,13 @@ export default function CheckInPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  async function checkIn(rsvpId: string) {
+  async function checkIn(rsvpId: string, method: "manual" | "qr" = "manual") {
     const now = new Date().toISOString();
     const attendee = attendees.find((a) => a.id === rsvpId);
     const { error } = await supabase.from("event_rsvps").update({
       checked_in: true,
       checked_in_at: now,
+      check_in_method: method,
     }).eq("id", rsvpId);
 
     if (error) { toast.error(error.message); return; }
@@ -177,7 +178,7 @@ export default function CheckInPage() {
           const code = result.getText();
           const match = attendees.find((a) => a.id === code || a.member_id === code);
           if (match && !match.checked_in) {
-            await checkIn(match.id);
+            await checkIn(match.id, "qr");
           } else {
             const pnmMatch = pnmInvites.find((p) => p.invite_token === code || p.id === code);
             if (pnmMatch && !pnmMatch.checked_in) await checkInPnm(pnmMatch.id);
