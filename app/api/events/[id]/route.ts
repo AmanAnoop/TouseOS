@@ -66,6 +66,8 @@ export async function PATCH(
   if (body.isPointOpportunity !== undefined) updates.is_point_opportunity = body.isPointOpportunity;
   if (body.pointValue !== undefined) updates.point_value = body.pointValue;
   if (body.pointCategory !== undefined) updates.point_category = body.pointCategory;
+  if (body.pointGateMin !== undefined) updates.point_gate_min = body.pointGateMin;
+  if (body.pointGateCategory !== undefined) updates.point_gate_category = body.pointGateCategory;
 
   if (Object.keys(updates).length <= 1) {
     return NextResponse.json({ error: "No updates" }, { status: 400 });

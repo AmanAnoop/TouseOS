@@ -19,7 +19,9 @@ import { EventQrCard } from "@/components/events/event-qr-card";
 import { EventAddToCalendar } from "@/components/events/event-add-to-calendar";
 import { EventAnnouncementsPanel } from "@/components/events/event-announcements-panel";
 import { EventCommentsPanel } from "@/components/events/event-comments-panel";
-import { EventGallerySection } from "@/components/events/event-gallery-section";
+import { EventMediaGallery } from "@/components/events/event-media-gallery";
+import { EventRotatingTicket } from "@/components/events/event-rotating-ticket";
+import { EventChapterQrCard } from "@/components/events/event-chapter-qr-card";
 
 export const dynamic = "force-dynamic";
 
@@ -270,11 +272,15 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
 
           <EventCommentsPanel eventId={id} />
 
-          <EventGallerySection
+          <EventMediaGallery
             eventId={id}
             orgId={membership.orgId}
             eventTitle={String(event.title)}
           />
+
+          {isUpcoming && <EventRotatingTicket eventId={id} />}
+
+          {canEditEvent && isUpcoming && <EventChapterQrCard eventId={id} />}
 
           {isPast && (
             <Card padding="sm" className="bg-surface-1">

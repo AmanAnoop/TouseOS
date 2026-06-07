@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { BrowserQRCodeReader } from "@zxing/browser";
 import { useParams } from "next/navigation";
 import {
-  Camera, Check, CheckCircle2, List, QrCode, Search, X,
+  Camera, Check, CheckCircle2, Download, List, QrCode, Search, X, XCircle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
@@ -48,6 +48,14 @@ export default function CheckInPage() {
   const streamRef = useRef<MediaStream | null>(null);
   const qrReaderRef = useRef<BrowserQRCodeReader | null>(null);
   const scanIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastScanRef = useRef<string>("");
+  const [scanResult, setScanResult] = useState<{
+    success: boolean;
+    memberName?: string;
+    memberPhotoUrl?: string | null;
+    message?: string;
+    pointsAwarded?: number;
+  } | null>(null);
 
   const loadData = useCallback(async () => {
     const eventRes = await supabase.from("events").select("id, title, starts_at, type, org_id").eq("id", eventId).single();
@@ -76,7 +84,7 @@ export default function CheckInPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  async function checkIn(rsvpId: string, method: "manual" | "qr" = "manual") {
+  async function checkIn(rsvpId: string, method: "manual" | "qr" | "rotating_ticket" = "manual") {
     const now = new Date().toISOString();
     const attendee = attendees.find((a) => a.id === rsvpId);
     const { error } = await supabase.from("event_rsvps").update({
@@ -155,6 +163,7 @@ export default function CheckInPage() {
       status: "going",
       checked_in: true,
       checked_in_at: new Date().toISOString(),
+      check_in_method: "manual",
     }).select().single();
     if (error) { toast.error(error.message); return; }
     setAttendees((prev) => [data as Attendee, ...prev]);
@@ -172,16 +181,46 @@ export default function CheckInPage() {
       setScanning(true);
       qrReaderRef.current = new BrowserQRCodeReader();
       const scanLoop = async () => {
-        if (!videoRef.current || !qrReaderRef.current) return;
+        if (!videoRef.current || !qrReaderRef.current || !orgId) return;
         try {
           const result = await qrReaderRef.current.decodeOnceFromVideoElement(videoRef.current);
           const code = result.getText();
-          const match = attendees.find((a) => a.id === code || a.member_id === code);
-          if (match && !match.checked_in) {
-            await checkIn(match.id, "qr");
+          if (code === lastScanRef.current) {
+            scanIntervalRef.current = setTimeout(scanLoop, 400);
+            return;
+          }
+
+          if (code.includes(".") && code.length > 20) {
+            lastScanRef.current = code;
+            const res = await fetch("/api/events/checkin/scan", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ token: code, orgId }),
+            });
+            const data = await res.json();
+            if (data.success) {
+              setScanResult({
+                success: true,
+                memberName: data.memberName,
+                memberPhotoUrl: data.memberPhotoUrl,
+                pointsAwarded: data.pointsAwarded,
+              });
+              toast.success(data.alreadyCheckedIn
+                ? `${data.memberName} already checked in`
+                : `${data.memberName} checked in ✓`);
+              loadData();
+            } else {
+              setScanResult({ success: false, message: data.message });
+            }
+            setTimeout(() => { lastScanRef.current = ""; setScanResult(null); }, 2500);
           } else {
-            const pnmMatch = pnmInvites.find((p) => p.invite_token === code || p.id === code);
-            if (pnmMatch && !pnmMatch.checked_in) await checkInPnm(pnmMatch.id);
+            const match = attendees.find((a) => a.id === code || a.member_id === code);
+            if (match && !match.checked_in) {
+              await checkIn(match.id, "qr");
+            } else {
+              const pnmMatch = pnmInvites.find((p) => p.invite_token === code || p.id === code);
+              if (pnmMatch && !pnmMatch.checked_in) await checkInPnm(pnmMatch.id);
+            }
           }
         } catch {
           // continue scanning
@@ -216,9 +255,16 @@ export default function CheckInPage() {
 
   return (
     <div className="space-y-4 max-w-lg mx-auto">
-      <div>
-        <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold mb-1">Event Check-In</p>
-        <h1 className="text-xl font-bold text-foreground">{String(event?.title ?? "Loading...")}</h1>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold mb-1">Event Check-In</p>
+          <h1 className="text-xl font-bold text-foreground">{String(event?.title ?? "Loading...")}</h1>
+        </div>
+        <a href={`/api/events/${eventId}/attendance-export`}>
+          <Button variant="secondary" size="sm" icon={<Download size={14} />}>
+            Export
+          </Button>
+        </a>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
@@ -270,9 +316,33 @@ export default function CheckInPage() {
             )}
           </div>
           <p className="text-xs text-muted-foreground mt-2 text-center">
-            Point camera at a member&apos;s QR code to check them in automatically.
+            Scan a member&apos;s rotating ticket at the door.
           </p>
-          <p className="text-xs text-muted-foreground text-center">Scan member RSVP QR codes or PNM invite links (token).</p>
+          {scanResult && (
+            <div className={`mt-3 p-4 rounded-xl flex items-center gap-3 ${scanResult.success ? "bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900" : "bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900"}`}>
+              {scanResult.success ? (
+                <>
+                  <Avatar name={scanResult.memberName ?? "?"} src={scanResult.memberPhotoUrl} size="md" />
+                  <div>
+                    <p className="font-semibold text-foreground flex items-center gap-1">
+                      <CheckCircle2 size={16} className="text-green-600" />
+                      {scanResult.memberName}
+                    </p>
+                    {scanResult.pointsAwarded ? (
+                      <p className="text-xs text-green-700">+{scanResult.pointsAwarded} points</p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Checked in</p>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <XCircle size={24} className="text-red-500 flex-shrink-0" />
+                  <p className="text-sm text-foreground">{scanResult.message}</p>
+                </>
+              )}
+            </div>
+          )}
         </Card>
       )}
 

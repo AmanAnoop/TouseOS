@@ -37,6 +37,10 @@ export function EventEditPanel({
     event.point_value != null ? String(event.point_value) : "",
   );
   const [pointCategory, setPointCategory] = useState(String(event.point_category ?? ""));
+  const [pointGateMin, setPointGateMin] = useState(
+    event.point_gate_min != null ? String(event.point_gate_min) : "",
+  );
+  const [pointGateCategory, setPointGateCategory] = useState(String(event.point_gate_category ?? ""));
   const [locationValues, setLocationValues] = useState<LocationFieldValues>({
     venueName: String(event.location ?? ""),
     address: String(event.address ?? ""),
@@ -80,6 +84,8 @@ export function EventEditPanel({
         isPointOpportunity,
         pointValue: pointValue ? parseInt(pointValue, 10) : null,
         pointCategory: pointCategory || null,
+        pointGateMin: pointGateMin ? parseInt(pointGateMin, 10) : null,
+        pointGateCategory: pointGateCategory || null,
       }),
     });
     setSaving(false);
@@ -141,6 +147,21 @@ export function EventEditPanel({
               <Input label="Category" value={pointCategory} onChange={(e) => setPointCategory(e.target.value)} placeholder="Philanthropy, service..." />
             </div>
           )}
+          <div className="grid sm:grid-cols-2 gap-3 pt-2 border-t border-border">
+            <Input
+              label="Minimum points to attend (optional)"
+              type="number"
+              value={pointGateMin}
+              onChange={(e) => setPointGateMin(e.target.value)}
+              placeholder="No minimum"
+            />
+            <Input
+              label="Points category for gate (optional)"
+              value={pointGateCategory}
+              onChange={(e) => setPointGateCategory(e.target.value)}
+              placeholder="Leave blank for total points"
+            />
+          </div>
           <div className="space-y-2">
             <p className="text-sm font-medium">Cover image</p>
             {coverUrl && (

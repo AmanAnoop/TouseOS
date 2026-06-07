@@ -63,6 +63,7 @@ Run these SQL files **in strict numeric order** in the Supabase SQL Editor (or `
 | 057 | `migrations/057_finance_officer_rls.sql` | Yes — `is_org_finance_officer` + finance RLS repair |
 | 058 | `migrations/058_photo_notify_vp.sql` | Yes — VP notified on photo approval requests |
 | 059 | `migrations/059_engagement_events_phase1.sql` | Yes — event comments, point opportunities, event announcements |
+| 060 | `migrations/060_engagement_media_tickets.sql` | Yes — photo likes/comments, gallery approval, point gates, tickets |
 
 **If migration 034 failed partway** (error: `function is_org_finance_officer does not exist`), run `057_finance_officer_rls.sql` to repair finance policies.
 
