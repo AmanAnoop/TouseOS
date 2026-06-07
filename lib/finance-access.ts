@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { RoleName } from "@/lib/permissions";
 
-const FINANCE_ROLES: RoleName[] = ["owner", "president", "treasurer"];
+const FINANCE_ROLES: RoleName[] = ["owner", "president", "vice_president", "treasurer"];
 
 export function isFinanceOfficerRole(role: string | null | undefined): boolean {
   return FINANCE_ROLES.includes(role as RoleName);

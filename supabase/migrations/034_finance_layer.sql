@@ -19,6 +19,18 @@ CREATE TABLE IF NOT EXISTS finance_org_settings (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Finance officer roles (must exist before RLS policies below reference this function)
+CREATE OR REPLACE FUNCTION is_org_finance_officer(oid UUID)
+RETURNS BOOLEAN AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM org_members
+    WHERE org_id = oid
+      AND user_id = auth.uid()
+      AND status != 'removed'
+      AND role IN ('owner', 'president', 'vice_president', 'treasurer')
+  );
+$$ LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public;
+
 ALTER TABLE finance_org_settings ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "finance_settings_select" ON finance_org_settings;
 CREATE POLICY "finance_settings_select" ON finance_org_settings FOR SELECT
@@ -82,15 +94,3 @@ CREATE TABLE IF NOT EXISTS stripe_webhook_events (
   event_id TEXT PRIMARY KEY,
   processed_at TIMESTAMPTZ DEFAULT now()
 );
-
--- Finance officer = treasurer or president (chapter money)
-CREATE OR REPLACE FUNCTION is_org_finance_officer(oid UUID)
-RETURNS BOOLEAN AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM org_members
-    WHERE org_id = oid
-      AND user_id = auth.uid()
-      AND status != 'removed'
-      AND role IN ('owner', 'president', 'treasurer')
-  );
-$$ LANGUAGE sql SECURITY DEFINER STABLE;

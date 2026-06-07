@@ -12,8 +12,8 @@ export async function GET() {
       status: readiness.readyForPilot ? "ok" : "degraded",
       env: readiness,
       migrations: {
-        expected: "001 through 056 in supabase/migrations/",
-        latest: "056_schema_repairs.sql",
+        expected: "001 through 057 in supabase/migrations/",
+        latest: "057_finance_officer_rls.sql",
         seedDeprecated: "005_seed.sql (demo removed — use 033_remove_demo_org.sql to clean old DBs)",
         doc: "supabase/APPLY_MIGRATIONS.md",
       },
