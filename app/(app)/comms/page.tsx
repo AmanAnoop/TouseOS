@@ -5,7 +5,6 @@ import {
   Mail, Plus, Send,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
 import {
   Alert, Button, Card,
   Modal, PageHeader, SearchInput, Tabs, Textarea,
@@ -14,30 +13,35 @@ import type { Announcement } from "@/types";
 import { AnnouncementFeed, COMMS_AUDIENCES } from "@/components/comms/announcement-feed";
 import { ScheduledMessagesPanel } from "@/components/comms/scheduled-messages-panel";
 import { CommsAnalyticsPanel } from "@/components/comms/comms-analytics-panel";
+import { can } from "@/lib/permissions";
+import { useOrg } from "@/hooks/use-org";
 
 export default function CommsPage() {
-  const supabase = createClient();
+  const { orgId, orgName, role, loading: orgLoading } = useOrg();
+  const canManageComms = can(role, "send_mass_texts");
   const [tab, setTab] = useState("announcements");
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [userProfile, setUserProfile] = useState<{ name: string } | null>(null);
   const [composeOpen, setComposeOpen] = useState(false);
   const [emailBlastOpen, setEmailBlastOpen] = useState(false);
   const [query, setQuery] = useState("");
 
   const [draft, setDraft] = useState({
-    title: "", body: "", audience: "all", pinned: false,
+    title: "", body: "", audience: "all", pinned: false, sendSms: false,
   });
 
   const [emailDraft, setEmailDraft] = useState({
     subject: "", body: "", audience: "all",
   });
+  const [smsOpen, setSmsOpen] = useState(false);
+  const [smsDraft, setSmsDraft] = useState({ body: "", audience: "active" });
   const [scheduledMessages, setScheduledMessages] = useState<Array<Record<string, unknown>>>([]);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [scheduleDraft, setScheduleDraft] = useState({
     channel: "announcement", title: "", body: "", audience: "all", scheduledFor: "",
   });
+  const [twilioLive, setTwilioLive] = useState<boolean | null>(null);
+  const [resendLive, setResendLive] = useState<boolean | null>(null);
 
   const loadScheduled = useCallback(async (oid: string) => {
     const res = await fetch(`/api/comms/schedule?orgId=${oid}`);
@@ -56,45 +60,57 @@ export default function CommsPage() {
 
   const loadAnnouncements = useCallback(async (oid: string) => {
     setLoading(true);
-    const { data } = await supabase
-      .from("announcements")
-      .select("*")
-      .eq("org_id", oid)
-      .order("pinned", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(50);
-    setAnnouncements((data ?? []) as Announcement[]);
+    const res = await fetch(`/api/comms/announcements?org_id=${encodeURIComponent(oid)}`);
+    if (res.ok) {
+      setAnnouncements((await res.json()) as Announcement[]);
+    }
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const [mRes, pRes] = await Promise.all([
-        supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single(),
-        supabase.from("profiles").select("full_name").eq("id", user.id).single(),
-      ]);
-      if (mRes.data) { setOrgId(mRes.data.org_id); loadAnnouncements(mRes.data.org_id); loadScheduled(mRes.data.org_id); }
-      if (pRes.data) setUserProfile({ name: String(pRes.data.full_name) });
+    fetch("/api/integrations/status")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const twilio = data?.integrations?.find((i: { id: string }) => i.id === "twilio");
+        const resend = data?.integrations?.find((i: { id: string }) => i.id === "resend");
+        setTwilioLive(Boolean(twilio?.live));
+        setResendLive(Boolean(resend?.live));
+      })
+      .catch(() => setTwilioLive(false));
+  }, []);
+
+  useEffect(() => {
+    if (orgLoading) return;
+    if (!orgId) {
+      setLoading(false);
+      return;
     }
-    init();
-  }, [supabase, loadAnnouncements]);
+    loadAnnouncements(orgId);
+    loadScheduled(orgId);
+  }, [orgId, orgLoading, loadAnnouncements, loadScheduled]);
 
   async function postAnnouncement() {
     if (!orgId || !draft.title || !draft.body) return;
-    const { error } = await supabase.from("announcements").insert({
-      org_id: orgId,
-      author_name: userProfile?.name ?? "Officer",
-      title: draft.title,
-      body: draft.body,
-      audience: [draft.audience],
-      pinned: draft.pinned,
+    const res = await fetch("/api/comms/announcements", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        title: draft.title,
+        body: draft.body,
+        audience: draft.audience,
+        pinned: draft.pinned,
+        sendSms: draft.sendSms,
+      }),
     });
-    if (error) { toast.error(error.message); return; }
-    toast.success("Announcement posted");
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { toast.error(data.error ?? "Failed to post"); return; }
+    const smsNote = (data as { smsSent?: number }).smsSent
+      ? ` · ${(data as { smsSent: number }).smsSent} SMS sent`
+      : "";
+    toast.success(`Announcement posted${smsNote}`);
     setComposeOpen(false);
-    setDraft({ title: "", body: "", audience: "all", pinned: false });
+    setDraft({ title: "", body: "", audience: "all", pinned: false, sendSms: false });
     loadAnnouncements(orgId);
   }
 
@@ -119,6 +135,23 @@ export default function CommsPage() {
     toast.success("Cancelled");
   }
 
+  async function sendSmsBlast() {
+    if (!orgId || !smsDraft.body.trim()) return;
+    const res = await fetch("/api/comms/sms", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId, body: smsDraft.body, audience: smsDraft.audience, channel: "sms" }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.error ?? "Failed to send SMS");
+      return;
+    }
+    toast.success(data.message ?? "SMS sent");
+    setSmsOpen(false);
+    setSmsDraft({ body: "", audience: "active" });
+  }
+
   async function sendEmailBlast() {
     if (!orgId || !emailDraft.subject || !emailDraft.body) return;
     const res = await fetch("/api/comms/email-blast", {
@@ -126,26 +159,38 @@ export default function CommsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ orgId, ...emailDraft }),
     });
+    const data = await res.json().catch(() => ({}));
     if (res.ok) {
-      const data = await res.json();
-      toast.success(data.message ?? "Email blast sent");
+      toast.success((data as { message?: string }).message ?? "Email blast sent");
       setEmailBlastOpen(false);
-    } else toast.error("Failed to send");
+    } else {
+      toast.error((data as { error?: string }).error ?? "Failed to send");
+    }
   }
 
 
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Communications"
         description="Announcements, email blasts, and message templates"
         action={
-          <div className="flex gap-2">
-            <Button variant="secondary" size="sm" icon={<Mail size={14} />} onClick={() => setEmailBlastOpen(true)}>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              className="officer-touch"
+              onClick={() => setSmsOpen(true)}
+              disabled={twilioLive === false}
+              title={twilioLive === false ? "Configure Twilio in Settings → Integrations" : undefined}
+            >
+              SMS blast
+            </Button>
+            <Button variant="secondary" size="sm" className="officer-touch" icon={<Mail size={14} />} onClick={() => setEmailBlastOpen(true)}>
               Email blast
             </Button>
-            <Button size="sm" icon={<Plus size={14} />} onClick={() => setComposeOpen(true)}>
+            <Button size="sm" className="officer-touch" icon={<Plus size={14} />} onClick={() => setComposeOpen(true)}>
               Announcement
             </Button>
           </div>
@@ -158,6 +203,7 @@ export default function CommsPage() {
           { id: "announcements", label: "Announcements", count: announcements.length },
           { id: "templates", label: "Templates" },
           { id: "schedule", label: "Scheduled" },
+          { id: "sms", label: "SMS" },
         ]}
         active={tab}
         onChange={setTab}
@@ -170,7 +216,14 @@ export default function CommsPage() {
       {tab === "announcements" && (
         <>
           <SearchInput value={query} onChange={setQuery} placeholder="Search announcements..." />
-          <AnnouncementFeed announcements={announcements} loading={loading} query={query} />
+          <AnnouncementFeed
+            announcements={announcements}
+            loading={loading}
+            query={query}
+            orgId={orgId ?? undefined}
+            canDelete={canManageComms}
+            onDeleted={() => orgId && loadAnnouncements(orgId)}
+          />
         </>
       )}
 
@@ -204,6 +257,48 @@ export default function CommsPage() {
         />
       )}
 
+      {tab === "sms" && (
+        <Card>
+          {twilioLive === false && (
+            <Alert
+              type="warning"
+              title="Twilio SMS not configured"
+              description="Add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_MESSAGING_SERVICE_SID in your deployment. See Settings → Integrations."
+              className="mb-3"
+            />
+          )}
+          {twilioLive === true && (
+            <Alert type="success" title="Twilio connected" description="SMS blasts will send to active members with phone numbers on file." className="mb-3" />
+          )}
+          <p className="text-sm text-muted-foreground mb-3">
+            Quiet hours (9pm–9am) apply. Members must have a phone number on their roster profile.
+            {orgName ? (
+              <> Messages are sent as <span className="font-medium text-foreground">{orgName}: your text</span> — edit the chapter name in Settings → Profile.</>
+            ) : null}
+          </p>
+          <Button size="sm" onClick={() => setSmsOpen(true)} disabled={twilioLive === false}>
+            Compose SMS blast
+          </Button>
+        </Card>
+      )}
+
+      <Modal open={smsOpen} onClose={() => setSmsOpen(false)} title="SMS blast" footer={
+        <>
+          <Button variant="secondary" onClick={() => setSmsOpen(false)}>Cancel</Button>
+          <Button onClick={sendSmsBlast} disabled={!smsDraft.body.trim()}>Send SMS</Button>
+        </>
+      }>
+        <div className="space-y-3">
+          <Textarea label="Message" value={smsDraft.body} onChange={(e) => setSmsDraft({ ...smsDraft, body: e.target.value })} placeholder="Chapter meeting tomorrow at 7pm..." />
+          {orgName && smsDraft.body.trim() && (
+            <p className="text-xs text-muted-foreground rounded-lg bg-surface-1 p-2">
+              Preview: <span className="text-foreground">{orgName}: {smsDraft.body.trim()} Reply STOP to opt out.</span>
+            </p>
+          )}
+          <Alert type="warning" title="Only members with phone numbers receive SMS. PNM texting remains on the PNM page with consent tracking." />
+        </div>
+      </Modal>
+
       {/* Compose modal */}
       <Modal
         open={composeOpen}
@@ -232,6 +327,14 @@ export default function CommsPage() {
             <input type="checkbox" className="rounded" checked={draft.pinned} onChange={(e) => setDraft({ ...draft, pinned: e.target.checked })} />
             <span className="text-sm">Pin this announcement</span>
           </label>
+          {twilioLive ? (
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" className="rounded" checked={draft.sendSms} onChange={(e) => setDraft({ ...draft, sendSms: e.target.checked })} />
+              <span className="text-sm">Also send as SMS to members with phone numbers</span>
+            </label>
+          ) : twilioLive === false ? (
+            <p className="text-xs text-muted-foreground">Connect Twilio in Settings → Integrations to text announcements.</p>
+          ) : null}
         </div>
       </Modal>
 
@@ -240,7 +343,11 @@ export default function CommsPage() {
           <select className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm" value={scheduleDraft.channel} onChange={(e) => setScheduleDraft({ ...scheduleDraft, channel: e.target.value })}>
             <option value="announcement">In-app announcement</option>
             <option value="email">Email blast</option>
+            <option value="sms" disabled={twilioLive === false}>SMS blast (Twilio)</option>
           </select>
+          {scheduleDraft.channel === "sms" && twilioLive === false && (
+            <Alert type="warning" title="Configure Twilio before scheduling SMS" />
+          )}
           <input className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm" placeholder="Title / subject" value={scheduleDraft.title} onChange={(e) => setScheduleDraft({ ...scheduleDraft, title: e.target.value })} />
           <Textarea placeholder="Message body..." value={scheduleDraft.body} onChange={(e) => setScheduleDraft({ ...scheduleDraft, body: e.target.value })} />
           <select className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm" value={scheduleDraft.audience} onChange={(e) => setScheduleDraft({ ...scheduleDraft, audience: e.target.value })}>
@@ -249,6 +356,14 @@ export default function CommsPage() {
           <input type="datetime-local" className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm" value={scheduleDraft.scheduledFor} onChange={(e) => setScheduleDraft({ ...scheduleDraft, scheduledFor: e.target.value })} />
         </div>
       </Modal>
+
+      {resendLive === false && (
+        <Alert
+          type="info"
+          title="Email dev mode"
+          description="Without RESEND_API_KEY, email blasts are saved as announcements only (not delivered). See Settings → Integrations → Email (Resend) for setup."
+        />
+      )}
 
       {/* Email blast modal */}
       <Modal
@@ -276,7 +391,15 @@ export default function CommsPage() {
             </select>
           </div>
           <Textarea label="Email body" placeholder="Write your email..." value={emailDraft.body} onChange={(e) => setEmailDraft({ ...emailDraft, body: e.target.value })} className="min-h-[180px]" />
-          <Alert type="info" title="Emails will be sent via your configured email provider." />
+          <Alert
+            type="info"
+            title={resendLive ? "Live email via Resend" : "Dev mode — no delivery"}
+            description={
+              resendLive
+                ? "Emails will be sent through Resend to the selected audience."
+                : "Without RESEND_API_KEY, this saves an announcement only. Add Resend in Settings → Integrations to deliver mail."
+            }
+          />
         </div>
       </Modal>
     </div>

@@ -6,6 +6,8 @@ export const NOTIFICATION_TYPE_OPTIONS = [
   { key: "reimbursement_status", label: "Reimbursement updates" },
   { key: "new_match", label: "GreekMatch activity" },
   { key: "photo_approval", label: "Photo approvals" },
+  { key: "social_calendar", label: "Social calendar reminders" },
+  { key: "interchapter_proposal", label: "Interchapter proposals" },
   { key: "general", label: "General announcements" },
 ] as const;
 
@@ -21,6 +23,8 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   reimbursement_status: true,
   new_match: true,
   photo_approval: true,
+  social_calendar: true,
+  interchapter_proposal: true,
   general: true,
 };
 

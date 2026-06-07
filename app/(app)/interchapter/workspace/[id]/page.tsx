@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
-  ArrowLeft, CheckCircle2, DollarSign, MessageSquare, Shield, Users,
+  ArrowLeft, CheckCircle2, DollarSign, FileText, Heart, MessageSquare, Shield, Users,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
@@ -22,6 +22,7 @@ interface Workspace {
   chat_messages: Array<{ id: string; sender: string; body: string; created_at: string }>;
   guest_list: Array<{ name: string; org: string }>;
   risk_checklist: Record<string, boolean>;
+  shared_documents: Array<{ id: string; title: string; url: string; uploaded_by: string; created_at: string }>;
   status: string;
 }
 
@@ -43,6 +44,8 @@ export default function SharedWorkspacePage() {
   const [chatInput, setChatInput] = useState("");
   const [taskInput, setTaskInput] = useState("");
   const [guestInput, setGuestInput] = useState("");
+  const [docTitle, setDocTitle] = useState("");
+  const [docUrl, setDocUrl] = useState("");
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/interchapter/workspaces?id=${workspaceId}`);
@@ -62,6 +65,8 @@ export default function SharedWorkspacePage() {
       load();
     }
     init();
+    const interval = setInterval(load, 12_000);
+    return () => clearInterval(interval);
   }, [supabase, load]);
 
   async function patch(body: Record<string, unknown>) {
@@ -84,14 +89,14 @@ export default function SharedWorkspacePage() {
   const tasksDone = ws.shared_tasks.filter((t) => t.done).length;
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <Link href="/interchapter" className="inline-flex items-center gap-1 text-sm text-greek-600 hover:underline">
-        <ArrowLeft size={14} /> Back to ExecLink
+        <ArrowLeft size={14} /> Back to Interchapter
       </Link>
 
       <PageHeader
         title={ws.title}
-        description="Shared planning workspace for co-hosted events"
+        description="Shared planning workspace for co-hosted events — chat syncs to Interchapter messages"
         action={<Badge label={ws.status} color="green" />}
       />
 
@@ -129,7 +134,14 @@ export default function SharedWorkspacePage() {
           <div className="space-y-2 mt-3 mb-3">
             {ws.shared_tasks.map((t) => (
               <div key={t.id} className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={t.done} readOnly className="rounded" />
+                <input
+                  type="checkbox"
+                  checked={t.done}
+                  className="rounded cursor-pointer"
+                  onChange={async () => {
+                    await patch({ taskToggle: { id: t.id, done: !t.done } });
+                  }}
+                />
                 <span className={t.done ? "line-through text-muted-foreground" : ""}>{t.title}</span>
               </div>
             ))}
@@ -177,6 +189,50 @@ export default function SharedWorkspacePage() {
               </label>
             ))}
           </div>
+        </Card>
+
+        {/* Shared documents */}
+        <Card className="lg:col-span-2">
+          <CardHeader title="Shared documents" icon={<FileText size={16} />} />
+          <div className="space-y-2 mb-3">
+            {(ws.shared_documents ?? []).length === 0 ? (
+              <p className="text-sm text-muted-foreground">Upload contracts, permits, or run-of-show links both chapters can access.</p>
+            ) : (
+              ws.shared_documents.map((doc) => (
+                <a
+                  key={doc.id}
+                  href={doc.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between gap-2 p-2 rounded-lg bg-surface-1 hover:bg-surface-2 text-sm"
+                >
+                  <span className="font-medium">{doc.title}</span>
+                  <span className="text-xs text-muted-foreground">{doc.uploaded_by}</span>
+                </a>
+              ))
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Input value={docTitle} onChange={(e) => setDocTitle(e.target.value)} placeholder="Document title" className="flex-1 min-w-[140px]" />
+            <Input value={docUrl} onChange={(e) => setDocUrl(e.target.value)} placeholder="https://..." className="flex-1 min-w-[180px]" />
+            <Button size="sm" variant="secondary" onClick={async () => {
+              if (!docTitle.trim() || !docUrl.trim()) return;
+              await patch({ sharedDocument: { title: docTitle.trim(), url: docUrl.trim() } });
+              setDocTitle("");
+              setDocUrl("");
+              toast.success("Document added");
+            }}>Add link</Button>
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader title="Joint philanthropy" icon={<Heart size={16} />} />
+          <p className="text-sm text-muted-foreground mb-3">
+            Launch a shared fundraising page both chapters can promote.
+          </p>
+          <Link href="/philanthropy">
+            <Button size="sm" variant="secondary">Start joint campaign</Button>
+          </Link>
         </Card>
 
         {/* Guest list */}

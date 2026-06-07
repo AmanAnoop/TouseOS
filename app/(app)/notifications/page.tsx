@@ -24,6 +24,7 @@ const TYPE_ICON: Record<string, string> = {
   reimbursement_status: "💵",
   photo_approval: "📸",
   interchapter_proposal: "🤝",
+  social_calendar: "📅",
   travel_alert: "✈️",
   waiver_missing: "📄",
   officer_handoff: "🔑",
@@ -42,24 +43,24 @@ export default function NotificationsPage() {
   const [channels, setChannels] = useState({ email: true, sms: true, push: false });
   const [preferences, setPreferences] = useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES);
 
-  const load = useCallback(async (uid: string) => {
+  const load = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("notifications")
-      .select("*")
-      .eq("user_id", uid)
-      .order("created_at", { ascending: false })
-      .limit(50);
+    const res = await fetch("/api/notifications?limit=50");
+    if (!res.ok) {
+      setLoading(false);
+      return;
+    }
+    const data = await res.json();
     setNotifications((data ?? []) as Notification[]);
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
     async function init() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       setUserId(user.id);
-      load(user.id);
+      load();
 
       const { data: profile } = await supabase
         .from("profiles")
@@ -94,14 +95,25 @@ export default function NotificationsPage() {
   }, [supabase, load]);
 
   async function markRead(id: string) {
-    await supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", id);
-    setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read_at: new Date().toISOString() } : n));
+    const res = await fetch("/api/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    if (!res.ok) return;
+    const readAt = new Date().toISOString();
+    setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read_at: readAt } : n));
   }
 
   async function markAllRead() {
-    if (!userId) return;
-    await supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("user_id", userId).is("read_at", null);
-    setNotifications((prev) => prev.map((n) => ({ ...n, read_at: n.read_at ?? new Date().toISOString() })));
+    const res = await fetch("/api/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ markAll: true }),
+    });
+    if (!res.ok) return;
+    const readAt = new Date().toISOString();
+    setNotifications((prev) => prev.map((n) => ({ ...n, read_at: n.read_at ?? readAt })));
   }
 
   async function savePreferences() {
@@ -128,7 +140,7 @@ export default function NotificationsPage() {
         description={unread.length > 0 ? `${unread.length} unread` : "All caught up!"}
         action={
           unread.length > 0 ? (
-            <Button variant="secondary" size="sm" icon={<CheckCheck size={14} />} onClick={markAllRead}>
+            <Button variant="secondary" size="sm" className="officer-touch" icon={<CheckCheck size={14} />} onClick={markAllRead}>
               Mark all read
             </Button>
           ) : undefined

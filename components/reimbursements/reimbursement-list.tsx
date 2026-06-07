@@ -3,6 +3,7 @@
 import { Avatar, Badge, Card } from "@/components/ui";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Reimbursement } from "@/types";
+import { needsPresidentApproval } from "@/lib/reimbursement-approval";
 
 const STATUS_COLOR: Record<string, string> = {
   submitted: "yellow",
@@ -33,7 +34,7 @@ export function ReimbursementList({
   return (
     <div className="space-y-2">
       {items.map((r) => {
-        const needsDualApproval = Number(r.amount) >= 250;
+        const needsDualApproval = needsPresidentApproval(r);
         return (
           <Card
             key={r.id}
@@ -48,7 +49,7 @@ export function ReimbursementList({
                   <p className="font-semibold text-sm">{r.description}</p>
                   <Badge label={r.status.replace("_", " ")} color={(STATUS_COLOR[r.status] ?? "gray") as "green"} />
                   {showApprovalHints && needsDualApproval && r.status === "submitted" && (
-                    <Badge label="Needs treasurer + president" color="orange" />
+                    <Badge label="Needs treasurer + president/VP" color="orange" />
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
@@ -63,5 +64,3 @@ export function ReimbursementList({
     </div>
   );
 }
-
-export { STATUS_COLOR };

@@ -25,6 +25,7 @@ interface Evaluation {
 }
 
 interface Props {
+  orgId: string;
   leads: PnmLead[];
 }
 
@@ -38,30 +39,26 @@ const CRITERIA = [
   { key: "risk_concern", label: "Risk concerns (lower is better)" },
 ] as const;
 
-export function PnmVotingPanel({ leads }: Props) {
+export function PnmVotingPanel({ orgId, leads }: Props) {
   const supabase = createClient();
   const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
   const [selectedPnm, setSelectedPnm] = useState<PnmLead | null>(null);
   const [scores, setScores] = useState<Record<string, number>>({});
   const [comments, setComments] = useState("");
   const [anonymous, setAnonymous] = useState(true);
-  const [userName, setUserName] = useState("");
-
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: p } = await supabase.from("profiles").select("full_name").eq("id", user.id).single();
-        if (p) setUserName(String(p.full_name));
+      if (orgId) {
+        const res = await fetch(`/api/pnm/evaluations?org_id=${encodeURIComponent(orgId)}`);
+        if (res.ok) {
+          const all = (await res.json()) as Evaluation[];
+          const ids = new Set(leads.map((l) => l.id));
+          setEvaluations(all.filter((e) => ids.has(e.pnm_id)));
+        }
       }
-      const { data } = await supabase.from("pnm_evaluations").select("*").in(
-        "pnm_id",
-        leads.map((l) => l.id),
-      );
-      setEvaluations((data ?? []) as Evaluation[]);
     }
-    if (leads.length) load();
-  }, [supabase, leads]);
+    if (leads.length && orgId) load();
+  }, [supabase, leads, orgId]);
 
   function avgScore(pnmId: string) {
     const evs = evaluations.filter((e) => e.pnm_id === pnmId);
@@ -80,25 +77,24 @@ export function PnmVotingPanel({ leads }: Props) {
 
   async function submitEvaluation() {
     if (!selectedPnm) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    const payload = {
-      pnm_id: selectedPnm.id,
-      evaluator_id: anonymous ? null : user?.id,
-      evaluator_name: anonymous ? "Anonymous" : userName,
-      character: scores.character ?? 3,
-      involvement: scores.involvement ?? 3,
-      leadership_potential: scores.leadership_potential ?? 3,
-      academic_seriousness: scores.academic_seriousness ?? 3,
-      mutual_interest: scores.mutual_interest ?? 3,
-      social_fit: scores.social_fit ?? 3,
-      risk_concern: scores.risk_concern ?? 1,
-      comments: comments || null,
-      is_anonymous: anonymous,
-    };
-    const { error } = await supabase.from("pnm_evaluations").insert(payload);
-    if (error) { toast.error(error.message); return; }
+    const res = await fetch("/api/pnm/evaluations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        pnmId: selectedPnm.id,
+        scores,
+        comments,
+        anonymous,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast.error((data as { error?: string }).error ?? "Failed to submit");
+      return;
+    }
     toast.success("Evaluation submitted");
-    setEvaluations((prev) => [...prev, { ...payload, id: crypto.randomUUID() } as Evaluation]);
+    setEvaluations((prev) => [...prev, data as Evaluation]);
     setSelectedPnm(null);
     setScores({});
     setComments("");

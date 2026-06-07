@@ -1,20 +1,28 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import { PageHeader, Tabs } from "@/components/ui";
 import type { MemberProfile } from "@/types";
+import { NmeProgressBanner } from "@/components/nme/nme-progress-banner";
 import { ProfileHeader } from "@/components/profile/profile-header";
 import { ProfileForm } from "@/components/profile/profile-form";
 import { PrivacySettings } from "@/components/profile/privacy-settings";
 import { GreekMatchSettings, type GreekMatchFormData } from "@/components/profile/greekmatch-settings";
+import { GreekMatchPhotos } from "@/components/profile/greekmatch-photos";
 
 interface OrgRole { org_id: string; role: string; org_name: string; org_type: string }
 
+const VALID_TABS = ["profile", "privacy", "greekmatch"] as const;
+
 export default function ProfilePage() {
   const supabase = createClient();
+  const { orgId } = useOrg();
   const fileRef = useRef<HTMLInputElement>(null);
+  const searchParams = useSearchParams();
 
   const [tab, setTab] = useState("profile");
   const [saving, setSaving] = useState(false);
@@ -55,6 +63,8 @@ export default function ProfilePage() {
     minAge: "18",
     maxAge: "30",
   });
+  const [gmPhotos, setGmPhotos] = useState<string[]>([]);
+  const [universityId, setUniversityId] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -62,11 +72,25 @@ export default function ProfilePage() {
       if (!user) return;
       setUserId(user.id);
 
-      const [mpRes, rolesRes, gmRes] = await Promise.all([
-        supabase.from("member_profiles").select("*").eq("user_id", user.id).limit(1).single(),
+      const profileQuery = orgId
+        ? supabase.from("member_profiles").select("*").eq("user_id", user.id).eq("org_id", orgId).maybeSingle()
+        : supabase.from("member_profiles").select("*").eq("user_id", user.id).limit(1).maybeSingle();
+
+      const orgSettingsQuery = orgId
+        ? supabase.from("organizations").select("settings").eq("id", orgId).maybeSingle()
+        : Promise.resolve({ data: null });
+
+      const [mpRes, rolesRes, gmRes, orgRes] = await Promise.all([
+        profileQuery,
         supabase.from("org_members").select("org_id, role, organizations(name, type)").eq("user_id", user.id).neq("status", "removed"),
         supabase.from("greekmatch_profiles").select("*").eq("user_id", user.id).maybeSingle(),
+        orgSettingsQuery,
       ]);
+
+      if (orgRes.data?.settings) {
+        const settings = orgRes.data.settings as Record<string, unknown>;
+        setUniversityId(typeof settings.university_id === "string" ? settings.university_id : null);
+      }
 
       if (mpRes.data) {
         const mp = mpRes.data as MemberProfile & { bio?: string; pronouns?: string; interests?: string[]; instagram_url?: string; linkedin_url?: string; twitter_url?: string; profile_visibility?: string };
@@ -114,6 +138,11 @@ export default function ProfilePage() {
           minAge: String(gmRes.data.min_age ?? "18"),
           maxAge: String(gmRes.data.max_age ?? "30"),
         });
+        const photosRes = await fetch("/api/greekmatch/photos");
+        if (photosRes.ok) {
+          const photosData = await photosRes.json();
+          setGmPhotos((photosData.photos as string[]) ?? []);
+        }
       } else {
         setGmSection((prev) => ({
           ...prev,
@@ -122,7 +151,7 @@ export default function ProfilePage() {
       }
     }
     load();
-  }, [supabase]);
+  }, [supabase, orgId]);
 
   async function saveProfile() {
     if (!userId || !memberProfile) return;
@@ -147,7 +176,8 @@ export default function ProfilePage() {
         interests: form.interests,
         profile_photo_url: form.profilePhotoUrl || null,
       })
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .eq("org_id", memberProfile.org_id);
 
     setSaving(false);
     if (error) { toast.error(error.message); return; }
@@ -228,9 +258,19 @@ export default function ProfilePage() {
 
   const isGreekMember = orgRoles.some((r) => r.org_type === "fraternity" || r.org_type === "sorority");
 
+  useEffect(() => {
+    const t = searchParams.get("tab");
+    if (t && VALID_TABS.includes(t as typeof VALID_TABS[number])) {
+      if (t === "greekmatch" && !isGreekMember) return;
+      setTab(t);
+    }
+  }, [searchParams, isGreekMember]);
+
   return (
     <div className="space-y-5 max-w-2xl mx-auto">
       <PageHeader title="My Profile" description="Manage your personal information and privacy settings" />
+
+      {orgId && <NmeProgressBanner orgId={orgId} />}
 
       <ProfileHeader
         fullName={memberProfile?.full_name ?? "You"}
@@ -245,7 +285,7 @@ export default function ProfilePage() {
         tabs={[
           { id: "profile", label: "Profile" },
           { id: "privacy", label: "Privacy" },
-          ...(isGreekMember ? [{ id: "greekmatch", label: "💚 GreekMatch" }] : []),
+          ...(isGreekMember ? [{ id: "greekmatch", label: "GreekMatch" }] : []),
         ]}
         active={tab}
         onChange={setTab}
@@ -255,6 +295,7 @@ export default function ProfilePage() {
         <ProfileForm
           form={form}
           saving={saving}
+          universityId={universityId}
           onChange={(updates) => setForm({ ...form, ...updates })}
           onToggleInterest={toggleInterest}
           onSave={saveProfile}
@@ -271,15 +312,18 @@ export default function ProfilePage() {
       )}
 
       {tab === "greekmatch" && (
-        <GreekMatchSettings
-          form={gmSection}
-          saving={saving}
-          onChange={(updates) => setGmSection({ ...gmSection, ...updates })}
-          onToggleInterest={toggleGmInterest}
-          onSave={saveGreekMatch}
-          onPause={pauseGreekMatch}
-          onOptOut={optOutGreekMatch}
-        />
+        <div className="space-y-4">
+          <GreekMatchPhotos photos={gmPhotos} onChange={setGmPhotos} />
+          <GreekMatchSettings
+            form={gmSection}
+            saving={saving}
+            onChange={(updates) => setGmSection({ ...gmSection, ...updates })}
+            onToggleInterest={toggleGmInterest}
+            onSave={saveGreekMatch}
+            onPause={pauseGreekMatch}
+            onOptOut={optOutGreekMatch}
+          />
+        </div>
       )}
     </div>
   );

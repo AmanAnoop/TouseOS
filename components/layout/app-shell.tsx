@@ -3,46 +3,72 @@
 import { useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { BottomNav } from "@/components/layout/bottom-nav";
-import { cn } from "@/lib/utils";
 import { ServiceWorkerRegister } from "@/components/layout/service-worker-register";
+import { ImpersonationBanner } from "@/components/layout/impersonation-banner";
+import { ProductRouteGuard } from "@/components/layout/product-route-guard";
+import { PlatformRouteGuard } from "@/components/layout/platform-route-guard";
+import { OrgSuspensionGuard } from "@/components/layout/org-suspension-guard";
+import { OrgThemeProvider } from "@/components/theme/org-theme-provider";
+import { ActiveOrgProvider, type ActiveOrgSnapshot } from "@/components/providers/active-org-provider";
+import { userHasGreekOrg } from "@/lib/org-product";
 import type { Organization, Profile } from "@/types";
 
 interface AppShellProps {
   org: Organization | null;
   orgs: Organization[];
   profile: Profile | null;
+  activeOrg?: ActiveOrgSnapshot | null;
+  impersonating?: boolean;
+  impersonateOrgName?: string;
+  orgSuspended?: boolean;
+  featureFlags?: Record<string, boolean>;
   children: React.ReactNode;
 }
 
-export function AppShell({ org, orgs, profile, children }: AppShellProps) {
+export function AppShell({
+  org,
+  orgs,
+  profile,
+  activeOrg,
+  impersonating,
+  impersonateOrgName,
+  orgSuspended = false,
+  featureFlags = {},
+  children,
+}: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const hasGreekMembership = userHasGreekOrg(orgs);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="ds-app">
+      <OrgThemeProvider org={org} />
       <ServiceWorkerRegister />
-      {/* Desktop sidebar */}
-      <div className="hidden lg:flex flex-shrink-0">
+
+      <div className="hidden lg:flex flex-shrink-0 fixed left-0 top-0 bottom-0 z-30">
         <Sidebar
           org={org}
           orgs={orgs}
           profile={profile}
           orgType={org?.type ?? "general_org"}
+          featureFlags={featureFlags}
         />
       </div>
 
-      {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 lg:hidden flex">
           <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            className="absolute inset-0"
+            style={{ background: "var(--modal-backdrop)" }}
             onClick={() => setSidebarOpen(false)}
+            aria-hidden
           />
-          <div className="relative z-10 flex">
+          <div className="relative z-10 h-full">
             <Sidebar
               org={org}
               orgs={orgs}
               profile={profile}
               orgType={org?.type ?? "general_org"}
+              featureFlags={featureFlags}
               onClose={() => setSidebarOpen(false)}
               mobile
             />
@@ -50,23 +76,30 @@ export function AppShell({ org, orgs, profile, children }: AppShellProps) {
         </div>
       )}
 
-      {/* Main content */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-        <div
-          className={cn(
-            "flex-1 px-4 py-4 sm:px-6 sm:py-6",
-            "pb-24 lg:pb-6", // extra bottom padding for mobile nav
+      <div className="ds-main">
+        <div className="ds-main-inner">
+          {impersonating && impersonateOrgName && (
+            <ImpersonationBanner orgName={impersonateOrgName} />
           )}
-        >
-          {children}
+          <OrgSuspensionGuard suspended={orgSuspended}>
+            <PlatformRouteGuard
+              orgType={org?.type ?? "general_org"}
+              featureFlags={featureFlags}
+            >
+              <ProductRouteGuard
+                orgType={org?.type ?? "general_org"}
+                hasGreekMembership={hasGreekMembership}
+              >
+                <ActiveOrgProvider initial={activeOrg ?? null}>
+                  {children}
+                </ActiveOrgProvider>
+              </ProductRouteGuard>
+            </PlatformRouteGuard>
+          </OrgSuspensionGuard>
         </div>
-      </main>
+      </div>
 
-      {/* Mobile bottom nav */}
-      <BottomNav
-        orgType={org?.type ?? "general_org"}
-        onMenuOpen={() => setSidebarOpen(true)}
-      />
+      <BottomNav orgType={org?.type ?? "general_org"} />
     </div>
   );
 }

@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { Toaster } from "react-hot-toast";
+import { AppProviders } from "@/components/providers/app-providers";
+import { THEME_INIT_SCRIPT } from "@/lib/touse-theme";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -11,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#059669",
+  themeColor: "#F7F6F3",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -19,13 +22,28 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning data-theme="light">
+      <head>
+        <Script id="touse-theme-init" strategy="beforeInteractive">
+          {THEME_INIT_SCRIPT}
+        </Script>
+      </head>
       <body>
-        {children}
+        <AppProviders>
+          {children}
+        </AppProviders>
         <Toaster
-          position="top-right"
+          position="bottom-right"
           toastOptions={{
-            className: "!bg-card !text-foreground !border !border-border !shadow-card-md !text-sm",
+            duration: 4000,
+            style: {
+              width: "320px",
+              background: "var(--color-bg-raised)",
+              color: "var(--color-text-primary)",
+              border: "1px solid var(--color-border)",
+              boxShadow: "var(--shadow-md)",
+              fontSize: "13px",
+            },
           }}
         />
       </body>

@@ -7,6 +7,7 @@ import {
 import toast from "react-hot-toast";
 import { InterestsEditor } from "@/components/members/interests-editor";
 import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import {
   Alert, Avatar, Button, Card, CardHeader,
   Input, PageHeader, Tabs,
@@ -16,13 +17,13 @@ import { PushSettingsPanel } from "@/components/notifications/push-settings-pane
 import { NotificationPreferencesForm } from "@/components/notifications/notification-preferences-form";
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
-  parseNotificationPreferences,
   type NotificationPreferences,
 } from "@/lib/notification-preferences";
 import { usePushNotifications } from "@/hooks/use-push-notifications";
 
 export default function AccountPage() {
   const supabase = createClient();
+  const { orgId } = useOrg();
   const [tab, setTab] = useState("profile");
   const [userId, setUserId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -57,61 +58,59 @@ export default function AccountPage() {
       setCurrentUserEmail(user.email ?? "");
       setEmailForm({ email: user.email ?? "" });
 
-      const [pRes, mRes, npRes, mpRes] = await Promise.all([
-        supabase.from("profiles").select("*").eq("id", user.id).single(),
-        supabase.from("org_members").select("id, role, status, joined_at, organizations(name, type, campus)").eq("user_id", user.id).neq("status", "removed"),
-        supabase.from("profiles").select("notification_email, notification_sms, notification_push, notification_preferences").eq("id", user.id).single(),
-        supabase.from("member_profiles").select("id, interests").eq("user_id", user.id).limit(1).maybeSingle(),
-      ]);
+      const q = orgId ? `?org_id=${encodeURIComponent(orgId)}` : "";
+      const res = await fetch(`/api/account${q}`);
+      if (!res.ok) return;
+      const data = await res.json();
 
-      if (pRes.data) {
-        const p = pRes.data as Record<string, unknown>;
-        setProfile({
-          fullName: String(p.full_name ?? ""),
-          preferredName: String(p.preferred_name ?? ""),
-          phone: String(p.phone ?? ""),
-          avatarUrl: String(p.avatar_url ?? ""),
-        });
+      setProfile({
+        fullName: String(data.profile?.fullName ?? ""),
+        preferredName: String(data.profile?.preferredName ?? ""),
+        phone: String(data.profile?.phone ?? ""),
+        avatarUrl: String(data.profile?.avatarUrl ?? ""),
+      });
+
+      setOrgMemberships((data.memberships ?? []).map((m: Record<string, unknown>) => ({
+        id: String(m.id),
+        role: String(m.role),
+        status: String(m.status),
+        joined_at: String(m.joined_at),
+        org: m.org as { name: string; type: string; campus: string | null },
+      })));
+
+      if (data.memberProfile) {
+        setMemberProfileId(String(data.memberProfile.id));
+        setMemberInterests((data.memberProfile.interests as string[]) ?? []);
       }
 
-      if (mRes.data) {
-        setOrgMemberships(mRes.data.map((m: Record<string, unknown>) => ({
-          id: String(m.id),
-          role: String(m.role),
-          status: String(m.status),
-          joined_at: String(m.joined_at),
-          org: m.organizations as { name: string; type: string; campus: string | null },
-        })));
-      }
-
-      if (mpRes.data) {
-        setMemberProfileId(String(mpRes.data.id));
-        setMemberInterests((mpRes.data.interests as string[]) ?? []);
-      }
-
-      if (npRes.data) {
-        const np = npRes.data as Record<string, unknown>;
-        setChannels({
-          email: Boolean(np.notification_email ?? true),
-          sms: Boolean(np.notification_sms ?? true),
-          push: Boolean(np.notification_push ?? false),
-        });
-        setPreferences(parseNotificationPreferences(np.notification_preferences));
-      }
+      setChannels({
+        email: Boolean(data.profile?.notificationEmail ?? true),
+        sms: Boolean(data.profile?.notificationSms ?? true),
+        push: Boolean(data.profile?.notificationPush ?? false),
+      });
+      setPreferences(data.profile?.notificationPreferences ?? DEFAULT_NOTIFICATION_PREFERENCES);
     }
     init();
-  }, [supabase]);
+  }, [supabase, orgId]);
 
   async function saveProfile() {
     if (!userId) return;
     setSaving(true);
-    const { error } = await supabase.from("profiles").update({
-      full_name: profile.fullName,
-      preferred_name: profile.preferredName || null,
-      phone: profile.phone || null,
-    }).eq("id", userId);
+    const res = await fetch("/api/account", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fullName: profile.fullName,
+        preferredName: profile.preferredName,
+        phone: profile.phone,
+      }),
+    });
     setSaving(false);
-    if (error) { toast.error(error.message); return; }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error((err as { error?: string }).error ?? "Failed to save");
+      return;
+    }
     toast.success("Profile updated");
   }
 
@@ -119,8 +118,25 @@ export default function AccountPage() {
     if (!emailForm.email || emailForm.email === currentUserEmail) return;
     setSaving(true);
     const { error } = await supabase.auth.updateUser({ email: emailForm.email });
+    if (error) {
+      setSaving(false);
+      toast.error(error.message);
+      return;
+    }
+    const syncRes = await fetch("/api/account", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ memberEmail: emailForm.email }),
+    });
     setSaving(false);
-    if (error) { toast.error(error.message); return; }
+    if (!syncRes.ok) {
+      const err = await syncRes.json().catch(() => ({}));
+      toast.error(
+        (err as { error?: string }).error
+          ?? "Email updated in sign-in, but chapter roster email could not be synced.",
+      );
+      return;
+    }
     toast.success("Check your new email address to confirm the change.");
     setCurrentUserEmail(emailForm.email);
   }
@@ -145,14 +161,21 @@ export default function AccountPage() {
   async function saveNotifications() {
     if (!userId) return;
     setSaving(true);
-    const { error } = await supabase.from("profiles").update({
-      notification_email: channels.email,
-      notification_sms: channels.sms,
-      notification_push: channels.push,
-      notification_preferences: preferences,
-    }).eq("id", userId);
+    const res = await fetch("/api/account", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        notificationEmail: channels.email,
+        notificationSms: channels.sms,
+        notificationPush: channels.push,
+        notificationPreferences: preferences,
+      }),
+    });
     setSaving(false);
-    if (error) { toast.error(error.message); return; }
+    if (!res.ok) {
+      toast.error("Failed to save preferences");
+      return;
+    }
     toast.success("Notification preferences saved");
   }
 
@@ -168,7 +191,15 @@ export default function AccountPage() {
 
   async function leaveOrg(membershipId: string) {
     if (!confirm("Leave this organization? You can rejoin with an invite code.")) return;
-    await supabase.from("org_members").update({ status: "removed" }).eq("id", membershipId);
+    const res = await fetch("/api/account", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ leaveMembershipId: membershipId }),
+    });
+    if (!res.ok) {
+      toast.error("Failed to leave org");
+      return;
+    }
     setOrgMemberships((prev) => prev.filter((m) => m.id !== membershipId));
     toast.success("Left organization");
   }

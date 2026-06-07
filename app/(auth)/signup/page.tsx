@@ -2,14 +2,17 @@
 
 export const dynamic = "force-dynamic";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
-import { Button, Input, Card } from "@/components/ui";
+import React from "react";
+import { AuthShell } from "@/components/auth/auth-shell";
+import { OAuthButtons } from "@/components/auth/oauth-buttons";
+import { SupabaseConfigAlert } from "@/components/auth/supabase-config-alert";
+import { Button, Input } from "@/components/ui";
 
 const schema = z.object({
   fullName: z.string().min(2, "Name required"),
@@ -22,10 +25,12 @@ const schema = z.object({
 });
 type FormData = z.infer<typeof schema>;
 
-export default function SignupPage() {
+function SignupForm() {
   const router = useRouter();
-  const supabase = createClient();
+  const searchParams = useSearchParams();
+  const next = searchParams.get("next") ?? "/onboarding";
   const [loading, setLoading] = useState(false);
+  const [canSignUp, setCanSignUp] = useState(true);
 
   const {
     register,
@@ -33,32 +38,73 @@ export default function SignupPage() {
     formState: { errors },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
 
+  useEffect(() => {
+    fetch("/api/auth/supabase-config")
+      .then((r) => r.json())
+      .then((d: { authViaApi?: boolean }) => setCanSignUp(Boolean(d.authViaApi)))
+      .catch(() => setCanSignUp(false));
+  }, []);
+
   async function onSubmit(data: FormData) {
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
-      email: data.email,
-      password: data.password,
-      options: { data: { full_name: data.fullName } },
-    });
-    setLoading(false);
+    try {
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+          fullName: data.fullName,
+        }),
+      });
+      const json = await res.json();
 
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success("Check your email to confirm your account.");
-      router.push("/onboarding");
+      if (!res.ok) {
+        toast.error(json.error ?? "Could not create account");
+        if (json.issues?.length) {
+          console.error("Supabase config:", json.issues);
+        }
+        return;
+      }
+
+      if (json.hasSession) {
+        toast.success("Account created — set up your organization");
+        router.push(next.startsWith("/") ? next : "/onboarding");
+        router.refresh();
+        return;
+      }
+
+      toast.success(
+        "Check your email for a confirmation link. After confirming, you will be signed in to set up your organization.",
+      );
+      router.push(`/login?next=${encodeURIComponent(next.startsWith("/") ? next : "/onboarding")}`);
+    } catch {
+      toast.error("Could not reach the server. Try again.");
+    } finally {
+      setLoading(false);
     }
   }
 
   return (
-    <Card>
-      <div className="mb-6">
-        <h1 className="text-xl font-bold text-foreground">Create your account</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Start managing your organization with TouseOS.
+    <AuthShell
+      title="Create account"
+      subtitle="Start with your name and email — then create or join an organization."
+      footer={
+        <p className="text-center text-sm text-muted-foreground">
+          Already have an account?{" "}
+          <Link
+            href={`/login?next=${encodeURIComponent(next)}`}
+            className="font-medium text-primary hover:underline"
+          >
+            Sign in
+          </Link>
         </p>
-      </div>
-
+      }
+    >
+      <SupabaseConfigAlert />
+      <React.Suspense fallback={null}>
+        <OAuthButtons disabled={!canSignUp} mode="signup" />
+      </React.Suspense>
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
         <Input
           label="Full name"
@@ -93,23 +139,38 @@ export default function SignupPage() {
           {...register("confirmPassword")}
         />
 
-        <Button type="submit" loading={loading} className="w-full mt-1">
+        <Button type="submit" loading={loading} className="mt-2 w-full" disabled={!canSignUp}>
           Create account
         </Button>
       </form>
 
-      <p className="text-center text-sm text-muted-foreground mt-5">
-        Already have an account?{" "}
-        <Link href="/login" className="text-greek-600 font-medium hover:underline">
-          Sign in
-        </Link>
-      </p>
-
-      <p className="text-center text-xs text-muted-foreground mt-3">
+      <p className="mt-4 border-t border-border pt-2 text-center text-xs text-muted-foreground">
         By signing up you agree to our{" "}
-        <Link href="/terms" className="underline">Terms</Link> and{" "}
-        <Link href="/privacy" className="underline">Privacy Policy</Link>.
+        <Link href="/terms" className="text-primary underline">
+          Terms
+        </Link>{" "}
+        and{" "}
+        <Link href="/privacy" className="text-primary underline">
+          Privacy Policy
+        </Link>
+        .
       </p>
-    </Card>
+    </AuthShell>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="auth-layout">
+          <main className="auth-main">
+            <p className="text-muted-foreground text-sm">Loading…</p>
+          </main>
+        </div>
+      }
+    >
+      <SignupForm />
+    </React.Suspense>
   );
 }

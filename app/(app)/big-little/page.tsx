@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Heart, Plus, RefreshCw, Star, Users } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import {
   Avatar,
   Badge,
@@ -17,24 +17,30 @@ import {
 } from "@/components/ui";
 import type { MemberProfile } from "@/types";
 
-interface Match {
+interface MatchRow {
   id: string;
   big_id: string;
   little_id: string;
   status: "suggested" | "confirmed" | "revealed";
   match_score: number | null;
   reveal_date: string | null;
-  big?: MemberProfile;
-  little?: MemberProfile;
+  big?: Partial<MemberProfile> | null;
+  little?: Partial<MemberProfile> | null;
 }
 
+function enrichMatch(row: MatchRow, members: MemberProfile[]): MatchRow & { big?: MemberProfile; little?: MemberProfile } {
+  const bigFromEmbed = row.big as MemberProfile | undefined;
+  const littleFromEmbed = row.little as MemberProfile | undefined;
+  const big = members.find((m) => m.id === row.big_id) ?? (bigFromEmbed?.full_name ? bigFromEmbed as MemberProfile : undefined);
+  const little = members.find((m) => m.id === row.little_id) ?? (littleFromEmbed?.full_name ? littleFromEmbed as MemberProfile : undefined);
+  return { ...row, big, little };
+}
 
 export default function BigLittlePage() {
-  const supabase = createClient();
+  const { orgId } = useOrg();
   const [members, setMembers] = useState<MemberProfile[]>([]);
-  const [matches, setMatches] = useState<Match[]>([]);
+  const [matches, setMatches] = useState<Array<MatchRow & { big?: MemberProfile; little?: MemberProfile }>>([]);
   const [loading, setLoading] = useState(true);
-  const [orgId, setOrgId] = useState<string | null>(null);
   const [matchOpen, setMatchOpen] = useState(false);
   const [selectedBig, setSelectedBig] = useState<string>("");
   const [selectedLittle, setSelectedLittle] = useState<string>("");
@@ -44,23 +50,19 @@ export default function BigLittlePage() {
   const load = useCallback(async (oid: string) => {
     setLoading(true);
     const [membersRes, matchesRes] = await Promise.all([
-      supabase.from("member_profiles").select("*").eq("org_id", oid).order("full_name"),
-      supabase.from("big_little_matches").select("*, big:big_id(full_name, profile_photo_url, major, interests), little:little_id(full_name, profile_photo_url, major, interests)").eq("org_id", oid).order("created_at", { ascending: false }),
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}&scope=roster`),
+      fetch(`/api/big-little/matches?org_id=${encodeURIComponent(oid)}`),
     ]);
-    setMembers((membersRes.data ?? []) as MemberProfile[]);
-    setMatches((matchesRes.data ?? []) as unknown as Match[]);
+    const memberList = membersRes.ok ? ((await membersRes.json()) as MemberProfile[]) : [];
+    if (membersRes.ok) setMembers(memberList);
+    const raw = matchesRes.ok ? ((await matchesRes.json()) as MatchRow[]) : [];
+    setMatches(raw.filter((m) => m.big_id !== m.little_id).map((m) => enrichMatch(m, memberList)));
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) { setOrgId(m.org_id); load(m.org_id); }
-    }
-    init();
-  }, [supabase, load]);
+    if (orgId) load(orgId);
+  }, [orgId, load]);
 
   function computeMatchScore(big: MemberProfile, little: MemberProfile): number {
     let score = 0;
@@ -73,18 +75,19 @@ export default function BigLittlePage() {
     if (big.major && little.major && big.major.toLowerCase() === little.major.toLowerCase()) score += 15;
     // Same hometown
     if (big.hometown && little.hometown && big.hometown.toLowerCase() === little.hometown.toLowerCase()) score += 10;
-    // Random variation
-    score += Math.floor(Math.random() * 20);
+    if (big.class_year && little.class_year && big.class_year === little.class_year) score += 8;
     return Math.min(100, score);
   }
 
   function generateSuggestions(): Array<{ big: MemberProfile; little: MemberProfile; score: number }> {
-    const bigs = members.filter((m) => m.membership_status === "active" && !matches.find((match) => match.big_id === m.id));
-    const newMembers = members.filter((m) => m.membership_status === "active" && !matches.find((match) => match.little_id === m.id));
+    const bigs = activeMembers.filter((m) => !matchedBigIds.has(m.id));
+    const newMembers = activeMembers.filter((m) => !matchedLittleIds.has(m.id));
     const suggestions: Array<{ big: MemberProfile; little: MemberProfile; score: number }> = [];
 
     for (const little of newMembers.slice(0, 5)) {
-      const scored = bigs.map((big) => ({ big, little, score: computeMatchScore(big, little) }));
+      const scored = bigs
+        .filter((big) => big.id !== little.id)
+        .map((big) => ({ big, little, score: computeMatchScore(big, little) }));
       scored.sort((a, b) => b.score - a.score);
       if (scored.length > 0) suggestions.push(scored[0]);
     }
@@ -94,20 +97,32 @@ export default function BigLittlePage() {
 
   async function createMatch() {
     if (!orgId || !selectedBig || !selectedLittle) return;
+    if (selectedBig === selectedLittle) {
+      toast.error("A member cannot be matched with themselves");
+      return;
+    }
     const big = members.find((m) => m.id === selectedBig);
     const little = members.find((m) => m.id === selectedLittle);
     const score = big && little ? computeMatchScore(big, little) : null;
 
-    const { error } = await supabase.from("big_little_matches").insert({
-      org_id: orgId,
-      big_id: selectedBig,
-      little_id: selectedLittle,
-      status: "confirmed",
-      match_score: score,
-      reveal_date: revealDate || null,
+    const res = await fetch("/api/big-little/matches", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        bigId: selectedBig,
+        littleId: selectedLittle,
+        status: "confirmed",
+        matchScore: score,
+        revealDate: revealDate || null,
+      }),
     });
 
-    if (error) { toast.error(error.message); return; }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error((err as { error?: string }).error ?? "Failed to create match");
+      return;
+    }
     toast.success("Match created!");
     setMatchOpen(false);
     setSelectedBig("");
@@ -117,21 +132,40 @@ export default function BigLittlePage() {
   }
 
   async function updateMatchStatus(id: string, status: "confirmed" | "revealed") {
-    await supabase.from("big_little_matches").update({ status }).eq("id", id);
-    setMatches((prev) => prev.map((m) => m.id === id ? { ...m, status } : m));
+    if (!orgId) return;
+    const res = await fetch("/api/big-little/matches", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, orgId, status }),
+    });
+    if (!res.ok) {
+      toast.error("Failed to update match");
+      return;
+    }
+    setMatches((prev) => prev.map((m) => (m.id === id ? { ...m, status } : m)));
     toast.success(`Match ${status}!`);
   }
+
+  const activeMembers = members.filter((m) => m.membership_status === "active" || m.membership_status === "new_member");
+  const matchedBigIds = new Set(matches.map((m) => m.big_id));
+  const matchedLittleIds = new Set(matches.map((m) => m.little_id));
 
   const suggestions = suggestMode ? generateSuggestions() : [];
   const confirmed = matches.filter((m) => m.status === "confirmed").length;
   const revealed = matches.filter((m) => m.status === "revealed").length;
-  const unmatched = members.filter((m) => m.membership_status === "active" && !matches.find((match) => match.big_id === m.id || match.little_id === m.id)).length;
+  const unmatched = activeMembers.filter((m) => !matchedBigIds.has(m.id) && !matchedLittleIds.has(m.id)).length;
 
-  const bigOptions = members.filter((m) => !matches.find((match) => match.big_id === m.id));
-  const littleOptions = members.filter((m) => !matches.find((match) => match.little_id === m.id));
+  const bigOptions = activeMembers.filter((m) =>
+    m.id !== selectedLittle && !matchedBigIds.has(m.id),
+  );
+  const littleOptions = activeMembers.filter((m) =>
+    m.id !== selectedBig && !matchedLittleIds.has(m.id),
+  );
+  const unmatchedBigs = activeMembers.filter((m) => !matchedBigIds.has(m.id));
+  const unmatchedLittles = activeMembers.filter((m) => !matchedLittleIds.has(m.id));
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Big / Little Matching"
         description={`${confirmed} pending reveals · ${revealed} revealed · ${unmatched} unmatched`}
@@ -191,7 +225,110 @@ export default function BigLittlePage() {
         </Card>
       )}
 
-      {/* Existing matches */}
+      {/* Unmatched members — two-column layout */}
+      {!loading && (unmatchedBigs.length > 0 || unmatchedLittles.length > 0) && (
+        <Card>
+          <CardHeader title="Unmatched members" description="Members still waiting for a big or little" icon={<Users size={16} />} />
+          <div className="big-little-unmatched-grid">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                Without a little ({unmatchedBigs.length})
+              </p>
+              <div className="space-y-2">
+                {unmatchedBigs.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">All bigs are matched.</p>
+                ) : (
+                  unmatchedBigs.map((m) => (
+                    <div key={m.id} className="big-little-member-row">
+                      <Avatar name={m.full_name} src={m.profile_photo_url} size="sm" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{m.full_name}</p>
+                        <p className="text-xs text-muted-foreground">{m.class_year ?? "—"} · {m.major ?? "—"}</p>
+                      </div>
+                      <Button size="sm" variant="secondary" onClick={() => { setSelectedBig(m.id); setMatchOpen(true); }}>Match</Button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                Without a big ({unmatchedLittles.length})
+              </p>
+              <div className="space-y-2">
+                {unmatchedLittles.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">All littles are matched.</p>
+                ) : (
+                  unmatchedLittles.map((m) => (
+                    <div key={m.id} className="big-little-member-row">
+                      <Avatar name={m.full_name} src={m.profile_photo_url} size="sm" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{m.full_name}</p>
+                        <p className="text-xs text-muted-foreground">{m.class_year ?? "—"} · {m.major ?? "—"}</p>
+                      </div>
+                      <Button size="sm" variant="secondary" onClick={() => { setSelectedLittle(m.id); setMatchOpen(true); }}>Match</Button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Current pairs table */}
+      {!loading && matches.length > 0 && (
+        <Card>
+          <CardHeader title="Current pairs" description={`${matches.length} active match${matches.length !== 1 ? "es" : ""}`} icon={<Heart size={16} />} />
+          <div className="ds-table-wrap ds-table-mobile">
+            <table className="ds-table">
+              <thead>
+                <tr>
+                  <th>Big</th>
+                  <th>Little</th>
+                  <th>Score</th>
+                  <th>Status</th>
+                  <th>Reveal</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {matches.map((match) => {
+                  const big = match.big;
+                  const little = match.little;
+                  return (
+                    <tr key={match.id}>
+                      <td data-label="Big">
+                        <div className="flex items-center gap-2">
+                          {big && <Avatar name={big.full_name} src={big.profile_photo_url} size="sm" />}
+                          <span>{big?.full_name ?? "—"}</span>
+                        </div>
+                      </td>
+                      <td data-label="Little">
+                        <div className="flex items-center gap-2">
+                          {little && <Avatar name={little.full_name} src={little.profile_photo_url} size="sm" />}
+                          <span>{little?.full_name ?? "—"}</span>
+                        </div>
+                      </td>
+                      <td data-label="Score">{match.match_score != null ? `${match.match_score}%` : "—"}</td>
+                      <td data-label="Status"><Badge label={match.status} color={match.status === "revealed" ? "green" : "blue"} /></td>
+                      <td data-label="Reveal">{match.reveal_date ? new Date(match.reveal_date).toLocaleDateString() : "—"}</td>
+                      <td data-label="">
+                        {match.status === "confirmed" && (
+                          <Button size="sm" variant="secondary" onClick={() => updateMatchStatus(match.id, "revealed")}>
+                            Reveal
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
       {loading ? (
         <div className="space-y-2">{[1,2,3].map((i) => <Card key={i} className="h-16 animate-pulse bg-surface-2 border-0">&nbsp;</Card>)}</div>
       ) : matches.length === 0 ? (
@@ -201,46 +338,7 @@ export default function BigLittlePage() {
           description="Create matches manually or use AI suggestions based on member profiles."
           action={<Button size="sm" icon={<Plus size={14} />} onClick={() => setMatchOpen(true)}>Create match</Button>}
         />
-      ) : (
-        <div className="space-y-3">
-          {matches.map((match) => {
-            const big = (match.big as unknown) as MemberProfile;
-            const little = (match.little as unknown) as MemberProfile;
-            return (
-              <Card key={match.id} padding="sm">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <div className="text-center">
-                      <Avatar name={big?.full_name ?? "?"} src={big?.profile_photo_url} size="sm" />
-                      <p className="text-[10px] text-muted-foreground mt-0.5">Big</p>
-                    </div>
-                    <Heart size={14} className="text-greek-500 fill-greek-500" />
-                    <div className="text-center">
-                      <Avatar name={little?.full_name ?? "?"} src={little?.profile_photo_url} size="sm" />
-                      <p className="text-[10px] text-muted-foreground mt-0.5">Little</p>
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{big?.full_name ?? "—"} <span className="text-muted-foreground">+</span> {little?.full_name ?? "—"}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      {match.match_score && <span className="text-xs text-muted-foreground">{match.match_score}% match</span>}
-                      {match.reveal_date && <span className="text-xs text-muted-foreground">Reveal: {new Date(match.reveal_date).toLocaleDateString()}</span>}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <Badge label={match.status} color={match.status === "revealed" ? "green" : "blue"} />
-                    {match.status === "confirmed" && (
-                      <Button size="sm" variant="secondary" onClick={() => updateMatchStatus(match.id, "revealed")}>
-                        🎉 Reveal
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      )}
+      ) : null}
 
       {/* Create match modal */}
       <Modal
@@ -250,7 +348,7 @@ export default function BigLittlePage() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setMatchOpen(false)}>Cancel</Button>
-            <Button onClick={createMatch} disabled={!selectedBig || !selectedLittle}>Create match</Button>
+            <Button onClick={createMatch} disabled={!selectedBig || !selectedLittle || selectedBig === selectedLittle}>Create match</Button>
           </>
         }
       >
@@ -269,7 +367,10 @@ export default function BigLittlePage() {
               {littleOptions.map((m) => <option key={m.id} value={m.id}>{m.full_name} ({m.class_year ?? "—"})</option>)}
             </select>
           </div>
-          {selectedBig && selectedLittle && (
+          {selectedBig && selectedLittle && selectedBig === selectedLittle && (
+            <p className="text-sm text-red-600">A member cannot be matched with themselves.</p>
+          )}
+          {selectedBig && selectedLittle && selectedBig !== selectedLittle && (
             <div className="p-3 bg-greek-50 dark:bg-greek-950/30 rounded-lg">
               <p className="text-sm font-semibold text-greek-700">
                 Compatibility: {computeMatchScore(

@@ -1,28 +1,34 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Download, Mail, MapPin, Plus, Briefcase,
   GraduationCap, Heart, Users,
 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import {
   Avatar, Badge, Button, Card, CardHeader, EmptyState,
   Modal, Input, PageHeader, SearchInput, StatCard, Tabs,
 } from "@/components/ui";
+import Papa from "papaparse";
 import { downloadCsv } from "@/lib/utils";
 import type { AlumniProfile } from "@/types";
 import toast from "react-hot-toast";
+import { AlumniCampaignsPanel } from "@/components/alumni/alumni-campaigns-panel";
+import { HometownField } from "@/components/forms/hometown-field";
 
 export default function AlumniPage() {
-  const supabase = createClient();
+  const { orgId } = useOrg();
   const [alumni, setAlumni] = useState<AlumniProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [orgId, setOrgId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState("directory");
   const [addOpen, setAddOpen] = useState(false);
   const [selected, setSelected] = useState<AlumniProfile | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importRows, setImportRows] = useState<Array<Record<string, string>>>([]);
+  const [importing, setImporting] = useState(false);
+  const csvRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
     fullName: "", email: "", phone: "", graduationYear: "",
@@ -32,38 +38,72 @@ export default function AlumniPage() {
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
-    const { data } = await supabase.from("alumni_profiles").select("*").eq("org_id", oid).order("full_name");
-    setAlumni((data ?? []) as AlumniProfile[]);
+    const res = await fetch(`/api/alumni?org_id=${encodeURIComponent(oid)}`);
+    setAlumni(res.ok ? ((await res.json()) as AlumniProfile[]) : []);
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) { setOrgId(m.org_id); load(m.org_id); }
+    if (orgId) load(orgId);
+  }, [orgId, load]);
+
+  function handleCsvFile(file: File) {
+    Papa.parse<Record<string, string>>(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (result) => {
+        setImportRows(result.data.slice(0, 500));
+        setImportOpen(true);
+      },
+      error: () => toast.error("Could not parse CSV"),
+    });
+  }
+
+  async function confirmImport() {
+    if (!orgId || importRows.length === 0) return;
+    setImporting(true);
+    const res = await fetch("/api/alumni/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId, rows: importRows }),
+    });
+    setImporting(false);
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error((data as { error?: string }).error ?? "Import failed");
+      return;
     }
-    init();
-  }, [supabase, load]);
+    toast.success(`Imported ${(data as { imported?: number }).imported ?? 0} alumni`);
+    setImportOpen(false);
+    setImportRows([]);
+    load(orgId);
+  }
 
   async function addAlumni() {
     if (!orgId || !form.fullName) return;
-    const { error } = await supabase.from("alumni_profiles").insert({
-      org_id: orgId,
-      full_name: form.fullName,
-      email: form.email || null,
-      phone: form.phone || null,
-      graduation_year: form.graduationYear ? parseInt(form.graduationYear) : null,
-      pledge_class: form.pledgeClass || null,
-      city: form.city || null,
-      state: form.state || null,
-      career_field: form.careerField || null,
-      employer: form.employer || null,
-      mentorship_interest: form.mentorshipInterest,
-      contact_preference: form.contactPreference,
+    const res = await fetch("/api/alumni", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        fullName: form.fullName,
+        email: form.email,
+        phone: form.phone,
+        graduationYear: form.graduationYear,
+        pledgeClass: form.pledgeClass,
+        city: form.city,
+        state: form.state,
+        careerField: form.careerField,
+        employer: form.employer,
+        mentorshipInterest: form.mentorshipInterest,
+        contactPreference: form.contactPreference,
+      }),
     });
-    if (error) { toast.error(error.message); return; }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error((err as { error?: string }).error ?? "Failed to add alumni");
+      return;
+    }
     toast.success("Alumni added");
     setAddOpen(false);
     setForm({ fullName: "", email: "", phone: "", graduationYear: "", pledgeClass: "", city: "", state: "", careerField: "", employer: "", mentorshipInterest: false, contactPreference: "email" });
@@ -83,13 +123,15 @@ export default function AlumniPage() {
   const topClasses = [...new Set(alumni.map((a) => a.graduation_year).filter(Boolean))].sort((a, b) => (b ?? 0) - (a ?? 0)).slice(0, 5);
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Alumni / Alumnae CRM"
         description={`${alumni.length} alumni in database · ${mentors.length} mentorship volunteers`}
         action={
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={() => downloadCsv("alumni.csv", alumni.map((a) => ({ Name: a.full_name, Email: a.email ?? "", "Grad Year": a.graduation_year ?? "", City: a.city ?? "", "Career Field": a.career_field ?? "", Employer: a.employer ?? "" })))}>Export</Button>
+            <input ref={csvRef} type="file" accept=".csv" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCsvFile(f); e.target.value = ""; }} />
+            <Button variant="secondary" size="sm" onClick={() => csvRef.current?.click()}>Import CSV</Button>
             <Button size="sm" icon={<Plus size={14} />} onClick={() => setAddOpen(true)}>Add alumni</Button>
           </div>
         }
@@ -106,6 +148,7 @@ export default function AlumniPage() {
         tabs={[
           { id: "directory", label: "Directory", count: alumni.length },
           { id: "mentors", label: "Mentors", count: mentors.length },
+          { id: "campaigns", label: "Campaigns" },
           { id: "careers", label: "Careers" },
         ]}
         active={tab}
@@ -114,7 +157,9 @@ export default function AlumniPage() {
 
       <SearchInput value={query} onChange={setQuery} placeholder="Search by name, employer, city, career..." />
 
-      {loading ? (
+      {tab === "campaigns" && orgId ? (
+        <AlumniCampaignsPanel orgId={orgId} />
+      ) : loading ? (
         <div className="grid sm:grid-cols-2 gap-3">{[1,2,3,4].map((i) => <Card key={i} className="h-20 animate-pulse bg-surface-2 border-0">&nbsp;</Card>)}</div>
       ) : (tab === "mentors" ? filtered.filter((a) => a.mentorship_interest) : filtered).length === 0 ? (
         <EmptyState
@@ -233,6 +278,43 @@ export default function AlumniPage() {
         )}
       </Modal>
 
+      <Modal
+        open={importOpen}
+        onClose={() => { setImportOpen(false); setImportRows([]); }}
+        title="Import alumni CSV"
+        description={`${importRows.length} row${importRows.length !== 1 ? "s" : ""} ready to import`}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => { setImportOpen(false); setImportRows([]); }}>Cancel</Button>
+            <Button loading={importing} onClick={confirmImport}>Import</Button>
+          </>
+        }
+      >
+        {importRows.length > 0 && (
+          <div className="ds-table-wrap" style={{ maxHeight: 280, overflow: "auto" }}>
+            <table className="ds-table">
+              <thead>
+                <tr>
+                  {Object.keys(importRows[0]).slice(0, 5).map((k) => <th key={k}>{k}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {importRows.slice(0, 8).map((row, i) => (
+                  <tr key={i}>
+                    {Object.keys(importRows[0]).slice(0, 5).map((k) => <td key={k}>{row[k] ?? ""}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {importRows.length > 8 && (
+              <p className="type-small" style={{ marginTop: 8, color: "var(--color-text-muted)" }}>
+                Showing 8 of {importRows.length} rows
+              </p>
+            )}
+          </div>
+        )}
+      </Modal>
+
       {/* Add modal */}
       <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Add alumni" size="lg"
         footer={<><Button variant="secondary" onClick={() => setAddOpen(false)}>Cancel</Button><Button onClick={addAlumni} disabled={!form.fullName}>Add</Button></>}
@@ -243,8 +325,20 @@ export default function AlumniPage() {
           <Input label="Phone" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
           <Input label="Graduation year" type="number" placeholder="2022" value={form.graduationYear} onChange={(e) => setForm({ ...form, graduationYear: e.target.value })} />
           <Input label="Pledge class" placeholder="Fall 2018, Spring 2019..." value={form.pledgeClass} onChange={(e) => setForm({ ...form, pledgeClass: e.target.value })} />
-          <Input label="City" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
-          <Input label="State" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
+          <div className="sm:col-span-2">
+            <HometownField
+              label="Hometown"
+              value={[form.city, form.state].filter(Boolean).join(", ")}
+              onChange={(hometown) => {
+                const parts = hometown.split(",").map((s) => s.trim());
+                setForm({
+                  ...form,
+                  city: parts[0] ?? "",
+                  state: parts[1] ?? "",
+                });
+              }}
+            />
+          </div>
           <Input label="Career field" placeholder="Finance, Medicine, Tech..." value={form.careerField} onChange={(e) => setForm({ ...form, careerField: e.target.value })} />
           <Input label="Employer" className="sm:col-span-2" value={form.employer} onChange={(e) => setForm({ ...form, employer: e.target.value })} />
           <label className="sm:col-span-2 flex items-center gap-2 cursor-pointer">

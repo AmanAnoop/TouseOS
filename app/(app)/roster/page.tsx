@@ -2,20 +2,21 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Papa from "papaparse";
-import { useRouter } from "next/navigation";
 import {
   Download, Mail, Upload, UserPlus,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
 import {
-  Avatar, Badge, Button, Card, EmptyState, Input, Modal,
-  PageHeader, SearchInput, Select, Skeleton,
+  Button, EmptyState, Input, Modal,
+  PageHeader, SearchInput, Select,
 } from "@/components/ui";
-import { downloadCsv, getStatusColor } from "@/lib/utils";
-import { ROLE_LABELS, can, type RoleName } from "@/lib/permissions";
+import { downloadCsv } from "@/lib/utils";
+import { ROLE_LABELS, can } from "@/lib/permissions";
 import type { MemberProfile } from "@/types";
 import { MemberTable } from "@/components/roster/member-table";
+import { SportsEligibilitySummary } from "@/components/roster/sports-eligibility-summary";
+import { isSportsOrg } from "@/lib/utils";
+import { useOrg } from "@/hooks/use-org";
 
 const STATUS_OPTIONS = [
   { value: "", label: "All statuses" },
@@ -25,7 +26,6 @@ const STATUS_OPTIONS = [
   { value: "alumni", label: "Alumni" },
   { value: "advisor", label: "Advisor" },
   { value: "suspended", label: "Suspended" },
-  { value: "new_member", label: "New member" },
 ];
 
 const PAYMENT_OPTIONS = [
@@ -35,52 +35,68 @@ const PAYMENT_OPTIONS = [
 ];
 
 export default function RosterPage() {
-  const supabase = createClient();
-  const router = useRouter();
+  const { orgId, orgType, role: myRole, loading: orgLoading } = useOrg();
   const [members, setMembers] = useState<MemberProfile[]>([]);
+  const [invitedMembers, setInvitedMembers] = useState<MemberProfile[]>([]);
+  const [rosterTab, setRosterTab] = useState<"roster" | "invited">("roster");
   const [loading, setLoading] = useState(true);
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [myRole, setMyRole] = useState<RoleName>("general_member");
 
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [massInviteOpen, setMassInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
+  const [invitePhone, setInvitePhone] = useState("");
+  const [bulkEmails, setBulkEmails] = useState("");
+  const [sendInviteSms, setSendInviteSms] = useState(false);
+  const [twilioLive, setTwilioLive] = useState<boolean | null>(null);
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [inviteRole, setInviteRole] = useState("general_member");
+  const [inviting, setInviting] = useState(false);
   const [importing, setImporting] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
 
   const loadMembers = useCallback(async (oid: string) => {
     setLoading(true);
-    const { data } = await supabase
-      .from("member_profiles")
-      .select("*")
-      .eq("org_id", oid)
-      .order("full_name");
-    setMembers((data ?? []) as MemberProfile[]);
+    const [rosterRes, invitedRes] = await Promise.all([
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}&scope=roster&include_payments=1`),
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}&scope=invited`),
+    ]);
+    if (rosterRes.ok) {
+      setMembers((await rosterRes.json()) as MemberProfile[]);
+    } else {
+      const err = await rosterRes.json().catch(() => ({}));
+      toast.error((err as { error?: string }).error ?? "Failed to load roster");
+    }
+    if (invitedRes.ok) {
+      setInvitedMembers((await invitedRes.json()) as MemberProfile[]);
+    }
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase
-        .from("org_members")
-        .select("org_id, role")
-        .eq("user_id", user.id)
-        .neq("status", "removed")
-        .limit(1)
-        .single();
-      if (m) {
-        setOrgId(m.org_id);
-        setMyRole((String(m.role ?? "general_member") as RoleName));
-        loadMembers(m.org_id);
-      }
-    }
-    init();
-  }, [supabase, loadMembers]);
+    if (orgLoading) return;
+    if (orgId) loadMembers(orgId);
+    else setLoading(false);
+  }, [orgId, orgLoading, loadMembers]);
+
+  useEffect(() => {
+    fetch("/api/integrations/status")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const twilio = data?.integrations?.find((i: { id: string }) => i.id === "twilio");
+        setTwilioLive(Boolean(twilio?.live));
+      })
+      .catch(() => setTwilioLive(false));
+  }, []);
+
+  useEffect(() => {
+    if (!orgId) return;
+    fetch(`/api/org/settings?org_id=${encodeURIComponent(orgId)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setInviteCode(data?.org?.invite_code ? String(data.org.invite_code) : null));
+  }, [orgId]);
 
   const showPayment = can(myRole, "view_payments") || can(myRole, "manage_payments");
 
@@ -139,46 +155,101 @@ export default function RosterPage() {
     });
   }
 
-  async function sendInvite() {
-    if (!orgId || !inviteEmail) return;
+  function parseBulkInviteLines(raw: string): Array<{ email: string; phone?: string }> {
+    return [...new Set(raw.split("\n").map((line) => line.trim()).filter(Boolean))].map((line) => {
+      const parts = line.split(/[,;\t]/).map((p) => p.trim()).filter(Boolean);
+      const email = parts.find((p) => p.includes("@")) ?? "";
+      const phone = parts.find((p) => !p.includes("@") && /[\d+()]/.test(p));
+      return { email, phone };
+    }).filter((row) => row.email);
+  }
+
+  async function sendInvite(email?: string, emails?: string[], phone?: string, phones?: string[]) {
+    if (!orgId) return;
+    setInviting(true);
     const res = await fetch("/api/members/invite", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orgId, email: inviteEmail, role: inviteRole }),
+      body: JSON.stringify({
+        orgId,
+        email,
+        emails,
+        phone,
+        phones,
+        role: inviteRole,
+        sendSms: sendInviteSms,
+      }),
     });
+    setInviting(false);
+    const data = await res.json().catch(() => ({}));
     if (res.ok) {
-      toast.success(`Invite sent to ${inviteEmail}`);
+      toast.success((data as { message?: string }).message ?? "Invites sent");
       setInviteOpen(false);
+      setMassInviteOpen(false);
       setInviteEmail("");
+      setInvitePhone("");
+      setBulkEmails("");
+      setSendInviteSms(false);
+      loadMembers(orgId);
     } else {
-      toast.error("Failed to send invite");
+      toast.error((data as { error?: string }).error ?? "Failed to send invite");
     }
+  }
+
+  async function copyInviteLink() {
+    if (!inviteCode) return;
+    const link = `${window.location.origin}/join/${inviteCode}`;
+    await navigator.clipboard.writeText(link);
+    toast.success("Invite link copied");
   }
 
   const roleOptions = Object.entries(ROLE_LABELS).map(([v, l]) => ({ value: v, label: l }));
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
-        title="Member Roster"
-        description={`${members.length} members`}
-        breadcrumb="Organization"
+        title={isSportsOrg(orgType) ? "Team Roster" : "Member Roster"}
+        description={`${members.length} members${invitedMembers.length ? ` · ${invitedMembers.length} invited` : ""}`}
+        breadcrumb={isSportsOrg(orgType) ? "Team" : "Organization"}
         action={
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button variant="secondary" size="sm" icon={<Upload size={14} />} onClick={() => importRef.current?.click()} loading={importing}>Import CSV</Button>
             <input ref={importRef} type="file" accept=".csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCsvImport(f); e.target.value = ""; }} />
             <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={exportRoster}>
               Export
             </Button>
-            <Button size="sm" icon={<UserPlus size={14} />} onClick={() => setInviteOpen(true)}>
-              Invite
+            <Button size="sm" variant="secondary" icon={<UserPlus size={14} />} onClick={() => setMassInviteOpen(true)}>
+              Mass invite
+            </Button>
+            <Button size="sm" variant="secondary" icon={<Mail size={14} />} onClick={() => setInviteOpen(true)}>
+              Invite member
             </Button>
           </div>
         }
       />
 
+      {orgId && isSportsOrg(orgType) && <SportsEligibilitySummary orgId={orgId} />}
+
       {/* Filters */}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-3 items-center">
+        <div className="flex gap-1 p-1 rounded-lg bg-surface-1 border border-border">
+          <button
+            type="button"
+            className={`px-3 py-1.5 text-sm rounded-md ${rosterTab === "roster" ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}
+            onClick={() => setRosterTab("roster")}
+          >
+            Roster ({members.length})
+          </button>
+          <button
+            type="button"
+            className={`px-3 py-1.5 text-sm rounded-md ${rosterTab === "invited" ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}
+            onClick={() => setRosterTab("invited")}
+          >
+            Invited ({invitedMembers.length})
+          </button>
+        </div>
+        {rosterTab === "roster" && (
+          <>
         <SearchInput
           value={query}
           onChange={setQuery}
@@ -188,68 +259,34 @@ export default function RosterPage() {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="h-9 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          className="ds-input ds-select h-9 min-h-9 text-sm"
+          style={{ width: "auto", minWidth: 140 }}
         >
           {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         <select
           value={paymentFilter}
           onChange={(e) => setPaymentFilter(e.target.value)}
-          className="h-9 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          className="ds-input ds-select h-9 min-h-9 text-sm"
+          style={{ width: "auto", minWidth: 160 }}
         >
           {PAYMENT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
+          </>
+        )}
       </div>
 
-      {/* Member cards (mobile) */}
-      <div className="grid gap-3 sm:hidden">
-        {loading
-          ? Array.from({ length: 4 }).map((_, i) => (
-              <Card key={i} padding="sm">
-                <div className="flex items-center gap-3">
-                  <Skeleton className="w-10 h-10 rounded-full" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-3 w-32" />
-                    <Skeleton className="h-3 w-24" />
-                  </div>
-                </div>
-              </Card>
-            ))
-          : filtered.length === 0
-            ? <EmptyState icon={<UserPlus size={20} />} title="No members found" description="Try adjusting your filters." />
-            : filtered.map((m) => (
-                <Card
-                  key={m.id}
-                  padding="sm"
-                  className="cursor-pointer hover:border-greek-300 transition-colors"
-                  onClick={() => router.push(`/roster/${m.id}`)}
-                >
-                  <div className="flex items-center gap-3">
-                    <Avatar name={m.full_name} src={m.profile_photo_url} size="md" />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm text-foreground">{m.full_name}</p>
-                      <p className="text-xs text-muted-foreground">{m.role.replace("_", " ")} · {m.major ?? "—"}</p>
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <Badge label={m.membership_status} color={getStatusColor(m.membership_status) as "green"} />
-                      {m.payment_status === "overdue" && <Badge label="Overdue" color="red" />}
-                    </div>
-                  </div>
-                  {(m.phone || m.email) && (
-                    <div className="flex gap-3 mt-2 pt-2 border-t border-border">
-                      {m.email && (
-                        <a href={`mailto:${m.email}`} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-greek-600" onClick={(e) => e.stopPropagation()}>
-                          <Mail size={12} />
-                          {m.email}
-                        </a>
-                      )}
-                    </div>
-                  )}
-                </Card>
-              ))}
-      </div>
-
-      <MemberTable members={filtered} loading={loading} showPayment={showPayment} />
+      {rosterTab === "invited" ? (
+        !loading && invitedMembers.length === 0 ? (
+          <EmptyState icon={<Mail size={20} />} title="No pending invites" description="Invited members appear here until they join." />
+        ) : (
+          <MemberTable members={invitedMembers} loading={loading} showPayment={false} showInviteMeta />
+        )
+      ) : !loading && filtered.length === 0 ? (
+        <EmptyState icon={<UserPlus size={20} />} title="No members found" description="Try adjusting your filters." />
+      ) : (
+        <MemberTable members={filtered} loading={loading} showPayment={showPayment} showDuesDetail={showPayment} />
+      )}
 
       {/* Invite modal */}
       <Modal
@@ -260,7 +297,13 @@ export default function RosterPage() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setInviteOpen(false)}>Cancel</Button>
-            <Button onClick={sendInvite} disabled={!inviteEmail}>Send invite</Button>
+            <Button
+              onClick={() => sendInvite(inviteEmail, undefined, invitePhone || undefined)}
+              disabled={!inviteEmail}
+              loading={inviting}
+            >
+              Send invite
+            </Button>
           </>
         }
       >
@@ -272,12 +315,109 @@ export default function RosterPage() {
             value={inviteEmail}
             onChange={(e) => setInviteEmail(e.target.value)}
           />
+          <Input
+            label="Phone (optional — for SMS invite)"
+            type="tel"
+            placeholder="+1 (555) 000-0000"
+            value={invitePhone}
+            onChange={(e) => setInvitePhone(e.target.value)}
+          />
           <Select
             label="Role"
             value={inviteRole}
             onChange={(e) => setInviteRole(e.target.value)}
             options={roleOptions}
           />
+          {twilioLive === false && (
+            <p className="type-small" style={{ color: "var(--color-text-tertiary)" }}>
+              Configure Twilio in Settings → Integrations to text invite links.
+            </p>
+          )}
+          {twilioLive && (
+            <label className="type-small flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={sendInviteSms}
+                onChange={(e) => setSendInviteSms(e.target.checked)}
+                disabled={!invitePhone.trim()}
+              />
+              Also text invite link via Twilio
+            </label>
+          )}
+        </div>
+      </Modal>
+
+      <Modal
+        open={massInviteOpen}
+        onClose={() => setMassInviteOpen(false)}
+        title="Mass invite"
+        description="Share your chapter link or paste multiple emails at once."
+        size="md"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setMassInviteOpen(false)}>Cancel</Button>
+            <Button
+              loading={inviting}
+              disabled={parseBulkInviteLines(bulkEmails).length === 0}
+              onClick={() => {
+                const rows = parseBulkInviteLines(bulkEmails);
+                sendInvite(
+                  undefined,
+                  rows.map((r) => r.email),
+                  undefined,
+                  rows.map((r) => r.phone).filter((p): p is string => Boolean(p)),
+                );
+              }}
+            >
+              Send invites
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {inviteCode && (
+            <div className="p-3 rounded-lg border border-border bg-surface-1 space-y-2">
+              <p className="text-sm font-medium">Shareable invite link</p>
+              <p className="text-xs text-muted-foreground break-all">{typeof window !== "undefined" ? `${window.location.origin}/join/${inviteCode}` : `/join/${inviteCode}`}</p>
+              <div className="flex gap-2 flex-wrap">
+                <Button size="sm" variant="secondary" onClick={copyInviteLink}>Copy link</Button>
+                <Button size="sm" variant="secondary" onClick={async () => {
+                  await navigator.clipboard.writeText(inviteCode);
+                  toast.success("Invite code copied");
+                }}>Copy code {inviteCode}</Button>
+              </div>
+            </div>
+          )}
+          <Select
+            label="Default role for new members"
+            value={inviteRole}
+            onChange={(e) => setInviteRole(e.target.value)}
+            options={roleOptions}
+          />
+          <div className="ds-field">
+            <label className="type-label" htmlFor="bulk-emails">Paste emails</label>
+            <textarea
+              id="bulk-emails"
+              className="ds-input"
+              rows={6}
+              placeholder="email@school.edu, +15551234567&#10;or one email per line (add phone after comma for SMS)"
+              value={bulkEmails}
+              onChange={(e) => setBulkEmails(e.target.value)}
+            />
+            <p className="type-small" style={{ color: "var(--color-text-tertiary)" }}>
+              {parseBulkInviteLines(bulkEmails).length} valid address{parseBulkInviteLines(bulkEmails).length !== 1 ? "es" : ""}
+            </p>
+          </div>
+          {twilioLive && (
+            <label className="type-small flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={sendInviteSms}
+                onChange={(e) => setSendInviteSms(e.target.checked)}
+              />
+              Text invite link via Twilio when phone numbers are included
+            </label>
+          )}
         </div>
       </Modal>
     </div>

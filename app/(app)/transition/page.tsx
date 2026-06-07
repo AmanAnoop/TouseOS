@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { BookOpen, Plus, Save } from "lucide-react";
+import { BookOpen, Download, Plus, Save } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import {
   Button, Card, CardHeader, EmptyState, Modal,
   PageHeader, Select, Tabs, Textarea,
@@ -11,6 +11,7 @@ import {
 import { ROLE_LABELS } from "@/lib/permissions";
 import { formatDate } from "@/lib/utils";
 import type { TransitionBinder } from "@/types";
+import { buildTransitionBinderHtml, downloadTransitionBinderHtml } from "@/lib/transition-export";
 
 const BINDER_ROLES = [
   "president","treasurer","social_chair","recruitment_chair","risk_manager",
@@ -18,10 +19,9 @@ const BINDER_ROLES = [
 ];
 
 export default function TransitionPage() {
-  const supabase = createClient();
+  const { orgId, orgName, role } = useOrg();
   const [binders, setBinders] = useState<TransitionBinder[]>([]);
   const [loading, setLoading] = useState(true);
-  const [orgId, setOrgId] = useState<string | null>(null);
   const [tab, setTab] = useState("view");
   const [selectedBinder, setSelectedBinder] = useState<TransitionBinder | null>(null);
 
@@ -34,42 +34,44 @@ export default function TransitionPage() {
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
-    const { data } = await supabase.from("transition_binders").select("*").eq("org_id", oid).order("created_at", { ascending: false });
-    setBinders((data ?? []) as TransitionBinder[]);
+    const res = await fetch(`/api/transition/binders?org_id=${encodeURIComponent(oid)}`);
+    setBinders(res.ok ? ((await res.json()) as TransitionBinder[]) : []);
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id, role").eq("user_id", user.id).limit(1).single();
-      if (m) {
-        setOrgId(m.org_id);
-        load(m.org_id);
-        setForm((prev) => ({ ...prev, role: String(m.role) }));
-      }
-    }
-    init();
-  }, [supabase, load]);
+    if (orgId) load(orgId);
+  }, [orgId, load]);
+
+  useEffect(() => {
+    if (role) setForm((prev) => (prev.role ? prev : { ...prev, role: String(role) }));
+  }, [role]);
 
   async function saveBinder() {
     if (!orgId || !form.role) return;
-    const { error } = await supabase.from("transition_binders").insert({
-      org_id: orgId,
-      role: form.role,
-      semester: form.semester,
-      year: parseInt(form.year),
-      responsibilities: form.responsibilities || null,
-      lessons_learned: form.lessonsLearned || null,
-      recommendations: form.recommendations || null,
-      key_deadlines: form.keyDeadlines ? form.keyDeadlines.split("\n").filter(Boolean).map((d) => ({ deadline: d })) : [],
-      key_contacts: form.keyContacts ? form.keyContacts.split("\n").filter(Boolean).map((c) => ({ contact: c })) : [],
-      vendor_notes: form.vendorNotes || null,
-      budget_notes: form.budgetNotes || null,
-      unfinished_tasks: form.unfinishedTasks || null,
+    const res = await fetch("/api/transition/binders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        role: form.role,
+        semester: form.semester,
+        year: form.year,
+        responsibilities: form.responsibilities,
+        lessonsLearned: form.lessonsLearned,
+        recommendations: form.recommendations,
+        keyDeadlinesText: form.keyDeadlines,
+        keyContactsText: form.keyContacts,
+        vendorNotes: form.vendorNotes,
+        budgetNotes: form.budgetNotes,
+        unfinishedTasks: form.unfinishedTasks,
+      }),
     });
-    if (error) { toast.error(error.message); return; }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error((err as { error?: string }).error ?? "Failed to save");
+      return;
+    }
     toast.success("Transition binder saved");
     load(orgId);
   }
@@ -84,7 +86,7 @@ export default function TransitionPage() {
   ];
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Officer Transition Binder"
         description="Institutional knowledge for seamless officer handoffs"
@@ -191,10 +193,28 @@ export default function TransitionPage() {
         title={`${ROLE_LABELS[selectedBinder?.role as keyof typeof ROLE_LABELS] ?? selectedBinder?.role} Binder`}
         description={`${selectedBinder?.outgoing_name ?? "Officer"} · ${selectedBinder?.semester} ${selectedBinder?.year}`}
         size="xl"
-        footer={<Button onClick={() => setSelectedBinder(null)}>Close</Button>}
+        footer={
+          <div className="flex gap-2">
+            {selectedBinder && (
+              <Button
+                variant="secondary"
+                icon={<Download size={14} />}
+                onClick={() => {
+                  const html = buildTransitionBinderHtml(selectedBinder, orgName);
+                  const role = ROLE_LABELS[selectedBinder.role as keyof typeof ROLE_LABELS] ?? selectedBinder.role;
+                  downloadTransitionBinderHtml(`transition-${role}-${selectedBinder.year}.html`, html);
+                  toast.success("Binder exported — open in browser and Print to PDF");
+                }}
+              >
+                Export HTML
+              </Button>
+            )}
+            <Button onClick={() => setSelectedBinder(null)}>Close</Button>
+          </div>
+        }
       >
         {selectedBinder && (
-          <div className="space-y-5">
+          <div className="ds-page-stack">
             {[
               { label: "Responsibilities", value: selectedBinder.responsibilities },
               { label: "Lessons learned", value: selectedBinder.lessons_learned },

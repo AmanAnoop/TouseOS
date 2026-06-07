@@ -1,8 +1,10 @@
 "use client";
 
-import { Heart, TrendingUp, Users } from "lucide-react";
-import { Badge, Card, CardHeader, EmptyState, ProgressBar, StatCard } from "@/components/ui";
-import { formatDate } from "@/lib/utils";
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import { Users } from "lucide-react";
+import { Badge, Button, EmptyState } from "@/components/ui";
+import { formatDateTime } from "@/lib/utils";
 
 export interface EngagementMember {
   id: string;
@@ -20,81 +22,123 @@ export interface EngagementEvent {
   attendeeCount: number;
 }
 
+type EventFilter = "all" | "brotherhood" | "sisterhood" | "upcoming" | "past";
+
 interface EngagementDashboardProps {
   members: EngagementMember[];
   events: EngagementEvent[];
   semesterGoal: number;
   orgLabel: string;
+  orgType: string;
 }
 
 export function EngagementDashboard({
-  members, events, semesterGoal, orgLabel,
+  members, events, semesterGoal, orgLabel, orgType,
 }: EngagementDashboardProps) {
-  const avgRate = members.length > 0
-    ? Math.round(members.reduce((s, m) => s + m.rate, 0) / members.length)
-    : 0;
-  const atGoal = members.filter((m) => m.attended >= semesterGoal).length;
+  const [filter, setFilter] = useState<EventFilter>("all");
+  const now = Date.now();
+
+  const filteredEvents = useMemo(() => {
+    return events.filter((e) => {
+      const isPast = new Date(e.starts_at).getTime() < now;
+      if (filter === "brotherhood") return e.type === "brotherhood";
+      if (filter === "sisterhood") return e.type === "sisterhood";
+      if (filter === "upcoming") return !isPast;
+      if (filter === "past") return isPast;
+      return true;
+    });
+  }, [events, filter, now]);
+
+  const createHref = orgType === "sorority"
+    ? "/events/new?type=sisterhood"
+    : "/events/new?type=brotherhood";
+
+  const bondingFilter = orgType === "sorority" ? "sisterhood" : "brotherhood";
+  const filterOptions: EventFilter[] = [
+    "all",
+    bondingFilter,
+    "upcoming",
+    "past",
+  ];
 
   return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-        <StatCard title={`${orgLabel} events`} value={events.length} icon={<Heart size={18} />} />
-        <StatCard title="Avg participation" value={`${avgRate}%`} icon={<TrendingUp size={18} />} />
-        <StatCard title="Met semester goal" value={`${atGoal}/${members.length}`} icon={<Users size={18} />} />
+    <div className="ds-page-stack">
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <Link href={createHref}>
+          <Button size="sm" variant="secondary">
+            Create {orgLabel} event
+          </Button>
+        </Link>
       </div>
 
-      <Card>
-        <CardHeader
-          title="Upcoming bonding events"
-          description={`Semester goal: attend ${semesterGoal} ${orgLabel.toLowerCase()} events`}
-        />
-        {events.length === 0 ? (
-          <EmptyState
-            icon={<Heart size={20} />}
-            title="No bonding events scheduled"
-            description={`Create events with type Brotherhood or Sisterhood to track engagement.`}
-          />
-        ) : (
-          <div className="space-y-2">
-            {events.slice(0, 6).map((e) => (
-              <div key={e.id} className="flex items-center justify-between p-3 rounded-lg border border-border">
-                <div>
-                  <p className="font-medium text-sm">{e.title}</p>
-                  <p className="text-xs text-muted-foreground">{formatDate(e.starts_at)} · {e.attendeeCount} RSVPs</p>
-                </div>
-                <Badge label={e.type.replace("_", " ")} color="purple" />
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
+      <div className="ds-segment-group">
+        {filterOptions.map((f) => (
+          <button
+            key={f}
+            type="button"
+            className={`ds-segment ${filter === f ? "ds-segment-active" : ""}`}
+            style={{ flex: "0 1 auto", minWidth: 0 }}
+            onClick={() => setFilter(f)}
+          >
+            {f === "all" ? "All" : f === bondingFilter ? orgLabel : f.charAt(0).toUpperCase() + f.slice(1)}
+          </button>
+        ))}
+      </div>
 
-      <Card>
-        <CardHeader title="Member participation" description="Attendance at brotherhood/sisterhood events this semester" />
+      {filteredEvents.length === 0 ? (
+        <EmptyState
+          icon={<Users size={32} />}
+          title="No engagement events yet"
+          description={`Create your first ${orgLabel.toLowerCase()} event to get started.`}
+          action={
+            <Link href={createHref}>
+              <Button size="sm">Create event</Button>
+            </Link>
+          }
+        />
+      ) : (
+        <div className="ds-card" style={{ padding: 0, overflow: "hidden" }}>
+          {filteredEvents.map((e) => (
+            <div key={e.id} className="ds-feed-event-row">
+              <Badge label={e.type.replace("_", " ")} color="purple" />
+              <span style={{ fontSize: 14, fontWeight: 500, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {e.title}
+              </span>
+              <span className="type-small" style={{ color: "var(--color-text-secondary)" }}>
+                {formatDateTime(e.starts_at)}
+              </span>
+              <span className="type-small" style={{ color: "var(--color-text-secondary)", fontFamily: "var(--font-mono)" }}>
+                {e.attendeeCount} RSVP
+              </span>
+              <Link href={`/events/${e.id}`}>
+                <Button size="sm" variant="ghost">View</Button>
+              </Link>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div>
+        <h3 className="type-h3" style={{ marginBottom: 12 }}>Member participation</h3>
+        <p className="type-small" style={{ color: "var(--color-text-secondary)", marginBottom: 12 }}>
+          Semester goal: {semesterGoal} {orgLabel.toLowerCase()} events · {members.filter((m) => m.attended >= semesterGoal).length}/{members.length} on track
+        </p>
         {members.length === 0 ? (
           <EmptyState icon={<Users size={20} />} title="No members" />
         ) : (
-          <div className="space-y-2">
-            {[...members].sort((a, b) => b.rate - a.rate).slice(0, 15).map((m) => (
-              <div key={m.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-1">
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm">{m.full_name}</p>
-                  <ProgressBar
-                    value={m.rate}
-                    label={`${m.attended}/${m.total} events`}
-                    color={m.attended >= semesterGoal ? "green" : m.rate >= 50 ? "yellow" : "red"}
-                    size="sm"
-                  />
-                </div>
-                <Badge
-                  label={m.attended >= semesterGoal ? "On track" : "Below goal"}
-                  color={m.attended >= semesterGoal ? "green" : "red"}
-                />
+          <div className="ds-card" style={{ padding: 0, overflow: "hidden" }}>
+            {[...members].sort((a, b) => b.rate - a.rate).slice(0, 12).map((m) => (
+              <div key={m.id} className="ds-feed-event-row">
+                <span style={{ fontSize: 14, fontWeight: 500, flex: 1 }}>{m.full_name}</span>
+                <span className="type-small" style={{ fontFamily: "var(--font-mono)" }}>
+                  {m.attended}/{m.total}
+                </span>
+                <Badge label={m.attended >= semesterGoal ? "On track" : "Below goal"} color={m.attended >= semesterGoal ? "green" : "yellow"} />
               </div>
             ))}
           </div>
         )}
-      </Card>
+      </div>
     </div>
   );
 }

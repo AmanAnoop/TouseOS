@@ -30,13 +30,20 @@ export async function GET(request: Request) {
 
   const rows = leads ?? [];
   const byCampaign: Record<string, number> = {};
+  const bySource: Record<string, number> = {};
   const byStatus: Record<string, number> = {};
   let enriched = 0;
   let consented = 0;
+  let instagramLeads = 0;
 
   for (const row of rows) {
     const campaign = row.campaign || "organic";
     byCampaign[campaign] = (byCampaign[campaign] ?? 0) + 1;
+    if (campaign.toLowerCase().includes("instagram") || row.referral_source?.toLowerCase().includes("instagram")) {
+      instagramLeads++;
+    }
+    const source = row.referral_source || "unknown";
+    bySource[source] = (bySource[source] ?? 0) + 1;
     byStatus[row.status] = (byStatus[row.status] ?? 0) + 1;
     if (row.profile_enriched_at) enriched++;
     if (row.communication_consent) consented++;
@@ -50,11 +57,18 @@ export async function GET(request: Request) {
     .map(([campaign, count]) => ({ campaign, count }))
     .sort((a, b) => b.count - a.count);
 
+  const sources = Object.entries(bySource)
+    .map(([source, count]) => ({ source, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
   return NextResponse.json({
     total: rows.length,
     enriched,
     consented,
+    instagramLeads,
     pipeline,
     campaigns,
+    sources,
   });
 }

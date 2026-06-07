@@ -12,37 +12,33 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   icon?: React.ReactNode;
 }
 
-const buttonBase =
-  "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50";
-
-const buttonVariants: Record<ButtonVariant, string> = {
-  primary: "bg-greek-600 text-white hover:bg-greek-700 active:bg-greek-800",
-  secondary: "bg-surface-1 text-foreground hover:bg-surface-2 border border-border",
-  ghost: "text-foreground hover:bg-surface-1",
-  danger: "bg-red-600 text-white hover:bg-red-700",
-  outline: "border border-border text-foreground hover:bg-surface-1",
-};
-
-const buttonSizes: Record<ButtonSize, string> = {
-  sm: "h-8 px-3 text-sm",
-  md: "h-9 px-4 text-sm",
-  lg: "h-10 px-6 text-base",
+const btnVariantClass: Record<ButtonVariant, string> = {
+  primary: "ds-btn-primary",
+  secondary: "ds-btn-secondary",
+  ghost: "ds-btn-ghost",
+  danger: "ds-btn-danger",
+  outline: "ds-btn-secondary",
 };
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ variant = "primary", size = "md", loading, icon, children, className, ...props }, ref) => (
     <button
       ref={ref}
-      className={cn(buttonBase, buttonVariants[variant], buttonSizes[size], className)}
+      className={cn(
+        "ds-btn",
+        btnVariantClass[variant],
+        size === "sm" && "h-8 text-xs",
+        size === "lg" && "h-11 px-6",
+        className,
+      )}
       disabled={props.disabled || loading}
       {...props}
     >
       {loading ? (
-        <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-        </svg>
-      ) : icon}
+        <span className="ds-skeleton" style={{ width: 16, height: 16, borderRadius: "50%" }} aria-hidden />
+      ) : (
+        icon
+      )}
       {children}
     </button>
   ),
@@ -61,37 +57,33 @@ interface BadgeProps {
   className?: string;
 }
 
-const badgeColors: Record<BadgeColor, string> = {
-  green: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
-  red: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
-  yellow: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
-  blue: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
-  purple: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
-  orange: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
-  gray: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
-  emerald: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
-  pink: "bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300",
-  indigo: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300",
+const badgeClass: Record<BadgeColor, string> = {
+  green: "ds-badge-paid",
+  emerald: "ds-badge-paid",
+  red: "ds-badge-error",
+  yellow: "ds-badge-unpaid",
+  orange: "ds-badge-unpaid",
+  blue: "ds-badge-new",
+  indigo: "ds-badge-new",
+  purple: "ds-badge-active",
+  pink: "ds-badge-neutral",
+  gray: "ds-badge-inactive",
 };
 
 export function Badge({ label, color = "gray", dot, className }: BadgeProps) {
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium",
-        badgeColors[color],
-        className,
-      )}
-    >
+    <span className={cn("ds-badge", badgeClass[color], className)}>
       {dot && (
-        <span className={cn("h-1.5 w-1.5 rounded-full", {
-          "bg-green-500": color === "green" || color === "emerald",
-          "bg-red-500": color === "red",
-          "bg-yellow-500": color === "yellow",
-          "bg-blue-500": color === "blue" || color === "indigo",
-          "bg-purple-500": color === "purple",
-          "bg-gray-400": color === "gray",
-        })} />
+        <span
+          style={{
+            width: 6,
+            height: 6,
+            borderRadius: "50%",
+            background: "currentColor",
+            marginRight: 4,
+          }}
+          aria-hidden
+        />
       )}
       {label}
     </span>
@@ -107,17 +99,16 @@ interface CardProps {
 }
 
 export function Card({ className, children, padding = "md", onClick }: CardProps) {
+  const pad =
+    padding === "none" ? { padding: 0 } :
+    padding === "sm" ? { padding: "16px" } :
+    padding === "lg" ? { padding: "24px 32px" } : undefined;
+
   return (
     <div
       onClick={onClick}
-      className={cn(
-        "rounded-xl border border-border bg-card shadow-card",
-        onClick && "cursor-pointer",
-        padding === "none" ? "" :
-        padding === "sm" ? "p-4" :
-        padding === "md" ? "p-5" : "p-6",
-        className,
-      )}
+      className={cn("ds-card", onClick && "cursor-pointer", className)}
+      style={pad}
     >
       {children}
     </div>
@@ -134,19 +125,30 @@ interface CardHeaderProps {
 
 export function CardHeader({ title, description, action, icon, className }: CardHeaderProps) {
   return (
-    <div className={cn("flex items-start justify-between gap-4 mb-4", className)}>
+    <div className={cn("flex items-start justify-between gap-4", className)} style={{ marginBottom: icon ? 12 : 0 }}>
       <div className="flex items-start gap-3">
         {icon && (
-          <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-greek-50 dark:bg-greek-950 flex items-center justify-center text-greek-600">
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 6,
+              background: "var(--color-bg-subtle)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--color-text-secondary)",
+            }}
+          >
             {icon}
           </div>
         )}
-        <div>
-          <h3 className="font-semibold text-foreground">{title}</h3>
-          {description && <p className="text-sm text-muted-foreground mt-0.5">{description}</p>}
+        <div className="ds-card-header-block" style={{ flex: 1, minWidth: 0 }}>
+          <div className="ds-card-header">{title}</div>
+          {description && <p className="type-small" style={{ margin: "4px 0 0" }}>{description}</p>}
         </div>
       </div>
-      {action && <div className="flex-shrink-0">{action}</div>}
+      {action && <div style={{ flexShrink: 0 }}>{action}</div>}
     </div>
   );
 }
@@ -162,39 +164,33 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ label, error, hint, icon, trailing, className, ...props }, ref) => (
-    <div className="flex flex-col gap-1.5">
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       {label && (
-        <label className="text-sm font-medium text-foreground">
+        <label className="ds-label">
           {label}
-          {props.required && <span className="text-red-500 ml-1">*</span>}
+          {props.required && <span style={{ color: "var(--color-error)", marginLeft: 4 }}>*</span>}
         </label>
       )}
-      <div className="relative flex items-center">
+      <div style={{ position: "relative" }}>
         {icon && (
-          <span className="pointer-events-none absolute left-3 text-muted-foreground">
+          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--color-text-tertiary)" }}>
             {icon}
           </span>
         )}
         <input
           ref={ref}
-          className={cn(
-            "flex h-9 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm",
-            "placeholder:text-muted-foreground",
-            "focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent",
-            "disabled:cursor-not-allowed disabled:opacity-50",
-            icon && "pl-9",
-            trailing && "pr-9",
-            error && "border-red-500 focus:ring-red-500",
-            className,
-          )}
+          className={cn("ds-input", className)}
+          style={{ paddingLeft: icon ? 36 : undefined, paddingRight: trailing ? 36 : undefined, minHeight: 44 }}
           {...props}
         />
         {trailing && (
-          <span className="absolute right-3 text-muted-foreground">{trailing}</span>
+          <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "var(--color-text-tertiary)" }}>
+            {trailing}
+          </span>
         )}
       </div>
-      {error && <p className="text-xs text-red-500">{error}</p>}
-      {hint && !error && <p className="text-xs text-muted-foreground">{hint}</p>}
+      {error && <p className="type-small" style={{ color: "var(--color-error)", margin: 0 }}>{error}</p>}
+      {hint && !error && <p className="type-small" style={{ margin: 0 }}>{hint}</p>}
     </div>
   ),
 );
@@ -209,27 +205,16 @@ interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement
 
 export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ label, error, hint, className, ...props }, ref) => (
-    <div className="flex flex-col gap-1.5">
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       {label && (
-        <label className="text-sm font-medium text-foreground">
+        <label className="ds-label">
           {label}
-          {props.required && <span className="text-red-500 ml-1">*</span>}
+          {props.required && <span style={{ color: "var(--color-error)", marginLeft: 4 }}>*</span>}
         </label>
       )}
-      <textarea
-        ref={ref}
-        className={cn(
-          "flex min-h-[80px] w-full rounded-lg border border-border bg-background px-3 py-2 text-sm",
-          "placeholder:text-muted-foreground resize-none",
-          "focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent",
-          "disabled:cursor-not-allowed disabled:opacity-50",
-          error && "border-red-500 focus:ring-red-500",
-          className,
-        )}
-        {...props}
-      />
-      {error && <p className="text-xs text-red-500">{error}</p>}
-      {hint && !error && <p className="text-xs text-muted-foreground">{hint}</p>}
+      <textarea ref={ref} className={cn("ds-input ds-textarea", className)} {...props} />
+      {error && <p className="type-small" style={{ color: "var(--color-error)", margin: 0 }}>{error}</p>}
+      {hint && !error && <p className="type-small" style={{ margin: 0 }}>{hint}</p>}
     </div>
   ),
 );
@@ -245,27 +230,15 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
 
 export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
   ({ label, error, options, placeholder, className, ...props }, ref) => (
-    <div className="flex flex-col gap-1.5">
-      {label && (
-        <label className="text-sm font-medium text-foreground">{label}</label>
-      )}
-      <select
-        ref={ref}
-        className={cn(
-          "flex h-9 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm",
-          "focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent",
-          "disabled:cursor-not-allowed disabled:opacity-50",
-          error && "border-red-500",
-          className,
-        )}
-        {...props}
-      >
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      {label && <label className="ds-label">{label}</label>}
+      <select ref={ref} className={cn("ds-input ds-select", className)} style={{ minHeight: 44 }} {...props}>
         {placeholder && <option value="">{placeholder}</option>}
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>{opt.label}</option>
         ))}
       </select>
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p className="type-small" style={{ color: "var(--color-error)", margin: 0 }}>{error}</p>}
     </div>
   ),
 );
@@ -277,58 +250,187 @@ interface AvatarProps {
   src?: string | null;
   size?: "xs" | "sm" | "md" | "lg" | "xl";
   className?: string;
+  /** On dark sidebar/chrome — light initials on subtle surface */
+  variant?: "default" | "chrome";
 }
 
-const avatarSizes = { xs: "w-6 h-6 text-xs", sm: "w-8 h-8 text-sm", md: "w-10 h-10 text-base", lg: "w-12 h-12 text-lg", xl: "w-16 h-16 text-xl" };
+const avatarSizes = { xs: 24, sm: 32, md: 40, lg: 48, xl: 64 };
 
-const avatarColors = [
-  "bg-red-100 text-red-700", "bg-orange-100 text-orange-700",
-  "bg-amber-100 text-amber-700", "bg-green-100 text-green-700",
-  "bg-teal-100 text-teal-700", "bg-blue-100 text-blue-700",
-  "bg-indigo-100 text-indigo-700", "bg-purple-100 text-purple-700",
-  "bg-pink-100 text-pink-700",
-];
-
-function nameColor(name: string) {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
-  return avatarColors[Math.abs(h) % avatarColors.length];
-}
-
-export function Avatar({ name, src, size = "md", className }: AvatarProps) {
+export function Avatar({ name, src, size = "md", className, variant = "default" }: AvatarProps) {
+  const px = avatarSizes[size];
   const initStr = name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 
   if (src) {
     return (
+      // eslint-disable-next-line @next/next/no-img-element
       <img
         src={src}
-        alt={name}
-        className={cn("rounded-full object-cover flex-shrink-0", avatarSizes[size], className)}
+        alt={name.trim() || "User avatar"}
+        width={px}
+        height={px}
+        className={cn(className)}
+        style={{ width: px, height: px, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
       />
     );
   }
 
+  const initialsStyle =
+    variant === "chrome"
+      ? {
+          background: "rgba(255,255,255,0.12)",
+          color: "var(--color-text-inverse)",
+        }
+      : {
+          background: "var(--color-org-primary)",
+          color: "var(--color-text-on-brand)",
+        };
+
   return (
     <div
-      className={cn(
-        "rounded-full flex items-center justify-center font-semibold flex-shrink-0",
-        avatarSizes[size],
-        nameColor(name),
-        className,
-      )}
+      className={cn(className)}
+      style={{
+        width: px,
+        height: px,
+        borderRadius: "50%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: px * 0.35,
+        fontWeight: 600,
+        flexShrink: 0,
+        ...initialsStyle,
+      }}
     >
       {initStr}
     </div>
   );
 }
 
-/* ── Skeleton ───────────────────────────────────────────── */
-export function Skeleton({ className }: { className?: string }) {
+/* ── Member identity (avatar + name) ───────────────────── */
+interface MemberIdentityProps {
+  name: string;
+  src?: string | null;
+  subtitle?: string;
+  size?: AvatarProps["size"];
+  avatarVariant?: AvatarProps["variant"];
+  className?: string;
+}
+
+export function MemberIdentity({
+  name,
+  src,
+  subtitle,
+  size = "sm",
+  avatarVariant = "default",
+  className,
+}: MemberIdentityProps) {
   return (
-    <div
-      className={cn("animate-pulse rounded-md bg-surface-2", className)}
-    />
+    <div className={cn("ds-member-identity", className)}>
+      <Avatar name={name} src={src} size={size} variant={avatarVariant} />
+      <div className="ds-member-identity-text">
+        <p className="ds-member-identity-name">{name}</p>
+        {subtitle && <p className="ds-member-identity-meta">{subtitle}</p>}
+      </div>
+    </div>
   );
+}
+
+/* ── Action menu (dropdown) ───────────────────────────── */
+interface ActionMenuItem {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}
+
+export function ActionMenu({
+  label,
+  items,
+  className,
+}: {
+  label: string;
+  items: ActionMenuItem[];
+  className?: string;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (!open) return;
+    function onDoc(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  return (
+    <div ref={ref} className={cn("relative inline-block", className)}>
+      <Button
+        size="sm"
+        icon={<span style={{ fontSize: 10, marginLeft: 2 }}>▾</span>}
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+      >
+        {label}
+      </Button>
+      {open && (
+        <div
+          role="menu"
+          className="ds-card"
+          style={{
+            position: "absolute",
+            right: 0,
+            top: "calc(100% + 6px)",
+            zIndex: 50,
+            minWidth: 200,
+            padding: 6,
+            boxShadow: "var(--shadow-lg)",
+          }}
+        >
+          {items.map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              role="menuitem"
+              disabled={item.disabled}
+              onClick={() => {
+                setOpen(false);
+                item.onClick();
+              }}
+              style={{
+                display: "block",
+                width: "100%",
+                textAlign: "left",
+                padding: "8px 12px",
+                fontSize: 13,
+                border: "none",
+                borderRadius: 6,
+                background: "transparent",
+                color: "var(--color-text-primary)",
+                cursor: item.disabled ? "not-allowed" : "pointer",
+                opacity: item.disabled ? 0.5 : 1,
+              }}
+              className="hover:bg-bg-subtle"
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Skeleton ───────────────────────────────────────────── */
+export function Skeleton({
+  className,
+  style,
+}: {
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  return <div className={cn("ds-skeleton", className)} style={style} aria-hidden />;
 }
 
 /* ── Stat Card ──────────────────────────────────────────── */
@@ -339,28 +441,35 @@ interface StatCardProps {
   deltaType?: "up" | "down" | "neutral";
   icon?: React.ReactNode;
   className?: string;
+  accent?: boolean;
 }
 
-export function StatCard({ title, value, delta, deltaType = "neutral", icon, className }: StatCardProps) {
+export function StatCard({ title, value, delta, deltaType = "neutral", icon, className, accent }: StatCardProps) {
+  const trendColor =
+    deltaType === "up" ? "var(--color-success)" :
+    deltaType === "down" ? "var(--color-error)" :
+    "var(--color-text-secondary";
+
   return (
-    <Card className={cn("flex flex-col gap-3", className)}>
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground font-medium">{title}</p>
-        {icon && (
-          <div className="text-muted-foreground">{icon}</div>
-        )}
+    <div className={cn("ds-stat-card", accent && "ds-stat-card-accent", className)}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <p className="ds-stat-label">{title}</p>
+        {icon && <span style={{ color: "var(--color-text-tertiary)" }}>{icon}</span>}
       </div>
-      <p className="text-2xl font-bold text-foreground tracking-tight">{value}</p>
+      <p className="ds-stat-value">{value}</p>
       {delta && (
-        <p className={cn("text-xs font-medium", {
-          "text-green-600": deltaType === "up",
-          "text-red-500": deltaType === "down",
-          "text-muted-foreground": deltaType === "neutral",
-        })}>
+        <span
+          className="ds-badge"
+          style={{
+            marginTop: 8,
+            background: "var(--color-bg-subtle)",
+            color: trendColor,
+          }}
+        >
           {delta}
-        </p>
+        </span>
       )}
-    </Card>
+    </div>
   );
 }
 
@@ -370,6 +479,11 @@ interface Column<T> {
   header: string;
   render?: (row: T) => React.ReactNode;
   className?: string;
+  numeric?: boolean;
+  /** Hide this field on mobile card layout */
+  hideOnMobile?: boolean;
+  /** Use as card title on mobile (defaults to first column) */
+  mobilePrimary?: boolean;
 }
 
 interface TableProps<T extends Record<string, unknown>> {
@@ -378,6 +492,80 @@ interface TableProps<T extends Record<string, unknown>> {
   onRowClick?: (row: T) => void;
   emptyMessage?: string;
   loading?: boolean;
+  /** Row key for React lists */
+  rowKey?: (row: T, index: number) => string;
+}
+
+function TableMobileCards<T extends Record<string, unknown>>({
+  columns,
+  data,
+  onRowClick,
+  emptyMessage,
+  loading,
+  rowKey,
+}: TableProps<T>) {
+  const primaryCol = columns.find((c) => c.mobilePrimary) ?? columns[0];
+  const detailCols = columns.filter((c) => c.key !== primaryCol.key && !c.hideOnMobile);
+
+  if (loading) {
+    return (
+      <div className="ds-table-mobile">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="ds-table-card">
+            <Skeleton className="h-5 w-2/3 mb-3" />
+            <Skeleton className="h-3 w-full mb-2" />
+            <Skeleton className="h-3 w-1/2" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (data.length === 0) {
+    return (
+      <div className="ds-table-mobile">
+        <p className="type-small" style={{ textAlign: "center", padding: 32, color: "var(--color-text-secondary)" }}>
+          {emptyMessage}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="ds-table-mobile">
+      {data.map((row, i) => {
+        const key = rowKey?.(row, i) ?? String((row as { id?: string }).id ?? i);
+        const clickable = Boolean(onRowClick);
+        return (
+          <div
+            key={key}
+            className={cn("ds-table-card", clickable && "ds-table-card-clickable")}
+            role={clickable ? "button" : undefined}
+            tabIndex={clickable ? 0 : undefined}
+            onClick={() => onRowClick?.(row)}
+            onKeyDown={(e) => {
+              if (clickable && (e.key === "Enter" || e.key === " ")) {
+                e.preventDefault();
+                onRowClick?.(row);
+              }
+            }}
+          >
+            <div className="ds-table-card-primary">
+              {primaryCol.render ? primaryCol.render(row) : String(row[primaryCol.key] ?? "")}
+            </div>
+            {detailCols.map((col) => (
+              <div key={col.key} className="ds-table-card-row">
+                <span className="ds-table-card-label">{col.header}</span>
+                <span style={{ textAlign: col.numeric ? "right" : undefined, minWidth: 0 }}>
+                  {col.render ? col.render(row) : String(row[col.key] ?? "")}
+                </span>
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 export function Table<T extends Record<string, unknown>>({
@@ -386,62 +574,105 @@ export function Table<T extends Record<string, unknown>>({
   onRowClick,
   emptyMessage = "No records found.",
   loading,
+  rowKey,
 }: TableProps<T>) {
+  const desktopBody = loading ? (
+    Array.from({ length: 4 }).map((_, i) => (
+      <tr key={i}>
+        {columns.map((col) => (
+          <td key={col.key}>
+            <Skeleton style={{ height: 16, width: "100%" }} />
+          </td>
+        ))}
+      </tr>
+    ))
+  ) : data.length === 0 ? (
+    <tr>
+      <td colSpan={columns.length} style={{ textAlign: "center", padding: 48, color: "var(--color-text-secondary)" }}>
+        {emptyMessage}
+      </td>
+    </tr>
+  ) : (
+    data.map((row, i) => {
+      const key = rowKey?.(row, i) ?? String((row as { id?: string }).id ?? i);
+      return (
+        <tr
+          key={key}
+          style={{ cursor: onRowClick ? "pointer" : undefined }}
+          onClick={() => onRowClick?.(row)}
+        >
+          {columns.map((col) => (
+            <td key={col.key} className={col.numeric ? "ds-td-num" : undefined}>
+              {col.render ? col.render(row) : String(row[col.key] ?? "")}
+            </td>
+          ))}
+        </tr>
+      );
+    })
+  );
+
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border">
-            {columns.map((col) => (
-              <th
-                key={col.key}
-                className={cn(
-                  "text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider",
-                  col.className,
-                )}
-              >
-                {col.header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {loading ? (
-            Array.from({ length: 4 }).map((_, i) => (
-              <tr key={i} className="border-b border-border">
-                {columns.map((col) => (
-                  <td key={col.key} className="py-3 px-4">
-                    <Skeleton className="h-4 w-full" />
-                  </td>
-                ))}
-              </tr>
-            ))
-          ) : data.length === 0 ? (
+    <>
+      <TableMobileCards
+        columns={columns}
+        data={data}
+        onRowClick={onRowClick}
+        emptyMessage={emptyMessage}
+        loading={loading}
+        rowKey={rowKey}
+      />
+      <div className="ds-table-desktop ds-table-wrap">
+        <table className="ds-table">
+          <thead>
             <tr>
-              <td colSpan={columns.length} className="py-12 text-center text-muted-foreground">
-                {emptyMessage}
-              </td>
+              {columns.map((col) => (
+                <th key={col.key} className={col.numeric ? "text-right" : undefined} style={col.numeric ? { textAlign: "right" } : undefined}>
+                  {col.header}
+                </th>
+              ))}
             </tr>
-          ) : (
-            data.map((row, i) => (
-              <tr
-                key={i}
-                className={cn(
-                  "border-b border-border last:border-0 transition-colors",
-                  onRowClick && "cursor-pointer hover:bg-surface-1",
-                )}
-                onClick={() => onRowClick?.(row)}
-              >
-                {columns.map((col) => (
-                  <td key={col.key} className={cn("py-3 px-4", col.className)}>
-                    {col.render ? col.render(row) : String(row[col.key] ?? "")}
-                  </td>
-                ))}
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>{desktopBody}</tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+/** Full-page loading placeholder — header + stat grid + content blocks */
+export function PageSkeleton({
+  stats = 4,
+  rows = 3,
+  className,
+}: {
+  stats?: number;
+  rows?: number;
+  className?: string;
+}) {
+  return (
+    <div className={cn("ds-page-skeleton", className)} aria-busy="true" aria-label="Loading page">
+      <div className="ds-page-skeleton-header">
+        <Skeleton style={{ height: 12, width: 120 }} />
+        <Skeleton style={{ height: 28, width: "min(280px, 70%)" }} />
+        <Skeleton style={{ height: 14, width: "min(360px, 85%)" }} />
+      </div>
+      {stats > 0 && (
+        <div className="ds-stat-grid">
+          {Array.from({ length: stats }).map((_, i) => (
+            <div key={i} className="ds-stat-card">
+              <Skeleton style={{ height: 12, width: 80, marginBottom: 12 }} />
+              <Skeleton style={{ height: 32, width: 64 }} />
+            </div>
+          ))}
+        </div>
+      )}
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="ds-card" style={{ padding: 20 }}>
+          <Skeleton style={{ height: 14, width: "40%", marginBottom: 16 }} />
+          <Skeleton style={{ height: 12, width: "100%", marginBottom: 8 }} />
+          <Skeleton style={{ height: 12, width: "75%" }} />
+        </div>
+      ))}
     </div>
   );
 }
@@ -457,50 +688,38 @@ interface ModalProps {
   size?: "sm" | "md" | "lg" | "xl";
 }
 
-const modalSizes = { sm: "max-w-sm", md: "max-w-md", lg: "max-w-lg", xl: "max-w-2xl" };
+const modalMax: Record<string, string> = {
+  sm: "400px",
+  md: "520px",
+  lg: "640px",
+  xl: "960px",
+};
 
 export function Modal({ open, onClose, title, description, children, footer, size = "md" }: ModalProps) {
   React.useEffect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
+    document.body.style.overflow = open ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
   }, [open]);
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div
-        className={cn(
-          "relative z-10 w-full bg-card border border-border rounded-xl shadow-card-lg",
-          "animate-slide-up",
-          modalSizes[size],
-        )}
-      >
-        <div className="flex items-start justify-between p-5 border-b border-border">
+    <div className="ds-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title" onClick={onClose}>
+      <div className="ds-modal-panel" style={{ maxWidth: modalMax[size] }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--color-border)", display: "flex", justifyContent: "space-between", gap: 16 }}>
           <div>
-            <h2 className="text-base font-semibold text-foreground">{title}</h2>
-            {description && <p className="text-sm text-muted-foreground mt-0.5">{description}</p>}
+            <h2 id="modal-title" className="type-h2" style={{ margin: 0 }}>{title}</h2>
+            {description && <p className="type-small" style={{ margin: "8px 0 0" }}>{description}</p>}
           </div>
-          <button
-            onClick={onClose}
-            className="text-muted-foreground hover:text-foreground rounded-md p-1 -mr-1"
-          >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+          <button type="button" className="ds-btn ds-btn-ghost ds-btn-icon" onClick={onClose} aria-label="Close dialog">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
-        <div className="p-5 overflow-y-auto max-h-[70vh]">{children}</div>
+        <div style={{ padding: "20px 24px", maxHeight: "70vh", overflowY: "auto" }}>{children}</div>
         {footer && (
-          <div className="flex items-center justify-end gap-2 p-4 border-t border-border">
+          <div style={{ padding: "16px 24px", borderTop: "1px solid var(--color-border)", display: "flex", justifyContent: "flex-end", gap: 8 }}>
             {footer}
           </div>
         )}
@@ -520,17 +739,11 @@ interface EmptyStateProps {
 
 export function EmptyState({ icon, title, description, action, className }: EmptyStateProps) {
   return (
-    <div className={cn("flex flex-col items-center justify-center py-12 text-center gap-3", className)}>
-      {icon && (
-        <div className="w-12 h-12 rounded-full bg-surface-1 flex items-center justify-center text-muted-foreground">
-          {icon}
-        </div>
-      )}
-      <div>
-        <p className="font-semibold text-foreground">{title}</p>
-        {description && <p className="text-sm text-muted-foreground mt-1">{description}</p>}
-      </div>
-      {action}
+    <div className={cn("ds-empty", className)}>
+      {icon && <div className="ds-empty-icon">{icon}</div>}
+      <h3 className="ds-empty-title">{title}</h3>
+      {description && <p className="ds-empty-desc">{description}</p>}
+      {action && <div style={{ marginTop: 16 }}>{action}</div>}
     </div>
   );
 }
@@ -545,28 +758,25 @@ interface ProgressBarProps {
   className?: string;
 }
 
-const progressColors = {
-  green: "bg-greek-500",
-  blue: "bg-sports-500",
-  yellow: "bg-yellow-500",
-  red: "bg-red-500",
-  purple: "bg-purple-500",
-};
-
-export function ProgressBar({ value, max = 100, color = "green", size = "sm", label, className }: ProgressBarProps) {
+export function ProgressBar({ value, max = 100, size = "sm", label, className }: ProgressBarProps) {
   const pct = Math.min(100, Math.round((value / max) * 100));
   return (
-    <div className={cn("flex flex-col gap-1", className)}>
+    <div className={className} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       {label && (
-        <div className="flex justify-between text-xs text-muted-foreground">
+        <div className="type-small" style={{ display: "flex", justifyContent: "space-between" }}>
           <span>{label}</span>
-          <span>{pct}%</span>
+          <span className="type-mono">{pct}%</span>
         </div>
       )}
-      <div className={cn("w-full rounded-full bg-surface-2", size === "sm" ? "h-1.5" : "h-2.5")}>
+      <div style={{ height: size === "sm" ? 6 : 10, borderRadius: 4, background: "var(--color-bg-subtle)", overflow: "hidden" }}>
         <div
-          className={cn("h-full rounded-full transition-all", progressColors[color])}
-          style={{ width: `${pct}%` }}
+          style={{
+            height: "100%",
+            width: `${pct}%`,
+            borderRadius: 4,
+            background: "var(--color-org-primary)",
+            transition: "width 120ms ease",
+          }}
         />
       </div>
     </div>
@@ -583,28 +793,31 @@ interface TabsProps {
 
 export function Tabs({ tabs, active, onChange, className }: TabsProps) {
   return (
-    <div className={cn("flex gap-1 border-b border-border", className)}>
+    <div className={className} style={{ display: "flex", gap: 4, borderBottom: "1px solid var(--color-border)" }}>
       {tabs.map((tab) => (
         <button
           key={tab.id}
           type="button"
           onClick={() => onChange(tab.id)}
-          className={cn(
-            "flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors",
-            "border-b-2 -mb-px",
-            active === tab.id
-              ? "border-greek-600 text-greek-600"
-              : "border-transparent text-muted-foreground hover:text-foreground",
-          )}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "8px 12px",
+            marginBottom: -1,
+            fontSize: 13,
+            fontWeight: 500,
+            background: "none",
+            border: "none",
+            borderBottom: active === tab.id ? "2px solid var(--color-org-primary)" : "2px solid transparent",
+            color: active === tab.id ? "var(--color-org-primary)" : "var(--color-text-secondary)",
+            cursor: "pointer",
+            transition: "color 120ms ease, border-color 120ms ease",
+          }}
         >
           {tab.label}
           {tab.count !== undefined && (
-            <span className={cn(
-              "text-xs rounded-full px-1.5 py-0.5",
-              active === tab.id ? "bg-greek-100 text-greek-700" : "bg-surface-2 text-muted-foreground",
-            )}>
-              {tab.count}
-            </span>
+            <span className="ds-badge ds-badge-inactive">{tab.count}</span>
           )}
         </button>
       ))}
@@ -625,10 +838,16 @@ export function SearchInput({
   className?: string;
 }) {
   return (
-    <div className={cn("relative", className)}>
+    <div className={className} style={{ position: "relative" }}>
       <svg
-        className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"
-        fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+        style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--color-text-tertiary)" }}
+        width={16}
+        height={16}
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={2}
+        aria-hidden
       >
         <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
       </svg>
@@ -637,11 +856,9 @@ export function SearchInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className={cn(
-          "w-full h-9 pl-9 pr-4 rounded-lg border border-border bg-background text-sm",
-          "placeholder:text-muted-foreground",
-          "focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent",
-        )}
+        className="ds-input"
+        style={{ paddingLeft: 36, minHeight: 44 }}
+        aria-label={placeholder}
       />
     </div>
   );
@@ -653,47 +870,38 @@ interface PageHeaderProps {
   description?: string;
   action?: React.ReactNode;
   breadcrumb?: string;
+  orgLabel?: string;
   className?: string;
 }
 
-export function PageHeader({ title, description, action, breadcrumb, className }: PageHeaderProps) {
+export function PageHeader({ title, description, action, breadcrumb, orgLabel, className }: PageHeaderProps) {
   return (
-    <div className={cn("flex items-start justify-between gap-4 pb-4", className)}>
+    <header className={cn("ds-page-header", className)}>
       <div>
-        {breadcrumb && (
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
-            {breadcrumb}
-          </p>
-        )}
-        <h1 className="text-xl font-bold text-foreground">{title}</h1>
-        {description && (
-          <p className="text-sm text-muted-foreground mt-0.5">{description}</p>
-        )}
+        {breadcrumb && <p className="type-small" style={{ margin: "0 0 8px" }}>{breadcrumb}</p>}
+        {orgLabel && <p className="ds-page-header-org">{orgLabel}</p>}
+        <h1 className="type-h1" style={{ margin: 0 }}>{title}</h1>
+        {description && <p className="type-body" style={{ margin: "8px 0 0", color: "var(--color-text-secondary)" }}>{description}</p>}
       </div>
-      {action && <div className="flex-shrink-0">{action}</div>}
-    </div>
+      {action && <div style={{ flexShrink: 0 }}>{action}</div>}
+    </header>
   );
 }
 
-/* ── Loading Spinner ────────────────────────────────────── */
+/** @deprecated Use Skeleton for loading states */
 export function Spinner({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
+  const px = size === "sm" ? 16 : size === "lg" ? 32 : 24;
   return (
-    <svg
-      className={cn("animate-spin text-greek-600", {
-        "w-4 h-4": size === "sm",
-        "w-6 h-6": size === "md",
-        "w-8 h-8": size === "lg",
-      })}
-      fill="none"
-      viewBox="0 0 24 24"
-    >
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-    </svg>
+    <span
+      className="ds-skeleton"
+      style={{ width: px, height: px, borderRadius: "50%", display: "inline-block" }}
+      role="status"
+      aria-label="Loading"
+    />
   );
 }
 
-/* ── Alert / Notice ─────────────────────────────────────── */
+/* ── Alert ──────────────────────────────────────────────── */
 interface AlertProps {
   type?: "info" | "success" | "warning" | "error";
   title: string;
@@ -701,18 +909,18 @@ interface AlertProps {
   className?: string;
 }
 
-const alertStyles: Record<string, string> = {
-  info: "bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-950/30 dark:border-blue-800 dark:text-blue-300",
-  success: "bg-green-50 border-green-200 text-green-800 dark:bg-green-950/30 dark:border-green-800 dark:text-green-300",
-  warning: "bg-yellow-50 border-yellow-200 text-yellow-800 dark:bg-yellow-950/30 dark:border-yellow-800 dark:text-yellow-300",
-  error: "bg-red-50 border-red-200 text-red-800 dark:bg-red-950/30 dark:border-red-800 dark:text-red-300",
+const alertTypeClass: Record<string, string> = {
+  info: "ds-alert-info",
+  success: "ds-alert-success",
+  warning: "ds-alert-warning",
+  error: "ds-alert-error",
 };
 
 export function Alert({ type = "info", title, description, className }: AlertProps) {
   return (
-    <div className={cn("rounded-lg border p-4", alertStyles[type], className)}>
-      <p className="font-medium text-sm">{title}</p>
-      {description && <p className="text-sm mt-1 opacity-80">{description}</p>}
+    <div className={cn("ds-alert", alertTypeClass[type], className)} role="alert">
+      <p className="type-h2" style={{ margin: 0, fontSize: 14 }}>{title}</p>
+      {description && <p className="type-small" style={{ margin: "8px 0 0" }}>{description}</p>}
     </div>
   );
 }

@@ -20,11 +20,13 @@ interface TaskDetailPanelProps {
   orgId: string;
   userId: string | null;
   userName: string;
+  twilioLive?: boolean | null;
   onClose: () => void;
   onUpdate: () => void;
+  onDelete?: () => void;
 }
 
-export function TaskDetailPanel({ task, orgId, userId, userName, onClose, onUpdate }: TaskDetailPanelProps) {
+export function TaskDetailPanel({ task, orgId, userName, twilioLive, onClose, onUpdate, onDelete }: TaskDetailPanelProps) {
   const supabase = createClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [comments, setComments] = useState<TaskComment[]>([]);
@@ -35,13 +37,9 @@ export function TaskDetailPanel({ task, orgId, userId, userName, onClose, onUpda
   const [uploading, setUploading] = useState(false);
 
   const loadComments = useCallback(async () => {
-    const { data } = await supabase
-      .from("task_comments")
-      .select("id, author_name, body, created_at")
-      .eq("task_id", task.id)
-      .order("created_at", { ascending: true });
-    setComments((data ?? []) as TaskComment[]);
-  }, [supabase, task.id]);
+    const res = await fetch(`/api/tasks/comments?task_id=${encodeURIComponent(task.id)}`);
+    if (res.ok) setComments((await res.json()) as TaskComment[]);
+  }, [task.id]);
 
   useEffect(() => {
     loadComments();
@@ -50,13 +48,20 @@ export function TaskDetailPanel({ task, orgId, userId, userName, onClose, onUpda
 
   async function postComment() {
     if (!commentText.trim()) return;
-    const { error } = await supabase.from("task_comments").insert({
-      task_id: task.id,
-      author_id: userId,
-      author_name: userName,
-      body: commentText.trim(),
+    const res = await fetch("/api/tasks/comments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        taskId: task.id,
+        body: commentText.trim(),
+        authorName: userName,
+      }),
     });
-    if (error) { toast.error(error.message); return; }
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast.error((data as { error?: string }).error ?? "Failed to post comment");
+      return;
+    }
     setCommentText("");
     loadComments();
   }
@@ -70,15 +75,47 @@ export function TaskDetailPanel({ task, orgId, userId, userName, onClose, onUpda
     if (error) { toast.error(error.message); return; }
     const { data: urlData } = supabase.storage.from("documents").getPublicUrl(stored.path);
     const next = [...attachments, urlData.publicUrl];
-    await supabase.from("tasks").update({ attachment_urls: next }).eq("id", task.id);
+    const res = await fetch("/api/tasks", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: task.id, attachment_urls: next }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error(err.error ?? "Failed to save attachment");
+      return;
+    }
     setAttachments(next);
     toast.success("Attachment added");
     onUpdate();
   }
 
+  async function textAssignees() {
+    const res = await fetch("/api/tasks/notify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId, taskId: task.id }),
+    });
+    const data = await res.json().catch(() => ({})) as { message?: string; sent?: number; error?: string };
+    if (!res.ok) {
+      toast.error(data.message ?? data.error ?? "Could not send texts");
+      return;
+    }
+    toast.success(data.message ?? `Sent ${data.sent ?? 0} message(s)`);
+  }
+
   async function removeAttachment(url: string) {
     const next = attachments.filter((a) => a !== url);
-    await supabase.from("tasks").update({ attachment_urls: next }).eq("id", task.id);
+    const res = await fetch("/api/tasks", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: task.id, attachment_urls: next }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error(err.error ?? "Failed to save attachment");
+      return;
+    }
     setAttachments(next);
     onUpdate();
   }
@@ -90,14 +127,25 @@ export function TaskDetailPanel({ task, orgId, userId, userName, onClose, onUpda
           <h2 className="font-semibold text-foreground truncate">{task.title}</h2>
           <p className="text-xs text-muted-foreground">{task.assignee_name ?? "Unassigned"} · {task.status.replace("_", " ")}</p>
         </div>
+        <div className="flex items-center gap-1">
+          {onDelete && (
+            <Button size="sm" variant="secondary" onClick={onDelete}>Delete</Button>
+          )}
         <button onClick={onClose} className="p-2 rounded-lg hover:bg-surface-1 text-muted-foreground">
           <X size={18} />
         </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
         {task.description && (
           <p className="text-sm text-muted-foreground">{task.description}</p>
+        )}
+
+        {twilioLive && task.assignee_name && (
+          <Button variant="secondary" size="sm" icon={<MessageSquare size={14} />} onClick={textAssignees}>
+            Text assignees
+          </Button>
         )}
 
         <div>

@@ -55,6 +55,7 @@ export interface Profile {
   phone: string | null;
   notification_email: boolean;
   notification_sms: boolean;
+  sidebar_preferences?: Record<string, unknown>;
   created_at: string;
 }
 
@@ -144,8 +145,24 @@ export interface Event {
   status: string;
   is_private: boolean;
   alcohol: boolean;
+  is_point_opportunity?: boolean;
+  point_value?: number | null;
+  point_category?: string | null;
+  point_gate_min?: number | null;
+  point_gate_category?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface EventComment {
+  id: string;
+  event_id: string;
+  org_id: string;
+  author_id: string | null;
+  author_name: string | null;
+  parent_id: string | null;
+  body: string;
+  created_at: string;
 }
 
 export interface EventRsvp {
@@ -208,6 +225,10 @@ export interface Reimbursement {
   reviewed_by: string | null;
   reviewed_at: string | null;
   rejection_reason: string | null;
+  paid_at?: string | null;
+  treasurer_approved_at?: string | null;
+  president_approved_at?: string | null;
+  approval_threshold?: number | null;
   created_at: string;
 }
 
@@ -231,6 +252,21 @@ export interface BudgetLine {
   description: string | null;
   budgeted: number;
   actual: number;
+}
+
+export type PnmRsvpStatus = "pending" | "going" | "maybe" | "declined";
+
+export interface EventPnmInvite {
+  id: string;
+  event_id: string;
+  org_id: string;
+  pnm_id: string;
+  invite_token: string | null;
+  rsvp_status: PnmRsvpStatus;
+  rsvp_at: string | null;
+  checked_in: boolean;
+  checked_in_at: string | null;
+  created_at: string;
 }
 
 export interface PnmLead {
@@ -327,6 +363,9 @@ export interface Task {
   due_date: string | null;
   event_id: string | null;
   tags: string[];
+  is_recurring?: boolean;
+  recurrence_rule?: string | null;
+  attachment_urls?: string[];
   completed_at: string | null;
   created_at: string;
 }
@@ -335,10 +374,12 @@ export interface Document {
   id: string;
   org_id: string;
   uploaded_by: string | null;
+  uploaded_by_name?: string | null;
   title: string;
   category: string;
   storage_path: string;
   url: string;
+  folder_id: string | null;
   file_size_bytes: number | null;
   mime_type: string | null;
   is_private: boolean;
@@ -416,6 +457,10 @@ export interface SportsTravelTrip {
   org_id: string;
   title: string;
   destination: string | null;
+  venue_name?: string | null;
+  address?: string | null;
+  departure_location?: string | null;
+  meeting_point?: string | null;
   event_id: string | null;
   departure_date: string;
   return_date: string;
@@ -423,6 +468,7 @@ export interface SportsTravelTrip {
   cost_per_player: number | null;
   status: string;
   itinerary: string | null;
+  packing_list?: string | null;
   created_at: string;
 }
 
@@ -503,6 +549,8 @@ export interface PhilanthropyCampaign {
   beneficiary: string | null;
   start_date: string | null;
   end_date: string | null;
+  public_page_slug: string | null;
+  stripe_payment_link: string | null;
   is_active: boolean;
   created_at: string;
 }

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { loadActiveMembershipServer } from "@/lib/active-org-membership-server";
 import {
   Alert, Badge, Card, CardHeader, PageHeader, StatCard,
 } from "@/components/ui";
@@ -15,20 +16,13 @@ export const dynamic = "force-dynamic";
 export default async function AdminPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/onboarding");
 
   // Check if owner/admin
-  const { data: membership } = await supabase
-    .from("org_members")
-    .select("org_id, role, organizations(*)")
-    .eq("user_id", user.id)
-    .neq("status", "removed")
-    .limit(1)
-    .single();
+  const activeMembership = await loadActiveMembershipServer(user.id);
+  if (!activeMembership) redirect("/onboarding");
 
-  if (!membership) redirect("/onboarding");
-
-  const role = String(membership.role);
+  const role = String(activeMembership.role);
   const isOrgAdmin = ["owner", "president", "vice_president", "advisor"].includes(role);
 
   if (!isOrgAdmin) {
@@ -40,8 +34,9 @@ export default async function AdminPage() {
     );
   }
 
-  const orgId = membership.org_id;
-  const org = membership.organizations as unknown as Record<string, unknown>;
+  const orgId = activeMembership.orgId;
+  const { data: orgRow } = await supabase.from("organizations").select("*").eq("id", orgId).single();
+  const org = (orgRow ?? {}) as Record<string, unknown>;
 
   const [membersRes, paymentsRes, eventsRes, auditRes, reimbsRes, tasksRes] = await Promise.all([
     supabase.from("member_profiles").select("id, full_name, membership_status, payment_status, role, created_at").eq("org_id", orgId).order("full_name"),
@@ -58,7 +53,7 @@ export default async function AdminPage() {
   const auditLogs = auditRes.data ?? [];
   const reimbs = reimbsRes.data ?? [];
 
-  const activeMembers = members.filter((m: Record<string, unknown>) => m.membership_status === "active");
+  const activeMembers = members.filter((m: Record<string, unknown>) => m.membership_status === "active" || m.membership_status === "new_member");
   const totalCollected = payments.reduce((s: number, p: Record<string, unknown>) => s + Number(p.paid_amount), 0);
   const totalExpected = payments.reduce((s: number, p: Record<string, unknown>) => s + Number(p.amount), 0);
   const pendingReimbs = reimbs.filter((r: Record<string, unknown>) => r.status === "submitted").length;
@@ -172,7 +167,7 @@ export default async function AdminPage() {
               { name: "Supabase DB", status: "connected", desc: "Database, auth, storage, realtime" },
               { name: "Stripe", status: org.stripe_account_id ? "connected" : "not_connected", desc: "Payment processing" },
               { name: "Twilio SMS", status: process.env.NEXT_PUBLIC_SUPABASE_URL ? "configured" : "not_configured", desc: "Consent-based PNM texting" },
-              { name: "OpenAI", status: "check_env", desc: "AI assistant features" },
+              { name: "Anthropic (Claude)", status: "check_env", desc: "AI assistant, travel, forms, PNM" },
               { name: "Supabase Storage", status: "connected", desc: "Photo & document storage" },
             ].map((integration) => (
               <div key={integration.name} className="flex items-start gap-3 p-2 rounded-lg border border-border">

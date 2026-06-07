@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { ChevronLeft, Calendar, CreditCard } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import {
   Alert, Badge, Button, Card, EmptyState,
   Modal, PageHeader, Select,
@@ -25,8 +25,7 @@ interface PaymentPlanRow {
 }
 
 export default function PaymentPlansPage() {
-  const supabase = createClient();
-  const [orgId, setOrgId] = useState<string | null>(null);
+  const { orgId } = useOrg();
   const [plans, setPlans] = useState<PaymentPlanRow[]>([]);
   const [eligible, setEligible] = useState<PaymentWithMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,24 +38,22 @@ export default function PaymentPlansPage() {
     setLoading(true);
     const [plansRes, paymentsRes] = await Promise.all([
       fetch(`/api/payments/plans?org_id=${oid}`),
-      supabase.from("payments").select("*, member_profiles(full_name, email, profile_photo_url)").eq("org_id", oid).in("status", ["pending", "overdue", "partial"]).order("due_date"),
+      fetch(`/api/payments?org_id=${encodeURIComponent(oid)}`),
     ]);
 
     if (plansRes.ok) setPlans(await plansRes.json());
-    const payments = (paymentsRes.data ?? []) as PaymentWithMember[];
-    setEligible(payments);
+    if (paymentsRes.ok) {
+      const payments = (await paymentsRes.json()) as PaymentWithMember[];
+      setEligible(
+        payments.filter((p) => ["pending", "overdue", "partial"].includes(String(p.status))),
+      );
+    }
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) { setOrgId(m.org_id); load(m.org_id); }
-    }
-    init();
-  }, [supabase, load]);
+    if (orgId) load(orgId);
+  }, [orgId, load]);
 
   async function createPlan() {
     if (!selectedPaymentId || !orgId) return;

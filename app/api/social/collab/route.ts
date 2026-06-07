@@ -1,0 +1,126 @@
+import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+
+const DEFAULT_CHECKLIST = [
+  "Agree on post date with partner chapter",
+  "Draft shared caption",
+  "Collect photos from both chapters",
+  "Tag partner account in caption",
+  "Officer approval on both sides",
+];
+
+export async function GET(request: Request) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const orgId = new URL(request.url).searchParams.get("org_id");
+  if (!orgId) return NextResponse.json({ error: "org_id required" }, { status: 400 });
+
+  const { data, error } = await supabase
+    .from("collab_posts")
+    .select("*")
+    .eq("org_id", orgId)
+    .order("scheduled_date", { ascending: true, nullsFirst: false });
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data ?? []);
+}
+
+export async function POST(request: Request) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { orgId, partnerOrgName, partnerOrgId, title, captionDraft, scheduledDate, photoIds } = await request.json();
+  if (!orgId || !partnerOrgName || !title) {
+    return NextResponse.json({ error: "orgId, partnerOrgName, and title required" }, { status: 400 });
+  }
+
+  const { data, error } = await supabase
+    .from("collab_posts")
+    .insert({
+      org_id: orgId,
+      partner_org_name: partnerOrgName,
+      partner_org_id: partnerOrgId || null,
+      title,
+      caption_draft: captionDraft ?? null,
+      scheduled_date: scheduledDate || null,
+      checklist: DEFAULT_CHECKLIST.map((item) => ({ item, done: false })),
+      created_by: user.id,
+      photo_ids: Array.isArray(photoIds) ? photoIds : [],
+    })
+    .select()
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (scheduledDate) {
+    await supabase.from("social_calendar").insert({
+      org_id: orgId,
+      title,
+      caption: captionDraft ?? null,
+      scheduled_date: scheduledDate,
+      post_type: "carousel",
+      status: "draft",
+      photo_ids: Array.isArray(photoIds) ? photoIds : [],
+    });
+  }
+
+  return NextResponse.json(data, { status: 201 });
+}
+
+export async function PATCH(request: Request) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id, orgId, status, captionDraft, scheduledDate, checklist, our_pr_approved, partner_pr_approved, photoIds } = await request.json();
+  if (!id || !orgId) return NextResponse.json({ error: "id and orgId required" }, { status: 400 });
+
+  const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (status !== undefined) updates.status = status;
+  if (captionDraft !== undefined) updates.caption_draft = captionDraft;
+  if (scheduledDate !== undefined) updates.scheduled_date = scheduledDate;
+  if (checklist !== undefined) updates.checklist = checklist;
+  if (our_pr_approved !== undefined) updates.our_pr_approved = Boolean(our_pr_approved);
+  if (partner_pr_approved !== undefined) updates.partner_pr_approved = Boolean(partner_pr_approved);
+  if (photoIds !== undefined) updates.photo_ids = Array.isArray(photoIds) ? photoIds : [];
+
+  const { data, error } = await supabase
+    .from("collab_posts")
+    .update(updates)
+    .eq("id", id)
+    .eq("org_id", orgId)
+    .select()
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (scheduledDate !== undefined && data.scheduled_date) {
+    const { data: existing } = await supabase
+      .from("social_calendar")
+      .select("id")
+      .eq("org_id", orgId)
+      .eq("title", data.title)
+      .maybeSingle();
+
+    const calendarPayload = {
+      org_id: orgId,
+      title: data.title,
+      caption: data.caption_draft,
+      scheduled_date: data.scheduled_date,
+      post_type: "carousel",
+      status: "draft",
+      photo_ids: data.photo_ids ?? [],
+    };
+
+    if (existing?.id) {
+      await supabase.from("social_calendar").update(calendarPayload).eq("id", existing.id);
+    } else {
+      await supabase.from("social_calendar").insert(calendarPayload);
+    }
+  }
+
+  return NextResponse.json(data);
+}

@@ -1,7 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { can, type RoleName } from "@/lib/permissions";
+import { loadActiveMembershipServer } from "@/lib/active-org-membership-server";
+import { can } from "@/lib/permissions";
 import {
   Badge, Card, CardHeader
 , ProgressBar,
@@ -20,16 +21,11 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
   const { id } = await params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-  const { data: viewerMembership } = await supabase
-    .from("org_members")
-    .select("org_id, role")
-    .eq("user_id", user.id)
-    .neq("status", "removed")
-    .limit(1)
-    .single();
+  if (!user) redirect("/onboarding");
+  const viewerMembership = await loadActiveMembershipServer(user.id);
+  if (!viewerMembership) redirect("/onboarding");
 
-  const viewerRole = String(viewerMembership?.role ?? "general_member") as RoleName;
+  const viewerRole = viewerMembership.role;
   const canSeeSensitive = can(viewerRole, "edit_roster") || can(viewerRole, "view_payments") || can(viewerRole, "manage_payments");
 
 
@@ -41,6 +37,7 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
   ]);
 
   if (!memberRes.data) notFound();
+  if (memberRes.data.org_id !== viewerMembership.orgId) notFound();
   const member = memberRes.data as MemberProfile & {
     bio?: string; pronouns?: string; interests?: string[];
     instagram_url?: string; linkedin_url?: string; profile_visibility?: string;

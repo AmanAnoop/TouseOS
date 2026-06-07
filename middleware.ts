@@ -1,66 +1,71 @@
-import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import {
+  updateSupabaseSession,
+  withSessionCookies,
+} from "@/lib/supabase/middleware";
 
-export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request });
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setAll(cookiesToSet: any[]) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          cookiesToSet.forEach(({ name, value }: any) =>
-            request.cookies.set(name, value),
-          );
-          supabaseResponse = NextResponse.next({ request });
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          cookiesToSet.forEach(({ name, value, options }: any) =>
-            supabaseResponse.cookies.set(name, value, options),
-          );
-        },
-      },
-    },
+function isPublicPath(pathname: string): boolean {
+  return (
+    pathname === "/" ||
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/signup") ||
+    pathname.startsWith("/sign-in") ||
+    pathname.startsWith("/sign-up") ||
+    pathname.startsWith("/forgot-password") ||
+    pathname.startsWith("/reset-password") ||
+    pathname.startsWith("/auth/") ||
+    pathname.startsWith("/api/auth/") ||
+    pathname.startsWith("/api/ready") ||
+    pathname.startsWith("/api/cron") ||
+    pathname.startsWith("/api/stripe/webhook") ||
+    pathname.startsWith("/api/webhooks/") ||
+    pathname.startsWith("/api/plaid/webhook") ||
+    pathname.startsWith("/api/twilio") ||
+    pathname.startsWith("/terms") ||
+    pathname.startsWith("/privacy") ||
+    pathname.startsWith("/p/") ||
+    pathname.startsWith("/pay/") ||
+    pathname.startsWith("/join/") ||
+    pathname.startsWith("/donate/") ||
+    pathname.startsWith("/f/") ||
+    pathname.startsWith("/pnm-event/") ||
+    pathname.startsWith("/api/forms/share") ||
+    pathname.startsWith("/api/forms/responses/public") ||
+    pathname.startsWith("/api/events/pnm-invite") ||
+    pathname.startsWith("/api/events/pnm-rsvp") ||
+    pathname.startsWith("/onboarding") ||
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/favicon") ||
+    pathname.startsWith("/manifest")
   );
+}
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+/** Supabase session is the source of truth — never gate routes with Clerk middleware. */
+export default async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Auth routes: redirect logged-in users to dashboard
-  const isAuthRoute = pathname.startsWith("/login") ||
+  const { response: supabaseResponse, latestCookies, user } =
+    await updateSupabaseSession(request);
+
+  const isAuthRoute =
+    pathname.startsWith("/login") ||
     pathname.startsWith("/signup") ||
+    pathname.startsWith("/sign-in") ||
+    pathname.startsWith("/sign-up") ||
     pathname.startsWith("/forgot-password");
 
   if (isAuthRoute && user) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    const next = request.nextUrl.searchParams.get("next");
+    const dest = next && next.startsWith("/") ? next : "/home";
+    const redirect = NextResponse.redirect(new URL(dest, request.url));
+    return withSessionCookies(redirect, latestCookies);
   }
 
-  // Protected routes: redirect unauthenticated users to login
-  const isProtectedRoute =
-    !pathname.startsWith("/login") &&
-    !pathname.startsWith("/signup") &&
-    !pathname.startsWith("/forgot-password") &&
-    !pathname.startsWith("/api/stripe/webhook") &&
-    !pathname.startsWith("/api/twilio") &&
-    !pathname.startsWith("/p/") && // public event pages
-    !pathname.startsWith("/pay/") && // parent payment portal
-    !pathname.startsWith("/join/") && // public PNM interest form
-    !pathname.startsWith("/_next") &&
-    !pathname.startsWith("/favicon") &&
-    !pathname.startsWith("/manifest");
-
-  if (isProtectedRoute && !user) {
-    const redirectUrl = new URL("/login", request.url);
+  if (!isPublicPath(pathname) && !user) {
+    const redirectUrl = new URL("/onboarding", request.url);
     redirectUrl.searchParams.set("next", pathname);
-    return NextResponse.redirect(redirectUrl);
+    const redirect = NextResponse.redirect(redirectUrl);
+    return withSessionCookies(redirect, latestCookies);
   }
 
   return supabaseResponse;

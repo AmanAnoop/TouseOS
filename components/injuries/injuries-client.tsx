@@ -8,6 +8,9 @@ import {
   PageHeader, Select, StatCard, Textarea,
 } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
+import { INJURY_TYPES, INJURY_SEVERITY, guidanceForInjuryType } from "@/lib/injury-guidance";
+import { useOrg } from "@/hooks/use-org";
+import type { RoleName } from "@/lib/permissions";
 
 interface Injury {
   id: string;
@@ -21,15 +24,19 @@ interface Injury {
   member_profiles: { full_name: string } | null;
 }
 
+const INJURY_OFFICER_ROLES: RoleName[] = [
+  "captain", "co_captain", "coach", "safety_officer", "owner", "president", "advisor",
+];
+
 export function InjuriesClient() {
-  const [orgId, setOrgId] = useState<string | null>(null);
+  const { orgId, role } = useOrg();
   const [injuries, setInjuries] = useState<Injury[]>([]);
   const [members, setMembers] = useState<Array<{ id: string; full_name: string }>>([]);
   const [allowed, setAllowed] = useState(true);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     memberId: "", incidentDate: new Date().toISOString().slice(0, 10),
-    context: "practice", bodyArea: "", severity: "minor", description: "",
+    context: "practice", injuryType: "muscle_strain", bodyArea: "", severity: "mild", description: "",
   });
 
   const load = useCallback(async (oid: string) => {
@@ -37,30 +44,21 @@ export function InjuriesClient() {
     const supabase = createClient();
     const [injRes, memRes] = await Promise.all([
       supabase.from("sports_injuries").select("*, member_profiles(full_name)").eq("org_id", oid).order("incident_date", { ascending: false }),
-      supabase.from("member_profiles").select("id, full_name").eq("org_id", oid).eq("membership_status", "active").order("full_name"),
+      supabase.from("member_profiles").select("id, full_name").eq("org_id", oid).in("membership_status", ["active", "new_member"]).order("full_name"),
     ]);
     setInjuries((injRes.data ?? []) as Injury[]);
     setMembers((memRes.data ?? []) as Array<{ id: string; full_name: string }>);
   }, []);
 
   useEffect(() => {
-    async function init() {
-      const { createClient } = await import("@/lib/supabase/client");
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id, role").eq("user_id", user.id).limit(1).single();
-      if (!m) return;
-      const officerRoles = ["captain", "co_captain", "coach", "safety_officer", "owner", "president", "advisor"];
-      if (!officerRoles.includes(String(m.role))) {
-        setAllowed(false);
-        return;
-      }
-      setOrgId(m.org_id);
-      load(m.org_id);
+    if (!orgId) return;
+    if (!INJURY_OFFICER_ROLES.includes(role)) {
+      setAllowed(false);
+      return;
     }
-    init();
-  }, [load]);
+    setAllowed(true);
+    load(orgId);
+  }, [orgId, role, load]);
 
   async function fileReport() {
     if (!orgId || !form.memberId || !form.bodyArea) return;
@@ -104,8 +102,9 @@ export function InjuriesClient() {
   const active = injuries.filter((i) => !i.is_cleared);
   const cleared = injuries.filter((i) => i.is_cleared);
   const SEVERITY_COLOR: Record<string, "green" | "yellow" | "orange" | "red" | "gray"> = {
-    minor: "green", moderate: "yellow", severe: "orange", critical: "red",
+    mild: "green", minor: "green", moderate: "yellow", severe: "orange", critical: "red",
   };
+  const guidance = guidanceForInjuryType(form.injuryType);
 
   return (
     <div className="space-y-5">
@@ -146,9 +145,14 @@ export function InjuriesClient() {
           <Select label="Player" value={form.memberId} onChange={(e) => setForm({ ...form, memberId: e.target.value })} options={[{ value: "", label: "Select" }, ...members.map((m) => ({ value: m.id, label: m.full_name }))]} />
           <Input label="Incident date" type="date" value={form.incidentDate} onChange={(e) => setForm({ ...form, incidentDate: e.target.value })} />
           <Select label="Context" value={form.context} onChange={(e) => setForm({ ...form, context: e.target.value })} options={["practice", "game", "tournament", "other"].map((v) => ({ value: v, label: v }))} />
-          <Input label="Body area" value={form.bodyArea} onChange={(e) => setForm({ ...form, bodyArea: e.target.value })} placeholder="Knee, ankle…" />
-          <Select label="Severity" value={form.severity} onChange={(e) => setForm({ ...form, severity: e.target.value })} options={["minor", "moderate", "severe", "critical"].map((v) => ({ value: v, label: v }))} />
-          <Textarea label="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={4} />
+          <Select label="Injury type" value={form.injuryType} onChange={(e) => setForm({ ...form, injuryType: e.target.value })} options={INJURY_TYPES.map((t) => ({ value: t.value, label: t.label }))} />
+          <Input label="Body part affected" value={form.bodyArea} onChange={(e) => setForm({ ...form, bodyArea: e.target.value })} placeholder="Knee, ankle…" />
+          <Select label="Severity" value={form.severity} onChange={(e) => setForm({ ...form, severity: e.target.value })} options={INJURY_SEVERITY.map((s) => ({ value: s.value, label: s.label }))} />
+          <div className="injury-guidance-panel">
+            <p>What to do next</p>
+            <p className="text-sm text-foreground leading-relaxed">{guidance}</p>
+          </div>
+          <Textarea label="Additional notes" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} />
         </div>
       </Modal>
     </div>

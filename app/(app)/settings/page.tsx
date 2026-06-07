@@ -1,88 +1,124 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { LogOut, Shield } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import {
-  Alert, Badge, Button, Card, CardHeader,
+  Button, Card, CardHeader,
   PageHeader, Tabs,
 } from "@/components/ui";
 import { OrgProfileForm, type OrgProfileFormData } from "@/components/settings/org-profile-form";
+import { useOrg } from "@/hooks/use-org";
 import { InviteCodeCard } from "@/components/settings/invite-code-card";
 import { MemberRolesPanel, type OrgMemberWithProfile } from "@/components/settings/member-roles-panel";
+import { IntegrationsHub } from "@/components/integrations/integrations-hub";
+import { IntegrationKeysStatusPanel } from "@/components/integrations/integration-keys-status-panel";
+import { PlatformKeysPanel } from "@/components/platform-admin/platform-keys-panel";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { SidebarEditorPanel } from "@/components/layout/sidebar-editor-panel";
+import { getProductId } from "@/lib/org-product";
+import { useUnreadNotifications } from "@/hooks/use-unread-notifications";
 
 export default function SettingsPage() {
   const supabase = createClient();
   const router = useRouter();
-  const [tab, setTab] = useState("profile");
-  const [orgId, setOrgId] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const { orgId, role: myRole, orgType } = useOrg();
+  const { count: unreadCount } = useUnreadNotifications();
+  const [tab, setTab] = useState(() => searchParams.get("tab") ?? "profile");
   const [org, setOrg] = useState<Record<string, unknown> | null>(null);
   const [members, setMembers] = useState<OrgMemberWithProfile[]>([]);
-  const [myRole, setMyRole] = useState("");
   const [saving, setSaving] = useState(false);
+  const [platformAdmin, setPlatformAdmin] = useState(false);
 
   const [orgForm, setOrgForm] = useState<OrgProfileFormData>({
     name: "", campus: "", councilOrLeague: "", contactEmail: "",
-    privacy: "private", primaryColor: "#059669", secondaryColor: "#065f46",
+    privacy: "private", primaryColor: "#004225", secondaryColor: "#0B1F3A",
+    universityId: "", greekAffiliationId: "",
   });
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase
-        .from("org_members")
-        .select("org_id, role, organizations(*)")
-        .eq("user_id", user.id)
-        .neq("status", "removed")
-        .limit(1)
-        .single();
-      if (!m) return;
-      setOrgId(m.org_id);
-      setMyRole(String(m.role));
-      const orgData = m.organizations as unknown as Record<string, unknown>;
-      setOrg(orgData);
+    const requestedTab = searchParams.get("tab");
+    if (requestedTab) setTab(requestedTab);
+  }, [searchParams]);
+
+  useEffect(() => {
+    fetch("/api/platform-admin/check")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setPlatformAdmin(Boolean(data?.ok)))
+      .catch(() => setPlatformAdmin(false));
+  }, []);
+
+  useEffect(() => {
+    if (!orgId) return;
+    void (async () => {
+      const res = await fetch(`/api/org/settings?org_id=${encodeURIComponent(orgId)}`);
+      if (!res.ok) return;
+      const { org: orgData, members: membersData } = await res.json();
+      if (!orgData) return;
+      setOrg(orgData as Record<string, unknown>);
+      const settings = ((orgData.settings ?? {}) as Record<string, unknown>);
       setOrgForm({
         name: String(orgData.name ?? ""),
         campus: String(orgData.campus ?? ""),
         councilOrLeague: String(orgData.council_or_league ?? ""),
         contactEmail: String(orgData.contact_email ?? ""),
         privacy: String(orgData.privacy ?? "private"),
-        primaryColor: String(orgData.primary_color ?? "#059669"),
-        secondaryColor: String(orgData.secondary_color ?? "#065f46"),
+        primaryColor: String(orgData.primary_color ?? "#004225"),
+        secondaryColor: String(orgData.secondary_color ?? "#0B1F3A"),
+        universityId: String(settings.university_id ?? ""),
+        greekAffiliationId: String(settings.greek_affiliation_id ?? ""),
       });
-
-      const { data: membersData } = await supabase
-        .from("org_members")
-        .select("*, profiles(full_name, avatar_url), member_profiles(id, full_name, email)")
-        .eq("org_id", m.org_id)
-        .order("joined_at");
       setMembers((membersData ?? []) as OrgMemberWithProfile[]);
-    }
-    init();
-  }, [supabase]);
+    })();
+  }, [orgId]);
 
-  const isAdmin = ["owner", "president", "advisor"].includes(myRole);
+  const isAdmin = ["owner", "president", "advisor"].includes(String(myRole));
   const activeMembers = members.filter((m) => m.status !== "removed");
+  const product = orgType ? getProductId(orgType) : "greek";
 
   async function saveOrgProfile() {
     if (!orgId) return;
     setSaving(true);
-    const { error } = await supabase.from("organizations").update({
-      name: orgForm.name,
-      campus: orgForm.campus || null,
-      council_or_league: orgForm.councilOrLeague || null,
-      contact_email: orgForm.contactEmail || null,
-      privacy: orgForm.privacy,
-      primary_color: orgForm.primaryColor,
-      secondary_color: orgForm.secondaryColor,
-    }).eq("id", orgId);
+    const res = await fetch("/api/org/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        name: orgForm.name,
+        campus: orgForm.campus,
+        councilOrLeague: orgForm.councilOrLeague,
+        contactEmail: orgForm.contactEmail,
+        privacy: orgForm.privacy,
+        primaryColor: orgForm.primaryColor,
+        secondaryColor: orgForm.secondaryColor,
+        universityId: orgForm.universityId,
+        greekAffiliationId: orgForm.greekAffiliationId,
+      }),
+    });
     setSaving(false);
-    if (error) { toast.error(error.message); return; }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error((err as { error?: string }).error ?? "Failed to save");
+      return;
+    }
+    const { org: updated } = await res.json();
     toast.success("Settings saved");
-    setOrg({ ...org, ...orgForm });
+    setOrg(updated as Record<string, unknown>);
+    if (updated) {
+      const settings = ((updated.settings ?? {}) as Record<string, unknown>);
+      setOrgForm((prev) => ({
+        ...prev,
+        primaryColor: String(updated.primary_color ?? prev.primaryColor),
+        secondaryColor: String(updated.secondary_color ?? prev.secondaryColor),
+        universityId: String(settings.university_id ?? prev.universityId),
+        greekAffiliationId: String(settings.greek_affiliation_id ?? prev.greekAffiliationId),
+      }));
+    }
+    router.refresh();
   }
 
   async function copyInviteCode() {
@@ -93,9 +129,17 @@ export default function SettingsPage() {
 
   async function regenerateInviteCode() {
     if (!orgId || !isAdmin) return;
-    const newCode = Math.random().toString(36).substring(2, 10).toUpperCase();
-    await supabase.from("organizations").update({ invite_code: newCode }).eq("id", orgId);
-    setOrg({ ...org, invite_code: newCode });
+    const res = await fetch("/api/org/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId, regenerateInviteCode: true }),
+    });
+    if (!res.ok) {
+      toast.error("Failed to regenerate code");
+      return;
+    }
+    const { org: updated } = await res.json();
+    setOrg(updated as Record<string, unknown>);
     toast.success("New invite code generated");
   }
 
@@ -113,23 +157,36 @@ export default function SettingsPage() {
     }
   }
 
+  async function patchMembership(memberId: string, patch: { role?: string; status?: string }) {
+    if (!orgId) return false;
+    const res = await fetch("/api/org/memberships", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId, memberId, ...patch }),
+    });
+    if (!res.ok) {
+      toast.error("Update failed");
+      return false;
+    }
+    const updated = await res.json();
+    setMembers((prev) => prev.map((m) => (m.id === memberId ? { ...m, ...updated } : m)));
+    return true;
+  }
+
   async function approveMember(memberId: string) {
-    await supabase.from("org_members").update({ status: "active" }).eq("id", memberId);
-    setMembers((prev) => prev.map((m) => m.id === memberId ? { ...m, status: "active" } : m));
-    toast.success("Member approved");
+    if (await patchMembership(memberId, { status: "active" })) toast.success("Member approved");
   }
 
   async function changeRole(memberId: string, newRole: string) {
-    await supabase.from("org_members").update({ role: newRole }).eq("id", memberId);
-    setMembers((prev) => prev.map((m) => m.id === memberId ? { ...m, role: newRole } : m));
-    toast.success("Role updated");
+    if (await patchMembership(memberId, { role: newRole })) toast.success("Role updated");
   }
 
   async function removeMember(memberId: string) {
     if (!confirm("Remove this member from the organization?")) return;
-    await supabase.from("org_members").update({ status: "removed" }).eq("id", memberId);
-    setMembers((prev) => prev.filter((m) => m.id !== memberId));
-    toast.success("Member removed");
+    if (await patchMembership(memberId, { status: "removed" })) {
+      setMembers((prev) => prev.filter((m) => m.id !== memberId));
+      toast.success("Member removed");
+    }
   }
 
   async function signOut() {
@@ -145,7 +202,9 @@ export default function SettingsPage() {
         tabs={[
           { id: "profile", label: "Organization" },
           { id: "members", label: "Members", count: activeMembers.length },
+          { id: "navigation", label: "Navigation" },
           { id: "integrations", label: "Integrations" },
+          ...(isAdmin || platformAdmin ? [{ id: "keys", label: "API keys" }] : []),
           { id: "danger", label: "Danger zone" },
         ]}
         active={tab}
@@ -154,6 +213,14 @@ export default function SettingsPage() {
 
       {tab === "profile" && (
         <div className="space-y-4">
+          {isAdmin && Boolean(org?.platform_plan) && (
+            <Card padding="sm">
+              <p className="text-xs text-muted-foreground uppercase font-semibold mb-1">TouseOS plan</p>
+              <p className="text-sm font-medium capitalize">
+                {String(org?.platform_plan)} · {String(org?.platform_plan_status ?? "active")}
+              </p>
+            </Card>
+          )}
           <OrgProfileForm
             form={orgForm}
             org={org}
@@ -182,64 +249,43 @@ export default function SettingsPage() {
         />
       )}
 
+      {tab === "navigation" && (
+        <div className="ds-page-stack max-w-3xl">
+          <SidebarEditorPanel product={product} unreadCount={unreadCount} />
+        </div>
+      )}
+
       {tab === "integrations" && (
-        <div className="space-y-4">
-          <Alert type="info" title="Configure integrations to unlock payment processing, SMS, and AI features." />
-          {[
-            {
-              name: "Supabase",
-              description: "Database, authentication, storage, and real-time features",
-              status: "connected",
-              config: "NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_ANON_KEY",
-              docsUrl: "https://supabase.com/docs",
-            },
-            {
-              name: "Stripe",
-              description: "Dues payment processing, checkout links, and webhooks",
-              status: org?.stripe_account_id ? "connected" : "not_configured",
-              config: "STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET",
-              docsUrl: "https://stripe.com/docs",
-            },
-            {
-              name: "Twilio",
-              description: "Consent-based PNM SMS texting with STOP/HELP handling",
-              status: "check_env",
-              config: "TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN + TWILIO_MESSAGING_SERVICE_SID",
-              docsUrl: "https://www.twilio.com/docs",
-            },
-            {
-              name: "OpenAI",
-              description: "AI assistant for captions, event plans, and newsletters",
-              status: "check_env",
-              config: "OPENAI_API_KEY",
-              docsUrl: "https://platform.openai.com/docs",
-            },
-            {
-              name: "Email provider (Resend/SendGrid)",
-              description: "Email blasts, invite emails, and payment receipts",
-              status: "not_configured",
-              config: "RESEND_API_KEY or SENDGRID_API_KEY",
-              docsUrl: "https://resend.com/docs",
-            },
-          ].map((integration) => (
-            <Card key={integration.name} padding="sm">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="font-semibold text-sm">{integration.name}</p>
-                    <Badge
-                      label={integration.status.replace("_", " ")}
-                      color={integration.status === "connected" ? "green" : integration.status === "check_env" ? "yellow" : "gray"}
-                      dot
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">{integration.description}</p>
-                  <p className="text-xs font-mono text-muted-foreground mt-1 bg-surface-2 px-2 py-0.5 rounded">{integration.config}</p>
-                </div>
-                <a href={integration.docsUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-greek-600 hover:underline flex-shrink-0">Docs</a>
-              </div>
-            </Card>
-          ))}
+        <div className="ds-page-stack max-w-3xl">
+          <Card>
+            <CardHeader title="Appearance" description="Light and dark mode for the workspace" />
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <ThemeToggle />
+              <p className="type-small" style={{ margin: 0 }}>Toggle theme (also in sidebar on desktop)</p>
+            </div>
+          </Card>
+          <IntegrationsHub
+            orgId={orgId}
+            stripeAccountId={org?.stripe_account_id ? String(org.stripe_account_id) : null}
+            role={myRole}
+          />
+        </div>
+      )}
+
+      {tab === "keys" && (isAdmin || platformAdmin) && (
+        <div className="ds-page-stack max-w-3xl">
+          <Card padding="sm">
+            <p className="text-sm text-muted-foreground">
+              For local dev, put all keys in one file: <code className="text-xs bg-surface-2 px-1.5 py-0.5 rounded">config/keys/keys.env</code>
+              {" "}(copy from <code className="text-xs bg-surface-2 px-1.5 py-0.5 rounded">config/keys/keys.env.example</code>).
+              Run <code className="text-xs bg-surface-2 px-1.5 py-0.5 rounded">npm run keys:check</code> to validate.
+            </p>
+          </Card>
+          {platformAdmin ? (
+            <PlatformKeysPanel />
+          ) : (
+            <IntegrationKeysStatusPanel role={myRole} />
+          )}
         </div>
       )}
 
@@ -260,7 +306,31 @@ export default function SettingsPage() {
                     <p className="text-sm font-medium text-foreground">Archive organization</p>
                     <p className="text-xs text-muted-foreground">Hides the org from member view. Data is preserved.</p>
                   </div>
-                  <Button variant="secondary" size="sm">Archive</Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={async () => {
+                      if (!orgId || !confirm("Archive this organization? Members will lose access until restored.")) return;
+                      const res = await fetch("/api/org/settings", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          orgId,
+                          settingsPatch: {
+                            archived: true,
+                            archived_at: new Date().toISOString(),
+                          },
+                        }),
+                      });
+                      if (!res.ok) toast.error("Failed to archive");
+                      else {
+                        toast.success("Organization archived");
+                        router.push("/onboarding");
+                      }
+                    }}
+                  >
+                    Archive
+                  </Button>
                 </div>
               </div>
             </Card>

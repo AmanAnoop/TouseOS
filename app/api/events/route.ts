@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { resolveEventCoverUrl } from "@/lib/event-cover";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -27,10 +28,16 @@ export async function POST(request: Request) {
 
   const body = await request.json();
   const {
-    orgId, title, type, description, location, startsAt, endsAt,
+    orgId, title, type, description, location, address, startsAt, endsAt,
     rsvpEnabled, rsvpLimit, waitlistEnabled, showGuestList, alcohol,
     riskLevel, budgetAmount, dresscode, playlistUrl, theme, isPrivate,
+    coverImageUrl, isPointOpportunity, pointValue, pointCategory,
   } = body;
+
+  let resolvedCover = coverImageUrl ?? null;
+  if (!resolvedCover && (location || address)) {
+    resolvedCover = await resolveEventCoverUrl({ venue: location, address });
+  }
 
   const { data, error } = await supabase.from("events").insert({
     org_id: orgId,
@@ -39,6 +46,7 @@ export async function POST(request: Request) {
     type: type ?? "other",
     description,
     location,
+    address: address ?? null,
     starts_at: startsAt,
     ends_at: endsAt,
     rsvp_enabled: rsvpEnabled ?? true,
@@ -52,7 +60,11 @@ export async function POST(request: Request) {
     playlist_url: playlistUrl,
     theme,
     is_private: isPrivate ?? false,
+    cover_image_url: resolvedCover,
     status: "upcoming",
+    is_point_opportunity: Boolean(isPointOpportunity),
+    point_value: pointValue != null ? Number(pointValue) : null,
+    point_category: pointCategory ?? null,
   }).select().single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

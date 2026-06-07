@@ -57,7 +57,33 @@ export async function PATCH(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id, ...updates } = await request.json();
+  const { id, logUsage, ...updates } = await request.json();
+  if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+
+  if (logUsage) {
+    const { data: vendor } = await supabase.from("vendors").select("usage_history, total_spent").eq("id", id).single();
+    if (!vendor) return NextResponse.json({ error: "Vendor not found" }, { status: 404 });
+
+    const history = (vendor.usage_history as unknown[]) ?? [];
+    const amount = Number(logUsage.amount ?? 0);
+    const entry = {
+      id: crypto.randomUUID(),
+      event_label: String(logUsage.eventLabel ?? "Event"),
+      amount: amount || null,
+      notes: logUsage.notes ? String(logUsage.notes) : null,
+      logged_at: new Date().toISOString(),
+    };
+    const dbUpdates: Record<string, unknown> = {
+      usage_history: [entry, ...history].slice(0, 50),
+    };
+    if (amount > 0) {
+      dbUpdates.total_spent = Number(vendor.total_spent ?? 0) + amount;
+    }
+
+    const { data, error } = await supabase.from("vendors").update(dbUpdates).eq("id", id).select().single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(data);
+  }
 
   const dbUpdates: Record<string, unknown> = {};
   if (updates.reliabilityRating !== undefined) dbUpdates.reliability_rating = updates.reliabilityRating;

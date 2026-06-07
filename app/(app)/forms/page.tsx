@@ -1,9 +1,16 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ClipboardList, Eye, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { Bell, ClipboardList, Copy, Download, Eye, Link2, MoreHorizontal, Pencil, Plus, ScanLine, Trash2 } from "lucide-react";
+import { SortableFormFields, type FormFieldItem } from "@/components/forms/sortable-form-fields";
+import { FormCompletionGrid } from "@/components/forms/form-completion-grid";
+import { FormResponsesPanel } from "@/components/forms/form-responses-panel";
+import { FormScanPanel } from "@/components/forms/form-scan-panel";
+import { SignaturePad } from "@/components/forms/signature-pad";
+import type { ScannedFormDraft } from "@/lib/form-ai";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import {
   Badge, Button, Card
 , EmptyState, Input,
@@ -20,6 +27,7 @@ interface FormTemplate {
   fields: FormField[];
   is_required: boolean;
   due_date: string | null;
+  share_token?: string | null;
   created_at: string;
 }
 
@@ -30,17 +38,9 @@ interface FormField {
   required: boolean;
   options?: string[];
   placeholder?: string;
+  page?: number;
+  showWhen?: { fieldId: string; equals: string | boolean };
 }
-
-const FIELD_TYPES = [
-  { value: "text", label: "Short text" },
-  { value: "textarea", label: "Long text" },
-  { value: "select", label: "Dropdown" },
-  { value: "checkbox", label: "Checkbox" },
-  { value: "date", label: "Date" },
-  { value: "signature", label: "Signature" },
-  { value: "number", label: "Number" },
-];
 
 const FORM_TYPES = [
   { value: "waiver", label: "Waiver" },
@@ -93,36 +93,40 @@ const TEMPLATE_FORMS: Array<{ title: string; type: string; fields: FormField[] }
 ];
 
 export default function FormsPage() {
-  const supabase = createClient();
+  const { orgId } = useOrg();
   const [forms, setForms] = useState<FormTemplate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [orgId, setOrgId] = useState<string | null>(null);
   const [tab, setTab] = useState("forms");
+  const [menuFormId, setMenuFormId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [previewForm, setPreviewForm] = useState<FormTemplate | null>(null);
+  const [responseTotal, setResponseTotal] = useState(0);
+  const [reminding, setReminding] = useState(false);
 
   const [newForm, setNewForm] = useState({
     title: "", type: "general", description: "",
     isRequired: false, dueDate: "",
   });
   const [fields, setFields] = useState<FormField[]>([]);
+  const [editingFormId, setEditingFormId] = useState<string | null>(null);
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
-    const { data } = await supabase.from("forms").select("*").eq("org_id", oid).order("created_at", { ascending: false });
-    setForms((data ?? []) as FormTemplate[]);
+    const res = await fetch(`/api/forms?org_id=${encodeURIComponent(oid)}`);
+    if (res.ok) {
+      setForms((await res.json()) as FormTemplate[]);
+    }
+    const respRes = await fetch(`/api/forms/responses?org_id=${encodeURIComponent(oid)}`);
+    if (respRes.ok) {
+      const json = await respRes.json();
+      setResponseTotal(json.total ?? 0);
+    }
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) { setOrgId(m.org_id); load(m.org_id); }
-    }
-    init();
-  }, [supabase, load]);
+    if (orgId) load(orgId);
+  }, [orgId, load]);
 
   function addField() {
     setFields((prev) => [...prev, {
@@ -133,28 +137,126 @@ export default function FormsPage() {
     }]);
   }
 
-  function updateField(id: string, updates: Partial<FormField>) {
-    setFields((prev) => prev.map((f) => f.id === id ? { ...f, ...updates } : f));
+  function openEditForm(form: FormTemplate) {
+    setEditingFormId(form.id);
+    setNewForm({
+      title: form.title,
+      type: form.type,
+      description: form.description ?? "",
+      isRequired: form.is_required,
+      dueDate: form.due_date?.slice(0, 10) ?? "",
+    });
+    setFields(form.fields);
+    setCreateOpen(true);
   }
 
-  function removeField(id: string) {
-    setFields((prev) => prev.filter((f) => f.id !== id));
+  function copyMemberLink(form: FormTemplate) {
+    const url = `${window.location.origin}/forms/${form.id}/fill`;
+    navigator.clipboard.writeText(url);
+    toast.success("Member fill link copied");
+  }
+
+  function copyPublicLink(form: FormTemplate) {
+    if (!form.share_token) {
+      toast.error("Share link not ready — save the form again or refresh");
+      return;
+    }
+    const url = `${window.location.origin}/f/${form.share_token}`;
+    navigator.clipboard.writeText(url);
+    toast.success("Public form link copied (anyone can submit)");
+  }
+
+  async function duplicateForm(form: FormTemplate) {
+    if (!orgId) return;
+    const res = await fetch("/api/forms", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        title: `${form.title} (copy)`,
+        type: form.type,
+        description: form.description,
+        fields: form.fields,
+        isRequired: false,
+        dueDate: form.due_date?.slice(0, 10) ?? "",
+      }),
+    });
+    if (!res.ok) {
+      toast.error("Duplicate failed");
+      return;
+    }
+    toast.success("Form duplicated");
+    load(orgId);
+  }
+
+  async function exportResponses(form: FormTemplate) {
+    if (!orgId) return;
+    const res = await fetch(
+      `/api/forms/responses?org_id=${encodeURIComponent(orgId)}&form_id=${encodeURIComponent(form.id)}&export=csv`,
+    );
+    if (!res.ok) {
+      toast.error("Export failed");
+      return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${form.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-responses.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Responses exported");
+  }
+
+  async function remindMissing(formId?: string) {
+    if (!orgId) return;
+    setReminding(true);
+    const res = await fetch("/api/forms/remind", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId, formId }),
+    });
+    const data = await res.json();
+    setReminding(false);
+    if (res.ok) toast.success(data.message ?? "Reminders sent");
+    else toast.error(data.error ?? "Reminder failed");
+  }
+
+  function applyScannedDraft(draft: ScannedFormDraft) {
+    setNewForm({
+      title: draft.title,
+      type: draft.type,
+      description: draft.description ?? "",
+      isRequired: false,
+      dueDate: "",
+    });
+    setFields(draft.fields);
+    setTab("forms");
+    setCreateOpen(true);
   }
 
   async function saveForm() {
     if (!orgId || !newForm.title || fields.length === 0) return;
-    const { error } = await supabase.from("forms").insert({
-      org_id: orgId,
+    const payload = {
+      orgId,
       title: newForm.title,
       type: newForm.type,
-      description: newForm.description || null,
-      fields: fields,
-      is_required: newForm.isRequired,
-      due_date: newForm.dueDate || null,
+      description: newForm.description,
+      fields,
+      isRequired: newForm.isRequired,
+      dueDate: newForm.dueDate,
+      ...(editingFormId ? { id: editingFormId } : {}),
+    };
+    const res = await fetch("/api/forms", {
+      method: editingFormId ? "PATCH" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
     });
-    if (error) { toast.error(error.message); return; }
-    toast.success("Form created");
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { toast.error(data.error ?? "Failed to save form"); return; }
+    toast.success(editingFormId ? "Form updated" : "Form created");
     setCreateOpen(false);
+    setEditingFormId(null);
     setNewForm({ title: "", type: "general", description: "", isRequired: false, dueDate: "" });
     setFields([]);
     load(orgId);
@@ -162,48 +264,70 @@ export default function FormsPage() {
 
   async function createFromTemplate(template: typeof TEMPLATE_FORMS[0]) {
     if (!orgId) return;
-    const { error } = await supabase.from("forms").insert({
-      org_id: orgId,
-      title: template.title,
-      type: template.type,
-      fields: template.fields,
-      is_required: true,
+    const res = await fetch("/api/forms", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        title: template.title,
+        type: template.type,
+        fields: template.fields,
+        isRequired: true,
+      }),
     });
-    if (error) { toast.error(error.message); return; }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { toast.error(data.error ?? "Failed"); return; }
     toast.success(`"${template.title}" created from template`);
     load(orgId);
   }
 
   async function deleteForm(id: string) {
     if (!confirm("Delete this form?")) return;
-    await supabase.from("forms").delete().eq("id", id);
+    const res = await fetch(`/api/forms?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast.error(data.error ?? "Delete failed");
+      return;
+    }
     setForms((prev) => prev.filter((f) => f.id !== id));
   }
 
   const required = forms.filter((f) => f.is_required);
-  const responses = 0; // Would aggregate from form_responses
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Forms & Signatures"
         description="Build and manage waivers, consent forms, and required documents"
         action={
-          <Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>
-            Build form
-          </Button>
+          <div className="flex gap-2 flex-wrap">
+            {required.length > 0 && (
+              <Button size="sm" variant="secondary" loading={reminding} icon={<Bell size={14} />} onClick={() => remindMissing()}>
+                Remind missing
+              </Button>
+            )}
+            <Button size="sm" variant="secondary" icon={<ScanLine size={14} />} onClick={() => setTab("scan")}>
+              Scan with AI
+            </Button>
+            <Button size="sm" icon={<Plus size={14} />} onClick={() => { setEditingFormId(null); setFields([]); setCreateOpen(true); }}>
+              Build form
+            </Button>
+          </div>
         }
       />
 
       <div className="grid grid-cols-3 gap-3">
         <StatCard title="Active forms" value={forms.length} icon={<ClipboardList size={18} />} />
         <StatCard title="Required forms" value={required.length} icon={<ClipboardList size={18} />} />
-        <StatCard title="Responses" value={responses} icon={<ClipboardList size={18} />} />
+        <StatCard title="Responses" value={responseTotal} icon={<ClipboardList size={18} />} />
       </div>
 
       <Tabs
         tabs={[
           { id: "forms", label: "My forms", count: forms.length },
+          { id: "completion", label: "Completion" },
+          { id: "responses", label: "Responses" },
+          { id: "scan", label: "Scan with AI" },
           { id: "templates", label: "Templates" },
         ]}
         active={tab}
@@ -237,19 +361,66 @@ export default function FormsPage() {
                       {form.due_date ? ` · Due ${formatDate(form.due_date)}` : ""}
                     </p>
                   </div>
-                  <div className="flex gap-2 flex-shrink-0">
-                    <button onClick={() => setPreviewForm(form)} className="p-1.5 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-foreground">
-                      <Eye size={14} />
+                  <div className="flex gap-1 flex-shrink-0 items-center relative">
+                    <Link href={`/forms/${form.id}/fill`} className="p-1.5 rounded-md hover:bg-greek-50 text-greek-600 text-xs font-medium" title="Fill form">
+                      Fill
+                    </Link>
+                    <button onClick={() => openEditForm(form)} className="p-1.5 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-foreground" title="Edit form">
+                      <Pencil size={14} />
                     </button>
-                    <button onClick={() => deleteForm(form.id)} className="p-1.5 rounded-md hover:bg-red-50 text-muted-foreground hover:text-red-500">
-                      <Trash2 size={14} />
+                    <button
+                      type="button"
+                      onClick={() => setMenuFormId(menuFormId === form.id ? null : form.id)}
+                      className="p-1.5 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-foreground"
+                      aria-label="More actions"
+                    >
+                      <MoreHorizontal size={14} />
                     </button>
+                    {menuFormId === form.id && (
+                      <div className="absolute right-0 top-full mt-1 z-10 min-w-[180px] rounded-lg border border-border bg-card shadow-lg py-1">
+                        <button type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-surface-1 flex items-center gap-2" onClick={() => { copyPublicLink(form); setMenuFormId(null); }}>
+                          <Link2 size={14} /> Public link
+                        </button>
+                        <button type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-surface-1 flex items-center gap-2" onClick={() => { copyMemberLink(form); setMenuFormId(null); }}>
+                          <Copy size={14} /> Member link
+                        </button>
+                        <button type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-surface-1 flex items-center gap-2" onClick={() => { exportResponses(form); setMenuFormId(null); }}>
+                          <Download size={14} /> Export
+                        </button>
+                        <button type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-surface-1 flex items-center gap-2" onClick={() => { duplicateForm(form); setMenuFormId(null); }}>
+                          <Copy size={14} /> Duplicate
+                        </button>
+                        {form.is_required && (
+                          <button type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-surface-1 flex items-center gap-2" onClick={() => { remindMissing(form.id); setMenuFormId(null); }}>
+                            <Bell size={14} /> Remind missing
+                          </button>
+                        )}
+                        <button type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-surface-1 flex items-center gap-2" onClick={() => { setPreviewForm(form); setMenuFormId(null); }}>
+                          <Eye size={14} /> Preview
+                        </button>
+                        <button type="button" className="w-full text-left px-3 py-2 text-sm hover:bg-red-50 text-red-600 flex items-center gap-2" onClick={() => { deleteForm(form.id); setMenuFormId(null); }}>
+                          <Trash2 size={14} /> Delete
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </Card>
             ))}
           </div>
         )
+      )}
+
+      {tab === "completion" && orgId && <FormCompletionGrid orgId={orgId} />}
+
+      {tab === "responses" && orgId && <FormResponsesPanel orgId={orgId} forms={forms} />}
+
+      {tab === "scan" && (
+        <FormScanPanel
+          orgId={orgId}
+          onApplyToBuilder={applyScannedDraft}
+          onSaved={() => orgId && load(orgId)}
+        />
       )}
 
       {tab === "templates" && (
@@ -280,8 +451,8 @@ export default function FormsPage() {
       {/* Build form modal */}
       <Modal
         open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        title="Build form"
+        onClose={() => { setCreateOpen(false); setEditingFormId(null); }}
+        title={editingFormId ? "Edit form" : "Build form"}
         size="xl"
         footer={
           <>
@@ -290,60 +461,29 @@ export default function FormsPage() {
           </>
         }
       >
-        <div className="space-y-4">
-          <div className="grid sm:grid-cols-2 gap-3">
-            <Input label="Form title *" value={newForm.title} onChange={(e) => setNewForm({ ...newForm, title: e.target.value })} placeholder="Anti-Hazing Acknowledgement" />
-            <Select label="Form type" value={newForm.type} onChange={(e) => setNewForm({ ...newForm, type: e.target.value })} options={FORM_TYPES} />
-          </div>
-          <div className="grid sm:grid-cols-2 gap-3">
-            <Input label="Due date (optional)" type="date" value={newForm.dueDate} onChange={(e) => setNewForm({ ...newForm, dueDate: e.target.value })} />
-            <label className="flex items-center gap-2 cursor-pointer mt-6">
-              <input type="checkbox" className="rounded" checked={newForm.isRequired} onChange={(e) => setNewForm({ ...newForm, isRequired: e.target.checked })} />
-              <span className="text-sm">Required for all members</span>
-            </label>
-          </div>
-
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold">Form fields</p>
-              <Button size="sm" variant="secondary" icon={<Plus size={12} />} onClick={addField}>Add field</Button>
+        <div className="forms-builder-shell">
+          <aside className="forms-builder-settings">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Form settings</p>
+            <div className="space-y-3">
+              <Input label="Form title *" value={newForm.title} onChange={(e) => setNewForm({ ...newForm, title: e.target.value })} placeholder="Anti-Hazing Acknowledgement" />
+              <Select label="Form type" value={newForm.type} onChange={(e) => setNewForm({ ...newForm, type: e.target.value })} options={FORM_TYPES} />
+              <Input label="Due date (optional)" type="date" value={newForm.dueDate} onChange={(e) => setNewForm({ ...newForm, dueDate: e.target.value })} />
+              <label className="flex items-center gap-2 cursor-pointer min-h-[44px]">
+                <input type="checkbox" className="rounded" checked={newForm.isRequired} onChange={(e) => setNewForm({ ...newForm, isRequired: e.target.checked })} />
+                <span className="text-sm">Required for all members</span>
+              </label>
+              <p className="text-xs text-muted-foreground pt-2 border-t border-border">
+                {fields.length} field{fields.length !== 1 ? "s" : ""} · Drag to reorder on the right
+              </p>
             </div>
-
-            {fields.length === 0 ? (
-              <div className="border-2 border-dashed border-border rounded-xl p-6 text-center">
-                <ClipboardList size={20} className="mx-auto text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">No fields yet. Add your first field.</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {fields.map((field, idx) => (
-                  <div key={field.id} className="flex items-start gap-2 p-3 rounded-lg border border-border bg-surface-1">
-                    <span className="text-xs text-muted-foreground mt-2 w-5 flex-shrink-0">{idx + 1}</span>
-                    <div className="flex-1 grid sm:grid-cols-3 gap-2">
-                      <Input
-                        placeholder="Field label"
-                        value={field.label}
-                        onChange={(e) => updateField(field.id, { label: e.target.value })}
-                      />
-                      <select
-                        className="h-9 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                        value={field.type}
-                        onChange={(e) => updateField(field.id, { type: e.target.value as FormField["type"] })}
-                      >
-                        {FIELD_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-                      </select>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" className="rounded" checked={field.required} onChange={(e) => updateField(field.id, { required: e.target.checked })} />
-                        <span className="text-sm">Required</span>
-                      </label>
-                    </div>
-                    <button onClick={() => removeField(field.id)} className="text-muted-foreground hover:text-red-500 mt-2">
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+          </aside>
+          <div className="forms-builder-fields">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Questions</p>
+            <SortableFormFields
+              fields={fields as FormFieldItem[]}
+              onChange={(next) => setFields(next as FormField[])}
+              onAdd={addField}
+            />
           </div>
         </div>
       </Modal>
@@ -354,7 +494,16 @@ export default function FormsPage() {
         onClose={() => setPreviewForm(null)}
         title={previewForm?.title ?? ""}
         size="md"
-        footer={<Button onClick={() => setPreviewForm(null)}>Close preview</Button>}
+        footer={
+          <div className="flex gap-2 w-full">
+            {previewForm && (
+              <Button variant="secondary" icon={<Download size={14} />} onClick={() => exportResponses(previewForm)}>
+                Export CSV
+              </Button>
+            )}
+            <Button onClick={() => setPreviewForm(null)} className="ml-auto">Close preview</Button>
+          </div>
+        }
       >
         {previewForm && (
           <div className="space-y-4">
@@ -370,7 +519,7 @@ export default function FormsPage() {
                 ) : field.type === "checkbox" ? (
                   <label className="flex items-center gap-2"><input type="checkbox" disabled /><span className="text-sm">I agree</span></label>
                 ) : field.type === "signature" ? (
-                  <div className="h-16 border border-border rounded-lg bg-surface-1 flex items-center justify-center text-sm text-muted-foreground">Signature pad</div>
+                  <SignaturePad value="" onChange={() => {}} disabled />
                 ) : field.type === "select" ? (
                   <select className="h-9 rounded-lg border border-border bg-background px-3 text-sm" disabled>
                     {field.options?.map((o) => <option key={o}>{o}</option>)}

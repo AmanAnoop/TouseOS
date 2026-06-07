@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createPaymentLink } from "@/lib/stripe";
+import { requirePlatformFeature } from "@/lib/platform-api-guard";
+import { requireChapterStripeForCheckout } from "@/lib/stripe-connect-guard";
 
 export async function POST(request: Request) {
+  const blocked = await requirePlatformFeature("stripe_payments");
+  if (blocked) return blocked;
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -22,12 +27,18 @@ export async function POST(request: Request) {
   const applyLateFee =
     payment.status === "overdue" || duePast || payment.status === "partial";
   const lateFee = applyLateFee ? Number(payment.late_fee ?? 0) : 0;
+  const connect = await requireChapterStripeForCheckout(supabase, payment.org_id);
+  if (!connect.ok) {
+    return NextResponse.json({ error: connect.error, code: "stripe_connect_required" }, { status: 403 });
+  }
+
   const session = await createPaymentLink({
     amount: remaining + lateFee,
     description: (payment.payment_items as Record<string, unknown>)?.title as string ?? "Dues payment",
     orgName: (payment.organizations as Record<string, unknown>)?.name as string ?? "Chapter",
     memberEmail: email,
     metadata: { paymentId, orgId: payment.org_id },
+    connectedAccountId: connect.accountId,
   });
 
   // Save session ID to payment record

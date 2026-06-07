@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { triggerBudgetSyncForOrg } from "@/lib/budget-auto-sync";
+import { forbidUnless, getMemberRole } from "@/lib/api-org-role";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -7,6 +9,13 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { orgId, title, amount, category, dueDate, lateFee, recurring, recurringInterval } = await request.json();
+  if (!orgId || !title || amount == null) {
+    return NextResponse.json({ error: "orgId, title, and amount required" }, { status: 400 });
+  }
+
+  const role = await getMemberRole(supabase, user.id, String(orgId));
+  const denied = forbidUnless(role, "manage_payments");
+  if (denied) return denied;
 
   // Create payment item
   const { data: item, error: itemError } = await supabase.from("payment_items").insert({
@@ -26,7 +35,7 @@ export async function POST(request: Request) {
     .from("member_profiles")
     .select("id")
     .eq("org_id", orgId)
-    .eq("membership_status", "active");
+    .in("membership_status", ["active", "new_member"]);
 
   if (members && members.length > 0) {
     const rows = members.map((m) => ({
@@ -53,6 +62,8 @@ export async function POST(request: Request) {
     metadata: { title, amount, category, members_charged: members?.length ?? 0 },
   });
 
+  void triggerBudgetSyncForOrg(orgId, user.id);
+
   return NextResponse.json({ success: true, item, membersCharged: members?.length ?? 0 }, { status: 201 });
 }
 
@@ -65,12 +76,25 @@ export async function GET(request: Request) {
   const orgId = searchParams.get("org_id");
   if (!orgId) return NextResponse.json({ error: "org_id required" }, { status: 400 });
 
+  const role = await getMemberRole(supabase, user.id, orgId);
+  if (!role) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
   const { data, error } = await supabase
     .from("payments")
-    .select("*, member_profiles(full_name, email, profile_photo_url)")
+    .select("*, payment_items(title, category, event_id), member_profiles(full_name, email, profile_photo_url)")
     .eq("org_id", orgId)
     .order("due_date");
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const sanitized = (data ?? []).map((row) => {
+    const due = row.due_date ? String(row.due_date).slice(0, 10) : null;
+    if (!due || today <= due) {
+      return { ...row, late_fee: 0 };
+    }
+    return row;
+  });
+
+  return NextResponse.json(sanitized);
 }

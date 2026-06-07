@@ -5,9 +5,8 @@ import {
   BookOpen, Calendar, DollarSign, FileText,
   Loader2, MessageSquare, Send, Sparkles, User, Zap,
 } from "lucide-react";
-import { Button
-
-, PageHeader } from "@/components/ui";
+import { Button, PageHeader } from "@/components/ui";
+import { useOrg } from "@/hooks/use-org";
 
 interface Message {
   role: "user" | "assistant";
@@ -26,6 +25,7 @@ const QUICK_PROMPTS = [
 ];
 
 export default function AiAssistantPage() {
+  const { orgId } = useOrg();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -43,7 +43,7 @@ export default function AiAssistantPage() {
       const res = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [...messages, userMsg] }),
+        body: JSON.stringify({ messages: [...messages, userMsg], orgId: orgId ?? undefined }),
       });
 
       if (!res.ok) {
@@ -57,7 +57,7 @@ export default function AiAssistantPage() {
       const message = err instanceof Error ? err.message : "Failed to get response";
       setMessages((prev) => [...prev, {
         role: "assistant",
-        content: `I'm sorry, I couldn't process that request right now. ${message}. Make sure your OpenAI API key is configured in your environment variables.`,
+        content: `I'm sorry, I couldn't process that request right now. ${message}. Add your Anthropic API key in Settings → API keys (platform admin).`,
       }]);
     } finally {
       setLoading(false);
@@ -162,7 +162,7 @@ export default function AiAssistantPage() {
         </Button>
       </div>
       <p className="text-xs text-muted-foreground mt-1 text-center">
-        Requires OPENAI_API_KEY in environment variables.
+        Requires ANTHROPIC_API_KEY — set in Platform Admin → Integration keys or host environment.
       </p>
     </div>
   );

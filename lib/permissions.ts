@@ -76,7 +76,7 @@ const ROLE_PERMISSIONS: Record<RoleName, Permission[]> = {
   owner: ALL,
   president: ALL,
   vice_president: [
-    "view_roster","edit_roster","view_payments","manage_events",
+    "view_roster","edit_roster","view_payments","manage_payments","manage_events",
     "manage_guest_lists","view_incidents","manage_incidents","view_photos",
     "approve_photos","view_standards","manage_standards","view_documents",
     "manage_documents","view_reports","manage_org_settings","manage_budget",
@@ -88,7 +88,7 @@ const ROLE_PERMISSIONS: Record<RoleName, Permission[]> = {
   ],
   secretary: [
     "view_roster","edit_roster","manage_events","view_documents",
-    "manage_documents","view_reports",
+    "manage_documents","view_reports","manage_org_settings",
   ],
   social_chair: [
     "view_roster","manage_events","manage_guest_lists","view_photos",

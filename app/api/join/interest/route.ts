@@ -40,6 +40,18 @@ export async function POST(request: Request) {
       ? interests.split(/[,;]/).map((s) => s.trim().toLowerCase()).filter(Boolean).slice(0, 15)
       : [];
 
+  let activeMemberConnection: string | null = null;
+  if (referredByMember) {
+    const refId = String(referredByMember);
+    const { data: refMember } = await supabase
+      .from("member_profiles")
+      .select("full_name")
+      .eq("org_id", org.id)
+      .eq("id", refId)
+      .maybeSingle();
+    activeMemberConnection = refMember?.full_name ?? refId;
+  }
+
   const { data, error } = await supabase.from("pnm_leads").insert({
     org_id: org.id,
     full_name: fullName.trim(),
@@ -49,7 +61,8 @@ export async function POST(request: Request) {
     class_year: classYear || null,
     major: major || null,
     hometown: hometown || null,
-    referral_source: referralSource || referredByMember || null,
+    referral_source: referralSource || null,
+    active_member_connection: activeMemberConnection,
     interests: interestList,
     communication_consent: Boolean(smsConsent),
     consent_timestamp: smsConsent ? new Date().toISOString() : null,

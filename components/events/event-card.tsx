@@ -1,47 +1,48 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Clock, MapPin, Users } from "lucide-react";
 import { Badge, Card } from "@/components/ui";
 import { formatDateTime } from "@/lib/utils";
 import type { Event } from "@/types";
 
-const TYPE_COLORS: Record<string, string> = {
-  mixer: "blue",
-  formal: "purple",
-  philanthropy: "green",
-  recruitment: "yellow",
-  practice: "blue",
-  game: "green",
-  tournament: "purple",
-  tryout: "orange",
-  brotherhood: "purple",
-  sisterhood: "purple",
-};
-
 interface EventCardProps {
   event: Event;
 }
 
 export function EventCard({ event }: EventCardProps) {
+  const [coverUrl, setCoverUrl] = useState<string | null>(event.cover_image_url);
+
+  useEffect(() => {
+    setCoverUrl(event.cover_image_url);
+  }, [event.cover_image_url]);
+
+  useEffect(() => {
+    if (coverUrl || (!event.location && !event.address)) return;
+    const params = new URLSearchParams();
+    if (event.location) params.set("venue", event.location);
+    if (event.address) params.set("address", event.address);
+    fetch(`/api/events/cover-suggest?${params}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const first = data?.suggestions?.[0]?.url;
+        if (first) setCoverUrl(first);
+      })
+      .catch(() => {});
+  }, [coverUrl, event.location, event.address]);
+
   return (
     <Link href={`/events/${event.id}`}>
       <Card padding="none" className="overflow-hidden hover:border-greek-300 transition-colors cursor-pointer h-full">
         <div
           className="h-36 bg-gradient-to-br from-greek-500 to-greek-700 relative"
-          style={event.cover_image_url ? {
-            backgroundImage: `url(${event.cover_image_url})`,
+          style={coverUrl ? {
+            backgroundImage: `url(${coverUrl})`,
             backgroundSize: "cover",
             backgroundPosition: "center",
           } : {}}
         >
-          <div className="absolute top-2 right-2">
-            <Badge
-              label={event.type.replace(/_/g, " ")}
-              color={(TYPE_COLORS[event.type] ?? "gray") as "blue"}
-              className="text-xs"
-            />
-          </div>
           {event.status === "draft" && (
             <div className="absolute top-2 left-2">
               <Badge label="Draft" color="yellow" />
@@ -78,5 +79,3 @@ export function EventCard({ event }: EventCardProps) {
     </Link>
   );
 }
-
-export { TYPE_COLORS };

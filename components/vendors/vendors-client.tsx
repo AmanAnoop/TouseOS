@@ -7,12 +7,21 @@ import {
   Badge, Button, Card, CardHeader, EmptyState, Input, Modal,
   PageHeader, Select, Textarea,
 } from "@/components/ui";
+import { useOrg } from "@/hooks/use-org";
 
 const VENDOR_CATEGORIES = [
   "Venue", "DJ", "Caterer", "Security", "Bus company", "Photographer",
   "T-shirt vendor", "Hotel", "Rental van", "Uniform vendor",
   "Equipment vendor", "Field/court rental", "Repair contractor",
 ];
+
+interface UsageEntry {
+  id: string;
+  event_label: string;
+  amount: number | null;
+  notes: string | null;
+  logged_at: string;
+}
 
 interface Vendor {
   id: string;
@@ -25,12 +34,15 @@ interface Vendor {
   reliability_rating: number | null;
   would_use_again: boolean | null;
   total_spent: number | null;
+  usage_history?: UsageEntry[];
 }
 
 export function VendorsClient() {
-  const [orgId, setOrgId] = useState<string | null>(null);
+  const { orgId } = useOrg();
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [open, setOpen] = useState(false);
+  const [usageVendor, setUsageVendor] = useState<Vendor | null>(null);
+  const [usageForm, setUsageForm] = useState({ eventLabel: "", amount: "", notes: "" });
   const [form, setForm] = useState({
     name: "", category: "Venue", contactName: "", contactEmail: "",
     contactPhone: "", notes: "", reliabilityRating: "4", wouldUseAgain: true,
@@ -42,16 +54,33 @@ export function VendorsClient() {
   }, []);
 
   useEffect(() => {
-    async function init() {
-      const { createClient } = await import("@/lib/supabase/client");
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) { setOrgId(m.org_id); load(m.org_id); }
+    if (orgId) load(orgId);
+  }, [orgId, load]);
+
+  async function logUsage() {
+    if (!usageVendor) return;
+    const res = await fetch("/api/vendors", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: usageVendor.id,
+        logUsage: {
+          eventLabel: usageForm.eventLabel || "Event",
+          amount: usageForm.amount ? parseFloat(usageForm.amount) : 0,
+          notes: usageForm.notes || undefined,
+        },
+      }),
+    });
+    if (res.ok) {
+      toast.success("Usage logged");
+      setUsageVendor(null);
+      setUsageForm({ eventLabel: "", amount: "", notes: "" });
+      if (orgId) load(orgId);
+    } else {
+      const err = await res.json();
+      toast.error(err.error ?? "Failed");
     }
-    init();
-  }, [load]);
+  }
 
   async function addVendor() {
     if (!orgId || !form.name) return;
@@ -123,18 +152,47 @@ export function VendorsClient() {
                     </div>
                     {vendor.contact_name && <p className="text-xs text-muted-foreground">Contact: {vendor.contact_name}</p>}
                     {vendor.notes && <p className="text-xs text-muted-foreground italic mt-1">{vendor.notes}</p>}
+                    {(vendor.usage_history?.length ?? 0) > 0 && (
+                      <div className="mt-2 space-y-1">
+                        <p className="text-[10px] font-semibold uppercase text-muted-foreground">Recent usage</p>
+                        {vendor.usage_history!.slice(0, 3).map((u) => (
+                          <p key={u.id} className="text-xs text-muted-foreground">
+                            {u.event_label}
+                            {u.amount != null && u.amount > 0 ? ` · $${u.amount}` : ""}
+                            {" · "}
+                            {new Date(u.logged_at).toLocaleDateString()}
+                          </p>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  {vendor.contact_phone && (
-                    <a href={`tel:${vendor.contact_phone}`} className="p-2 text-muted-foreground hover:text-greek-600">
-                      <Phone size={14} />
-                    </a>
-                  )}
+                  <div className="flex flex-col gap-1">
+                    <Button size="sm" variant="secondary" onClick={() => setUsageVendor(vendor)}>Log use</Button>
+                    {vendor.contact_phone && (
+                      <a href={`tel:${vendor.contact_phone}`} className="p-2 text-muted-foreground hover:text-greek-600 text-center">
+                        <Phone size={14} className="inline" />
+                      </a>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
           </Card>
         ))
       )}
+
+      <Modal
+        open={Boolean(usageVendor)}
+        onClose={() => setUsageVendor(null)}
+        title={usageVendor ? `Log usage — ${usageVendor.name}` : "Log usage"}
+        footer={<><Button variant="secondary" onClick={() => setUsageVendor(null)}>Cancel</Button><Button onClick={logUsage}>Save</Button></>}
+      >
+        <div className="space-y-3">
+          <Input label="Event / occasion" value={usageForm.eventLabel} onChange={(e) => setUsageForm({ ...usageForm, eventLabel: e.target.value })} placeholder="Spring formal" />
+          <Input label="Amount spent ($)" type="number" value={usageForm.amount} onChange={(e) => setUsageForm({ ...usageForm, amount: e.target.value })} placeholder="0" />
+          <Textarea label="Notes" value={usageForm.notes} onChange={(e) => setUsageForm({ ...usageForm, notes: e.target.value })} rows={2} />
+        </div>
+      </Modal>
 
       <Modal open={open} onClose={() => setOpen(false)} title="Add vendor" footer={<><Button variant="secondary" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={addVendor}>Save</Button></>}>
         <div className="space-y-3">

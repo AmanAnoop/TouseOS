@@ -5,102 +5,117 @@ import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { Download, DollarSign, Plus, Send } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
 import {
   Button, Card, CardHeader, EmptyState,
-  Input, Modal, PageHeader, ProgressBar, Select,
+  Input, Modal, PageHeader, Select,
 } from "@/components/ui";
-import { formatCurrency, downloadCsv } from "@/lib/utils";
+import { downloadCsv } from "@/lib/utils";
 import { PaymentStats } from "@/components/payments/payment-stats";
 import { PaymentList, type PaymentWithMember } from "@/components/payments/payment-list";
 import type { MemberProfile } from "@/types";
 import { PaymentDetailModal } from "@/components/payments/payment-detail-modal";
-import { MemberBalancesPanel, computeMemberBalances } from "@/components/payments/member-balances-panel";
-import { TreasurerDashboard } from "@/components/payments/treasurer-dashboard";
+import { MemberDuesTable, buildMemberDuesRows } from "@/components/payments/member-dues-table";
+import { DuesSummarySidebar } from "@/components/payments/dues-summary-sidebar";
 import { HardshipReviewPanel } from "@/components/payments/hardship-review-panel";
-import { can, type RoleName } from "@/lib/permissions";
+import { StripeDestinationBanner } from "@/components/payments/stripe-destination-banner";
+import { StripeReconciliationPanel } from "@/components/payments/stripe-reconciliation-panel";
+import { ReminderComposerModal } from "@/components/payments/reminder-composer-modal";
+import { can } from "@/lib/permissions";
+import { useOrg } from "@/hooks/use-org";
 
 export default function PaymentsPage() {
-  const supabase = createClient();
+  const { orgId, userId, role: myRole } = useOrg();
   const [payments, setPayments] = useState<PaymentWithMember[]>([]);
   const [members, setMembers] = useState<MemberProfile[]>([]);
   const [planCount, setPlanCount] = useState(0);
+  const [paymentPlans, setPaymentPlans] = useState<Array<{
+    payment_id: string;
+    installments: number;
+    schedule: Array<{ due_date?: string; status?: string }>;
+    payments?: { member_id?: string | null } | null;
+  }>>([]);
   const [loading, setLoading] = useState(true);
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [myRole, setMyRole] = useState<RoleName>("general_member");
   const [myMemberId, setMyMemberId] = useState<string | null>(null);
-  const [filter, setFilter] = useState("all");
   const [createOpen, setCreateOpen] = useState(false);
   const [charge, setCharge] = useState({ title: "", amount: "", category: "dues", dueDate: "", lateFee: "", recurring: false, recurringInterval: "semesterly" });
   const [manualOpen, setManualOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<PaymentWithMember | null>(null);
   const [manualForm, setManualForm] = useState({ paymentId: "", amount: "", method: "cash", notes: "" });
+  const [reminderOpen, setReminderOpen] = useState(false);
+  const [stripeCheckoutEnabled, setStripeCheckoutEnabled] = useState(false);
 
   const loadPayments = useCallback(async (oid: string) => {
     setLoading(true);
-    const { data } = await supabase
-      .from("payments")
-      .select("*, member_profiles(*)")
-      .eq("org_id", oid)
-      .order("due_date", { ascending: true });
-    const [memberRes, plansRes] = await Promise.all([
-      supabase
-        .from("member_profiles")
-        .select("id, full_name, membership_status, payment_status, attendance_rate, email, role, org_id, user_id, forms_completed, forms_required, class_year, graduation_year, committees, created_at, updated_at")
-        .eq("org_id", oid),
-      fetch(`/api/payments/plans?org_id=${oid}`),
+    const [paymentsRes, memberRes, plansRes] = await Promise.all([
+      fetch(`/api/payments?org_id=${encodeURIComponent(oid)}`),
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}&scope=roster`),
+      fetch(`/api/payments/plans?org_id=${encodeURIComponent(oid)}`),
     ]);
-    setMembers((memberRes.data ?? []) as MemberProfile[]);
-    setPayments((data ?? []) as PaymentWithMember[]);
+    if (paymentsRes.ok) {
+      setPayments((await paymentsRes.json()) as PaymentWithMember[]);
+    } else {
+      const err = await paymentsRes.json().catch(() => ({}));
+      toast.error(err.error ?? "Failed to load payments");
+    }
+    if (memberRes.ok) setMembers((await memberRes.json()) as MemberProfile[]);
     if (plansRes.ok) {
       const plans = await plansRes.json();
-      setPlanCount(Array.isArray(plans) ? plans.length : 0);
+      const list = Array.isArray(plans) ? plans : [];
+      setPlanCount(list.length);
+      setPaymentPlans(list);
     }
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id, role").eq("user_id", user.id).limit(1).single();
-      if (m) {
-        setOrgId(m.org_id);
-        setMyRole(String(m.role ?? "general_member") as RoleName);
-        loadPayments(m.org_id);
-        const { data: profile } = await supabase
-          .from("member_profiles")
-          .select("id")
-          .eq("org_id", m.org_id)
-          .eq("user_id", user.id)
-          .maybeSingle();
-        if (profile) setMyMemberId(profile.id);
-      }
-    }
-    init();
-  }, [supabase, loadPayments]);
+    if (!orgId || !userId) return;
+    loadPayments(orgId);
+  }, [orgId, userId, loadPayments]);
 
-  const canViewAll = can(myRole, "view_payments") || can(myRole, "manage_payments");
+  useEffect(() => {
+    if (!orgId) {
+      setStripeCheckoutEnabled(false);
+      return;
+    }
+    fetch(`/api/stripe/connect?org_id=${orgId}`)
+      .then((r) => r.json())
+      .then((d) => setStripeCheckoutEnabled(Boolean(d.chargesEnabled)))
+      .catch(() => setStripeCheckoutEnabled(false));
+  }, [orgId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    const me = members.find((m) => m.user_id === userId);
+    setMyMemberId(me?.id ?? null);
+  }, [userId, members]);
+
+  const canViewAll = can(myRole, "view_payments") || can(myRole, "manage_payments") || can(myRole, "manage_budget");
   const canManage = can(myRole, "manage_payments");
 
   const visiblePayments = canViewAll
     ? payments
     : payments.filter((p) => p.member_id === myMemberId);
 
-  const filtered = visiblePayments.filter((p) => filter === "all" || p.status === filter);
-
   const totalExpected = visiblePayments.reduce((s, p) => s + Number(p.amount), 0);
   const totalCollected = visiblePayments.reduce((s, p) => s + Number(p.paid_amount), 0);
   const overdue = visiblePayments.filter((p) => p.status === "overdue");
   const pending = visiblePayments.filter((p) => p.status === "pending");
-  const collectionRate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
 
   async function createCharge() {
     if (!orgId || !charge.title || !charge.amount) return;
     const res = await fetch("/api/payments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orgId, title: charge.title, amount: charge.amount, category: charge.category, dueDate: charge.dueDate, lateFee: charge.lateFee }),
+      body: JSON.stringify({
+        orgId,
+        title: charge.title,
+        amount: charge.amount,
+        category: charge.category,
+        dueDate: charge.dueDate,
+        lateFee: charge.lateFee,
+        recurring: charge.recurring,
+        recurringInterval: charge.recurringInterval,
+      }),
     });
     if (res.ok) {
       toast.success("Charge created");
@@ -110,16 +125,6 @@ export default function PaymentsPage() {
     } else toast.error("Failed to create charge");
   }
 
-  async function sendReminders() {
-    if (!orgId) return;
-    const res = await fetch("/api/payments/remind", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orgId }),
-    });
-    const data = await res.json();
-    toast.success(data.message ?? "Reminders sent");
-  }
 
   async function logManualPayment() {
     if (!orgId || !manualForm.paymentId || !manualForm.amount) return;
@@ -147,7 +152,7 @@ export default function PaymentsPage() {
   }
 
   function exportPayments() {
-    downloadCsv("payments.csv", filtered.map((p) => ({
+    downloadCsv("payments.csv", visiblePayments.map((p) => ({
       Member: p.member_profiles?.full_name ?? "—",
       Email: p.member_profiles?.email ?? "—",
       Amount: p.amount,
@@ -160,36 +165,46 @@ export default function PaymentsPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Dues & Payments"
         description="Track collections, create charges, and send reminders"
         action={
-          <div className="flex gap-2 flex-wrap">
+          <div className="payments-action-bar">
             {canManage && (
-              <>
-                <Button variant="secondary" size="sm" icon={<Send size={14} />} onClick={sendReminders}>
-                  Send reminders
-                </Button>
-                <Button variant="secondary" size="sm" onClick={() => setManualOpen(true)}>Log cash/check</Button>
-                <Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>
-                  New charge
-                </Button>
-              </>
+              <Button size="sm" className="officer-touch" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>
+                New charge
+              </Button>
             )}
-            <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={exportPayments}>
+            {canManage && (
+              <Button variant="secondary" size="sm" className="officer-touch" onClick={() => setManualOpen(true)}>
+                Log cash/check
+              </Button>
+            )}
+            {canManage && (
+              <Button variant="secondary" size="sm" className="officer-touch" icon={<Send size={14} />} onClick={() => setReminderOpen(true)}>
+                Send reminders
+              </Button>
+            )}
+            <Link href="/payments/plan"><Button variant="secondary" size="sm">Payment plans</Button></Link>
+            <Link href="/reimbursements"><Button variant="secondary" size="sm">Reimbursements</Button></Link>
+            <Link href="/payments/hardship"><Button variant="secondary" size="sm">Hardship request</Button></Link>
+            <Button variant="ghost" size="sm" icon={<Download size={14} />} onClick={exportPayments}>
               Export
             </Button>
-            <Link href="/payments/plan"><Button variant="secondary" size="sm">Payment plans</Button></Link>
-            {can(myRole, "manage_budget") && (
-              <Link href="/budget"><Button variant="secondary" size="sm">View budget</Button></Link>
+            {(can(myRole, "manage_budget") || can(myRole, "view_payments")) && (
+              <Link href="/finance"><Button variant="secondary" size="sm">Budget</Button></Link>
             )}
-            <a href="/payments/hardship">
-              <Button variant="secondary" size="sm">Hardship request</Button>
-            </a>
           </div>
         }
       />
+
+      {orgId && (
+        <StripeDestinationBanner orgId={orgId} canManage={canManage} />
+      )}
+      {orgId && canManage && (
+        <StripeReconciliationPanel orgId={orgId} />
+      )}
 
       {!canViewAll && (
         <Card>
@@ -199,69 +214,57 @@ export default function PaymentsPage() {
         </Card>
       )}
 
-      {canManage && (
-        <>
-          <TreasurerDashboard payments={payments} planCount={planCount} />
-          <MemberBalancesPanel rows={computeMemberBalances(members, payments)} />
-          <HardshipReviewPanel orgId={orgId} />
-        </>
-      )}
+      {canManage && <HardshipReviewPanel orgId={orgId} />}
 
-      <PaymentStats
-        totalExpected={totalExpected}
-        totalCollected={totalCollected}
-        pendingCount={pending.length}
-        overdueCount={overdue.length}
-      />
-
-      <Card>
-        <CardHeader title="Collection progress" />
-        <ProgressBar
-          value={collectionRate}
-          label={`${formatCurrency(totalCollected)} of ${formatCurrency(totalExpected)}`}
-          color={collectionRate >= 75 ? "green" : collectionRate >= 50 ? "yellow" : "red"}
-          size="md"
-        />
-      </Card>
-
-      {/* Filter */}
-      <div className="flex gap-2">
-        {["all","pending","overdue","paid","failed"].map((s) => (
-          <button
-            key={s}
-            onClick={() => setFilter(s)}
-            className={`px-3 py-1.5 text-sm rounded-full font-medium transition-colors ${filter === s ? "bg-greek-600 text-white" : "bg-surface-1 text-muted-foreground hover:text-foreground"}`}
-          >
-            {s.charAt(0).toUpperCase() + s.slice(1)}
-            {s !== "all" && (
-              <span className="ml-1 text-xs opacity-70">
-                ({visiblePayments.filter((p) => p.status === s).length})
-              </span>
+      {canViewAll ? (
+        <div className="ds-payments-layout">
+          <Card>
+            <CardHeader title="Member dues" description={`${planCount} active payment plan${planCount !== 1 ? "s" : ""}`} />
+            {loading ? (
+              <PaymentList payments={[]} loading />
+            ) : (
+              <MemberDuesTable
+                rows={buildMemberDuesRows(members, visiblePayments, paymentPlans)}
+                onSelectMember={(memberId) => {
+                  const payment = visiblePayments.find((p) => p.member_id === memberId);
+                  if (payment) setSelectedPayment(payment);
+                }}
+              />
             )}
-          </button>
-        ))}
-      </div>
-
-      {/* Payments list */}
-      {loading ? (
-        <PaymentList payments={[]} loading />
-      ) : filtered.length === 0 ? (
-        <EmptyState icon={<DollarSign size={24} />} title="No payments" description="Create a charge to get started." action={canManage ? <Button size="sm" icon={<Plus size={14} />} onClick={() => setCreateOpen(true)}>New charge</Button> : undefined} />
+          </Card>
+          <DuesSummarySidebar payments={visiblePayments} />
+        </div>
       ) : (
-        <PaymentList
-          payments={filtered}
-          onSelect={(p) => setSelectedPayment(p)}
-          onCopyParentLink={copyParentLink}
-          onPayStripe={async (p) => {
-            const res = await fetch("/api/stripe/checkout", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ paymentId: p.id, email: p.member_profiles?.email }),
-            });
-            const { url } = await res.json();
-            if (url) window.open(url, "_blank");
-          }}
-        />
+        <>
+          <PaymentStats
+            totalExpected={totalExpected}
+            totalCollected={totalCollected}
+            pendingCount={pending.length}
+            overdueCount={overdue.length}
+          />
+          {loading ? (
+            <PaymentList payments={[]} loading />
+          ) : visiblePayments.length === 0 ? (
+            <EmptyState icon={<DollarSign size={24} />} title="No payments" description="Your payment history will appear here." />
+          ) : (
+            <PaymentList
+              payments={visiblePayments}
+              stripeCheckoutEnabled={stripeCheckoutEnabled}
+              onSelect={(p) => setSelectedPayment(p)}
+              onCopyParentLink={copyParentLink}
+              onPayStripe={async (p) => {
+                const res = await fetch("/api/stripe/checkout", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ paymentId: p.id, email: p.member_profiles?.email }),
+                });
+                const data = await res.json();
+                if (data.url) window.open(data.url, "_blank");
+                else toast.error(data.error ?? "Could not start checkout");
+              }}
+            />
+          )}
+        </>
       )}
 
       {/* Create charge modal */}
@@ -366,6 +369,15 @@ export default function PaymentsPage() {
         payment={selectedPayment}
         canManage={canManage}
         onRefresh={() => orgId && loadPayments(orgId)}
+      />
+
+      <ReminderComposerModal
+        open={reminderOpen}
+        onClose={() => setReminderOpen(false)}
+        orgId={orgId}
+        payments={payments}
+        members={members}
+        onSent={() => orgId && loadPayments(orgId)}
       />
 
       <Modal open={manualOpen} onClose={() => setManualOpen(false)} title="Log manual payment" description="Record cash, check, or Venmo payment" footer={<><Button variant="secondary" onClick={() => setManualOpen(false)}>Cancel</Button><Button onClick={logManualPayment}>Log payment</Button></>}>

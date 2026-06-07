@@ -1,10 +1,15 @@
+import "server-only";
+
 import { Resend } from "resend";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getPlatformSecretSync } from "@/lib/platform-secrets";
 
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? "TouseOS <onboarding@resend.dev>";
+export function getResendFromEmail(): string {
+  return getPlatformSecretSync("RESEND_FROM_EMAIL") ?? "TouseOS <onboarding@resend.dev>";
+}
 
 export function getResendClient() {
-  const key = process.env.RESEND_API_KEY;
+  const key = getPlatformSecretSync("RESEND_API_KEY");
   if (!key) return null;
   return new Resend(key);
 }
@@ -57,8 +62,13 @@ export async function sendBulkEmail(options: {
   subject: string;
   html: string;
 }): Promise<{ sent: number; failed: number; mode: "live" | "log" }> {
+  if (options.to.length === 0) {
+    return { sent: 0, failed: 0, mode: "log" };
+  }
+
   const resend = getResendClient();
-  if (!resend || options.to.length === 0) {
+  if (!resend) {
+    console.info("[email:blast]", options.subject, `→ ${options.to.length} recipient(s)`);
     return { sent: 0, failed: 0, mode: "log" };
   }
 
@@ -71,7 +81,7 @@ export async function sendBulkEmail(options: {
     try {
       await resend.batch.send(
         batch.map((email) => ({
-          from: FROM_EMAIL,
+          from: getResendFromEmail(),
           to: email,
           subject: options.subject,
           html: options.html,
@@ -84,6 +94,36 @@ export async function sendBulkEmail(options: {
   }
 
   return { sent, failed, mode: "live" };
+}
+
+export async function sendInviteEmail(options: {
+  to: string;
+  orgName: string;
+  inviteCode: string;
+  appUrl?: string;
+}): Promise<{ sent: boolean; mode: "live" | "log" }> {
+  const base = options.appUrl ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const html = `
+    <p style="font-family:sans-serif;font-size:14px;">You've been invited to join <strong>${options.orgName}</strong> on TouseOS.</p>
+    <p style="font-family:sans-serif;font-size:14px;">Sign up at <a href="${base}/signup">${base}/signup</a> and use invite code: <strong>${options.inviteCode}</strong></p>
+    <p style="font-family:sans-serif;font-size:14px;">Or go to onboarding: <a href="${base}/onboarding">${base}/onboarding</a></p>
+  `;
+  const resend = getResendClient();
+  if (!resend) {
+    console.info("[email:invite]", options.to, options.inviteCode);
+    return { sent: false, mode: "log" };
+  }
+  try {
+    await resend.emails.send({
+      from: getResendFromEmail(),
+      to: options.to,
+      subject: `Invitation to join ${options.orgName} on TouseOS`,
+      html,
+    });
+    return { sent: true, mode: "live" };
+  } catch {
+    return { sent: false, mode: "log" };
+  }
 }
 
 export function textToHtml(text: string): string {

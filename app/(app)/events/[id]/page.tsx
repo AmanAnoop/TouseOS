@@ -1,14 +1,27 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { loadActiveMembershipServer } from "@/lib/active-org-membership-server";
 import { Badge, Card, ProgressBar,
 } from "@/components/ui";
 import {
   Calendar, ChevronLeft, Clock, ExternalLink,
-  MapPin, Music, QrCode, Share2, Users,
+  Music, Users,
 } from "lucide-react";
+import { EventHeroActions } from "@/components/events/event-hero-actions";
+import { EventDetailLocationSection } from "@/components/events/event-detail-location-section";
 import { formatDateTime } from "@/lib/utils";
+import { can } from "@/lib/permissions";
 import EventRsvpButton from "./rsvp-button";
+import { EventDetailActions } from "@/components/events/event-detail-actions";
+import { EventPollsPanel } from "@/components/events/event-polls-panel";
+import { EventQrCard } from "@/components/events/event-qr-card";
+import { EventAddToCalendar } from "@/components/events/event-add-to-calendar";
+import { EventAnnouncementsPanel } from "@/components/events/event-announcements-panel";
+import { EventCommentsPanel } from "@/components/events/event-comments-panel";
+import { EventMediaGallery } from "@/components/events/event-media-gallery";
+import { EventRotatingTicket } from "@/components/events/event-rotating-ticket";
+import { EventChapterQrCard } from "@/components/events/event-chapter-qr-card";
 
 export const dynamic = "force-dynamic";
 
@@ -16,16 +29,21 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
   const { id } = await params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/onboarding");
 
-  const [eventRes, rsvpRes] = await Promise.all([
+  const [eventRes, rsvpRes, albumRes] = await Promise.all([
     supabase.from("events").select("*").eq("id", id).single(),
     supabase.from("event_rsvps").select("id, status, member_id, guest_name, checked_in").eq("event_id", id),
+    supabase.from("photo_albums").select("id").eq("event_id", id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
 
   if (eventRes.error || !eventRes.data) notFound();
 
+  const membership = await loadActiveMembershipServer(user.id);
+  if (!membership) redirect("/onboarding");
+
   const event = eventRes.data as Record<string, unknown>;
+  if (String(event.org_id) !== membership.orgId) notFound();
   const rsvps = rsvpRes.data ?? [];
 
   const goingCount = rsvps.filter((r: Record<string, unknown>) => r.status === "going").length;
@@ -37,6 +55,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
 
   const isPast = new Date(String(event.starts_at)) < new Date();
   const isUpcoming = !isPast;
+  const canEditEvent = can(membership.role, "manage_events");
 
   return (
     <div className="max-w-2xl mx-auto space-y-0">
@@ -48,7 +67,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
         </Link>
       </div>
 
-      {/* Cover image + title card (Partiful-style) */}
+      {/* Cover image + title card */}
       <div className="rounded-2xl overflow-hidden border border-border shadow-card-lg">
         {/* Hero */}
         <div
@@ -68,25 +87,20 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
             {Boolean(event.alcohol)&& <Badge label="21+" color="orange" />}
           </div>
 
-          {/* Share button */}
-          <div className="absolute top-4 right-4 flex gap-2">
-            <a href={`/events/${id}/checkin`} className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30" title="Check-in">
-                <QrCode size={15} />
-              </a>
-              <button className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30">
-              <Share2 size={15} />
-            </button>
-            <button className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30">
-              <QrCode size={15} />
-            </button>
-          </div>
+          <EventHeroActions eventId={id} eventTitle={String(event.title)} />
 
           {/* Event title */}
           <div className="absolute bottom-0 left-0 right-0 p-5">
-            <div className="flex items-center gap-2 mb-1">
-              <Badge label={String(event.type).replace(/_/g, " ")} color="blue" className="bg-white/20 text-white border-transparent" />
-              {Boolean(event.theme)&& <Badge label={String(event.theme)} color="purple" className="bg-white/20 text-white border-transparent" />}
-            </div>
+            {(Boolean(event.theme) || Boolean(event.is_point_opportunity)) && (
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                {Boolean(event.theme) && (
+                  <Badge label={String(event.theme)} color="purple" className="bg-white/20 text-white border-transparent" />
+                )}
+                {Boolean(event.is_point_opportunity) && (
+                  <Badge label="Earns points" color="emerald" className="bg-white/20 text-white border-transparent" />
+                )}
+              </div>
+            )}
             <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight">
               {String(event.title)}
             </h1>
@@ -101,8 +115,20 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
         {/* Event info body */}
         <div className="bg-card p-5 space-y-5">
           {/* RSVP action */}
+          {isUpcoming && (
+            <EventAddToCalendar
+              eventId={id}
+              title={String(event.title)}
+              description={event.description ? String(event.description) : null}
+              location={event.location ? String(event.location) : null}
+              address={event.address ? String(event.address) : null}
+              startsAt={String(event.starts_at)}
+              endsAt={event.ends_at ? String(event.ends_at) : null}
+            />
+          )}
+
           {Boolean(event.rsvp_enabled)&& isUpcoming && (
-            <EventRsvpButton eventId={id} userId={user.id} capacity={capacity} goingCount={goingCount} />
+            <EventRsvpButton eventId={id} orgId={String(event.org_id)} capacity={capacity} goingCount={goingCount} />
           )}
 
           {/* Countdown */}
@@ -110,6 +136,16 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
             <div className="flex items-center justify-center gap-6 py-3 rounded-xl bg-greek-50 dark:bg-greek-950/30">
               <CountdownBlock event={event} />
             </div>
+          )}
+
+          {isPast && (
+            <EventDetailActions
+              orgId={String(event.org_id)}
+              eventId={id}
+              eventTitle={String(event.title)}
+              isPast={isPast}
+              albumId={albumRes.data?.id ?? null}
+            />
           )}
 
           {/* Stats row */}
@@ -147,17 +183,11 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
 
           {/* Details */}
           <div className="space-y-3">
-            {Boolean(event.location)&& (
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg bg-surface-1 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <MapPin size={15} className="text-muted-foreground" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-foreground">{String(event.location)}</p>
-                  {Boolean(event.address)&& <p className="text-xs text-muted-foreground">{String(event.address)}</p>}
-                </div>
-              </div>
-            )}
+            <EventDetailLocationSection
+              orgId={String(event.org_id)}
+              event={event}
+              canEdit={canEditEvent}
+            />
 
             {Boolean(event.starts_at)&& (
               <div className="flex items-start gap-3">
@@ -232,6 +262,26 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
           )}
 
           {/* Check-in (for past events) */}
+          <EventPollsPanel
+            eventId={id}
+            orgId={membership.orgId}
+            canManage={canEditEvent}
+          />
+
+          <EventAnnouncementsPanel eventId={id} orgId={membership.orgId} />
+
+          <EventCommentsPanel eventId={id} />
+
+          <EventMediaGallery
+            eventId={id}
+            orgId={membership.orgId}
+            eventTitle={String(event.title)}
+          />
+
+          {isUpcoming && <EventRotatingTicket eventId={id} />}
+
+          {canEditEvent && isUpcoming && <EventChapterQrCard eventId={id} />}
+
           {isPast && (
             <Card padding="sm" className="bg-surface-1">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Attendance</p>
@@ -253,6 +303,8 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
               </div>
             </Card>
           )}
+
+          <EventQrCard eventId={id} eventTitle={String(event.title)} />
         </div>
       </div>
     </div>

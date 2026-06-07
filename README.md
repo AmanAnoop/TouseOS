@@ -2,12 +2,13 @@
 
 **The campus organization operating system** — one platform for fraternities, sororities, club sports teams, and student orgs to run members, money, events, recruitment, compliance, and content in a single mobile-first workspace.
 
-TouseOS ships as two tailored experiences on shared infrastructure:
+TouseOS ships as **three tailored experiences** on shared infrastructure (`lib/org-product.ts`):
 
-| Experience | Built for | Highlights |
-|------------|-----------|------------|
-| **Touse Greek** | Fraternities & sororities | PNM CRM, GreekMatch, interchapter proposals, standards, NME, big/little, photo approval, chapter health score |
-| **SportsOS** | Club sports teams | Tryouts, waivers, travel & trip costs, injuries, equipment, league standings, tournament brackets |
+| Experience | Org type | Built for | Highlights |
+|------------|----------|-----------|------------|
+| **TouseGreek** | `fraternity`, `sorority` | Greek chapters | PNM CRM, GreekMatch, interchapter, standards, NME, risk, big/little, chapter feed |
+| **SportsOS** | `club_sports` | Club sports teams | Team dashboard, tryouts, waivers, travel & trip costs, injuries, equipment, standings |
+| **ClubOS** | `general_org` | Student organizations | Membership pipeline, committees, service hours, fundraising, org feed (not Greek recruitment) |
 
 ---
 
@@ -60,10 +61,13 @@ Cross-chapter event proposals, idea marketplace, shared workspaces (on accept), 
 ### Social / content
 Photo albums, approval workflow, Instagram content packs (AI captions), social calendar, chapter feed, event memories, digital yearbook with HTML export, PR compliance checklist, social asset library.
 
-### SportsOS
-Team dashboard, tryouts, waivers, travel trips, injury reports, equipment, league standings, tournament brackets.
+### SportsOS (`club_sports`)
+Dedicated nav, route guards, and `/sports` team dashboard — tryouts, waivers, travel, injuries, equipment, tournaments.
 
-> **Rollout status:** ~63% of numbered backlog modules have working pages; ~45–50% of sub-features are at production depth. See [docs/feature-backlog.md](docs/feature-backlog.md) for the full spec.
+### ClubOS (`general_org`)
+Dedicated nav, route guards, and `/club` dashboard — membership applications, service hours, committees; neutral event types (no mixers/PNM).
+
+> **Rollout status:** See [docs/backlog-status.md](docs/backlog-status.md). Run migration `023_club_org.sql` for ClubOS tables.
 
 ---
 
@@ -98,19 +102,33 @@ supabase/migrations/001_schema.sql
 supabase/migrations/002_greekmatch.sql
 supabase/migrations/003_storage.sql
 supabase/migrations/004_notifications.sql
-supabase/migrations/005_seed.sql              # optional demo data
+supabase/migrations/033_remove_demo_org.sql   # remove legacy demo org (optional)
 supabase/migrations/006_rollout_enhancements.sql
 supabase/migrations/007_phase2_workspace.sql
 supabase/migrations/008_phase3_engagement.sql
 supabase/migrations/009_phase4_sports_interchapter_push.sql
 supabase/migrations/010_notification_preferences.sql
 supabase/migrations/011_payment_plans_rls.sql
+supabase/migrations/012_parent_pay_hardship_recurring.sql
+supabase/migrations/013_rush_interest_matcher.sql
+supabase/migrations/014_pnm_relationships_rls.sql
+supabase/migrations/015_onboarding_rpc.sql          # required for create/join org
+supabase/migrations/016_feature_fixes_rls.sql     # forms, waivers, housing RLS
+supabase/migrations/017_backlog_wave.sql          # coaching, NME, donations, social assets
+supabase/migrations/018_wave3_social_alumni.sql   # photo requests RLS, alumni campaigns, collab posts
+supabase/migrations/019_wave4_prompts_yearbook.sql # event photo prompts, PR compliance, yearbook sections
+supabase/migrations/020_wave5_photo_album_link.sql  # prompt batches → event albums, member album create
+supabase/migrations/021_wave7_messages_thread.sql
+supabase/migrations/022_wave8_platform_billing.sql
+supabase/migrations/023_club_org.sql                 # ClubOS tables
+supabase/migrations/024_club_elections_goals.sql     # elections + service goals
 ```
 
 ### 3. Environment variables
 
 ```bash
 cp .env.example .env.local
+npm run launch:check    # verify required keys before deploy
 ```
 
 | Variable | Required | Purpose |
@@ -138,10 +156,19 @@ Open [http://localhost:3000](http://localhost:3000) → sign up → create or jo
 ### 5. Verify
 
 ```bash
+npm run launch:check
 npm run typecheck
 npm run lint
 npm run build
 ```
+
+After deploy, hit `GET /api/ready` on your production URL (returns 200 when required env vars are set).
+
+### 6. Launch
+
+- Checklist: [docs/launch-checklist.md](docs/launch-checklist.md)
+- Runbook: [docs/launch-runbook.md](docs/launch-runbook.md)
+- Status: [docs/product-status.md](docs/product-status.md)
 
 ---
 

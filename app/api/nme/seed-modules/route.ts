@@ -10,8 +10,37 @@ const DEFAULT_MODULES = [
   { title: "Financial policies", description: "How dues and chapter finances work", is_required: true, order_index: 4 },
   { title: "Social media guidelines", description: "Brand standards and content policies", is_required: false, order_index: 5 },
   { title: "Big/little program intro", description: "How matching works", is_required: false, order_index: 6 },
-  { title: "Community values quiz", description: "Test knowledge of chapter values", is_required: true, order_index: 7 },
+  {
+    title: "Community values quiz",
+    description: "Test knowledge of chapter values",
+    is_required: true,
+    order_index: 7,
+    content: "Our chapter values integrity, scholarship, and service. Members are expected to uphold these in all chapter activities.",
+    quiz_questions: [
+      {
+        question: "Which value emphasizes academic excellence?",
+        options: ["Integrity", "Scholarship", "Service", "Social"],
+        correctIndex: 1,
+      },
+      {
+        question: "Members should report policy violations to:",
+        options: ["No one", "Social media", "Chapter officers", "Alumni only"],
+        correctIndex: 2,
+      },
+      {
+        question: "Philanthropy events support:",
+        options: ["Personal profit", "Community and charitable causes", "Only nationals", "Vendors"],
+        correctIndex: 1,
+      },
+    ],
+  },
 ];
+
+const MODULE_ROWS = DEFAULT_MODULES.map((m) => ({
+  ...m,
+  content: "content" in m ? (m as { content?: string }).content ?? null : null,
+  quiz_questions: "quiz_questions" in m ? (m as { quiz_questions?: unknown[] }).quiz_questions ?? [] : [],
+}));
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -42,7 +71,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "Modules already exist", seeded: 0 });
   }
 
-  const rows = DEFAULT_MODULES.map((m) => ({ org_id: orgId, ...m }));
+  const rows = MODULE_ROWS.map((m) => ({ org_id: orgId, ...m }));
   const { error } = await supabase.from("nme_modules").insert(rows);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

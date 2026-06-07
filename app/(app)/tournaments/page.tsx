@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { loadActiveMembershipServer } from "@/lib/active-org-membership-server";
 import {
   Badge, Button, Card, CardHeader, EmptyState, PageHeader, StatCard,
 } from "@/components/ui";
@@ -13,15 +15,15 @@ export const dynamic = "force-dynamic";
 export default async function TournamentsPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/onboarding");
 
-  const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-  if (!m) redirect("/onboarding");
+  const membership = await loadActiveMembershipServer(user.id);
+  if (!membership) redirect("/onboarding");
 
   const { data: events } = await supabase
     .from("events")
     .select("*")
-    .eq("org_id", m.org_id)
+    .eq("org_id", membership.orgId)
     .in("type", ["tournament", "game", "tryout"])
     .order("starts_at");
 
@@ -31,11 +33,15 @@ export default async function TournamentsPage() {
   const past = eventList.filter((e) => new Date(String(e.starts_at)) < new Date());
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Tournament & League Management"
         description="Schedules, results, brackets, and roster submissions"
-        action={<Button size="sm" icon={<Plus size={14} />}>Add game/tournament</Button>}
+        action={
+          <Link href="/events/new">
+            <Button size="sm" icon={<Plus size={14} />}>Add game/tournament</Button>
+          </Link>
+        }
       />
 
       <div className="grid grid-cols-3 gap-3">
@@ -49,10 +55,14 @@ export default async function TournamentsPage() {
           icon={<Trophy size={24} />}
           title="No games or tournaments scheduled"
           description="Add your upcoming games, tournaments, and tryouts from the Events page."
-          action={<Button size="sm" icon={<Plus size={14} />}>Add event</Button>}
+          action={
+            <Link href="/events/new">
+              <Button size="sm" icon={<Plus size={14} />}>Add event</Button>
+            </Link>
+          }
         />
       ) : (
-        <div className="space-y-5">
+        <div className="ds-page-stack">
           {upcoming.length > 0 && (
             <Card>
               <CardHeader title="Upcoming schedule" icon={<Calendar size={16} />} />
@@ -96,10 +106,28 @@ export default async function TournamentsPage() {
               </div>
             </Card>
           )}
-
-          <TournamentTools />
         </div>
       )}
+
+      <Card>
+        <CardHeader title="League & roster tools" icon={<Trophy size={16} />} />
+        <div className="flex flex-wrap gap-2">
+          <Link href="/standings">
+            <Button size="sm" variant="secondary">Standings &amp; scores</Button>
+          </Link>
+          <Link href="/roster">
+            <Button size="sm" variant="secondary">Roster &amp; eligibility</Button>
+          </Link>
+          <Link href="/equipment">
+            <Button size="sm" variant="secondary">Equipment &amp; uniforms</Button>
+          </Link>
+        </div>
+        <p className="text-xs text-muted-foreground mt-3">
+          Log game results in Standings, confirm travel eligibility on the roster, and track uniform issue/return under Equipment.
+        </p>
+      </Card>
+
+      <TournamentTools />
     </div>
   );
 }

@@ -1,57 +1,38 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Calendar, ChevronLeft, DollarSign, Image, MapPin, Users } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Calendar, ChevronLeft, DollarSign, Image as ImageIcon, Users } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
+import { LocationFields, type LocationFieldValues } from "@/components/location/location-fields";
 import { Button, Input, PageHeader, Select, Textarea, Alert } from "@/components/ui";
 
-const GREEK_EVENT_TYPES = [
-  { value: "chapter_meeting", label: "Chapter meeting" },
-  { value: "recruitment", label: "Recruitment event" },
-  { value: "mixer", label: "Mixer" },
-  { value: "formal", label: "Formal" },
-  { value: "date_party", label: "Date party" },
-  { value: "brotherhood", label: "Brotherhood event" },
-  { value: "sisterhood", label: "Sisterhood event" },
-  { value: "philanthropy", label: "Philanthropy event" },
-  { value: "service", label: "Service event" },
-  { value: "tailgate", label: "Tailgate" },
-  { value: "alumni_event", label: "Alumni event" },
-  { value: "new_member_education", label: "New member education" },
-  { value: "standards", label: "Standards meeting" },
-  { value: "retreat", label: "Retreat" },
-  { value: "other", label: "Other" },
-];
-
-const SPORTS_EVENT_TYPES = [
-  { value: "practice", label: "Practice" },
-  { value: "game", label: "Game" },
-  { value: "tournament", label: "Tournament" },
-  { value: "tryout", label: "Tryout" },
-  { value: "team_meeting", label: "Team meeting" },
-  { value: "fundraiser", label: "Fundraiser" },
-  { value: "travel", label: "Travel event" },
-  { value: "conditioning", label: "Conditioning session" },
-  { value: "alumni_game", label: "Alumni game" },
-  { value: "volunteer", label: "Volunteer event" },
-  { value: "other", label: "Other" },
-];
+import { eventTypesForOrgType } from "@/lib/org-product";
+import { eventTemplatesForOrgType, getEventTemplateById } from "@/lib/event-templates";
+import { formatCurrency } from "@/lib/utils";
 
 export default function NewEventPage() {
-  const supabase = createClient();
   const router = useRouter();
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [orgType, setOrgType] = useState("general_org");
+  const searchParams = useSearchParams();
+  const { orgId, orgType } = useOrg();
   const [saving, setSaving] = useState(false);
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const [coverUploading, setCoverUploading] = useState(false);
+  const [coverSuggestions, setCoverSuggestions] = useState<Array<{ url: string; label: string }>>([]);
+  const coverRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
     title: "",
     type: "other",
     description: "",
-    location: "",
-    address: "",
+    locationValues: {
+      venueName: "",
+      address: "",
+      destination: "",
+      departureLocation: "",
+      meetingPoint: "",
+    } as LocationFieldValues,
     startsAt: "",
     endsAt: "",
     rsvpEnabled: true,
@@ -61,32 +42,100 @@ export default function NewEventPage() {
     alcohol: false,
     riskLevel: "low",
     budgetAmount: "",
+    pricePerPerson: "",
     dresscode: "",
     playlistUrl: "",
     theme: "",
     isPrivate: false,
+    isPointOpportunity: false,
+    pointValue: "",
+    pointCategory: "",
   });
 
+  const eventTypes = eventTypesForOrgType(orgType || "general_org");
+  const eventTemplates = eventTemplatesForOrgType(orgType || "general_org");
+  const [templateId, setTemplateId] = useState("");
+
+  function applyEventTemplate(id: string) {
+    setTemplateId(id);
+    if (!id) return;
+    const tmpl = getEventTemplateById(orgType || "general_org", id);
+    if (!tmpl) return;
+    setForm((f) => ({
+      ...f,
+      title: f.title || tmpl.title,
+      type: tmpl.eventType,
+      description: f.description || tmpl.description,
+      riskLevel: tmpl.riskLevel,
+      budgetAmount: String(tmpl.budgetAmount),
+      pricePerPerson: tmpl.pricePerPerson != null ? String(tmpl.pricePerPerson) : "",
+      dresscode: tmpl.dresscode ?? f.dresscode,
+      theme: tmpl.theme ?? f.theme,
+      rsvpEnabled: tmpl.rsvpEnabled,
+    }));
+    toast.success(`Applied ${tmpl.label} template`);
+  }
+
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase
-        .from("org_members")
-        .select("org_id, organizations(type)")
-        .eq("user_id", user.id)
-        .limit(1)
-        .single();
-      if (m) {
-        setOrgId(m.org_id);
-        setOrgType(String(((m.organizations as unknown) as Record<string, unknown>)?.type ?? "general_org"));
+    const type = searchParams.get("type");
+    const inviteOnly = searchParams.get("invite_only");
+    const types = eventTypesForOrgType(orgType || "general_org");
+    if (type) {
+      const normalized = type === "brotherhood" ? "brotherhood" : type;
+      if (types.some((t) => t.value === normalized)) {
+        setForm((f) => ({ ...f, type: normalized }));
       }
     }
-    init();
-  }, [supabase]);
+    if (inviteOnly === "true" || inviteOnly === "1") {
+      setForm((f) => ({ ...f, isPrivate: true }));
+    }
+  }, [searchParams, orgType]);
 
-  const isSports = orgType === "club_sports";
-  const eventTypes = isSports ? SPORTS_EVENT_TYPES : GREEK_EVENT_TYPES;
+  useEffect(() => {
+    const venue = form.locationValues.venueName;
+    const address = form.locationValues.address;
+    const destination = form.locationValues.destination;
+    if (!venue && !address && !destination) {
+      setCoverSuggestions([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      const params = new URLSearchParams();
+      if (venue) params.set("venue", venue);
+      if (address) params.set("address", address);
+      if (destination) params.set("destination", destination);
+      const res = await fetch(`/api/events/cover-suggest?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        const suggestions = (data.suggestions ?? []).map((s: { url: string; label: string }) => ({
+          url: s.url,
+          label: s.label,
+        }));
+        setCoverSuggestions(suggestions);
+        if (!coverUrl && suggestions[0]?.url) {
+          setCoverUrl(suggestions[0].url);
+        }
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [form.locationValues.venueName, form.locationValues.address, form.locationValues.destination, coverUrl]);
+
+  async function uploadCover(file: File) {
+    if (!orgId) return;
+    setCoverUploading(true);
+    const body = new FormData();
+    body.append("file", file);
+    body.append("org_id", orgId);
+    const res = await fetch("/api/events/cover-upload", { method: "POST", body });
+    setCoverUploading(false);
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.error ?? "Upload failed");
+      return;
+    }
+    setCoverUrl(data.url);
+    toast.success("Cover image uploaded");
+  }
 
   async function createEvent() {
     if (!orgId || !form.title || !form.startsAt) return;
@@ -100,8 +149,8 @@ export default function NewEventPage() {
         title: form.title,
         type: form.type,
         description: form.description || null,
-        location: form.location || null,
-        address: form.address || null,
+        location: form.locationValues.venueName || null,
+        address: form.locationValues.address || null,
         startsAt: form.startsAt,
         endsAt: form.endsAt || null,
         rsvpEnabled: form.rsvpEnabled,
@@ -115,6 +164,10 @@ export default function NewEventPage() {
         playlistUrl: form.playlistUrl || null,
         theme: form.theme || null,
         isPrivate: form.isPrivate,
+        coverImageUrl: coverUrl,
+        isPointOpportunity: form.isPointOpportunity,
+        pointValue: form.pointValue ? parseInt(form.pointValue, 10) : null,
+        pointCategory: form.pointCategory || null,
       }),
     });
 
@@ -141,6 +194,21 @@ export default function NewEventPage() {
 
       {/* Basic info */}
       <div className="space-y-4">
+        {eventTemplates.length > 0 && (
+          <Select
+            label="Start from template (optional)"
+            value={templateId}
+            onChange={(e) => applyEventTemplate(e.target.value)}
+            options={[
+              { value: "", label: "Blank event" },
+              ...eventTemplates.map((t) => ({
+                value: t.id,
+                label: `${t.label} — budget ${formatCurrency(t.budgetAmount)}${t.pricePerPerson != null ? ` · ${formatCurrency(t.pricePerPerson)}/person` : ""}`,
+              })),
+            ]}
+          />
+        )}
+
         <Input label="Event title" required placeholder="Spring Formal 2025" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
 
         <div className="grid sm:grid-cols-2 gap-3">
@@ -178,18 +246,63 @@ export default function NewEventPage() {
           <Input label="Start date & time" type="datetime-local" required value={form.startsAt} onChange={(e) => setForm({ ...form, startsAt: e.target.value })} />
           <Input label="End date & time" type="datetime-local" value={form.endsAt} onChange={(e) => setForm({ ...form, endsAt: e.target.value })} />
         </div>
-        <Input label="Location / venue name" placeholder="Beta House, Venue name..." icon={<MapPin size={15} />} value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
-        <Input label="Address" placeholder="123 Main St, Austin, TX" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+        <LocationFields
+          variant="event"
+          orgId={orgId ?? undefined}
+          values={form.locationValues}
+          onChange={(patch) => setForm({ ...form, locationValues: { ...form.locationValues, ...patch } })}
+        />
       </div>
 
-      {/* Event page customization (Partiful-style) */}
+      {/* Event page customization */}
       <div className="space-y-4">
-        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2"><Image size={15} />Event page</h3>
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2"><ImageIcon size={15} aria-hidden />Event page</h3>
         <div className="grid sm:grid-cols-2 gap-3">
           <Input label="Theme" placeholder="Black tie, Neon nights, Decades..." value={form.theme} onChange={(e) => setForm({ ...form, theme: e.target.value })} />
           <Input label="Dress code" placeholder="Cocktail attire, Casual, Costumes..." value={form.dresscode} onChange={(e) => setForm({ ...form, dresscode: e.target.value })} />
         </div>
         <Input label="Playlist link (Spotify, Apple Music)" placeholder="https://open.spotify.com/playlist/..." value={form.playlistUrl} onChange={(e) => setForm({ ...form, playlistUrl: e.target.value })} />
+
+        <div className="space-y-2">
+          <p className="text-sm font-medium">Cover image</p>
+          {coverUrl && (
+            <div
+              className="h-32 rounded-xl bg-cover bg-center border border-border"
+              style={{ backgroundImage: `url(${coverUrl})` }}
+            />
+          )}
+          <div className="flex gap-2 flex-wrap">
+            <Button type="button" variant="secondary" size="sm" loading={coverUploading} onClick={() => coverRef.current?.click()}>
+              Upload cover
+            </Button>
+            {coverUrl && (
+              <Button type="button" variant="secondary" size="sm" onClick={() => setCoverUrl(null)}>Remove</Button>
+            )}
+          </div>
+          <input ref={coverRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) uploadCover(file);
+          }} />
+          {coverSuggestions.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">Suggested from location</p>
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {coverSuggestions.map((s) => (
+                  <button
+                    key={s.url}
+                    type="button"
+                    onClick={() => setCoverUrl(s.url)}
+                    className={`flex-shrink-0 w-28 rounded-lg overflow-hidden border-2 ${coverUrl === s.url ? "border-greek-500" : "border-border"}`}
+                    title={s.label}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={s.url} alt={s.label} className="w-full h-16 object-cover" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* RSVP settings */}
@@ -219,10 +332,58 @@ export default function NewEventPage() {
         <Input label="RSVP capacity (optional)" type="number" placeholder="Leave blank for unlimited" value={form.rsvpLimit} onChange={(e) => setForm({ ...form, rsvpLimit: e.target.value })} />
       </div>
 
+      {/* Points */}
+      <div className="space-y-4">
+        <h3 className="text-sm font-semibold text-foreground">Points</h3>
+        <label className="flex items-start gap-3 cursor-pointer p-3 rounded-lg bg-surface-1 border border-border">
+          <input
+            type="checkbox"
+            className="rounded mt-0.5"
+            checked={form.isPointOpportunity}
+            onChange={(e) => setForm({ ...form, isPointOpportunity: e.target.checked })}
+          />
+          <div>
+            <p className="text-sm font-medium">Counts toward member points</p>
+            <p className="text-xs text-muted-foreground">Members earn credit when they check in at this event.</p>
+          </div>
+        </label>
+        {form.isPointOpportunity && (
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Input
+              label="Points to award (optional)"
+              type="number"
+              placeholder="Uses your chapter default if blank"
+              value={form.pointValue}
+              onChange={(e) => setForm({ ...form, pointValue: e.target.value })}
+            />
+            <Input
+              label="Category (optional)"
+              placeholder="Philanthropy, service, brotherhood..."
+              value={form.pointCategory}
+              onChange={(e) => setForm({ ...form, pointCategory: e.target.value })}
+            />
+          </div>
+        )}
+      </div>
+
       {/* Finance */}
       <div className="space-y-4">
         <h3 className="text-sm font-semibold text-foreground flex items-center gap-2"><DollarSign size={15} />Finance</h3>
-        <Input label="Event budget ($)" type="number" placeholder="500.00" value={form.budgetAmount} onChange={(e) => setForm({ ...form, budgetAmount: e.target.value })} />
+        <div className="grid sm:grid-cols-2 gap-3">
+          <Input label="Event budget ($)" type="number" placeholder="500.00" value={form.budgetAmount} onChange={(e) => setForm({ ...form, budgetAmount: e.target.value })} />
+          <Input
+            label="Suggested price per person ($)"
+            type="number"
+            placeholder="25.00"
+            value={form.pricePerPerson}
+            onChange={(e) => setForm({ ...form, pricePerPerson: e.target.value })}
+          />
+        </div>
+        {form.budgetAmount && form.pricePerPerson && (
+          <p className="text-xs text-muted-foreground">
+            Template pricing: {formatCurrency(parseFloat(form.pricePerPerson) || 0)} per attendee against a {formatCurrency(parseFloat(form.budgetAmount) || 0)} total budget.
+          </p>
+        )}
 
         <label className="flex items-start gap-3 cursor-pointer p-3 rounded-lg bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800">
           <input
@@ -243,8 +404,8 @@ export default function NewEventPage() {
       </div>
 
       <div className="flex gap-3 pt-2">
-        <Button variant="secondary" onClick={() => router.back()} className="flex-1">Cancel</Button>
-        <Button onClick={createEvent} loading={saving} disabled={!form.title || !form.startsAt} className="flex-1">
+        <Button variant="secondary" onClick={() => router.back()} className="flex-1 officer-touch">Cancel</Button>
+        <Button onClick={createEvent} loading={saving} disabled={!form.title || !form.startsAt} className="flex-1 officer-touch">
           Create event
         </Button>
       </div>

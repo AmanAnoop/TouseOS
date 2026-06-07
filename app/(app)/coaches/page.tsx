@@ -2,10 +2,16 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { BarChart2, Plus, Target, Trophy, Users } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import toast from "react-hot-toast";
+import { useOrg } from "@/hooks/use-org";
+import {
+  AVAILABILITY_STATUSES,
+  PRACTICE_BLOCKS,
+  availabilityColor,
+} from "@/lib/coaching-config";
 import {
   Button, Card, CardHeader, EmptyState, Modal,
-  PageHeader, StatCard, Textarea,
+  PageHeader, Select, StatCard, Textarea,
 } from "@/components/ui";
 
 interface Player {
@@ -18,7 +24,6 @@ interface Player {
 }
 
 export default function CoachesPage() {
-  const supabase = createClient();
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [practiceOpen, setPracticeOpen] = useState(false);
@@ -26,41 +31,110 @@ export default function CoachesPage() {
   const [practiceNotes, setPracticeNotes] = useState("");
   const [gameNotes, setGameNotes] = useState("");
 
-  const [goals] = useState([
-    "Win conference championship",
-    "Achieve 85% attendance at practices",
-    "Develop 3 new players for starting lineup",
-  ]);
+  const { orgId } = useOrg();
+  const [goals, setGoals] = useState<Array<{ id: string; content: string }>>([]);
+  const [goalInput, setGoalInput] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [availability, setAvailability] = useState<Record<string, string>>({});
+  const [lineup, setLineup] = useState<Record<string, string>>({});
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
-    const { data } = await supabase
-      .from("member_profiles")
-      .select("id, full_name, position, attendance_rate, jersey_number, is_injured")
-      .eq("org_id", oid)
-      .eq("membership_status", "active")
-      .order("position")
-      .order("full_name");
-    setPlayers((data ?? []) as Player[]);
+    const [playersRes, notesRes] = await Promise.all([
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}&scope=roster`),
+      fetch(`/api/coaching?org_id=${oid}`).then((r) => (r.ok ? r.json() : [])),
+    ]);
+    if (playersRes.ok) {
+      const all = (await playersRes.json()) as Array<Player & { membership_status: string }>;
+      setPlayers(
+        all
+          .filter((m) => m.membership_status === "active" || m.membership_status === "new_member")
+          .sort((a, b) => {
+            const pa = a.position ?? "";
+            const pb = b.position ?? "";
+            return pa.localeCompare(pb) || a.full_name.localeCompare(b.full_name);
+          }),
+      );
+    } else {
+      setPlayers([]);
+    }
+    const notes = notesRes as Array<{ id: string; note_type: string; content: string; member_id?: string | null }>;
+    setGoals(notes.filter((n) => n.note_type === "goal").map((n) => ({ id: n.id, content: n.content })));
+    const availMap: Record<string, string> = {};
+    notes.filter((n) => n.note_type === "availability" && n.member_id).forEach((n) => {
+      availMap[String(n.member_id)] = n.content;
+    });
+    setAvailability(availMap);
+    const practice = notes.find((n) => n.note_type === "practice");
+    const game = notes.find((n) => n.note_type === "game");
+    const lineupNote = notes.find((n) => n.note_type === "lineup");
+    if (practice) setPracticeNotes(practice.content);
+    if (game) setGameNotes(game.content);
+    if (lineupNote?.content) {
+      try {
+        setLineup(JSON.parse(lineupNote.content) as Record<string, string>);
+      } catch {
+        setLineup({});
+      }
+    }
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) load(m.org_id);
+    if (orgId) load(orgId);
+  }, [orgId, load]);
+
+  async function saveLineup() {
+    if (!orgId) return;
+    setSaving(true);
+    const res = await fetch("/api/coaching", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId, noteType: "lineup", content: JSON.stringify(lineup), title: "Starting lineup" }),
+    });
+    setSaving(false);
+    if (!res.ok) toast.error("Failed to save lineup");
+    else toast.success("Lineup saved");
+  }
+
+  async function saveNote(noteType: "practice" | "game" | "goal", content: string, title?: string) {
+    if (!orgId || !content.trim()) return;
+    setSaving(true);
+    const res = await fetch("/api/coaching", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId, noteType, content, title }),
+    });
+    setSaving(false);
+    if (!res.ok) {
+      toast.error("Failed to save");
+      return;
     }
-    init();
-  }, [supabase, load]);
+    toast.success("Saved");
+    load(orgId);
+  }
+
+  async function setPlayerAvailability(memberId: string, status: string) {
+    if (!orgId) return;
+    const res = await fetch("/api/coaching", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId, noteType: "availability", memberId, status }),
+    });
+    if (!res.ok) {
+      toast.error("Failed to update availability");
+      return;
+    }
+    setAvailability((prev) => ({ ...prev, [memberId]: status }));
+    toast.success("Availability updated");
+  }
 
   const positions = [...new Set(players.map((p) => p.position).filter(Boolean))];
   const avgAttendance = players.length > 0 ? Math.round(players.reduce((s, p) => s + p.attendance_rate, 0) / players.length) : 0;
   const injured = players.filter((p) => p.is_injured);
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Coaching & Captain Tools"
         description="Lineup planning, depth charts, and player development"
@@ -79,18 +153,82 @@ export default function CoachesPage() {
         <StatCard title="Positions" value={positions.length} icon={<Target size={18} />} />
       </div>
 
+      <Card>
+        <CardHeader title="Player availability" description="Game-week status for travel and lineup planning" />
+        {players.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No active players on roster.</p>
+        ) : (
+          <div className="space-y-2">
+            {players.map((player) => {
+              const status = availability[player.id] ?? "available";
+              const color = availabilityColor(status);
+              return (
+                <div key={player.id} className="flex flex-wrap items-center gap-2 p-2 rounded-lg border border-border">
+                  <p className="text-sm font-medium flex-1 min-w-[120px]">{player.full_name}</p>
+                  {player.position && <span className="text-xs text-muted-foreground">{player.position}</span>}
+                  <div className="flex gap-1 flex-wrap">
+                    {AVAILABILITY_STATUSES.map((s) => (
+                      <Button
+                        key={s.value}
+                        size="sm"
+                        variant={status === s.value ? "primary" : "secondary"}
+                        className={status === s.value && color === "green" ? "bg-green-600 hover:bg-green-700" : status === s.value && color === "red" ? "bg-red-600 hover:bg-red-700" : status === s.value && color === "yellow" ? "bg-yellow-600 hover:bg-yellow-700" : ""}
+                        onClick={() => setPlayerAvailability(player.id, s.value)}
+                      >
+                        {s.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+
       {/* Team goals */}
       <Card>
-        <CardHeader title="Team goals" description="Season objectives" action={<Button variant="ghost" size="sm" icon={<Plus size={12} />}>Add</Button>} />
+        <CardHeader title="Team goals" description="Season objectives" />
+        <div className="flex gap-2 mb-3">
+          <input
+            className="flex-1 h-9 rounded-lg border border-border px-3 text-sm"
+            placeholder="Add a team goal..."
+            value={goalInput}
+            onChange={(e) => setGoalInput(e.target.value)}
+          />
+          <Button size="sm" icon={<Plus size={12} />} onClick={() => { saveNote("goal", goalInput, "Team goal"); setGoalInput(""); }}>Add</Button>
+        </div>
         <div className="space-y-2">
           {goals.map((goal, i) => (
-            <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-surface-1 border border-border">
+            <div key={goal.id} className="flex items-center gap-3 p-3 rounded-lg bg-surface-1 border border-border">
               <span className="w-6 h-6 rounded-full bg-sports-600 text-white text-xs flex items-center justify-center flex-shrink-0 font-bold">{i + 1}</span>
-              <p className="text-sm text-foreground">{goal}</p>
+              <p className="text-sm text-foreground">{goal.content}</p>
             </div>
           ))}
         </div>
       </Card>
+
+      {positions.length > 0 && (
+        <Card>
+          <CardHeader title="Game lineup planner" description="Pick starters by position — saved for captains and coaches" />
+          <div className="grid sm:grid-cols-2 gap-3">
+            {positions.map((pos) => (
+              <Select
+                key={pos ?? "other"}
+                label={String(pos)}
+                value={lineup[String(pos)] ?? ""}
+                onChange={(e) => setLineup({ ...lineup, [String(pos)]: e.target.value })}
+                placeholder="Select starter"
+                options={[
+                  { value: "", label: "—" },
+                  ...players.filter((p) => p.position === pos).map((p) => ({ value: p.id, label: p.full_name })),
+                ]}
+              />
+            ))}
+          </div>
+          <Button size="sm" className="mt-3" loading={saving} onClick={saveLineup}>Save lineup</Button>
+        </Card>
+      )}
 
       {/* Depth chart by position */}
       {positions.length > 0 ? (
@@ -133,16 +271,11 @@ export default function CoachesPage() {
 
       {/* Practice plan modal */}
       <Modal open={practiceOpen} onClose={() => setPracticeOpen(false)} title="Create practice plan"
-        footer={<><Button variant="secondary" onClick={() => setPracticeOpen(false)}>Cancel</Button><Button onClick={() => setPracticeOpen(false)}>Save plan</Button></>}
+        footer={<><Button variant="secondary" onClick={() => setPracticeOpen(false)}>Cancel</Button><Button loading={saving} onClick={() => { saveNote("practice", practiceNotes, "Practice plan"); setPracticeOpen(false); }}>Save plan</Button></>}
       >
         <div className="space-y-4">
           <div className="grid grid-cols-3 gap-2">
-            {[
-              { label: "Warm-up", time: "0:00 – 0:15", default: "Dynamic stretching, light jog" },
-              { label: "Drills", time: "0:15 – 0:45", default: "Position-specific skill work" },
-              { label: "Scrimmage", time: "0:45 – 1:15", default: "Full team practice game" },
-              { label: "Cool-down", time: "1:15 – 1:30", default: "Static stretching, team meeting" },
-            ].map((block) => (
+            {PRACTICE_BLOCKS.map((block) => (
               <div key={block.label} className="p-2 rounded-lg bg-surface-1 border border-border col-span-3 sm:col-span-1">
                 <p className="text-xs font-bold text-foreground">{block.label}</p>
                 <p className="text-xs text-muted-foreground">{block.time}</p>
@@ -161,7 +294,7 @@ export default function CoachesPage() {
 
       {/* Game notes modal */}
       <Modal open={gameNotesOpen} onClose={() => setGameNotesOpen(false)} title="Game notes"
-        footer={<><Button variant="secondary" onClick={() => setGameNotesOpen(false)}>Cancel</Button><Button onClick={() => setGameNotesOpen(false)}>Save notes</Button></>}
+        footer={<><Button variant="secondary" onClick={() => setGameNotesOpen(false)}>Cancel</Button><Button loading={saving} onClick={() => { saveNote("game", gameNotes, "Game notes"); setGameNotesOpen(false); }}>Save notes</Button></>}
       >
         <Textarea
           label="Game notes (captain/coach only)"

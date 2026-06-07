@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { Badge, Button, Card, CardHeader, EmptyState } from "@/components/ui";
+import { Badge, Button, Card, CardHeader, EmptyState, Input } from "@/components/ui";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 interface HardshipRow {
@@ -23,6 +23,7 @@ interface HardshipReviewPanelProps {
 export function HardshipReviewPanel({ orgId }: HardshipReviewPanelProps) {
   const [rows, setRows] = useState<HardshipRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [approvedAmounts, setApprovedAmounts] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     if (!orgId) return;
@@ -41,7 +42,14 @@ export function HardshipReviewPanel({ orgId }: HardshipReviewPanelProps) {
     const res = await fetch("/api/hardship", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, orgId, status }),
+      body: JSON.stringify({
+        id,
+        orgId,
+        status,
+        ...(status === "approved" && approvedAmounts[id]
+          ? { approvedAmount: parseFloat(approvedAmounts[id]) }
+          : {}),
+      }),
     });
     if (res.ok) {
       toast.success(status === "approved" ? "Approved" : "Denied");
@@ -81,6 +89,13 @@ export function HardshipReviewPanel({ orgId }: HardshipReviewPanelProps) {
               )}
             </div>
             <p className="text-sm text-muted-foreground line-clamp-3">{r.reason}</p>
+            <Input
+              label="Approved amount due ($)"
+              type="number"
+              placeholder={r.requested_amount != null ? String(r.requested_amount) : "0"}
+              value={approvedAmounts[r.id] ?? ""}
+              onChange={(e) => setApprovedAmounts({ ...approvedAmounts, [r.id]: e.target.value })}
+            />
             <div className="flex gap-2">
               <Button size="sm" onClick={() => review(r.id, "approved")}>Approve</Button>
               <Button size="sm" variant="secondary" onClick={() => review(r.id, "denied")}>Deny</Button>

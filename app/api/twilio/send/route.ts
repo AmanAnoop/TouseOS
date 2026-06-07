@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isTwilioConfigured } from "@/lib/integrations";
 import { sendMassSms, isWithinQuietHours } from "@/lib/twilio";
+import { getOrgSmsDisplayName } from "@/lib/sms-branding";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -11,6 +13,13 @@ export async function POST(request: Request) {
 
   if (!orgId || !recipients?.length || !messageBody) {
     return NextResponse.json({ error: "orgId, recipients, and body are required" }, { status: 400 });
+  }
+
+  if (!isTwilioConfigured()) {
+    return NextResponse.json(
+      { error: "Twilio SMS is not configured on this server." },
+      { status: 503 },
+    );
   }
 
   // Enforce quiet hours
@@ -49,12 +58,15 @@ export async function POST(request: Request) {
     },
   });
 
+  const orgName = await getOrgSmsDisplayName(supabase, orgId);
   const results = await sendMassSms(
     eligible.map((l: Record<string, unknown>) => ({
       phone: String(l.phone),
       name: String(l.full_name),
     })),
     messageBody,
+    undefined,
+    { orgName },
   );
 
   // Record each message

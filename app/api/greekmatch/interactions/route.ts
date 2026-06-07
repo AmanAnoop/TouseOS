@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { loadActiveMembershipServer } from "@/lib/active-org-membership-server";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { targetUserId, action } = await request.json();
+  const { targetUserId, action, reportReason } = await request.json();
   if (!targetUserId || !action) {
     return NextResponse.json({ error: "targetUserId and action required" }, { status: 400 });
   }
@@ -49,6 +50,21 @@ export async function POST(request: Request) {
       { blocker_id: user.id, blocked_id: targetUserId },
       { onConflict: "blocker_id,blocked_id" },
     );
+  }
+
+  if (action === "report") {
+    const membership = await loadActiveMembershipServer(user.id);
+
+    if (membership?.orgId) {
+      await supabase.from("audit_logs").insert({
+        org_id: membership.orgId,
+        actor_id: user.id,
+        action: "greekmatch_report",
+        resource_type: "greekmatch_profiles",
+        resource_id: targetUserId,
+        metadata: { reason: reportReason ?? "unspecified", status: "open" },
+      });
+    }
   }
 
   return NextResponse.json({ success: true, isMatch });

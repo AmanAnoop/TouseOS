@@ -2,19 +2,23 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  ArrowRight, Calendar, CheckCircle, ChevronRight,
-  Lightbulb, MessageSquare, Plus, Share2, ThumbsUp, Zap,
+  ArrowRight, Calendar, ChevronRight,
+  Lightbulb, Plus, ThumbsUp, Zap,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import {
   Alert, Badge, Button, Card, EmptyState,
-  Modal, Input, PageHeader, Select, StatCard, Tabs, Textarea,
+  Modal, Input, PageHeader, Select, Tabs, Textarea,
 } from "@/components/ui";
 import { formatCurrency } from "@/lib/utils";
 import { AvailabilityMatcher, type AvailabilityEntry } from "@/components/interchapter/availability-matcher";
 import { JointBudgetSplitter } from "@/components/interchapter/joint-budget-splitter";
 import { InterchapterSummaryPanel } from "@/components/interchapter/interchapter-summary-panel";
+import { InterchapterMessagesPanel } from "@/components/interchapter/interchapter-messages-panel";
+import { GreekDirectoryPanel } from "@/components/interchapter/greek-directory-panel";
+import { GreekChapterPicker } from "@/components/interchapter/greek-chapter-picker";
 
 interface Proposal {
   id: string;
@@ -54,14 +58,14 @@ export default function InterchapterPage() {
   const [tab, setTab] = useState("proposals");
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [ideas, setIdeas] = useState<Idea[]>([]);
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [orgType, setOrgType] = useState("");
+  const { orgId, orgType, userId, loading: orgLoading } = useOrg();
   const [proposeOpen, setProposeOpen] = useState(false);
   const [ideaOpen, setIdeaOpen] = useState(false);
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
   const [availability, setAvailability] = useState<AvailabilityEntry[]>([]);
-  const [userId, setUserId] = useState<string | null>(null);
   const [userName, setUserName] = useState("");
+  const [partnerOrgs, setPartnerOrgs] = useState<Array<{ id: string; name: string }>>([]);
+  const [proposedDates, setProposedDates] = useState<string[]>([""]);
 
   const [proposalForm, setProposalForm] = useState({
     targetOrgId: "", eventName: "", eventType: "mixer",
@@ -78,12 +82,12 @@ export default function InterchapterPage() {
 
   const load = useCallback(async (oid: string) => {
     const [propRes, ideaRes] = await Promise.all([
-      supabase.from("interchapter_proposals").select("*").or(`proposing_org_id.eq.${oid},target_org_id.eq.${oid}`).order("created_at", { ascending: false }),
-      supabase.from("interchapter_ideas").select("*").order("upvotes", { ascending: false }).limit(20),
+      fetch(`/api/interchapter/proposals?org_id=${encodeURIComponent(oid)}`),
+      fetch("/api/interchapter/ideas"),
     ]);
-    setProposals((propRes.data ?? []) as Proposal[]);
-    setIdeas((ideaRes.data ?? []) as Idea[]);
-  }, [supabase]);
+    if (propRes.ok) setProposals((await propRes.json()) as Proposal[]);
+    if (ideaRes.ok) setIdeas((await ideaRes.json()) as Idea[]);
+  }, []);
 
   const loadAvailability = useCallback(async (oid: string) => {
     const res = await fetch(`/api/interchapter/availability?org_id=${oid}`);
@@ -102,61 +106,90 @@ export default function InterchapterPage() {
   }
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id, organizations(name, type)").eq("user_id", user.id).limit(1).single();
-      if (m) {
-        setOrgId(m.org_id);
-        setOrgType(String(((m.organizations as unknown) as Record<string, unknown>)?.type ?? ""));
-        load(m.org_id);
-        loadAvailability(m.org_id);
-      }
-      setUserId(user.id);
-      const { data: prof } = await supabase.from("profiles").select("full_name").eq("id", user.id).single();
+    if (!orgId) return;
+    load(orgId);
+    loadAvailability(orgId);
+  }, [orgId, load, loadAvailability]);
+
+  useEffect(() => {
+    if (!userId) return;
+    (async () => {
+      const { data: prof } = await supabase.from("profiles").select("full_name").eq("id", userId).single();
       if (prof) setUserName(String(prof.full_name));
+    })();
+  }, [userId, supabase]);
+
+  useEffect(() => {
+    if (!orgId || proposals.length === 0) {
+      setPartnerOrgs([]);
+      return;
     }
-    init();
-  }, [supabase, load]);
+    const ids = new Set(
+      proposals.flatMap((p) => {
+        if (p.proposing_org_id === orgId) return [p.target_org_id];
+        if (p.target_org_id === orgId) return [p.proposing_org_id];
+        return [];
+      }),
+    );
+    if (ids.size === 0) return;
+    fetch(`/api/interchapter/orgs?exclude_org_id=${encodeURIComponent(orgId)}`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((list: Array<{ id: string; name: string }>) =>
+        setPartnerOrgs(list.filter((o) => ids.has(o.id))),
+      );
+  }, [proposals, orgId]);
 
   async function submitProposal() {
     if (!orgId || !proposalForm.eventName || !proposalForm.targetOrgId) return;
-    const { error } = await supabase.from("interchapter_proposals").insert({
-      proposing_org_id: orgId,
-      target_org_id: proposalForm.targetOrgId,
-      event_name: proposalForm.eventName,
-      event_type: proposalForm.eventType,
-      estimated_attendance: proposalForm.estimatedAttendance ? parseInt(proposalForm.estimatedAttendance) : null,
-      theme_ideas: proposalForm.themeIdeas || null,
-      venue_ideas: proposalForm.venueIdeas || null,
-      budget_estimate: proposalForm.budgetEstimate ? parseFloat(proposalForm.budgetEstimate) : null,
-      cost_split_proposal: proposalForm.costSplitProposal || null,
-      alcohol: proposalForm.alcohol,
-      risk_level: proposalForm.riskLevel,
-      philanthropy_beneficiary: proposalForm.philanthropyBeneficiary || null,
-      proposed_dates: [],
-      status: "pending",
+    const res = await fetch("/api/interchapter/proposals", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        targetOrgId: proposalForm.targetOrgId,
+        eventName: proposalForm.eventName,
+        eventType: proposalForm.eventType,
+        estimatedAttendance: proposalForm.estimatedAttendance,
+        themeIdeas: proposalForm.themeIdeas,
+        venueIdeas: proposalForm.venueIdeas,
+        budgetEstimate: proposalForm.budgetEstimate,
+        costSplitProposal: proposalForm.costSplitProposal,
+        alcohol: proposalForm.alcohol,
+        riskLevel: proposalForm.riskLevel,
+        philanthropyBeneficiary: proposalForm.philanthropyBeneficiary,
+        proposedDates: proposedDates.filter((d) => d.trim()).map((date) => ({ date })),
+      }),
     });
-    if (error) { toast.error(error.message); return; }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast.error((data as { error?: string }).error ?? "Failed");
+      return;
+    }
     toast.success("Proposal sent!");
     setProposeOpen(false);
+    setProposedDates([""]);
     load(orgId);
   }
 
   async function postIdea() {
     if (!orgId || !ideaForm.title) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", user?.id ?? "").single();
-    const { error } = await supabase.from("interchapter_ideas").insert({
-      org_id: orgId,
-      poster_name: String(profile?.full_name ?? "Officer"),
-      title: ideaForm.title,
-      description: ideaForm.description || null,
-      idea_type: ideaForm.ideaType,
-      estimated_cost: ideaForm.estimatedCost ? parseFloat(ideaForm.estimatedCost) : null,
-      risk_level: ideaForm.riskLevel,
+    const res = await fetch("/api/interchapter/ideas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        title: ideaForm.title,
+        description: ideaForm.description,
+        ideaType: ideaForm.ideaType,
+        estimatedCost: ideaForm.estimatedCost,
+        riskLevel: ideaForm.riskLevel,
+      }),
     });
-    if (error) { toast.error(error.message); return; }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast.error((data as { error?: string }).error ?? "Failed");
+      return;
+    }
     toast.success("Idea posted!");
     setIdeaOpen(false);
     setIdeaForm({ title: "", description: "", ideaType: "mixer", estimatedCost: "", riskLevel: "low" });
@@ -164,8 +197,18 @@ export default function InterchapterPage() {
   }
 
   async function respondToProposal(id: string, status: string) {
+    if (!orgId) return;
     const proposal = proposals.find((p) => p.id === id);
-    await supabase.from("interchapter_proposals").update({ status }).eq("id", id);
+    const res = await fetch("/api/interchapter/proposals", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, orgId, status }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast.error((data as { error?: string }).error ?? "Update failed");
+      return;
+    }
     setProposals((prev) => prev.map((p) => p.id === id ? { ...p, status } : p));
     if (status === "accepted" && proposal && orgId) {
       const res = await fetch("/api/interchapter/workspaces", {
@@ -188,47 +231,59 @@ export default function InterchapterPage() {
     setSelectedProposal(null);
   }
 
-  async function upvoteIdea(id: string, current: number) {
-    await supabase.from("interchapter_ideas").update({ upvotes: current + 1 }).eq("id", id);
-    setIdeas((prev) => prev.map((i) => i.id === id ? { ...i, upvotes: current + 1 } : i));
+  async function upvoteIdea(id: string) {
+    if (!orgId) return;
+    const res = await fetch("/api/interchapter/ideas", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, orgId }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setIdeas((prev) => prev.map((i) => (i.id === id ? { ...i, upvotes: updated.upvotes } : i)));
+    }
   }
 
   const incoming = proposals.filter((p) => p.target_org_id === orgId && p.status === "pending");
-  const sent = proposals.filter((p) => p.proposing_org_id === orgId);
 
   const isGreek = orgType === "fraternity" || orgType === "sorority";
 
+  if (orgLoading) {
+    return (
+      <div className="ds-page-stack">
+        <div className="h-40 rounded-lg bg-surface-2 animate-pulse" />
+      </div>
+    );
+  }
+
   if (!isGreek) {
     return (
-      <div className="space-y-5">
-        <PageHeader title="ExecLink" description="Interchapter coordination for Greek organizations" />
-        <Alert type="info" title="ExecLink is for Greek organizations" description="This feature is available for fraternities and sororities to coordinate events with other chapters." />
+      <div className="ds-page-stack">
+        <PageHeader title="Interchapter" description="Interchapter coordination for Greek organizations" />
+        <Alert type="info" title="Interchapter is for Greek organizations" description="This feature is available for fraternities and sororities to coordinate events with other chapters." />
       </div>
     );
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Zap size={16} className="text-greek-600" />
-            <span className="text-xs font-bold text-greek-600 uppercase tracking-wide">ExecLink</span>
+    <div className="ds-page-stack">
+      <PageHeader
+        breadcrumb="Interchapter"
+        title="Chapter exchange"
+        description="Coordinate mixers, philanthropy, and events with other chapters"
+        action={
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" size="sm" icon={<Lightbulb size={14} />} onClick={() => setIdeaOpen(true)}>Post idea</Button>
+            <Button size="sm" icon={<Plus size={14} />} onClick={() => setProposeOpen(true)}>Propose event</Button>
           </div>
-          <h1 className="text-2xl font-bold text-foreground">Touse Exchange</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Coordinate mixers, philanthropy, and events with other chapters</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" size="sm" icon={<Lightbulb size={14} />} onClick={() => setIdeaOpen(true)}>Post idea</Button>
-          <Button size="sm" icon={<Plus size={14} />} onClick={() => setProposeOpen(true)}>Propose event</Button>
-        </div>
-      </div>
+        }
+      />
 
       {incoming.length > 0 && (
-        <div className="p-4 rounded-xl bg-greek-50 dark:bg-greek-950/30 border border-greek-200 dark:border-greek-800">
+        <div className="p-4 rounded-xl bg-greek-50 border border-greek-200">
           <div className="flex items-center gap-2 mb-3">
             <Zap size={16} className="text-greek-600" />
-            <p className="font-semibold text-greek-700 dark:text-greek-400">{incoming.length} incoming proposal{incoming.length > 1 ? "s" : ""}</p>
+            <p className="font-semibold text-greek-700">{incoming.length} incoming proposal{incoming.length > 1 ? "s" : ""}</p>
           </div>
           <div className="space-y-2">
             {incoming.map((p) => (
@@ -246,19 +301,14 @@ export default function InterchapterPage() {
 
       <InterchapterSummaryPanel orgId={orgId} />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard title="Incoming" value={incoming.length} icon={<MessageSquare size={18} />} />
-        <StatCard title="Sent proposals" value={sent.length} icon={<Share2 size={18} />} />
-        <StatCard title="Community ideas" value={ideas.length} icon={<Lightbulb size={18} />} />
-        <StatCard title="Accepted" value={proposals.filter((p) => p.status === "accepted").length} deltaType="up" icon={<CheckCircle size={18} />} />
-      </div>
-
       <Tabs
         tabs={[
           { id: "proposals", label: "Proposals", count: proposals.length },
           { id: "ideas", label: "Idea marketplace", count: ideas.length },
           { id: "availability", label: "Availability", count: availability.length },
           { id: "budget", label: "Budget split" },
+          { id: "messages", label: "Messages", count: partnerOrgs.length || undefined },
+          { id: "directory", label: "Chapter directory" },
         ]}
         active={tab}
         onChange={setTab}
@@ -305,7 +355,7 @@ export default function InterchapterPage() {
               <Card key={idea.id} padding="sm">
                 <div className="flex items-start gap-3">
                   <button
-                    onClick={() => upvoteIdea(idea.id, idea.upvotes)}
+                    onClick={() => upvoteIdea(idea.id)}
                     className="flex flex-col items-center gap-0.5 p-2 rounded-lg hover:bg-surface-1 transition-colors flex-shrink-0"
                   >
                     <ThumbsUp size={14} className="text-greek-600" />
@@ -346,13 +396,28 @@ export default function InterchapterPage() {
         <JointBudgetSplitter orgAName="Your chapter" orgBName="Partner chapter" />
       )}
 
+      {tab === "messages" && orgId && (
+        <InterchapterMessagesPanel orgId={orgId} userName={userName} partners={partnerOrgs} />
+      )}
+
+      {tab === "directory" && (
+        <GreekDirectoryPanel orgId={orgId} />
+      )}
+
       {/* Propose event modal */}
       <Modal open={proposeOpen} onClose={() => setProposeOpen(false)} title="Propose event to another chapter" size="lg"
         footer={<><Button variant="secondary" onClick={() => setProposeOpen(false)}>Cancel</Button><Button onClick={submitProposal} disabled={!proposalForm.eventName}>Send proposal</Button></>}
       >
         <div className="space-y-4">
           <Alert type="info" title="Your proposal will be sent to the target chapter's exec board for review." />
-          <Input label="Target chapter org ID" placeholder="Paste the org ID or search by name" value={proposalForm.targetOrgId} onChange={(e) => setProposalForm({ ...proposalForm, targetOrgId: e.target.value })} hint="Ask the other chapter's president for their TouseOS org ID" />
+          {orgId && (
+            <GreekChapterPicker
+              orgId={orgId}
+              value={proposalForm.targetOrgId}
+              kindFilter="all"
+              onChange={(id) => setProposalForm({ ...proposalForm, targetOrgId: id })}
+            />
+          )}
           <div className="grid sm:grid-cols-2 gap-3">
             <Input label="Event name *" placeholder="Spring Mixer 2025" value={proposalForm.eventName} onChange={(e) => setProposalForm({ ...proposalForm, eventName: e.target.value })} />
             <Select label="Event type" value={proposalForm.eventType} onChange={(e) => setProposalForm({ ...proposalForm, eventType: e.target.value })} options={[
@@ -369,6 +434,28 @@ export default function InterchapterPage() {
           <Input label="Theme ideas" placeholder="80s night, black and white..." value={proposalForm.themeIdeas} onChange={(e) => setProposalForm({ ...proposalForm, themeIdeas: e.target.value })} />
           <Input label="Venue ideas" placeholder="Local venue names..." value={proposalForm.venueIdeas} onChange={(e) => setProposalForm({ ...proposalForm, venueIdeas: e.target.value })} />
           <Input label="Philanthropy beneficiary (optional)" value={proposalForm.philanthropyBeneficiary} onChange={(e) => setProposalForm({ ...proposalForm, philanthropyBeneficiary: e.target.value })} />
+          <div>
+            <p className="text-sm font-medium mb-2">Proposed dates</p>
+            <div className="space-y-2">
+              {proposedDates.map((d, i) => (
+                <div key={i} className="flex gap-2">
+                  <Input
+                    type="date"
+                    value={d}
+                    onChange={(e) => {
+                      const next = [...proposedDates];
+                      next[i] = e.target.value;
+                      setProposedDates(next);
+                    }}
+                  />
+                  {proposedDates.length > 1 && (
+                    <Button variant="secondary" size="sm" onClick={() => setProposedDates(proposedDates.filter((_, j) => j !== i))}>Remove</Button>
+                  )}
+                </div>
+              ))}
+              <Button variant="secondary" size="sm" onClick={() => setProposedDates([...proposedDates, ""])}>Add date option</Button>
+            </div>
+          </div>
           <div className="flex gap-4">
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" className="rounded" checked={proposalForm.alcohol} onChange={(e) => setProposalForm({ ...proposalForm, alcohol: e.target.checked })} />
@@ -428,6 +515,12 @@ export default function InterchapterPage() {
             {selectedProposal.theme_ideas && <div><p className="text-xs text-muted-foreground mb-1">Theme ideas</p><p className="text-sm">{selectedProposal.theme_ideas}</p></div>}
             {selectedProposal.venue_ideas && <div><p className="text-xs text-muted-foreground mb-1">Venue ideas</p><p className="text-sm">{selectedProposal.venue_ideas}</p></div>}
             {selectedProposal.philanthropy_beneficiary && <div><p className="text-xs text-muted-foreground mb-1">Philanthropy beneficiary</p><p className="text-sm">{selectedProposal.philanthropy_beneficiary}</p></div>}
+            {selectedProposal.proposed_dates?.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Proposed dates</p>
+                <p className="text-sm">{selectedProposal.proposed_dates.map((d) => d.date).join(" · ")}</p>
+              </div>
+            )}
             {selectedProposal.status === "accepted" && (
               <a href={`/interchapter/workspace?proposal=${selectedProposal.id}`} className="text-sm text-greek-600 hover:underline block mt-2">Open shared workspace →</a>
             )}

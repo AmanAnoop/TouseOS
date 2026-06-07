@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { MessageSquare, Plus, User } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import {
   Avatar, Badge, Button, Card, EmptyState, Modal,
   CardHeader, Input, PageHeader, SearchInput, Tabs,
@@ -16,6 +16,9 @@ import { RushMatchPanel } from "@/components/pnm/rush-match-panel";
 import { RelationshipGraphPanel } from "@/components/pnm/relationship-graph-panel";
 import { RecruitmentLinksPanel } from "@/components/pnm/recruitment-links-panel";
 import { RecruitmentAnalyticsPanel } from "@/components/pnm/recruitment-analytics-panel";
+import { PnmLeadAutofillFields } from "@/components/pnm/pnm-lead-autofill-fields";
+import { PnmEventsTab } from "@/components/pnm/pnm-events-tab";
+import { PnmConnectionsTab } from "@/components/pnm/pnm-connections-tab";
 
 const PIPELINE_STAGES: PnmStatus[] = [
   "lead","contacted","invited","attended","interested",
@@ -29,9 +32,8 @@ const STATUS_COLOR: Record<PnmStatus, string> = {
 };
 
 export default function PnmPage() {
-  const supabase = createClient();
+  const { orgId, orgName } = useOrg();
   const [leads, setLeads] = useState<PnmLead[]>([]);
-  const [orgId, setOrgId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [tab, setTab] = useState("pipeline");
@@ -42,39 +44,45 @@ export default function PnmPage() {
   const [matcherPnmId, setMatcherPnmId] = useState<string | null>(null);
   const [enrichKey, setEnrichKey] = useState(0);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
-  const [orgName, setOrgName] = useState("");
-  const [chapterMembers, setChapterMembers] = useState<Array<{ id: string; full_name: string }>>([]);
+  const [chapterMembers, setChapterMembers] = useState<Array<{ id: string; full_name: string; profile_photo_url?: string | null }>>([]);
+  const [universityId, setUniversityId] = useState<string | null>(null);
 
   const [newLead, setNewLead] = useState({
     fullName: "", email: "", phone: "", instagramHandle: "",
     classYear: "", major: "", hometown: "", referralSource: "",
-    activeMemberConnection: "", communicationConsent: false,
+    activeMemberConnections: [] as string[],
+    communicationConsent: false,
   });
 
   const loadLeads = useCallback(async (oid: string) => {
-    const { data } = await supabase.from("pnm_leads").select("*").eq("org_id", oid).order("created_at", { ascending: false });
-    setLeads((data ?? []) as PnmLead[]);
-  }, [supabase]);
+    const res = await fetch(`/api/pnm?org_id=${encodeURIComponent(oid)}`);
+    if (res.ok) setLeads((await res.json()) as PnmLead[]);
+  }, []);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) {
-        setOrgId(m.org_id);
-        loadLeads(m.org_id);
-        const { data: org } = await supabase.from("organizations").select("name, invite_code").eq("id", m.org_id).single();
-        if (org) {
-          setOrgName(String(org.name ?? ""));
-          setInviteCode(org.invite_code ? String(org.invite_code) : null);
-        }
-        const { data: mems } = await supabase.from("member_profiles").select("id, full_name").eq("org_id", m.org_id).eq("membership_status", "active").order("full_name");
-        setChapterMembers((mems ?? []) as Array<{ id: string; full_name: string }>);
+    if (!orgId) return;
+    loadLeads(orgId);
+    (async () => {
+      const orgRes = await fetch(`/api/org/settings?org_id=${encodeURIComponent(orgId)}`);
+      if (orgRes.ok) {
+        const { org } = await orgRes.json();
+        setInviteCode(org?.invite_code ? String(org.invite_code) : null);
+        const settings = (org?.settings ?? {}) as Record<string, unknown>;
+        setUniversityId(typeof settings.university_id === "string" ? settings.university_id : null);
       }
-    }
-    init();
-  }, [supabase, loadLeads]);
+      const memRes = await fetch(`/api/members?org_id=${encodeURIComponent(orgId)}&scope=roster`);
+      if (memRes.ok) {
+        const mems = (await memRes.json()) as Array<{ id: string; full_name: string; membership_status: string }>;
+        setChapterMembers(
+          mems.filter((m) => m.membership_status === "active" || m.membership_status === "new_member").map((m) => ({
+            id: m.id,
+            full_name: m.full_name,
+            profile_photo_url: (m as { profile_photo_url?: string }).profile_photo_url ?? null,
+          })),
+        );
+      }
+    })();
+  }, [orgId, loadLeads]);
 
   const filtered = leads.filter((l) => {
     const q = query.toLowerCase();
@@ -90,31 +98,45 @@ export default function PnmPage() {
 
   async function addLead() {
     if (!orgId || !newLead.fullName) return;
-    const { error } = await supabase.from("pnm_leads").insert({
-      org_id: orgId,
-      full_name: newLead.fullName,
-      email: newLead.email || null,
-      phone: newLead.phone || null,
-      instagram_handle: newLead.instagramHandle || null,
-      class_year: newLead.classYear || null,
-      major: newLead.major || null,
-      hometown: newLead.hometown || null,
-      referral_source: newLead.referralSource || null,
-      active_member_connection: newLead.activeMemberConnection || null,
-      communication_consent: newLead.communicationConsent,
-      consent_timestamp: newLead.communicationConsent ? new Date().toISOString() : null,
-      consent_source: newLead.communicationConsent ? "manual_entry" : null,
+    const res = await fetch("/api/pnm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        fullName: newLead.fullName,
+        email: newLead.email,
+        phone: newLead.phone,
+        instagramHandle: newLead.instagramHandle,
+        classYear: newLead.classYear,
+        major: newLead.major,
+        hometown: newLead.hometown,
+        referralSource: newLead.referralSource,
+        activeMemberConnection: newLead.activeMemberConnections.join(", "),
+        communicationConsent: newLead.communicationConsent,
+        consentSource: newLead.communicationConsent ? "manual_entry" : null,
+      }),
     });
-    if (error) { toast.error(error.message); return; }
+    if (!res.ok) {
+      toast.error((await res.json()).error ?? "Failed to add PNM");
+      return;
+    }
     toast.success("PNM added");
     setAddOpen(false);
-    setNewLead({ fullName: "", email: "", phone: "", instagramHandle: "", classYear: "", major: "", hometown: "", referralSource: "", activeMemberConnection: "", communicationConsent: false });
+    setNewLead({ fullName: "", email: "", phone: "", instagramHandle: "", classYear: "", major: "", hometown: "", referralSource: "", activeMemberConnections: [], communicationConsent: false });
     loadLeads(orgId);
   }
 
   async function updateStatus(id: string, status: PnmStatus) {
-    await supabase.from("pnm_leads").update({ status }).eq("id", id);
-    setLeads((prev) => prev.map((l) => l.id === id ? { ...l, status } : l));
+    const res = await fetch("/api/pnm", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, status }),
+    });
+    if (res.ok) {
+      setLeads((prev) => prev.map((l) => l.id === id ? { ...l, status } : l));
+    } else {
+      toast.error((await res.json()).error ?? "Update failed");
+    }
   }
 
   async function sendMassText() {
@@ -139,7 +161,7 @@ export default function PnmPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="PNM Recruitment CRM"
         description={`${leads.length} potential new members · ${leads.filter((l) => l.communication_consent).length} opted in to SMS`}
@@ -167,8 +189,10 @@ export default function PnmPage() {
           { id: "list", label: "List view" },
           { id: "analytics", label: "Analytics" },
           { id: "matcher", label: "Rush matcher" },
+          { id: "connections", label: "Connections" },
           { id: "recruitment", label: "Recruitment links" },
           { id: "voting", label: "Voting" },
+          { id: "events", label: "Events" },
         ]}
         active={tab}
         onChange={setTab}
@@ -328,12 +352,19 @@ export default function PnmPage() {
             <Input label="Email" type="email" value={newLead.email} onChange={(e) => setNewLead({ ...newLead, email: e.target.value })} placeholder="jane@college.edu" />
             <Input label="Phone (optional)" type="tel" value={newLead.phone} onChange={(e) => setNewLead({ ...newLead, phone: e.target.value })} placeholder="+1 (555) 000-0000" />
             <Input label="Instagram handle (optional)" value={newLead.instagramHandle} onChange={(e) => setNewLead({ ...newLead, instagramHandle: e.target.value })} placeholder="@janesmithh" />
-            <Input label="Class year" value={newLead.classYear} onChange={(e) => setNewLead({ ...newLead, classYear: e.target.value })} placeholder="2027" />
-            <Input label="Major" value={newLead.major} onChange={(e) => setNewLead({ ...newLead, major: e.target.value })} placeholder="Business" />
-            <Input label="Hometown" value={newLead.hometown} onChange={(e) => setNewLead({ ...newLead, hometown: e.target.value })} placeholder="Austin, TX" />
-            <Input label="Referral source" value={newLead.referralSource} onChange={(e) => setNewLead({ ...newLead, referralSource: e.target.value })} placeholder="Active member name" />
           </div>
-          <Input label="Active member connection" value={newLead.activeMemberConnection} onChange={(e) => setNewLead({ ...newLead, activeMemberConnection: e.target.value })} placeholder="Who knows this PNM?" />
+          <PnmLeadAutofillFields
+            values={{
+              classYear: newLead.classYear,
+              major: newLead.major,
+              hometown: newLead.hometown,
+              referralSource: newLead.referralSource,
+              activeMemberConnections: newLead.activeMemberConnections,
+            }}
+            onChange={(patch) => setNewLead({ ...newLead, ...patch })}
+            members={chapterMembers}
+            universityId={universityId}
+          />
 
           {/* Consent checkbox – mandatory for SMS */}
           <div className="border border-border rounded-lg p-4 bg-surface-1">
@@ -364,6 +395,10 @@ export default function PnmPage() {
 
       {tab === "recruitment" && (
         <RecruitmentLinksPanel orgName={orgName} inviteCode={inviteCode} />
+      )}
+
+      {tab === "connections" && orgId && (
+        <PnmConnectionsTab orgId={orgId} leads={leads} />
       )}
 
       {tab === "matcher" && orgId && (
@@ -407,7 +442,11 @@ export default function PnmPage() {
       )}
 
       {tab === "voting" && orgId && (
-        <PnmVotingPanel leads={leads} />
+        <PnmVotingPanel orgId={orgId} leads={leads} />
+      )}
+
+      {tab === "events" && orgId && (
+        <PnmEventsTab orgId={orgId} pnms={leads} />
       )}
 
       {/* Mass text modal */}

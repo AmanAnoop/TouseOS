@@ -11,6 +11,34 @@
     {
       "path": "/api/cron/recurring-dues",
       "schedule": "0 7 1 * *"
+    },
+    {
+      "path": "/api/cron/sync-stripe-connect",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/tasks-due-soon",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/recurring-tasks",
+      "schedule": "0 9 * * 1"
+    },
+    {
+      "path": "/api/cron/social-calendar-reminders",
+      "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron/event-reminders",
+      "schedule": "0 11 * * *"
+    },
+    {
+      "path": "/api/cron/forms-due",
+      "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/recurring-housing-rent",
+      "schedule": "0 7 * * *"
     }
   ]
 }

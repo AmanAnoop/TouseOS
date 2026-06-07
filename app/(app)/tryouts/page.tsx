@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Trophy, UserCheck, UserX, Users } from "lucide-react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import {
   Badge, Button, Card, EmptyState, Modal,
   PageHeader, ProgressBar, StatCard, Tabs,
@@ -20,10 +20,9 @@ const EVAL_FIELDS = [
 ];
 
 export default function TryoutsPage() {
-  const supabase = createClient();
+  const { orgId } = useOrg();
   const [tryouts, setTryouts] = useState<SportsTryout[]>([]);
   const [loading, setLoading] = useState(true);
-  const [orgId, setOrgId] = useState<string | null>(null);
   const [tab, setTab] = useState("candidates");
   const [addOpen, setAddOpen] = useState(false);
   const [evalOpen, setEvalOpen] = useState<SportsTryout | null>(null);
@@ -42,36 +41,37 @@ export default function TryoutsPage() {
 
   const load = useCallback(async (oid: string) => {
     setLoading(true);
-    const { data } = await supabase.from("sports_tryouts").select("*").eq("org_id", oid).order("created_at", { ascending: false });
-    setTryouts((data ?? []) as SportsTryout[]);
+    const res = await fetch(`/api/sports/tryouts?org_id=${encodeURIComponent(oid)}`);
+    setTryouts(res.ok ? ((await res.json()) as SportsTryout[]) : []);
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase.from("org_members").select("org_id").eq("user_id", user.id).limit(1).single();
-      if (m) { setOrgId(m.org_id); load(m.org_id); }
-    }
-    init();
-  }, [supabase, load]);
+    if (orgId) load(orgId);
+  }, [orgId, load]);
 
   async function addCandidate() {
     if (!orgId || !newCandidate.name) return;
-    const { error } = await supabase.from("sports_tryouts").insert({
-      org_id: orgId,
-      candidate_name: newCandidate.name,
-      candidate_email: newCandidate.email || null,
-      candidate_phone: newCandidate.phone || null,
-      position: newCandidate.position || null,
-      experience_level: newCandidate.experienceLevel,
-      availability: newCandidate.availability || null,
-      prior_teams: newCandidate.priorTeams || null,
-      tryout_date: newCandidate.tryoutDate || null,
-      status: "registered",
+    const res = await fetch("/api/sports/tryouts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orgId,
+        candidateName: newCandidate.name,
+        candidateEmail: newCandidate.email,
+        candidatePhone: newCandidate.phone,
+        position: newCandidate.position,
+        experienceLevel: newCandidate.experienceLevel,
+        availability: newCandidate.availability,
+        priorTeams: newCandidate.priorTeams,
+        tryoutDate: newCandidate.tryoutDate,
+      }),
     });
-    if (error) { toast.error(error.message); return; }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error((err as { error?: string }).error ?? "Failed to add candidate");
+      return;
+    }
     toast.success("Candidate added");
     setAddOpen(false);
     setNewCandidate({ name: "", email: "", phone: "", position: "", experienceLevel: "intermediate", availability: "", priorTeams: "", tryoutDate: "" });
@@ -80,22 +80,39 @@ export default function TryoutsPage() {
 
   async function saveEval() {
     if (!evalOpen || !orgId) return;
-    const avg = Object.values(evalScores).reduce((a, b) => a + b, 0) / Object.values(evalScores).length;
-    const { error } = await supabase.from("sports_tryouts").update({
-      ...evalScores,
-      overall_score: Math.round(avg * 10) / 10,
-      notes: evalNotes || null,
-      status: "attended",
-    }).eq("id", evalOpen.id);
-    if (error) { toast.error(error.message); return; }
+    const res = await fetch("/api/sports/tryouts", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: evalOpen.id,
+        orgId,
+        evalScores,
+        evalNotes,
+        status: "attended",
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error((err as { error?: string }).error ?? "Failed to save");
+      return;
+    }
     toast.success("Evaluation saved");
     setEvalOpen(null);
     load(orgId);
   }
 
   async function updateStatus(id: string, status: string) {
-    await supabase.from("sports_tryouts").update({ status }).eq("id", id);
-    setTryouts((prev) => prev.map((t) => t.id === id ? { ...t, status } : t));
+    if (!orgId) return;
+    const res = await fetch("/api/sports/tryouts", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, orgId, status }),
+    });
+    if (!res.ok) {
+      toast.error("Failed to update status");
+      return;
+    }
+    setTryouts((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)));
     toast.success(`Candidate ${status}`);
   }
 
@@ -109,7 +126,7 @@ export default function TryoutsPage() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title="Tryout Management"
         description={`${tryouts.length} candidates · ${byStatus.accepted.length} accepted`}

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { loadActiveMembershipServer } from "@/lib/active-org-membership-server";
 
 export async function GET() {
   const supabase = await createClient();
@@ -23,18 +24,9 @@ export async function POST(request: Request) {
 
   const body = await request.json();
 
-  // Verify org is Greek
-  const { data: membership } = await supabase
-    .from("org_members")
-    .select("org_id, organizations(type)")
-    .eq("user_id", user.id)
-    .neq("status", "removed")
-    .limit(1)
-    .single();
-
+  const membership = await loadActiveMembershipServer(user.id);
   if (!membership) return NextResponse.json({ error: "Not in an organization" }, { status: 403 });
-  const orgType = ((membership.organizations as unknown) as Record<string, unknown>)?.type as string;
-  if (!["fraternity", "sorority"].includes(orgType)) {
+  if (!["fraternity", "sorority"].includes(membership.orgType)) {
     return NextResponse.json({ error: "GreekMatch is only available for Greek organizations" }, { status: 403 });
   }
 
@@ -42,7 +34,7 @@ export async function POST(request: Request) {
     .from("greekmatch_profiles")
     .upsert({
       user_id: user.id,
-      org_id: membership.org_id,
+      org_id: membership.orgId,
       display_name: body.displayName,
       age: body.age ? parseInt(body.age) : null,
       bio: body.bio ?? null,

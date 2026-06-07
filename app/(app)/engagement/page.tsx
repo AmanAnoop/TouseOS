@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/hooks/use-org";
 import { PageHeader } from "@/components/ui";
 import { EngagementDashboard, type EngagementMember, type EngagementEvent } from "@/components/engagement/engagement-dashboard";
 import { isGreekOrg } from "@/lib/utils";
@@ -10,8 +10,7 @@ const BONDING_TYPES = ["brotherhood", "sisterhood"];
 const SEMESTER_GOAL = 4;
 
 export default function EngagementPage() {
-  const supabase = createClient();
-  const [orgType, setOrgType] = useState("");
+  const { orgId, orgType } = useOrg();
   const [members, setMembers] = useState<EngagementMember[]>([]);
   const [events, setEvents] = useState<EngagementEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,22 +23,29 @@ export default function EngagementPage() {
     semesterStart.setMonth(semesterStart.getMonth() - 4);
 
     const [membersRes, eventsRes] = await Promise.all([
-      supabase.from("member_profiles").select("id, full_name").eq("org_id", oid).eq("membership_status", "active").order("full_name"),
-      supabase.from("events").select("id, title, type, starts_at").eq("org_id", oid).in("type", BONDING_TYPES).gte("starts_at", semesterStart.toISOString()).order("starts_at"),
+      fetch(`/api/members?org_id=${encodeURIComponent(oid)}&scope=roster`),
+      fetch(`/api/events?org_id=${encodeURIComponent(oid)}`),
     ]);
 
-    const memberList = (membersRes.data ?? []) as Array<{ id: string; full_name: string }>;
-    const eventList = (eventsRes.data ?? []) as Array<{ id: string; title: string; type: string; starts_at: string }>;
+    const allMembers = membersRes.ok ? ((await membersRes.json()) as Array<{ id: string; full_name: string; membership_status: string }>) : [];
+    const memberList = allMembers
+      .filter((m) => m.membership_status === "active" || m.membership_status === "new_member")
+      .map((m) => ({ id: m.id, full_name: m.full_name }));
+    const allEvents = eventsRes.ok ? ((await eventsRes.json()) as Array<{ id: string; title: string; type: string; starts_at: string }>) : [];
+    const eventList = allEvents
+      .filter((e) => BONDING_TYPES.includes(e.type) && new Date(e.starts_at) >= semesterStart)
+      .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
     const eventIds = eventList.map((e) => e.id);
 
     let rsvps: Array<{ member_id: string | null; event_id: string; checked_in: boolean }> = [];
     if (eventIds.length > 0) {
-      const { data } = await supabase
-        .from("event_rsvps")
-        .select("member_id, event_id, checked_in")
-        .in("event_id", eventIds)
-        .eq("checked_in", true);
-      rsvps = (data ?? []) as typeof rsvps;
+      const rsvpRes = await fetch(
+        `/api/events/rsvps?org_id=${encodeURIComponent(oid)}&event_ids=${eventIds.join(",")}&checked_in=true`,
+      );
+      if (rsvpRes.ok) {
+        const payload = await rsvpRes.json();
+        rsvps = (payload.rsvps ?? []) as typeof rsvps;
+      }
     }
 
     const pastEvents = eventList.filter((e) => new Date(e.starts_at) < new Date());
@@ -56,51 +62,38 @@ export default function EngagementPage() {
       };
     });
 
-    const engagementEvents: EngagementEvent[] = await Promise.all(
-      eventList.map(async (e) => {
-        const { count } = await supabase
-          .from("event_rsvps")
-          .select("id", { count: "exact", head: true })
-          .eq("event_id", e.id)
-          .eq("status", "going");
-        return {
-          id: e.id,
-          title: e.title,
-          type: e.type,
-          starts_at: e.starts_at,
-          attendeeCount: count ?? 0,
-        };
-      }),
-    );
+    let counts: Record<string, { going: number }> = {};
+    if (eventIds.length > 0) {
+      const countRes = await fetch(
+        `/api/events/rsvps?org_id=${encodeURIComponent(oid)}&event_ids=${eventIds.join(",")}`,
+      );
+      if (countRes.ok) {
+        const payload = await countRes.json();
+        counts = payload.counts ?? {};
+      }
+    }
+    const engagementEvents: EngagementEvent[] = eventList.map((e) => ({
+      id: e.id,
+      title: e.title,
+      type: e.type,
+      starts_at: e.starts_at,
+      attendeeCount: counts[e.id]?.going ?? 0,
+    }));
 
     setMembers(engagementMembers);
     setEvents(engagementEvents);
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: m } = await supabase
-        .from("org_members")
-        .select("org_id, organizations(type)")
-        .eq("user_id", user.id)
-        .limit(1)
-        .single();
-      if (m) {
-const type = String(((m.organizations as unknown) as Record<string, unknown>)?.type ?? "");
-        setOrgType(type);
-        if (isGreekOrg(type)) load(m.org_id);
-        else setLoading(false);
-      }
-    }
-    init();
-  }, [supabase, load]);
+    if (!orgId) return;
+    if (isGreekOrg(orgType)) load(orgId);
+    else setLoading(false);
+  }, [orgId, orgType, load]);
 
   if (!loading && orgType && !isGreekOrg(orgType)) {
     return (
-      <div className="space-y-5">
+      <div className="ds-page-stack">
         <PageHeader title="Brotherhood & Sisterhood Engagement" description="Greek chapter feature" />
         <p className="text-sm text-muted-foreground">Engagement tracking is available for fraternity and sorority organizations.</p>
       </div>
@@ -108,7 +101,7 @@ const type = String(((m.organizations as unknown) as Record<string, unknown>)?.t
   }
 
   return (
-    <div className="space-y-5">
+    <div className="ds-page-stack">
       <PageHeader
         title={`${orgLabel} Engagement`}
         description="Track bonding event participation and semester goals"
@@ -121,6 +114,7 @@ const type = String(((m.organizations as unknown) as Record<string, unknown>)?.t
           events={events}
           semesterGoal={SEMESTER_GOAL}
           orgLabel={orgLabel}
+          orgType={orgType ?? "fraternity"}
         />
       )}
     </div>

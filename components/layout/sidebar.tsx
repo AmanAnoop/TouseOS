@@ -2,89 +2,139 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import {
-  Bell, BookOpen, Building, Calendar, ChevronDown,
-  ClipboardList, DollarSign, FileText, Heart, Home, Image,
-  LogOut, MessageSquare, Moon, Plus, Settings, Shield,
-  Sun, Trophy, Users, Warehouse, X, Zap,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronDown, LogOut, PanelLeft, Plus, Settings, X } from "lucide-react";
+import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { Avatar } from "@/components/ui";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { useUnreadNotifications } from "@/hooks/use-unread-notifications";
 import type { Organization, Profile } from "@/types";
-
-interface NavItem {
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  badge?: number;
-  section?: string;
-  orgTypes?: string[];
-}
-
-function NavLink({ item, active, collapsed }: { item: NavItem; active: boolean; collapsed: boolean }) {
-  return (
-    <Link
-      href={item.href}
-      className={cn(
-        "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
-        active
-          ? "bg-greek-50 text-greek-700 font-medium dark:bg-greek-950/50 dark:text-greek-400"
-          : "text-muted-foreground hover:bg-surface-1 hover:text-foreground",
-        collapsed && "justify-center px-2",
-      )}
-    >
-      <span className="w-5 h-5 flex-shrink-0">{item.icon}</span>
-      {!collapsed && (
-        <>
-          <span className="flex-1 truncate">{item.label}</span>
-          {item.badge !== undefined && item.badge > 0 && (
-            <span className="text-xs bg-greek-600 text-white rounded-full px-1.5 py-0.5 leading-none">
-              {item.badge}
-            </span>
-          )}
-        </>
-      )}
-    </Link>
-  );
-}
+import { getProductId, productHomePath } from "@/lib/org-product";
+import { userFacingProductName } from "@/lib/user-facing-product";
+import { homePathForOrgType } from "@/lib/resolve-home";
+import { buildSidebarNavigation } from "@/lib/sidebar-navigation";
+import { SidebarNavLink } from "@/components/layout/sidebar-nav-link";
+import { SidebarEditorModal } from "@/components/layout/sidebar-editor-modal";
+import { pickReadableTextColor } from "@/lib/color-utils";
+import {
+  applySidebarPreferences,
+  EMPTY_SIDEBAR_PRODUCT_PREFS,
+  getProductSidebarPrefs,
+  type SidebarProductPreferences,
+} from "@/lib/sidebar-preferences";
+import { SIDEBAR_PREFS_UPDATED_EVENT } from "@/components/layout/sidebar-editor-panel";
+import { orgBrandMark } from "@/lib/org-brand-mark";
 
 interface SidebarProps {
   org: Organization | null;
   orgs: Organization[];
   profile: Profile | null;
   orgType: string;
+  featureFlags?: Record<string, boolean>;
   onClose?: () => void;
   mobile?: boolean;
 }
 
-export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: SidebarProps) {
+export function Sidebar({ org, orgs, profile, orgType, featureFlags, onClose, mobile }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const supabase = createClient();
-  const [dark, setDark] = useState(false);
+  const [switchingOrg, setSwitchingOrg] = useState(false);
   const [orgOpen, setOrgOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const [platformAdmin, setPlatformAdmin] = useState(false);
+  const [universityAdmin, setUniversityAdmin] = useState(false);
+  const [sidebarPrefs, setSidebarPrefs] = useState<SidebarProductPreferences | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
   const { count: unreadCount } = useUnreadNotifications();
+  const supabase = createClient();
 
-  const isSports = orgType === "club_sports";
-  const isGreek = orgType === "fraternity" || orgType === "sorority";
+  const product = getProductId(orgType);
+  const activeBrandMark = org ? orgBrandMark(org) : null;
+  const hasGreekMembership = orgs.some(
+    (o) => o.type === "fraternity" || o.type === "sorority",
+  );
+
+  const defaultSections = useMemo(
+    () =>
+      buildSidebarNavigation(product, {
+        unreadCount,
+        hasGreekMembership,
+        platformAdmin,
+        universityAdmin,
+        featureFlags,
+      }),
+    [product, unreadCount, hasGreekMembership, platformAdmin, universityAdmin, featureFlags],
+  );
+
+  const sections = useMemo(
+    () => applySidebarPreferences(defaultSections, sidebarPrefs, product),
+    [defaultSections, sidebarPrefs, product],
+  );
+
+  const loadSidebarPrefs = useMemo(
+    () => async () => {
+      try {
+        const res = await fetch(`/api/account/sidebar?product=${encodeURIComponent(product)}`);
+        if (!res.ok) {
+          setSidebarPrefs({ ...EMPTY_SIDEBAR_PRODUCT_PREFS });
+          return;
+        }
+        const data = await res.json();
+        setSidebarPrefs(getProductSidebarPrefs(data.all ?? {}, product));
+      } catch {
+        setSidebarPrefs({ ...EMPTY_SIDEBAR_PRODUCT_PREFS });
+      }
+    },
+    [product],
+  );
 
   useEffect(() => {
-    const pref = localStorage.getItem("theme");
-    const isDark = pref === "dark" || (!pref && window.matchMedia("(prefers-color-scheme: dark)").matches);
-    setDark(isDark);
-    document.documentElement.classList.toggle("dark", isDark);
+    fetch("/api/platform-admin/check")
+      .then((r) => r.json())
+      .then((d) => setPlatformAdmin(Boolean(d.ok)))
+      .catch(() => setPlatformAdmin(false));
+    fetch("/api/university-admin/check")
+      .then((r) => r.json())
+      .then((d) => setUniversityAdmin(Boolean(d.ok)))
+      .catch(() => setUniversityAdmin(false));
   }, []);
 
-  function toggleDark() {
-    const next = !dark;
-    setDark(next);
-    document.documentElement.classList.toggle("dark", next);
-    localStorage.setItem("theme", next ? "dark" : "light");
+  useEffect(() => {
+    loadSidebarPrefs();
+  }, [loadSidebarPrefs]);
+
+  useEffect(() => {
+    function onPrefsUpdated(event: Event) {
+      const detail = (event as CustomEvent<{ product?: string }>).detail;
+      if (!detail?.product || detail.product === product) {
+        loadSidebarPrefs();
+      }
+    }
+    window.addEventListener(SIDEBAR_PREFS_UPDATED_EVENT, onPrefsUpdated);
+    return () => window.removeEventListener(SIDEBAR_PREFS_UPDATED_EVENT, onPrefsUpdated);
+  }, [product, loadSidebarPrefs]);
+
+  async function switchOrg(target: Organization) {
+    if (target.id === org?.id || switchingOrg) return;
+    setSwitchingOrg(true);
+    try {
+      const res = await fetch("/api/org/switch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orgId: target.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error ?? "Could not switch organization");
+        return;
+      }
+      setOrgOpen(false);
+      router.push(data.redirectTo ?? homePathForOrgType(target.type));
+      router.refresh();
+    } finally {
+      setSwitchingOrg(false);
+    }
   }
 
   async function signOut() {
@@ -92,153 +142,156 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
     router.push("/login");
   }
 
-  const coreNav: NavItem[] = [
-    { href: "/dashboard", label: "Dashboard", icon: <Home size={18} /> },
-    { href: "/health", label: "Health Score", icon: <Heart size={18} /> },
-    { href: "/roster", label: isSports ? "Team Roster" : "Member Roster", icon: <Users size={18} /> },
-    { href: "/events", label: "Events", icon: <Calendar size={18} /> },
-    { href: "/payments", label: "Dues & Payments", icon: <DollarSign size={18} /> },
-    { href: "/reimbursements", label: "Reimbursements", icon: <DollarSign size={18} /> },
-    { href: "/budget", label: "Budget & Finance", icon: <BookOpen size={18} /> },
-    { href: "/tasks", label: "Tasks", icon: <ClipboardList size={18} /> },
-    { href: "/documents", label: "Documents", icon: <FileText size={18} /> },
-    { href: "/forms", label: "Forms & Waivers", icon: <ClipboardList size={18} /> },
-    { href: "/governance", label: "Governance", icon: <BookOpen size={18} /> },
-    { href: "/attendance-points", label: "Points System", icon: <Trophy size={18} /> },
-    { href: "/engagement", label: "Engagement", icon: <Heart size={18} /> },
-    { href: "/comms", label: "Communications", icon: <MessageSquare size={18} /> },
-    { href: "/feed", label: "Chapter Feed", icon: <Zap size={18} /> },
-  ];
-
-  const greekNav: NavItem[] = [
-    { href: "/pnm", label: "PNM Recruitment", icon: <Zap size={18} /> },
-    { href: "/big-little", label: "Big/Little", icon: <Heart size={18} /> },
-    { href: "/social", label: "Touse Social", icon: <Image size={18} /> },
-    { href: "/social-calendar", label: "Social Calendar", icon: <Calendar size={18} /> },
-    { href: "/social-assets", label: "Asset Library", icon: <Image size={18} /> },
-    { href: "/risk", label: "Risk Management", icon: <Shield size={18} /> },
-    { href: "/nme", label: "New Members", icon: <BookOpen size={18} /> },
-    { href: "/standards", label: "Standards", icon: <ClipboardList size={18} /> },
-    { href: "/housing", label: "Housing", icon: <Warehouse size={18} /> },
-    { href: "/alumni", label: "Alumni CRM", icon: <Users size={18} /> },
-    { href: "/philanthropy", label: "Philanthropy", icon: <Building size={18} /> },
-    { href: "/interchapter", label: "ExecLink", icon: <Zap size={18} /> },
-    { href: "/event-memories", label: "Memories", icon: <Calendar size={18} /> },
-  ];
-
-  const sportsNav: NavItem[] = [
-    { href: "/tryouts", label: "Tryouts", icon: <Trophy size={18} /> },
-    { href: "/tournaments", label: "Tournaments", icon: <Trophy size={18} /> },
-    { href: "/standings", label: "League Standings", icon: <Trophy size={18} /> },
-    { href: "/social", label: "Photos & Social", icon: <Image size={18} /> },
-    { href: "/yearbook", label: "Yearbook", icon: <BookOpen size={18} /> },
-    { href: "/waivers", label: "Waivers & Compliance", icon: <Shield size={18} /> },
-    { href: "/travel", label: "Travel Management", icon: <Building size={18} /> },
-    { href: "/equipment", label: "Equipment & Uniforms", icon: <Warehouse size={18} /> },
-    { href: "/injuries", label: "Injury Reports", icon: <ClipboardList size={18} /> },
-    { href: "/coaches", label: "Coaching Tools", icon: <Trophy size={18} /> },
-    { href: "/philanthropy", label: "Fundraising", icon: <DollarSign size={18} /> },
-  ];
-
-  const profileNav: NavItem[] = [
-    { href: "/profile", label: "My Profile", icon: <Users size={18} /> },
-    { href: "/account", label: "Account & Security", icon: <Settings size={18} /> },
-    { href: "/notifications", label: "Notifications", icon: <Bell size={18} />, badge: unreadCount },
-    ...(isGreek && org ? [{ href: "/greekmatch", label: "💚 GreekMatch", icon: <Heart size={18} /> }] : []),
-  ];
-
-  const bottomNav: NavItem[] = [
-    { href: "/reports", label: "Reports", icon: <FileText size={18} /> },
-    { href: "/transition", label: "Officer Binder", icon: <BookOpen size={18} /> },
-    { href: "/vendors", label: "Vendor Memory", icon: <Building size={18} /> },
-    { href: "/ai-assistant", label: "AI Assistant ✨", icon: <Zap size={18} /> },
-    { href: "/admin", label: "Admin Dashboard", icon: <Settings size={18} /> },
-    { href: "/settings", label: "Settings", icon: <Settings size={18} /> },
-  ];
-
-  const featureNav = isGreek ? greekNav : isSports ? sportsNav : [];
+  function isActive(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
 
   return (
-    <aside
-      className={cn(
-        "flex flex-col h-full bg-card border-r border-border",
-        collapsed ? "w-16" : "w-64",
-        "transition-[width] duration-200",
-      )}
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-border min-h-[60px]">
-        {!collapsed && (
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-md bg-greek-600 flex items-center justify-center text-white font-bold text-xs">
-              TO
-            </div>
-            <span className="font-bold text-sm text-foreground">TouseOS</span>
-          </Link>
+    <aside className="ds-sidebar h-full">
+      <div className="ds-sidebar-logo">
+        <Link
+          href={productHomePath(product)}
+          className="flex items-center gap-3"
+          style={{ gap: 12, textDecoration: "none", color: "var(--color-sidebar-text)" }}
+        >
+          <div
+            className="ds-brand-mark flex items-center justify-center"
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 6,
+              fontSize: 11,
+              fontWeight: 600,
+            }}
+          >
+            {product === "sports" ? "SP" : product === "club" ? "CL" : "TO"}
+          </div>
+          <span style={{ fontSize: 14, fontWeight: 500 }}>{userFacingProductName(product)}</span>
+        </Link>
+        {mobile && onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="ds-btn ds-btn-ghost ds-btn-icon"
+            style={{ marginLeft: "auto", color: "rgba(247,246,243,0.65)" }}
+            aria-label="Close menu"
+          >
+            <X size={16} />
+          </button>
         )}
-        <div className="flex items-center gap-1 ml-auto">
-          {mobile && (
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground"
-            >
-              <X size={18} />
-            </button>
-          )}
-          {!mobile && (
-            <button
-              onClick={() => setCollapsed(!collapsed)}
-              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hidden lg:flex"
-            >
-              <ChevronDown
-                size={16}
-                className={cn("transition-transform", collapsed ? "rotate-270" : "rotate-90")}
-              />
-            </button>
-          )}
-        </div>
       </div>
 
-      {/* Org switcher */}
-      {!collapsed && org && (
-        <div className="px-3 py-2 border-b border-border">
+      {org && (
+        <div style={{ padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
           <button
+            type="button"
             onClick={() => setOrgOpen(!orgOpen)}
-            className="w-full flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-surface-1 transition-colors text-left"
+            className="w-full flex items-center gap-3 text-left"
+            style={{
+              gap: 12,
+              padding: "8px",
+              borderRadius: 6,
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              color: "var(--color-sidebar-text)",
+            }}
           >
             <div
-              className="w-7 h-7 rounded-md flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-              style={{ background: org.primary_color }}
+              className="ds-brand-mark"
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 6,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: activeBrandMark?.fontSize ?? 11,
+                fontWeight: 600,
+                flexShrink: 0,
+                lineHeight: 1,
+              }}
             >
-              {org.name.slice(0, 2).toUpperCase()}
+              {activeBrandMark?.label}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-foreground truncate">{org.name}</p>
-              <p className="text-xs text-muted-foreground capitalize">{org.type.replace("_", " ")}</p>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <p style={{ fontSize: 12, fontWeight: 500, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {org.name}
+              </p>
+              <p style={{ fontSize: 11, margin: 0, opacity: 0.5 }}>{org.campus ?? userFacingProductName(product)}</p>
             </div>
-            <ChevronDown size={14} className={cn("text-muted-foreground transition-transform flex-shrink-0", orgOpen && "rotate-180")} />
+            <ChevronDown
+              size={14}
+              style={{
+                opacity: 0.5,
+                transform: orgOpen ? "rotate(180deg)" : "none",
+                transition: "transform 120ms ease",
+              }}
+            />
           </button>
           {orgOpen && (
-            <div className="mt-1 border border-border rounded-lg overflow-hidden bg-card shadow-card-md">
+            <div
+              style={{
+                marginTop: 8,
+                borderRadius: 6,
+                border: "1px solid rgba(255,255,255,0.08)",
+                overflow: "hidden",
+              }}
+            >
               {orgs.map((o) => (
-                <Link
+                <button
                   key={o.id}
-                  href={`/org/${o.id}/dashboard`}
-                  className="flex items-center gap-2 px-3 py-2 hover:bg-surface-1 text-sm"
-                  onClick={() => setOrgOpen(false)}
+                  type="button"
+                  disabled={switchingOrg}
+                  onClick={() => switchOrg(o)}
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "8px 12px",
+                    fontSize: 13,
+                    background: o.id === org.id ? "rgba(255,255,255,0.06)" : "transparent",
+                    border: "none",
+                    color: "var(--color-sidebar-text)",
+                    cursor: "pointer",
+                    textAlign: "left",
+                  }}
                 >
-                  <div
-                    className="w-6 h-6 rounded flex items-center justify-center text-white text-xs font-bold"
-                    style={{ background: o.primary_color }}
+                  <span
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 4,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: orgBrandMark(o).fontSize ?? 10,
+                      fontWeight: 600,
+                      lineHeight: 1,
+                      background: o.primary_color ?? "var(--color-org-primary)",
+                      color: pickReadableTextColor(o.primary_color ?? "#500000"),
+                    }}
                   >
-                    {o.name.slice(0, 1)}
-                  </div>
-                  <span className="truncate">{o.name}</span>
-                </Link>
+                    {orgBrandMark(o).label}
+                  </span>
+                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {o.name}
+                  </span>
+                </button>
               ))}
               <Link
                 href="/onboarding/create-org"
-                className="flex items-center gap-2 px-3 py-2 hover:bg-surface-1 text-sm text-muted-foreground border-t border-border"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "8px 12px",
+                  fontSize: 13,
+                  color: "rgba(247,246,243,0.65)",
+                  textDecoration: "none",
+                  borderTop: "1px solid rgba(255,255,255,0.06)",
+                }}
               >
                 <Plus size={14} />
                 New organization
@@ -248,81 +301,82 @@ export function Sidebar({ org, orgs, profile, orgType, onClose, mobile }: Sideba
         </div>
       )}
 
-      {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-2 px-2 scrollbar-hide">
-        {coreNav.map((item) => (
-          <NavLink key={item.href} item={item} active={pathname === item.href || pathname.startsWith(item.href + "/")} collapsed={collapsed} />
-        ))}
-
-        {profileNav.length > 0 && (
-          <>
-            {!collapsed && (
-              <div className="px-3 pt-4 pb-1">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">You</p>
-              </div>
-            )}
-            {profileNav.map((item) => (
-              <NavLink key={item.href} item={item} active={pathname === item.href || pathname.startsWith(item.href + "/")} collapsed={collapsed} />
+      <nav className="scrollbar-hide flex-1 overflow-y-auto py-8">
+        {sections.map((section) => (
+          <div key={section.id}>
+            <p className="ds-sidebar-section-label">{section.title}</p>
+            {section.items.map((item) => (
+              <SidebarNavLink
+                key={`${section.id}-${item.href}`}
+                item={item}
+                active={isActive(item.href)}
+              />
             ))}
-          </>
-        )}
-
-                {featureNav.length > 0 && (
-          <>
-            {!collapsed && (
-              <div className="px-3 pt-4 pb-1">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  {isGreek ? "Greek Life" : "SportsOS"}
-                </p>
-              </div>
-            )}
-            {featureNav.map((item) => (
-              <NavLink key={item.href} item={item} active={pathname === item.href || pathname.startsWith(item.href + "/")} collapsed={collapsed} />
-            ))}
-          </>
-        )}
-
-        {!collapsed && (
-          <div className="px-3 pt-4 pb-1">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Admin
-            </p>
           </div>
-        )}
-        {bottomNav.map((item) => (
-          <NavLink key={item.href} item={item} active={pathname === item.href || pathname.startsWith(item.href + "/")} collapsed={collapsed} />
         ))}
       </nav>
 
-      {/* Footer */}
-      <div className="border-t border-border p-3 flex flex-col gap-1">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={toggleDark}
-            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-1"
-            aria-label="Toggle theme"
+      <div className="ds-sidebar-footer">
+        <ThemeToggle variant="sidebar" />
+        <NotificationBell
+          className="ds-btn ds-btn-ghost ds-btn-icon"
+          iconSize={16}
+        />
+        <button
+          type="button"
+          onClick={() => setEditorOpen(true)}
+          className="ds-btn ds-btn-ghost ds-btn-icon"
+          style={{ color: "rgba(247,246,243,0.65)" }}
+          aria-label="Customize sidebar"
+        >
+          <PanelLeft size={16} />
+        </button>
+        <Link
+          href="/settings?tab=navigation"
+          className="ds-btn ds-btn-ghost ds-btn-icon"
+          style={{ color: "rgba(247,246,243,0.65)" }}
+          aria-label="Settings"
+        >
+          <Settings size={16} />
+        </Link>
+        {profile && (
+          <Link
+            href="/profile"
+            className="flex items-center gap-2 flex-1 min-w-0"
+            style={{ textDecoration: "none", color: "var(--color-sidebar-text)" }}
           >
-            {dark ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
-          <NotificationBell />
-          {!collapsed && (
-            <button
-              onClick={signOut}
-              className="ml-auto p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-1"
+            <Avatar name={profile.full_name || "User"} src={profile.avatar_url} size="sm" variant="chrome" />
+            <span
+              style={{
+                fontSize: 12,
+                fontWeight: 500,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
             >
-              <LogOut size={16} />
-            </button>
-          )}
-        </div>
-        {!collapsed && profile && (
-          <Link href="/profile" className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-surface-1 transition-colors">
-            <Avatar name={profile.full_name || "User"} src={profile.avatar_url} size="sm" />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-foreground truncate">{profile.full_name}</p>
-            </div>
+              {profile.full_name}
+            </span>
           </Link>
         )}
+        <button
+          type="button"
+          onClick={signOut}
+          className="ds-btn ds-btn-ghost ds-btn-icon"
+          style={{ color: "rgba(247,246,243,0.65)" }}
+          aria-label="Sign out"
+        >
+          <LogOut size={16} />
+        </button>
       </div>
+
+      <SidebarEditorModal
+        open={editorOpen}
+        onClose={() => setEditorOpen(false)}
+        product={product}
+        unreadCount={unreadCount}
+        hasGreekMembership={hasGreekMembership}
+      />
     </aside>
   );
 }
