@@ -223,12 +223,15 @@ export async function awardCheckInPoints(params: {
     ?? eventRow?.title
     ?? eventType.replace(/_/g, " ");
 
+  const category = eventRow?.point_category?.trim() || null;
+
   const { error } = await supabase.from("member_point_entries").insert({
     org_id: orgId,
     member_id: memberId,
     event_id: eventId,
     points,
     reason: `Checked in: ${label}`,
+    category,
     entry_type: "earned",
     created_by: createdBy ?? null,
   });

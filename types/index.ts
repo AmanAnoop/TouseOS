@@ -148,6 +148,8 @@ export interface Event {
   is_point_opportunity?: boolean;
   point_value?: number | null;
   point_category?: string | null;
+  point_gate_min?: number | null;
+  point_gate_category?: string | null;
   created_at: string;
   updated_at: string;
 }
