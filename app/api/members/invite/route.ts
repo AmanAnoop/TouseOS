@@ -70,7 +70,7 @@ export async function POST(request: Request) {
     let smsSent = false;
     if (smsAllowed && targetPhone) {
       const smsBody = `You're invited to join ${org?.name ?? "the chapter"} on TouseOS. Join here: ${joinLink}`;
-      const smsResult = await sendSms(targetPhone, smsBody);
+      const smsResult = await sendSms(targetPhone, smsBody, { orgName: org?.name ?? undefined });
       smsSent = smsResult.status !== "failed";
       if (smsSent) smsSentCount += 1;
     }

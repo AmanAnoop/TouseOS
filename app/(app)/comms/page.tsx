@@ -17,7 +17,7 @@ import { can } from "@/lib/permissions";
 import { useOrg } from "@/hooks/use-org";
 
 export default function CommsPage() {
-  const { orgId, role, loading: orgLoading } = useOrg();
+  const { orgId, orgName, role, loading: orgLoading } = useOrg();
   const canManageComms = can(role, "send_mass_texts");
   const [tab, setTab] = useState("announcements");
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -267,6 +267,9 @@ export default function CommsPage() {
           )}
           <p className="text-sm text-muted-foreground mb-3">
             Quiet hours (9pm–9am) apply. Members must have a phone number on their roster profile.
+            {orgName ? (
+              <> Messages are sent as <span className="font-medium text-foreground">{orgName}: your text</span> — edit the chapter name in Settings → Profile.</>
+            ) : null}
           </p>
           <Button size="sm" onClick={() => setSmsOpen(true)} disabled={twilioLive === false}>
             Compose SMS blast
@@ -282,6 +285,11 @@ export default function CommsPage() {
       }>
         <div className="space-y-3">
           <Textarea label="Message" value={smsDraft.body} onChange={(e) => setSmsDraft({ ...smsDraft, body: e.target.value })} placeholder="Chapter meeting tomorrow at 7pm..." />
+          {orgName && smsDraft.body.trim() && (
+            <p className="text-xs text-muted-foreground rounded-lg bg-surface-1 p-2">
+              Preview: <span className="text-foreground">{orgName}: {smsDraft.body.trim()} Reply STOP to opt out.</span>
+            </p>
+          )}
           <Alert type="warning" title="Only members with phone numbers receive SMS. PNM texting remains on the PNM page with consent tracking." />
         </div>
       </Modal>

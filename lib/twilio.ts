@@ -1,5 +1,6 @@
 import twilio from "twilio";
 import { isTwilioConfigured } from "@/lib/integrations";
+import { formatChapterSms } from "@/lib/sms-branding";
 import { getPlatformSecretSync, ensurePlatformSecretsLoaded } from "@/lib/platform-secrets";
 
 let twilioClient: ReturnType<typeof twilio> | null = null;
@@ -33,6 +34,7 @@ export interface SendSmsResult {
 export async function sendSms(
   to: string,
   body: string,
+  opts?: { orgName?: string },
 ): Promise<SendSmsResult> {
   await ensurePlatformSecretsLoaded();
   const client = getTwilioClient();
@@ -44,8 +46,10 @@ export async function sendSms(
     };
   }
 
+  const brandedBody = formatChapterSms(body, opts?.orgName);
+
   try {
-    const msg = await client.messages.create({ ...messageFrom(), to, body });
+    const msg = await client.messages.create({ ...messageFrom(), to, body: brandedBody });
     return { sid: msg.sid, status: msg.status };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
@@ -57,6 +61,7 @@ export async function sendMassSms(
   recipients: Array<{ phone: string; name: string }>,
   body: string,
   templateVars?: Record<string, string>,
+  opts?: { orgName?: string },
 ): Promise<SendSmsResult[]> {
   if (!isTwilioConfigured()) {
     return recipients.map(() => ({
@@ -80,7 +85,7 @@ export async function sendMassSms(
     }
     personalizedBody = personalizedBody.replace("{{name}}", recipient.name);
 
-    const result = await sendSms(recipient.phone, personalizedBody);
+    const result = await sendSms(recipient.phone, personalizedBody, opts);
     results.push(result);
 
     await new Promise((r) => setTimeout(r, 10));

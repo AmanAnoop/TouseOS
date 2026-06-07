@@ -13,17 +13,14 @@ function taskSmsBody(opts: {
   title: string;
   dueDate?: string | null;
   priority?: string;
-  orgName?: string;
 }): string {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "";
   const due = opts.dueDate ? ` Due ${opts.dueDate}.` : "";
-  const org = opts.orgName ? `${opts.orgName}: ` : "";
   const link = appUrl ? ` ${appUrl}/tasks` : "";
   return (
-    `${org}New task: "${opts.title}".${due}`
+    `New task: "${opts.title}".${due}`
     + (opts.priority && opts.priority !== "medium" ? ` Priority: ${opts.priority}.` : "")
     + link
-    + " Reply STOP to opt out."
   ).trim();
 }
 
@@ -117,10 +114,10 @@ export async function notifyTaskAssigneesViaSms(
     title: params.title,
     dueDate: params.dueDate,
     priority: params.priority,
-    orgName: orgRow?.name ? String(orgRow.name) : undefined,
   });
+  const orgName = orgRow?.name ? String(orgRow.name) : undefined;
 
-  const results = await sendMassSms(recipients, body);
+  const results = await sendMassSms(recipients, body, undefined, { orgName });
   const sent = results.filter((r) => r.status !== "failed" && !r.error).length;
   const failed = results.length - sent;
 

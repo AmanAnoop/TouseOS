@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getAudienceMembers, sendBulkEmail, textToHtml } from "@/lib/email";
 import { isTwilioConfigured } from "@/lib/integrations";
 import { sendMassSms, isWithinQuietHours } from "@/lib/twilio";
+import { getOrgSmsDisplayName } from "@/lib/sms-branding";
 
 export interface ScheduledMessageRow {
   id: string;
@@ -92,7 +93,8 @@ export async function processDueScheduledMessages(
           continue;
         }
 
-        await sendMassSms(recipients, msg.body);
+        const orgName = await getOrgSmsDisplayName(supabase, msg.org_id);
+        await sendMassSms(recipients, msg.body, undefined, { orgName });
         await supabase.from("audit_logs").insert({
           org_id: msg.org_id,
           actor_id: msg.created_by,

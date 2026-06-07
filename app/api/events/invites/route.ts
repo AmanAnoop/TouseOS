@@ -4,6 +4,7 @@ import { can, type RoleName } from "@/lib/permissions";
 import { generatePnmInviteToken, pnmInviteUrl } from "@/lib/pnm-invite";
 import { isTwilioConfigured } from "@/lib/integrations";
 import { sendSms, isWithinQuietHours } from "@/lib/twilio";
+import { getOrgSmsDisplayName } from "@/lib/sms-branding";
 
 async function roleForOrg(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -123,6 +124,7 @@ export async function POST(request: Request) {
       .in("pnm_id", toAdd);
 
     const tokenByPnm = new Map((newInvites ?? []).map((i) => [i.pnm_id, i.invite_token]));
+    const orgName = await getOrgSmsDisplayName(supabase, orgId);
     const eventTitle = String(event?.title ?? "chapter event");
     const when = event?.starts_at
       ? new Date(String(event.starts_at)).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
@@ -134,7 +136,7 @@ export async function POST(request: Request) {
       if (!token) continue;
       const link = pnmInviteUrl(token);
       const body = `Hi ${lead.full_name.split(" ")[0]}, you're invited to ${eventTitle}${when ? ` on ${when}` : ""}. RSVP: ${link}`;
-      const result = await sendSms(lead.phone, body);
+      const result = await sendSms(lead.phone, body, { orgName });
       if (result.status !== "failed") smsSent += 1;
     }
   }
