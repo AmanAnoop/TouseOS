@@ -22,7 +22,7 @@ export interface ProductDepthReport {
   categories: Array<{ id: string; label: string; percent: number; remaining: number }>;
 }
 
-const MIGRATION_LATEST = "057";
+const MIGRATION_LATEST = "058";
 
 function keyConfigured(key: string): boolean {
   return Boolean(process.env[key]?.trim());

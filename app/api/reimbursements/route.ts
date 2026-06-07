@@ -6,8 +6,7 @@ import {
   buildReimbursementUpdates,
   type ReimbursementApprovalInput,
 } from "@/lib/reimbursement-approval";
-
-const PRESIDENT_ROLES: RoleName[] = ["owner", "president"];
+import { EXECUTIVE_APPROVAL_ROLES } from "@/lib/finance-access";
 
 async function membershipForOrg(supabase: Awaited<ReturnType<typeof createClient>>, userId: string, orgId: string) {
   const { data } = await supabase
@@ -135,8 +134,8 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  if (approvalType === "president" && !PRESIDENT_ROLES.includes(role)) {
-    return NextResponse.json({ error: "President approval requires president or owner role" }, { status: 403 });
+  if (approvalType === "president" && !EXECUTIVE_APPROVAL_ROLES.includes(role)) {
+    return NextResponse.json({ error: "Executive approval requires president, VP, or owner role" }, { status: 403 });
   }
 
   const input: ReimbursementApprovalInput = { status, rejectionReason, approvalType };

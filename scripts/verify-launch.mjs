@@ -89,7 +89,7 @@ if (process.env.NODE_ENV === "production") {
   }
 }
 
-console.log("\nMigrations: apply supabase/migrations/001 through 057 in order.");
+console.log("\nMigrations: apply supabase/migrations/001 through 058 in order.");
 console.log("See supabase/APPLY_MIGRATIONS.md for the full table.");
 console.log("Ops endpoint after deploy: GET /api/ready\n");
 

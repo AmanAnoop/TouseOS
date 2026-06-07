@@ -3,8 +3,15 @@ import type { RoleName } from "@/lib/permissions";
 
 const FINANCE_ROLES: RoleName[] = ["owner", "president", "vice_president", "treasurer"];
 
+/** President-level sign-off (e.g. high reimbursement amounts). */
+export const EXECUTIVE_APPROVAL_ROLES: RoleName[] = ["owner", "president", "vice_president"];
+
 export function isFinanceOfficerRole(role: string | null | undefined): boolean {
   return FINANCE_ROLES.includes(role as RoleName);
+}
+
+export function canManageStripeConnect(role: string | null | undefined): boolean {
+  return isFinanceOfficerRole(role) || role === "advisor";
 }
 
 export async function getFinanceOfficerRole(

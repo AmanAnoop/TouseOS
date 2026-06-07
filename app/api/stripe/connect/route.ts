@@ -6,8 +6,7 @@ import {
   getConnectAccountStatus,
   isStripeConnectEnabled,
 } from "@/lib/stripe-connect";
-
-const OFFICER_ROLES = ["owner", "president", "treasurer", "advisor"];
+import { canManageStripeConnect } from "@/lib/finance-access";
 
 async function assertOfficer(orgId: string, userId: string) {
   const supabase = await createClient();
@@ -18,10 +17,7 @@ async function assertOfficer(orgId: string, userId: string) {
     .eq("user_id", userId)
     .neq("status", "removed")
     .maybeSingle();
-  if (!m || !OFFICER_ROLES.includes(String(m.role))) {
-    return false;
-  }
-  return true;
+  return Boolean(m && canManageStripeConnect(String(m.role)));
 }
 
 export async function GET(request: Request) {

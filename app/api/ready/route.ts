@@ -13,7 +13,7 @@ export async function GET() {
       env: readiness,
       migrations: {
         expected: "001 through 057 in supabase/migrations/",
-        latest: "057_finance_officer_rls.sql",
+        latest: "058_photo_notify_vp.sql",
         seedDeprecated: "005_seed.sql (demo removed — use 033_remove_demo_org.sql to clean old DBs)",
         doc: "supabase/APPLY_MIGRATIONS.md",
       },
