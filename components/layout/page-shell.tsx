@@ -4,6 +4,7 @@ interface PageShellProps {
   title: string;
   orgName?: string | null;
   breadcrumb?: string;
+  description?: string;
   action?: ReactNode;
   children: ReactNode;
   /** Dashboard-only 4px org accent bar */
@@ -17,6 +18,7 @@ export function PageShell({
   title,
   orgName,
   breadcrumb,
+  description,
   action,
   children,
   showDashboardAccent,
@@ -25,12 +27,13 @@ export function PageShell({
     <div className="ds-page-shell">
       {showDashboardAccent ? <div className="ds-dashboard-accent-bar" aria-hidden /> : null}
       <header className="ds-page-shell-header">
-        <div>
+        <div className="ds-page-shell-header-text">
           {breadcrumb ? <p className="ds-page-shell-breadcrumb">{breadcrumb}</p> : null}
           {orgName ? <p className="ds-page-header-org">{orgName}</p> : null}
-          <h1 className="type-h1" style={{ margin: 0 }}>{title}</h1>
+          <h1 className="type-h1 ds-page-shell-title">{title}</h1>
+          {description ? <p className="ds-page-shell-description">{description}</p> : null}
         </div>
-        {action ? <div style={{ flexShrink: 0 }}>{action}</div> : null}
+        {action ? <div className="ds-page-shell-header-action">{action}</div> : null}
       </header>
       <div className="ds-page-stack">{children}</div>
     </div>
